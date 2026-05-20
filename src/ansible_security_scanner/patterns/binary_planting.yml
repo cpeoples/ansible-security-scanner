@@ -1,0 +1,129 @@
+name: "Binary Planting & Execution Hijacking"
+author: "Ansible Security Scanner Team"
+description: "Detects techniques for replacing or shadowing legitimate system binaries with malicious versions"
+
+patterns:
+  - id: "binary_replace_system_path"
+    category: "binary_planting"
+    severity: "CRITICAL"
+    title: "System Binary Replacement"
+    description: "Copies or writes a file to system binary directories, potentially replacing a legitimate binary"
+    regex: "(?:dest|path):\\s*['\"]?/(?:usr/)?(?:s?bin|local/s?bin)/(?!README|LICENSE)\\w+['\"]?\\s*$"
+    positive_examples:
+      - "path: '/usr/bin/dummy1'"
+    recommendation: "System binaries should only be installed via package managers; audit this write carefully"
+    cwe: ['CWE-506', 'CWE-732']
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1036.005', 'T1574']
+    cis_controls: ['CIS-2.3', 'CIS-10.1']
+    nist_controls: ['AC-3', 'AC-6', 'SI-3', 'SI-7']
+    pci_dss: ['7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC6.8']
+
+  - id: "path_trojan_binary"
+    category: "binary_planting"
+    severity: "CRITICAL"
+    title: "Trojan Binary in Early PATH Directory"
+    description: "Places a binary in a directory that appears before system paths, shadowing legitimate commands"
+    regex: "(?:dest|path):\\s*['\"]?(?:/usr/local/bin|/usr/local/sbin)/(?:curl|wget|ssh|sudo|su|docker|kubectl|python|pip|git|ls|cat|netstat|ss|ps|find|grep|awk|sed)\\b"
+    positive_examples:
+      - "dest: '/usr/local/bin/docker-registry'"
+    recommendation: "Placing binaries that shadow common system commands is a trojan technique; investigate"
+    cwe: ['CWE-426', 'CWE-427']
+    owasp_appsec: ["A08:2021"]
+    mitre_attack: ['T1036.005', 'T1574.007']
+    cis_controls: ['CIS-2.3', 'CIS-10.1']
+    nist_controls: ['SI-3']
+    soc2: ['CC6.8']
+
+  - id: "alias_command_hijack"
+    category: "binary_planting"
+    severity: "HIGH"
+    title: "Shell Alias Command Hijacking"
+    description: "Creates shell aliases that override system commands, potentially intercepting sensitive input"
+    regex: "alias\\s+(?:sudo|su|ssh|docker|kubectl|mysql|psql|aws|gcloud|az)\\s*="
+    positive_examples:
+      - "alias sudo="
+    recommendation: "Aliases that shadow security-sensitive commands can intercept credentials"
+    no_ansible_remediation: true
+    cwe: ['CWE-506']
+    mitre_attack: ['T1546.004']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7']
+    pci_dss: ['2.2.1', '2.2.4']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "function_command_hijack"
+    category: "binary_planting"
+    severity: "HIGH"
+    title: "Shell Function Command Hijacking"
+    description: >-
+        Defines a shell function that shadows a system binary
+        (sudo/su/ssh/docker/kubectl/aws/gcloud/az). A planted function intercepts
+        privileged commands and is a classic persistence trick on shared shells.
+    regex: "(?:function\\s+(?:sudo|su|ssh|docker|kubectl|mysql|psql|aws|gcloud|az)|(?:sudo|su|ssh|docker|kubectl|mysql|psql|aws|gcloud|az)\\s*\\(\\s*\\))"
+    positive_examples:
+      - "and ``fail_json_aws()`` when passed an ``AnsibleAWSError`` exception (https://github.com/ansible-collections/amazon.aws/pull/1997)."
+    recommendation: "Shell functions that shadow system commands can intercept credentials and arguments"
+    no_ansible_remediation: true
+    cwe: ['CWE-506']
+    mitre_attack: ['T1546.004']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7']
+    pci_dss: ['2.2.1', '2.2.4']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "git_hook_injection"
+    category: "binary_planting"
+    severity: "HIGH"
+    title: "Git Hook Injection"
+    description: "Writes to git hook directories, which auto-execute on git operations"
+    regex: "(?:dest|path):\\s*['\"]?.*\\.git/hooks/(?:pre-commit|post-commit|pre-push|post-receive|pre-receive|update|post-merge)"
+    positive_examples:
+      - "dest:.git/hooks/pre-commit"
+    recommendation: "Git hooks execute automatically; ensure they come from trusted sources"
+    cwe: ['CWE-506', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1"]
+    mitre_attack: ['T1546', 'T1554']
+    cis_controls: ['CIS-16.1']
+    nist_controls: ['CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "pip_install_editable_path"
+    category: "binary_planting"
+    severity: "HIGH"
+    title: "pip Install from Local Editable Path"
+    description: "Installs a Python package in editable mode from a suspicious local path"
+    regex: "pip[23]?\\s+install\\s+(?:-e|--editable)\\s+(?:/tmp|/var/tmp|/dev/shm|\\{\\{)"
+    positive_examples:
+      - "pip install -e /tmp"
+    recommendation: "Editable pip installs from temp directories can inject malicious code"
+    cwe: ['CWE-494', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1059.006', 'T1195.002']
+    cis_controls: ['CIS-Supply-Chain']
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
+    pci_dss: ['6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "npm_global_install_untrusted"
+    category: "binary_planting"
+    severity: "HIGH"
+    title: "Global npm Install from Untrusted Source"
+    description: "Installs npm packages globally from URLs or local paths instead of the registry"
+    regex: "npm\\s+(?:install|i)\\s+(?:-g|--global)\\s+(?:https?://|git\\+|/tmp|/var/tmp|file://)"
+    positive_examples:
+      - "npm install -g http://"
+    recommendation: "Global npm packages should only be installed from the official registry with version pinning"
+    cwe: ['CWE-494', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1059.007', 'T1195.002']
+    cis_controls: ['CIS-Supply-Chain']
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
+    pci_dss: ['6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']

@@ -1,0 +1,11 @@
+{{- /*
+  Custom heading partial: when a page sets `headingPre` in front matter,
+  render it INSIDE the <h1> so the image sits inline with the title text
+  instead of on its own line above it.
+*/ -}}
+{{- $title := partial "title.gotmpl" (dict "page" .) -}}
+{{- $pre := .Params.headingPre -}}
+<h1 id="{{ $title | plainify | anchorize }}" style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+{{- with $pre }}<span class="heading-icon" style="display:inline-flex;align-items:center;">{{ . | safeHTML }}</span>{{ end -}}
+<span>{{ $title }}</span>
+</h1>

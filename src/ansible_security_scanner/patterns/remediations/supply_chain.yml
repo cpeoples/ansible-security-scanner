@@ -1,0 +1,1059 @@
+# Companion Secure Fix snippets for supply_chain rules.
+# See ../../patterns/remediations/README.md for the schema.
+
+remediations:
+
+  # -- Distro package manager: never disable signature/cert verification -
+  apt_allow_unauthenticated_flag_true:
+    secure_fix: |
+      - name: apt install with signature verification (default)
+        ansible.builtin.apt:
+          name:
+            - nginx=1.24.*
+            - postgresql-client-16
+          state: present
+          update_cache: true
+          # NEVER: allow_unauthenticated, force_apt_get with --allow-*
+        # For a legitimate unsigned internal package, sign it via
+        # `reprepro` on your own apt repo and import the GPG key:
+      - name: Trust the internal apt repo's signing key
+        ansible.builtin.apt_key:
+          url: https://apt.internal.example.com/keys/repo.gpg
+          state: present
+
+  apt_force_flag_true:
+    secure_fix: |
+      - name: "apt install without `force: true`"
+        ansible.builtin.apt:
+          name: ["nginx=1.24.*"]
+          state: present
+          update_cache: true
+          # Removed: force: true (skips signature checks).
+          # If you need a specific older version, pin it explicitly:
+          # name: ["nginx=1.22.1-9+deb12u1"]
+
+  dnf_disable_gpg_check_true:
+    secure_fix: |
+      - name: Import vendor GPG key, then dnf install with verification
+        ansible.builtin.rpm_key:
+          key: https://vendor.example.com/RPM-GPG-KEY-vendor
+          state: present
+
+      - name: dnf install with GPG check enabled (default)
+        ansible.builtin.dnf:
+          name: ["app-1.2.3-1.el9"]
+          state: present
+          # NEVER: disable_gpg_check: true
+
+  dnf_sslverify_false:
+    secure_fix: |
+      - name: Import internal mirror CA into the system trust store
+        ansible.builtin.copy:
+          src: files/internal-mirror-ca.crt
+          dest: /etc/pki/ca-trust/source/anchors/internal-mirror-ca.crt
+          owner: root
+          group: root
+          mode: '0644'
+        notify: update-ca-trust
+
+      - name: dnf install with TLS verification (sslverify default = 1)
+        ansible.builtin.dnf:
+          name: ["app-1.2.3-1.el9"]
+          state: present
+          # NEVER: sslverify: false
+
+  dnf_validate_certs_false:
+    secure_fix: |
+      - name: Trust internal mirror CA, then dnf install with validate_certs
+        ansible.builtin.copy:
+          src: files/internal-mirror-ca.crt
+          dest: /etc/pki/ca-trust/source/anchors/internal-mirror-ca.crt
+          mode: '0644'
+        notify: update-ca-trust
+      - name: dnf install (validate_certs default = true)
+        ansible.builtin.dnf:
+          name: ["app"]
+          state: present
+          # NEVER: validate_certs: false
+
+  yum_validate_certs_false:
+    secure_fix: |
+      - name: Trust internal mirror CA, then yum install with validate_certs
+        ansible.builtin.copy:
+          src: files/internal-mirror-ca.crt
+          dest: /etc/pki/ca-trust/source/anchors/internal-mirror-ca.crt
+          mode: '0644'
+        notify: update-ca-trust
+      - name: yum install (validate_certs default = true)
+        ansible.builtin.yum:
+          name: ["app"]
+          state: present
+          # NEVER: validate_certs: false
+
+  package_gpg_check_disabled:
+    secure_fix: |
+      - name: Import vendor / internal GPG signing key
+        ansible.builtin.rpm_key:
+          key: https://vendor.example.com/RPM-GPG-KEY-vendor
+          state: present
+      - name: Install via package module with GPG check ON
+        ansible.builtin.package:
+          name: ["app-1.2.3"]
+          state: present
+        # disable_gpg_check defaults to false; never override to true.
+
+  # -- curl|sh / wget|sh installers --
+  curl_pipe_to_shell:
+    secure_fix: |
+      - name: Download the installer over HTTPS with a pinned checksum
+        ansible.builtin.get_url:
+          url: https://example.com/install.sh
+          dest: /tmp/install.sh
+          checksum: "sha256:abc123def456..."
+          mode: '0755'
+
+      - name: Optional - inspect / record the script for audit
+        ansible.builtin.command: cat /tmp/install.sh
+        register: install_script_body
+        changed_when: false
+
+      - name: Run only after checksum + (optional) review
+        ansible.builtin.command: /tmp/install.sh
+
+  curl_wget_pipe_shell_install_oneliner:
+    secure_fix: |
+      - name: Download with hash verification, then execute
+        ansible.builtin.get_url:
+          url: https://get.docker.com/get-docker.sh
+          dest: /tmp/get-docker.sh
+          checksum: "sha256:<known-good-hash>"
+          mode: '0755'
+      - name: Run only after the verified download succeeded
+        ansible.builtin.command: /tmp/get-docker.sh
+
+  # -- ansible-galaxy hardening --
+  ansible_galaxy_install_force_latest:
+    secure_fix: |
+      - name: Install collections + roles from a pinned requirements file
+        ansible.builtin.command: >
+          ansible-galaxy install -r requirements.yml
+          --keyring /etc/ansible/galaxy-trust.gpg
+        # Drop --force / --upgrade. Use exact versions in requirements.yml:
+        # collections:
+        #   - name: community.general
+        #     version: 9.4.0
+        # roles:
+        #   - name: geerlingguy.nginx
+        #     version: 3.1.4
+
+  ansible_galaxy_install_ignore_errors:
+    secure_fix: |
+      - name: Install collections - fail loudly on any error
+        ansible.builtin.command: ansible-galaxy install -r requirements.yml
+        register: galaxy_install
+        failed_when: galaxy_install.rc != 0
+        # NEVER: --ignore-errors, ignore_errors: true
+
+  galaxy_requirements_git_branch_ref:
+    secure_fix: |
+      # requirements.yml -- pin to immutable refs only
+      collections:
+        - source: https://github.com/ansible-collections/community.general
+          type: git
+          version: 9.4.0   # tag, never `main` / `master` / branch name
+      roles:
+        - name: geerlingguy.docker
+          version: 7.4.5   # exact role tag
+
+  galaxy_requirements_http_source:
+    secure_fix: |
+      # requirements.yml -- every URL must be https://, every ref pinned
+      collections:
+        - source: https://galaxy.ansible.com
+          name: community.general
+          version: 9.4.0
+
+  galaxy_requirements_collection_without_signatures_key:
+    secure_fix: |
+      - name: Install signed collections, verify with org-owned keyring
+        ansible.builtin.command: >
+          ansible-galaxy collection install
+          -r requirements.yml
+          --keyring /etc/ansible/galaxy-trust.gpg
+          --required-valid-signature-count 1
+          --signature-count-threshold all
+
+  ansible_galaxy_untrusted:
+    secure_fix: |
+      # requirements.yml -- internal mirror + pinned versions
+      collections:
+        - source: https://automation-hub.internal.example.com/api/galaxy/
+          name: community.general
+          version: 9.4.0
+      roles:
+        - name: company.base
+          src: git+ssh://git@github.com/example/ansible-role-base.git
+          version: 7e9b2cf08a3b   # commit SHA, not branch
+
+  # -- Container image pinning + content trust --
+  container_image_unpinned_tag:
+    secure_fix: |
+      - name: Pull container image by SHA-256 digest, never by mutable tag
+        community.docker.docker_image:
+          name: registry.example.com/myapp@sha256:abc123def4561234567890abcdef0123456789abcdef0123456789abcdef01
+          source: pull
+          # Lookup digests with: crane digest registry.example.com/myapp:1.2.3
+          # Or via skopeo: skopeo inspect docker://...
+
+  container_image_over_http_registry:
+    secure_fix: |
+      - name: Pull only from HTTPS registries
+        community.docker.docker_image:
+          name: registry.example.com:5000/myapp@sha256:<digest>
+          source: pull
+        # registry.example.com must be reachable via HTTPS with a
+        # trusted cert; never set insecure_registries / --tls-verify=false.
+
+  docker_content_trust_disabled:
+    secure_fix: |
+      - name: Pull image with Docker Content Trust enforced (DCT=1)
+        community.docker.docker_image:
+          name: registry.example.com/myapp:1.2.3
+          source: pull
+        environment:
+          DOCKER_CONTENT_TRUST: "1"
+          DOCKER_CONTENT_TRUST_SERVER: "https://notary.example.com"
+
+  cosign_signature_verification_disabled:
+    secure_fix: |
+      - name: Verify image signature with cosign, pinned to known identity
+        ansible.builtin.command: >
+          cosign verify
+          --certificate-identity-regexp '^https://github\.com/example/.*$'
+          --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          registry.example.com/myapp@sha256:abc123...
+        register: cosign_result
+        changed_when: false
+        failed_when: cosign_result.rc != 0
+
+  # -- Execution Environment hardening --
+  ee_dependencies_python_unpinned:
+    secure_fix: |
+      # requirements.txt -- every package pinned with == and a hash (pip-compile)
+      ansible-runner==2.4.0 \
+          --hash=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      requests==2.32.3 \
+          --hash=sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+      # Build the EE with: ansible-builder build --container-runtime podman
+
+  ee_runs_as_root_user:
+    secure_fix: |
+      # execution-environment.yml -- drop to non-root before final layer
+      version: 3
+      images:
+        base_image:
+          name: registry.redhat.io/ansible-automation-platform-24/ee-minimal-rhel9@sha256:<digest>
+      additional_build_steps:
+        append_final:
+          - "USER 1001"   # never root in the final image
+
+  ee_untrusted_base_image:
+    secure_fix: |
+      # execution-environment.yml -- pinned vendor image by digest
+      version: 3
+      images:
+        base_image:
+          name: registry.redhat.io/ansible-automation-platform-24/ee-minimal-rhel9@sha256:<digest-from-vendor>
+
+  ee_build_arg_secret:
+    secure_fix: |
+      # Containerfile (or additional_build_steps) -- BuildKit secret mount
+      # syntax=docker/dockerfile:1.6
+      RUN --mount=type=secret,id=npmrc,target=/root/.npmrc \
+          npm ci --omit=dev
+      # Build with: DOCKER_BUILDKIT=1 docker build \
+      #   --secret id=npmrc,src=$HOME/.npmrc -t app .
+      # The secret is available at build time only; never persisted.
+
+  # -- ECR / registry mutability --
+  aws_ecr_image_tag_mutability_mutable:
+    secure_fix: |
+      - name: ECR repo with IMMUTABLE tags + scan-on-push + KMS encryption
+        community.aws.ecs_ecr:
+          name: app
+          image_tag_mutability: IMMUTABLE
+          scan_on_push: true
+          encryption_configuration:
+            encryption_type: KMS
+            kms_key: "{{ ecr_cmk_arn }}"
+          state: present
+
+  azure_container_registry_admin_user_enabled:
+    secure_fix: |
+      - name: ACR with admin user disabled, AKS pulls via managed identity
+        azure.azcollection.azure_rm_containerregistry:
+          resource_group: "{{ rg }}"
+          name: "{{ acr_name }}"
+          location: "{{ location }}"
+          admin_user_enabled: false
+          sku: Premium
+          state: present
+        # Then attach to AKS:
+        # az aks update --name <aks> --resource-group <rg> --attach-acr <acr>
+
+  # -- Python (pip) hardening --
+  pip_install_no_version:
+    secure_fix: |
+      - name: pip install with exact pinned versions (and ideally hashes)
+        ansible.builtin.pip:
+          name:
+            - "requests==2.32.3"
+            - "urllib3==2.2.3"
+          state: present
+          extra_args: "--require-hashes -r requirements.txt"
+
+  pip_install_without_hash_check_from_public_index:
+    secure_fix: |
+      - name: pip install --require-hashes against a hash-locked file
+        ansible.builtin.pip:
+          requirements: /opt/app/requirements.lock.txt
+          extra_args: "--require-hashes --no-deps"
+        # Generate with: pip-compile --generate-hashes requirements.in
+
+  pip_index_url_or_extra_index_http_not_https:
+    secure_fix: |
+      - name: pip install via HTTPS-only internal mirror
+        ansible.builtin.pip:
+          name: ["app==1.2.3"]
+          extra_args: >
+            --index-url https://pypi.internal.example.com/simple/
+            --no-deps --require-hashes
+
+  pip_index_url_plaintext_http:
+    secure_fix: |
+      - name: pip install with HTTPS index URL only
+        ansible.builtin.pip:
+          name: ["requests==2.32.3"]
+          extra_args: "--index-url https://pypi.internal.example.com/simple/"
+
+  # -- Node (npm) hardening --
+  npm_install_runs_postinstall_scripts_from_untrusted_registry:
+    secure_fix: |
+      - name: npm ci with --ignore-scripts against trusted registry
+        ansible.builtin.command: npm ci --ignore-scripts
+        args:
+          chdir: /opt/app
+        environment:
+          NPM_CONFIG_REGISTRY: https://npm.internal.example.com/
+          NPM_CONFIG_AUDIT: "true"
+          NPM_CONFIG_FUND: "false"
+
+  npm_registry_plaintext_http_strict_ssl_false:
+    secure_fix: |
+      - name: npm config - HTTPS registry + strict TLS
+        ansible.builtin.copy:
+          dest: /opt/app/.npmrc
+          content: |
+            registry=https://npm.internal.example.com/
+            strict-ssl=true
+            audit=true
+            fund=false
+          owner: app
+          group: app
+          mode: '0644'
+
+  # -- Ruby / Rust / Go --
+  gem_install_local:
+    secure_fix: |
+      - name: gem install from internal mirror with sources locked
+        ansible.builtin.command: >
+          gem install rails -v 7.1.3 --no-document
+          --clear-sources --source https://gems.internal.example.com/
+
+  gem_cpan_cargo_insecure_source_added:
+    secure_fix: |
+      - name: gem - HTTPS-only source declaration
+        ansible.builtin.command: gem sources --add https://gems.internal.example.com/
+      - name: gem - remove any HTTP source
+        ansible.builtin.command: gem sources --remove http://rubygems.org/
+        register: r
+        changed_when: "'removed' in r.stdout"
+        failed_when: false
+
+  cargo_install_from_git_unpinned:
+    secure_fix: |
+      - name: cargo install pinned to immutable tag (or --rev=<sha>)
+        ansible.builtin.command: >
+          cargo install --git https://github.com/rust-lang/mdBook
+          --tag v0.4.40
+
+  go_install_unpinned_main_or_latest:
+    secure_fix: |
+      - name: go install pinned to a release tag (never @latest, never @main)
+        ansible.builtin.command: go install github.com/example/tool@v1.2.3
+        environment:
+          GOPROXY: https://goproxy.internal.example.com/,direct
+          GOSUMDB: sum.golang.org
+
+  # -- PowerShell + Homebrew --
+  powershell_install_module_skippublishercheck_or_untrusted_repo:
+    secure_fix: |
+      - name: PowerShell - install only from internal trusted repository
+        ansible.windows.win_powershell:
+          script: |
+            Register-PSRepository -Name InternalRepo `
+              -SourceLocation https://psrepo.internal.example.com/api/v2 `
+              -InstallationPolicy Trusted -ErrorAction SilentlyContinue
+            Install-Module -Name MyModule -RequiredVersion 1.2.3 `
+              -Repository InternalRepo -Scope AllUsers `
+              -AcceptLicense
+        # NEVER: -SkipPublisherCheck, -AllowPrereleases without review.
+
+  homebrew_tap_from_untrusted_user_repo:
+    secure_fix: |
+      - name: Homebrew tap pinned to internal-mirror fork
+        community.general.homebrew_tap:
+          name: example/internal-tools
+          url: https://github.com/example-internal/homebrew-tools.git
+          state: present
+
+  # -- RPM signature flags --
+  rpm_install_nosignature_or_nogpg:
+    secure_fix: |
+      - name: Import vendor GPG, then rpm install with full verification
+        ansible.builtin.rpm_key:
+          key: https://vendor.example.com/RPM-GPG-KEY
+          state: present
+      - name: Install RPM with signature + digest verification (no flags)
+        ansible.builtin.dnf:
+          name: ["app-1.2.3-1.el9.x86_64"]
+          state: present
+          # No: --nosignature, --nodigest, --noscripts.
+
+  rpm_install_no_digest_no_signature_flags:
+    secure_fix: |
+      - name: Install RPM with signature + digest checks (default)
+        ansible.builtin.dnf:
+          name: ["app"]
+          state: present
+        # Module rejects packages whose signature/digest fails; never
+        # bypass with rpm --nosignature / --nodigest in raw shell tasks.
+
+  yum_sslverify_false:
+    secure_fix: |
+      - name: yum install with sslverify default = 1 (TLS validated)
+        ansible.builtin.yum:
+          name: ["app"]
+          state: present
+          # NEVER: sslverify: false
+
+  # -- Maven / setup.py / build-from-source --
+  maven_snapshot_dependency_in_production_playbook:
+    secure_fix: |
+      - name: Maven build referencing only released (non-SNAPSHOT) versions
+        ansible.builtin.command: mvn -B clean package -P prod
+        args:
+          chdir: /opt/app
+        environment:
+          MAVEN_OPTS: "-Dmaven.repo.local=/opt/maven-repo"
+        # In pom.xml, set every dependency to a fixed version (e.g.
+        # 1.4.2) - not 1.4.2-SNAPSHOT.
+
+  python_setup_py_exec:
+    secure_fix: |
+      - name: Build wheel from source via PEP 517 (build, not setup.py)
+        ansible.builtin.command: python -m build --wheel
+        args:
+          chdir: /opt/app
+        # Then install the wheel via pip with --require-hashes.
+
+  python_build_from_source:
+    secure_fix: |
+      - name: Install pre-built signed wheel, not from source
+        ansible.builtin.pip:
+          name: ["app==1.2.3"]
+          extra_args: "--only-binary=:all: --require-hashes -r requirements.txt"
+
+  python_remote_exec:
+    secure_fix: |
+      - name: Avoid `python -c` with shelled remote content; use a checked-in module
+        ansible.builtin.script: files/maintenance.py
+        # The script is committed, code-reviewed, and run with no
+        # network-fetched code paths.
+
+  # -- GitHub Actions hardening --
+  gha_third_party_action_unpinned_tag:
+    secure_fix: |
+      # .github/workflows/build.yml -- every third-party action pinned to SHA
+      jobs:
+        build:
+          runs-on: ubuntu-latest
+          permissions:
+            contents: read
+          steps:
+            - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+            - uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb  # v3.3.0
+
+  github_actions_pull_request_target_with_checkout:
+    secure_fix: |
+      # .github/workflows/lint.yml -- use pull_request, not pull_request_target
+      on:
+        pull_request:
+          branches: [main]
+      jobs:
+        lint:
+          runs-on: ubuntu-latest
+          permissions:
+            contents: read
+          steps:
+            - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4
+            # No persist-credentials; no PR-controlled scripts run with secrets.
+
+  github_actions_pull_request_target_with_head_ref_checkout:
+    secure_fix: |
+      # If you must use pull_request_target, NEVER checkout the PR head
+      on:
+        pull_request_target:
+          types: [labeled]
+      jobs:
+        deploy:
+          if: github.event.label.name == 'deploy-preview'
+          runs-on: ubuntu-latest
+          permissions:
+            pull-requests: write
+            contents: read
+          steps:
+            - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # base only
+              # Default ref = base; do NOT pass `ref: ${{ github.event.pull_request.head.sha }}`.
+
+  github_actions_run_block_injection_untrusted_context:
+    secure_fix: |
+      # Pass untrusted context through env vars; never inline into `run:`
+      jobs:
+        echo-title:
+          runs-on: ubuntu-latest
+          steps:
+            - name: Print PR title (sanitized)
+              env:
+                PR_TITLE: ${{ github.event.pull_request.title }}
+              run: |
+                printf '%s\n' "$PR_TITLE"
+              # Shell sees PR_TITLE as a single arg; no `${{ ... }}` in `run:`.
+
+  github_actions_self_hosted_runner_on_public_repo:
+    secure_fix: |
+      # Use ephemeral, just-in-time runners for any public repo
+      jobs:
+        build:
+          runs-on: [self-hosted, ephemeral, linux, x64]
+          # Runners are provisioned per-job by actions-runner-controller
+          # / Philips labs Terraform module, registered with --ephemeral
+          # and --jitconfig, and destroyed at job-end. Or: switch to
+          # GitHub-hosted runners (`ubuntu-latest`).
+
+  github_actions_uses_unpinned_branch_or_main_ref:
+    secure_fix: |
+      # Pin every `uses:` to an immutable commit SHA (not a branch)
+      steps:
+        - uses: actions/setup-node@1a4442cacd436585916779262731d5b162bc6ec7  # v3.8.2
+        - uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2  # v4.0.0
+
+  github_oidc_trust_aud_wildcard_or_missing_subject_claim:
+    secure_fix: |
+      - name: AWS IAM role trust policy with strict OIDC sub+aud
+        community.aws.iam_role:
+          name: github-deployer
+          assume_role_policy_document: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Principal": {"Federated": "arn:aws:iam::{{ acct }}:oidc-provider/token.actions.githubusercontent.com"},
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                  "StringEquals": {
+                    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                    "token.actions.githubusercontent.com:sub": "repo:example/example-app:ref:refs/heads/main"
+                  }
+                }
+              }]
+            }
+
+  gha_workflow_contents_write_on_pull_request_target:
+    secure_fix: |
+      # pull_request_target jobs default to read-only contents
+      on:
+        pull_request_target:
+          types: [labeled]
+      jobs:
+        chore:
+          runs-on: ubuntu-latest
+          permissions:
+            contents: read
+            pull-requests: write   # only when truly needed
+            id-token: none
+
+  gitlab_ci_job_token_exported_or_echoed:
+    secure_fix: |
+      # .gitlab-ci.yml -- never echo $CI_JOB_TOKEN; use it via header only
+      deploy:
+        stage: deploy
+        script:
+          - >
+            curl --silent --fail
+            --header "JOB-TOKEN: ${CI_JOB_TOKEN}"
+            --upload-file build/app.tar.gz
+            "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/app/${CI_COMMIT_TAG}/app.tar.gz"
+
+  gitlab_ci_runner_privileged_true:
+    secure_fix: |
+      # /etc/gitlab-runner/config.toml -- Kaniko/buildkit, not privileged
+      [[runners]]
+        name = "shared"
+        executor = "kubernetes"
+        [runners.kubernetes]
+          privileged = false
+          allow_privilege_escalation = false
+          [[runners.kubernetes.volumes.empty_dir]]
+            name = "buildkit-cache"
+            mount_path = "/var/lib/buildkit"
+
+  # -- git operations --
+  git_clone_insecure_skip_ssl_verify:
+    secure_fix: |
+      - name: git clone with TLS verification (default)
+        ansible.builtin.git:
+          repo: "https://git.internal.example.com/app.git"
+          dest: /opt/app
+          version: v1.2.3
+          # No: -c http.sslVerify=false / GIT_SSL_NO_VERIFY=1
+
+  git_config_credential_helper_store_plaintext:
+    secure_fix: |
+      - name: git credential helper - manager (libsecret) instead of `store`
+        community.general.git_config:
+          name: credential.helper
+          value: "{{ 'manager' if ansible_os_family == 'Windows' else 'libsecret' }}"
+          scope: global
+
+  git_hook_or_config_write:
+    secure_fix: |
+      - name: git hooks managed via ansible.builtin.copy with strict perms
+        ansible.builtin.copy:
+          src: files/git-hooks/pre-commit
+          dest: /opt/app/.git/hooks/pre-commit
+          owner: root
+          group: root
+          mode: '0755'
+        # Never `curl <url> > .git/hooks/<hook>` from a playbook.
+
+  git_submodule_or_actions_pinned_to_main_master_branch:
+    secure_fix: |
+      - name: git submodule pinned to immutable commit
+        ansible.builtin.git:
+          repo: "https://git.internal.example.com/lib.git"
+          dest: /opt/app/vendor/lib
+          version: 7e9b2cf08a3b   # commit SHA; never `main`/`master`
+
+  # -- Galaxy/EE leftovers --
+  galaxy_requirements_non_galaxy_source:
+    secure_fix: |
+      # requirements.yml -- Galaxy/Automation Hub or commit-pinned URL
+      collections:
+        - name: community.general
+          version: 9.4.0
+          source: https://galaxy.ansible.com
+        - name: my_company.app
+          source: https://automation-hub.internal.example.com/api/galaxy/
+
+  ansible_navigator_ee_from_public_registry:
+    secure_fix: |
+      # ansible-navigator.yml -- internal mirror only
+      ansible-navigator:
+        execution-environment:
+          image: registry.internal.example.com/ee/ansible/ee-minimal-rhel9@sha256:<digest>
+          pull:
+            policy: missing
+          container-engine: podman
+
+  ee_dependencies_galaxy_http:
+    secure_fix: |
+      # execution-environment.yml -- local requirements file (no http)
+      version: 3
+      dependencies:
+        galaxy: requirements.yml   # checked-in, https/ssh sources only
+        python: requirements.txt
+        system: bindep.txt
+
+  ee_additional_build_files_traversal:
+    secure_fix: |
+      # execution-environment.yml -- files inside the EE project dir
+      version: 3
+      additional_build_files:
+        - src: files/ca-bundle.crt   # always relative, inside the project
+          dest: configs/
+
+  ee_additional_build_steps_append_shell:
+    secure_fix: |
+      # execution-environment.yml -- copy a signed artifact, no curl|sh
+      version: 3
+      additional_build_steps:
+        append_final:
+          - "COPY files/tool-1.2.3.x86_64.rpm /tmp/tool.rpm"
+          - "RUN rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-vendor && \\
+              rpm -Kv /tmp/tool.rpm && rpm -ivh /tmp/tool.rpm && \\
+              rm -f /tmp/tool.rpm"
+          - "USER 1001"
+
+  ee_arbitrary_prepend_cmd:
+    secure_fix: |
+      # execution-environment.yml -- keep prepend minimal & reviewable
+      version: 3
+      additional_build_steps:
+        prepend_base:
+          - "ARG PIP_INDEX_URL=https://pypi.internal.example.com/simple/"
+          - "ARG PIP_DISABLE_PIP_VERSION_CHECK=1"
+          # No: curl|sh, wget|sh, base64-decoded scripts, or
+          # ADD https://... that bypass review.
+
+  bindep_unpinned_package:
+    secure_fix: |
+      # bindep.txt -- every entry pinned with version + platform tag
+      openssl-libs >=3.0.7 [platform:rpm]
+      libxml2 >=2.10.4 [platform:rpm]
+      ca-certificates [platform:dpkg]
+      gcc [platform:dpkg compile]
+
+  bindep_profile_runs_shell:
+    secure_fix: |
+      # bindep.txt -- package names + tags only, no shell, no commands
+      python3-cryptography [platform:rpm]
+      python3-cryptography [platform:dpkg]
+      # Never embed scripts here. If a preflight is required, run it
+      # as a separate Ansible task with proper checks.
+
+  # -- Terraform state hygiene --
+  terraform_local_state_backend_for_production_stack:
+    secure_fix: |
+      # backend.tf -- remote, encrypted, locked S3 backend
+      terraform {
+        backend "s3" {
+          bucket         = "tf-state-prod"
+          key            = "app/network/terraform.tfstate"
+          region         = "us-east-1"
+          dynamodb_table = "tf-state-locks"
+          encrypt        = true
+          kms_key_id     = "arn:aws:kms:us-east-1:111111111111:key/<cmk-id>"
+        }
+      }
+
+  terraform_s3_backend_without_encryption_or_kms:
+    secure_fix: |
+      # backend.tf -- encrypt=true + customer-managed KMS key required
+      terraform {
+        backend "s3" {
+          bucket     = "tf-state-prod"
+          key        = "app/terraform.tfstate"
+          region     = "us-east-1"
+          encrypt    = true
+          kms_key_id = "arn:aws:kms:us-east-1:111111111111:key/<cmk-id>"
+        }
+      }
+
+  terraform_state_bucket_no_lock_or_versioning_disabled:
+    secure_fix: |
+      - name: TF state bucket with versioning + Object Lock + DynamoDB lock
+        amazon.aws.s3_bucket:
+          name: tf-state-prod
+          versioning: true
+          object_lock_enabled: true
+          encryption: aws:kms
+          encryption_key_id: "{{ tfstate_cmk_arn }}"
+          state: present
+
+      - name: DynamoDB lock table (LockID hash key, on-demand billing)
+        community.aws.dynamodb_table:
+          name: tf-state-locks
+          hash_key_name: LockID
+          hash_key_type: STRING
+          billing_mode: PAY_PER_REQUEST
+          point_in_time_recovery: true
+          state: present
+
+  terraform_variable_with_secret_value_sensitive_false:
+    secure_fix: |
+      # variables.tf -- secrets always sensitive=true
+      variable "db_password" {
+        type        = string
+        description = "Application database password (from Vault)"
+        sensitive   = true
+      }
+      # And source it via TF_VAR_db_password from Vault, never default.
+
+
+  # -- Ansible plugin / role-meta hardening --
+  action_plugin_shadow_core:
+    secure_fix: |
+      # Plugins MUST live in collection-namespaced roles, not in the
+      # play-relative `action_plugins/` (which would shadow `ansible.builtin.*`).
+      # collections/ansible_collections/<ns>/<col>/plugins/action/myaction.py
+      # And reference it as <ns>.<col>.myaction in tasks. Lint:
+      - name: pre-commit / CI - reject ./action_plugins/<core_name>.py
+        ansible.builtin.assert:
+          that:
+            - "not lookup('ansible.builtin.fileglob', 'action_plugins/copy.py')"
+            - "not lookup('ansible.builtin.fileglob', 'action_plugins/template.py')"
+          fail_msg: "Action plugin shadows ansible.builtin core - move to a collection."
+
+  callback_plugins_path_untrusted:
+    secure_fix: |
+      - name: ansible.cfg - callback_plugins under root-owned, group-readable dir
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: callback_plugins
+          value: "/usr/share/ansible/plugins/callback"
+          mode: '0640'
+      - name: Lock down the directory
+        ansible.builtin.file:
+          path: /usr/share/ansible/plugins/callback
+          state: directory
+          owner: root
+          group: ansible
+          mode: '0750'
+
+  callback_whitelist_arbitrary:
+    secure_fix: |
+      - name: ansible.cfg - callbacks_enabled with explicit, vetted list
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: callbacks_enabled
+          value: "ansible.posix.profile_tasks,ansible.posix.timer"
+          mode: '0640'
+
+  filter_plugins_path_untrusted:
+    secure_fix: |
+      - name: ansible.cfg - filter_plugins from collections only
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: filter_plugins
+          value: "/usr/share/ansible/plugins/filter"
+          mode: '0640'
+      - name: Filter plugin dir locked down
+        ansible.builtin.file:
+          path: /usr/share/ansible/plugins/filter
+          state: directory
+          owner: root
+          group: ansible
+          mode: '0750'
+
+  strategy_plugin_custom:
+    secure_fix: |
+      - name: ansible.cfg - use only stock strategy plugins
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: strategy_plugins
+          value: ""
+          mode: '0640'
+      - name: ansible.cfg - default to `linear`, override per-play if needed
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: strategy
+          value: "linear"
+          mode: '0640'
+
+  role_meta_dependency_git_url:
+    secure_fix: |
+      # roles/myrole/meta/main.yml - reference Galaxy/AH, not raw git
+      dependencies:
+        - role: my_company.network
+          version: 2.4.0       # immutable Galaxy release
+        - role: my_company.app_base
+          version: 1.7.3
+
+  role_meta_dependency_without_version:
+    secure_fix: |
+      # roles/myrole/meta/main.yml - every dep version-pinned
+      dependencies:
+        - role: community.general
+          version: 9.4.0
+        - role: my_company.app_base
+          version: 1.7.3
+
+  role_meta_galaxy_info_missing_license:
+    secure_fix: |
+      # roles/myrole/meta/main.yml - galaxy_info populated, license SPDX
+      galaxy_info:
+        author: platform-engineering
+        description: Hardened base role for application servers
+        company: example.com
+        license: Apache-2.0
+        min_ansible_version: "2.15"
+        platforms:
+          - name: EL
+            versions: ["8", "9"]
+        galaxy_tags: [app, hardened]
+
+  # -- ArgoCD / Argo Workflows / Flux / Crossplane --
+  argo_workflows_templateref_cluster_scope_untrusted:
+    secure_fix: |
+      - name: Argo Workflow - templateRef bound to a known ClusterWorkflowTemplate
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: argoproj.io/v1alpha1
+            kind: Workflow
+            metadata: { generateName: app-, namespace: argo }
+            spec:
+              workflowTemplateRef:
+                name: app-build-template
+                clusterScope: false   # namespace-scoped templates only
+
+  argocd_application_untrusted_repo:
+    secure_fix: |
+      - name: ArgoCD AppProject - allow only org-internal repo URLs
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: argoproj.io/v1alpha1
+            kind: AppProject
+            metadata: { name: prod, namespace: argocd }
+            spec:
+              sourceRepos:
+                - "https://git.internal.example.com/*"
+              destinations:
+                - namespace: app
+                  server:    https://kubernetes.default.svc
+              clusterResourceWhitelist: []
+              namespaceResourceWhitelist:
+                - { group: "*", kind: "*" }
+
+  flux_image_automation_broad_perms:
+    secure_fix: |
+      - name: Flux ImageRepository scoped to a single image, not wildcard
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: image.toolkit.fluxcd.io/v1beta2
+            kind: ImageRepository
+            metadata: { name: app, namespace: flux-system }
+            spec:
+              image: registry.internal.example.com/app
+              interval: 5m
+              secretRef: { name: registry-pull }
+              accessFrom:
+                namespaceSelectors:
+                  - matchLabels: { app.kubernetes.io/name: app }
+
+  crossplane_providerconfig_broad_iam:
+    secure_fix: |
+      - name: Crossplane ProviderConfig - IRSA / WIF, not static cluster-admin keys
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: aws.upbound.io/v1beta1
+            kind: ProviderConfig
+            metadata: { name: default }
+            spec:
+              credentials:
+                source: IRSA   # OIDC; no AWS keys in cluster
+                # Pod uses ServiceAccount with eks.amazonaws.com/role-arn
+
+  # -- Container build/run hardening --
+  buildkit_cache_mount_shared_unscoped:
+    secure_fix: |
+      # Dockerfile - cache mounts scoped per project + non-shared
+      # syntax=docker/dockerfile:1.7
+      FROM golang:1.22 AS build
+      WORKDIR /src
+      RUN --mount=type=cache,id=app-go-build,target=/root/.cache/go-build,sharing=private \
+          --mount=type=cache,id=app-gomod,target=/go/pkg/mod,sharing=private \
+          go build -trimpath -ldflags "-s -w" -o /out/app ./cmd/app
+
+  container_registry_tag_mutable_or_no_signature_verification:
+    secure_fix: |
+      - name: Pull container by digest only, verify Cosign signature first
+        ansible.builtin.command: >
+          cosign verify
+          --certificate-identity-regexp 'https://github.com/example-org/.*'
+          --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          registry.internal.example.com/app@sha256:{{ app_image_digest }}
+
+      - name: Pull verified image (digest-only reference)
+        community.docker.docker_image_pull:
+          name: "registry.internal.example.com/app@sha256:{{ app_image_digest }}"
+
+  docker_buildx_secret_mounted_as_env:
+    secure_fix: |
+      # Dockerfile - secrets via build-time mount, NEVER ENV/ARG
+      # syntax=docker/dockerfile:1.7
+      FROM alpine:3.20
+      RUN --mount=type=secret,id=npm_token \
+          export NPM_TOKEN="$(cat /run/secrets/npm_token)" && \
+          npm config set //npm.example.com/:_authToken=$NPM_TOKEN && \
+          npm ci --ignore-scripts && \
+          npm config delete //npm.example.com/:_authToken
+
+      # Build invocation:
+      # docker buildx build --secret id=npm_token,src=$NPM_TOKEN_FILE .
+
+  docker_pull_platform_skip_arch_verify:
+    secure_fix: |
+      - name: Docker pull - explicit platform AND digest pinning
+        community.docker.docker_image_pull:
+          name: "registry.internal.example.com/app@sha256:{{ app_image_digest }}"
+          platform: "linux/amd64"
+
+  dockerfile_add_remote_http_url:
+    secure_fix: |
+      # Dockerfile - never ADD an http URL; vendor + verify locally
+      FROM alpine:3.20
+      COPY files/tool-1.2.3.tar.gz /tmp/tool.tgz
+      RUN echo "{{ tool_sha256 }}  /tmp/tool.tgz" | sha256sum -c - && \
+          tar -xzf /tmp/tool.tgz -C /opt && rm -f /tmp/tool.tgz
+
+  dockerfile_healthcheck_curl_insecure:
+    secure_fix: |
+      # Dockerfile - HEALTHCHECK without -k / --insecure
+      FROM nginx:1.27-alpine
+      HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+        CMD curl --silent --fail \
+              --cacert /etc/ssl/certs/ca-certificates.crt \
+              https://localhost:8443/healthz \
+            || exit 1
+
+  olm_catalogsource_untrusted_image_pull_always:
+    secure_fix: |
+      - name: OperatorHub CatalogSource pinned to internal mirror + digest
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: operators.coreos.com/v1alpha1
+            kind: CatalogSource
+            metadata: { name: internal-operators, namespace: openshift-marketplace }
+            spec:
+              sourceType: grpc
+              image: registry.internal.example.com/olm/internal-catalog@sha256:<digest>
+              updateStrategy:
+                registryPoll: { interval: 60m }
+              grpcPodConfig:
+                securityContextConfig: restricted
+
+  post_install_chmod_setuid_or_setgid:
+    secure_fix: |
+      - name: Install binary with caps, NOT setuid/setgid
+        ansible.builtin.copy:
+          src: files/app-bin
+          dest: /usr/local/bin/app
+          owner: root
+          group: root
+          mode: '0755'    # NOT 4755/2755
+      - name: Grant only the specific Linux capability needed
+        community.general.capabilities:
+          path: /usr/local/bin/app
+          capability: cap_net_bind_service+ep
+          state: present

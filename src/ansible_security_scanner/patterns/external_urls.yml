@@ -1,0 +1,230 @@
+name: "External URL Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects suspicious external URLs and potentially malicious domains"
+
+patterns:
+  - id: "suspicious_download_url"
+    category: "external_urls"
+    severity: "HIGH"
+    title: "Suspicious Download URL"
+    description: >-
+        URL points to a link-shortener domain (bit.ly, tinyurl, t.co, goo.gl, etc.).
+        Shorteners hide the real destination and are routinely used to evade
+        allowlists.
+    regex: "https?://(?:[^\\s]*\\.)?(?:bit\\.ly|tinyurl\\.com|t\\.co|goo\\.gl|ow\\.ly|short\\.link|tiny\\.cc|is\\.gd|buff\\.ly)"
+    positive_examples:
+      - "http://bit.ly"
+    recommendation: "Replace the URL-shortener link with the resolved upstream URL pinned to a specific release tag or commit SHA, and validate the artifact via checksum_url / signature before use."
+    cwe: ["CWE-494", "CWE-829"]
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ["T1105"]
+    cis_controls: ["CIS-16.1", "CIS-Supply-Chain"]
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "raw_github_content"
+    category: "external_urls"
+    severity: "MEDIUM"
+    title: "Raw GitHub Content Download"
+    description: >-
+        Pulls a file from raw.githubusercontent.com. The URL bypasses GitHub's
+        release/commit pinning UI - the upstream branch can be force-pushed and the
+        next pull silently delivers different content.
+    regex: "https?://raw\\.githubusercontent\\.com/[^\\s]+"
+    positive_examples:
+      - "shell: sh -c \"curl https://raw.githubusercontent.com/mrowa44/emojify/master/emojify -o /usr/local/bin/emojify && chmod +x /usr/local/bin/emojify\""
+    recommendation: "Pin raw.githubusercontent.com URLs to a specific commit SHA (not a branch name), record the expected SHA-256 in checksum:, and prefer ansible.builtin.get_url over shell + curl so the integrity check runs in-module."
+    cwe: ["CWE-494", "CWE-829"]
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ["T1105", "T1195.001"]
+    cis_controls: ["CIS-16.1", "CIS-Supply-Chain"]
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "pastebin_like_service"
+    category: "external_urls"
+    severity: "MEDIUM"
+    title: "Pastebin-like Service URL"
+    description: "URL pointing to pastebin-like services which could host malicious content"
+    regex: "https?://(?:pastebin\\.com|paste\\.ee|hastebin\\.com|dpaste\\.com|ghostbin\\.co)/[^\\s]+"
+    positive_examples:
+      - "http://pastebin.com/x"
+    recommendation: "Treat pastebin-class hosts as untrusted: move the content into a versioned internal artifact store (Git, Artifactory, S3 with object-lock), pin a SHA-256, and fetch via ansible.builtin.get_url with checksum:."
+    cwe: ["CWE-494", "CWE-829"]
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ["T1071.001", "T1105"]
+    cis_controls: ["CIS-16.1"]
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "temporary_file_sharing"
+    category: "external_urls"
+    severity: "MEDIUM"
+    title: "Temporary File Sharing Service"
+    description: >-
+        URL points to a temporary file-sharing service (transfer.sh, file.io,
+        wetransfer, sendspace, mediafire). These services have no integrity
+        guarantee and are a common malware-staging path.
+    regex: "https?://(?:transfer\\.sh|file\\.io|wetransfer\\.com|sendspace\\.com|mediafire\\.com)/[^\\s]+"
+    positive_examples:
+      - "http://transfer.sh/x"
+    recommendation: "Anonymous file-sharing services have no integrity or retention guarantees; republish the artifact to your internal package mirror and reference it via ansible.builtin.get_url with a pinned checksum."
+    cwe: ["CWE-494", "CWE-829"]
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ["T1071.001", "T1105"]
+    cis_controls: ["CIS-16.1"]
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "ip_address_url"
+    category: "external_urls"
+    severity: "MEDIUM"
+    title: "URL uses public IP literal instead of hostname"
+    description: "A URL targets an external IP literal rather than a DNS name. IP-literal targets bypass DNSSEC / CAA protections and are a known signature of malware C2, exfil, and internal pivoting. This rule EXCLUDES loopback (``127.0.0.0/8``), RFC-1918 private ranges (``10/8``, ``172.16/12``, ``192.168/16``), link-local (``169.254/16``), and CGNAT (``100.64/10``) because those never traverse the internet in plaintext - they're either loopback, site-local, or provider-internal. A real ``https://8.8.8.8:443/`` target in a playbook is the genuine signal."
+    # Match ``https?://IP[:port]/`` where the IP is NOT in a
+    # reserved / non-routable range. Negative look-ahead rejects
+    # loopback, link-local, CGNAT, and RFC-1918. Tested in
+    # ``negative_examples`` below.
+    regex: "https?://(?!127\\.|10\\.|192\\.168\\.|169\\.254\\.|100\\.(?:6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\.|172\\.(?:1[6-9]|2[0-9]|3[01])\\.|0\\.0\\.0\\.0)(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?::[0-9]+)?/"
+    positive_examples:
+      - "    url: https://8.8.8.8/health"
+      - "    url: http://203.0.113.5:8080/api"
+    negative_examples:
+      - "    url: https://127.0.0.1:8089/servicesNS/nobody/app"
+      - "    url: http://localhost/health"
+      - "    url: https://10.0.0.5/api"
+      - "    url: https://192.168.1.1/setup"
+      - "    url: https://172.16.0.1/admin"
+      - "    url: https://169.254.169.254/latest/meta-data/"
+    recommendation: "Replace the public IP literal with a DNS name issued by a CA in your trust store so TLS certificate validation, DNSSEC, and CAA records can apply; if a literal is unavoidable (e.g. internal scrape target), enforce TLS + an operator-managed CA bundle via ca_path."
+    cwe: ["CWE-319"]
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    mitre_attack: ["T1071.001"]
+    cis_controls: ["CIS-12.2"]
+    nist_controls: ['SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.7']
+
+  - id: "gitlab_raw_content"
+    category: "external_urls"
+    severity: "MEDIUM"
+    title: "Raw GitLab Content Download"
+    description: "Downloading raw content from GitLab repositories or snippets which could be modified at any time"
+    regex: "https?://(?:[^\\s/]+\\.)?gitlab\\.com/(?:[^\\s]+/(?:-/)?(?:raw|snippets)/|api/v4/(?:projects|snippets)/)[^\\s]+"
+    positive_examples:
+      - "fail2ban_exporter_version: \"{{ (lookup('url', 'https://gitlab.com/api/v4/projects/{{ _fail2ban_exporter_repo }}/releases',"
+    recommendation: "Pin GitLab URLs to specific commit SHAs and verify checksums before execution"
+    cwe: ["CWE-494", "CWE-829"]
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ["T1105", "T1195.001"]
+    cis_controls: ["CIS-16.1"]
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "gitlab_snippet_execution"
+    category: "external_urls"
+    severity: "HIGH"
+    title: "GitLab Snippet Piped to Shell"
+    description: "Downloads a GitLab snippet and pipes it to a shell interpreter for execution"
+    regex: "(?:curl|wget)\\s+.*gitlab\\.com/(?:snippets|api/v4/snippets)/[^\\s]+.*\\|\\s*(?:sudo\\s+)?(?:ba)?sh"
+    positive_examples:
+      - "curl gitlab.com/snippets/x|sh"
+    recommendation: "Download the snippet first, verify its content and checksum, then execute it"
+    no_ansible_remediation: true
+    cwe: ["CWE-78", "CWE-494"]
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ["T1059.004", "T1105"]
+    cis_controls: ["CIS-16.1", "CIS-Supply-Chain"]
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "bitbucket_raw_content"
+    category: "external_urls"
+    severity: "MEDIUM"
+    title: "Raw Bitbucket Content Download"
+    description: >-
+        Pulls a raw or downloads URL from bitbucket.org. As with raw GitHub URLs,
+        there is no commit pinning and an upstream force-push or branch rename
+        redirects the next pull silently.
+    regex: "https?://bitbucket\\.org/[^\\s]+/(?:raw|downloads)/[^\\s]+"
+    positive_examples:
+      - "http://bitbucket.org/x/raw/x"
+    recommendation: "Pin Bitbucket URLs to specific commit SHAs and verify checksums"
+    cwe: ["CWE-494", "CWE-829"]
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ["T1105", "T1195.001"]
+    cis_controls: ["CIS-16.1"]
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "codeberg_gitea_raw"
+    category: "external_urls"
+    severity: "MEDIUM"
+    title: "Raw Codeberg/Gitea Content Download"
+    description: "Downloading raw content from Codeberg or self-hosted Gitea instances"
+    regex: "https?://(?:codeberg\\.org|[^\\s]+/gitea)/[^\\s]+/raw/[^\\s]+"
+    positive_examples:
+      - "http://codeberg.org/x/raw/x"
+    recommendation: "Pin to specific commits and verify checksums before use"
+    cwe: ["CWE-494", "CWE-829"]
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ["T1105", "T1195.001"]
+    cis_controls: ["CIS-16.1"]
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "additional_paste_services"
+    category: "external_urls"
+    severity: "MEDIUM"
+    title: "Additional Paste/File Sharing Service URL"
+    description: "URL pointing to paste or anonymous file sharing services commonly abused for payload hosting and data exfiltration"
+    regex: 'https?://(?:[^\s]*\.)?(?:rentry\.co|ix\.io|sprunge\.us|termbin\.com|catbox\.moe|litterbox\.catbox\.moe|gofile\.io|pixeldrain\.com|temp\.sh|bashupload\.com|0x0\.st)(?:/[^\s]*)?'
+    positive_examples:
+      - "http://rentry.co"
+    recommendation: "Paste and anonymous file sharing services can host malicious payloads; verify content legitimacy"
+    no_ansible_remediation: true
+    cwe: ["CWE-494", "CWE-829"]
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ["T1071.001", "T1105"]
+    cis_controls: ["CIS-16.1"]
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "encrypted_paste_service"
+    category: "external_urls"
+    severity: "MEDIUM"
+    title: "Encrypted Paste Service URL"
+    description: "URL pointing to encrypted/zero-knowledge paste services where content cannot be inspected by network controls"
+    regex: 'https?://(?:[^\s]*\.)?(?:0bin\.net|privatebin\.net|privatebin\.info|cryptobin\.co)(?:/[^\s]*)?'
+    positive_examples:
+      - "http://0bin.net"
+    recommendation: "Encrypted paste services bypass content inspection; investigate usage in playbooks"
+    no_ansible_remediation: true
+    cwe: ["CWE-494", "CWE-829"]
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ["T1027", "T1105"]
+    cis_controls: ["CIS-16.1"]
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']

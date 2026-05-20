@@ -1,0 +1,1140 @@
+name: "System Compromise Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects system compromise, privilege escalation, and dangerous system modifications"
+
+patterns:
+  - id: "privilege_escalation_sudo"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "Privilege Escalation via Sudo"
+    description: "Task attempts to escalate privileges using sudo with user input"
+    regex: "^(?!\\s*#)\\s*(?:shell|command|raw):\\s*.*sudo.*\\{\\{[^}]*\\}\\}"
+    positive_examples:
+      - "shell: sudo {{phabricator_directory}}/phabricator/phabricator/bin/config set mysql.host localhost"
+    recommendation: "Replace shell: sudo {{ var }} ... with the dedicated module call plus become: true and become_method: sudo; this elevates without exposing the user-controlled value to a shell parser."
+    cwe: ['CWE-78', 'CWE-269']
+    owasp_appsec: ["A03:2021", "A04:2021"]
+    mitre_attack: ['T1059.004', 'T1548.003']
+    cis_controls: ['CIS-5.4', 'CIS-6.8']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)', 'SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1', '7.2.1', '7.2.5']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.2', 'CC6.3', 'CC7.1']
+    stig: ['V-230503']
+
+  - id: "file_permission_777"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "Dangerous File Permissions (777)"
+    description: >-
+        chmod 777 is applied to a file, leaving it world-writable. Any local user
+        can replace the contents, defeating any integrity assumption that depended
+        on the path.
+    regex: "chmod\\s+777"
+    positive_examples:
+      - "- chmod 777 /tmp/releases"
+    recommendation: "0777 grants write to every local user and is a privilege-escalation primitive; set the most restrictive mode the workload requires (0640 / 0750) and grant additional access via group membership."
+    cwe: ['CWE-732']
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1222.002']
+    cis_controls: ['CIS-3.3', 'CIS-4.1']
+    nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC7.1', 'CC8.1']
+
+  - id: "setuid_binary_creation_compromise"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "SetUID Binary Creation"
+    description: >-
+        chmod sets the setuid bit (4xxx mask or u+s). New setuid binaries are a
+        textbook persistence/privesc primitive on Linux.
+    recommendation: |
+      Avoid creating new setuid/setgid binaries. Most legitimate privilege escalation needs are met by `sudo` rules, capabilities (`setcap cap_net_bind_service+ep`), systemd `User=`/`Group=` units, or polkit. If a setuid binary is genuinely required, ship it from a trusted package (rpm/deb) so the file is owned by `root:root`, mode `4755`, and tracked by the package manager - never `chmod u+s` an arbitrary script or copy from a playbook. Audit existing setuid binaries on every host with `find / -perm -4000 -type f -xdev -ls` and remove anything not in your distro's setuid baseline.
+    regex: "chmod\\s+[0-7]*[4][0-7]*\\s+|chmod\\s+u\\+s"
+    positive_examples:
+      - "chmod 0640 /etc/ldap/localhost.key"
+    cwe: ['CWE-250', 'CWE-732']
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    mitre_attack: ['T1548.001']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'CM-6', 'CM-7', 'SI-3']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "shadow_file_access"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Shadow File Access"
+    description: >-
+        /etc/shadow or /etc/gshadow is referenced in a task. Reading either requires
+        root and is the shape used to stage offline password cracking.
+    recommendation: |
+      Never read, copy, template, or fetch `/etc/shadow` or `/etc/gshadow` from a playbook. These files contain hashed passwords and are root-only on every Linux distro for that reason. To create or update a user's password, use the `ansible.builtin.user` module with `password:` set to a vault-encrypted hash (`mkpasswd --method=sha-512` or `openssl passwd -6`). To rotate machine credentials, integrate with FreeIPA/AD/Vault rather than manipulating the shadow file directly. If you absolutely must inspect shadow contents (forensics), do it out-of-band with proper change-control and never via Ansible automation.
+    regex: "/etc/shadow|/etc/gshadow"
+    positive_examples:
+      - "- name: Copy /etc/shadow"
+    cwe: ['CWE-200', 'CWE-522']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    mitre_attack: ['T1003.008']
+    cis_controls: ['CIS-3.3', 'CIS-6.8']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '7.2.5', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(iv)', '164.312(d)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.2', 'CC6.3', 'CC6.7']
+
+  - id: "root_ssh_key_modification"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Root SSH Key Modification"
+    description: >-
+        Task targets /root/.ssh/authorized_keys directly. Modifying root's
+        authorized_keys plants persistent root SSH access on the host.
+    recommendation: |
+      Disable direct root SSH login (`PermitRootLogin no` in `/etc/ssh/sshd_config`) and never write to `/root/.ssh/authorized_keys` from a playbook - this is the classic persistence primitive used by every credentialed-attacker kill chain. Provision per-admin user accounts, grant them passwordless `sudo` for required commands only, and use `ansible.posix.authorized_key` against THOSE accounts (not root). Centralize SSH key distribution via a directory service (FreeIPA, OpenLDAP+sssd) or a CA-signed-key flow (`TrustedUserCAKeys`) so key rotation is a single-source-of-truth change rather than an N-host file edit.
+    regex: "/root/\\.ssh/authorized_keys"
+    positive_examples:
+      - "path: '{{ \"/etc/initramfs-tools/root/.ssh/authorized_keys\""
+    cwe: ['CWE-284']
+    owasp_appsec: ["A01:2021"]
+    mitre_attack: ['T1078', 'T1098.004']
+    cis_controls: ['CIS-5.1', 'CIS-5.4']
+    nist_controls: ['AC-3', 'AC-6']
+    pci_dss: ['7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    stig: ['V-230556']
+
+  - id: "crontab_modification"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "Crontab Modification"
+    description: >-
+        crontab -e/-u, /etc/cron*, or /var/spool/cron is being edited. Cron units
+        are a classic persistence mechanism that survives reboot and runs as the
+        cron user.
+    recommendation: |
+      Manage scheduled jobs declaratively with `ansible.builtin.cron` (which writes to user crontabs via `crontab -l`/`crontab -` so it is auditable and idempotent), or with systemd timer units for anything hostwide. Never `crontab -e` or write directly to `/etc/cron.d`/`/var/spool/cron` from a playbook - both bypass Ansible's idempotency model and are a textbook persistence primitive (MITRE T1053.003). For root-owned scheduled jobs prefer `/etc/cron.d/<package>.cron` shipped by a package over playbook-edited files. Audit existing schedules with `for u in $(cut -d: -f1 /etc/passwd); do crontab -l -u $u 2>/dev/null && echo "<-- $u"; done` plus `ls -la /etc/cron.* /var/spool/cron/`.
+    regex: "crontab\\s+-[eu]|/etc/cron|/var/spool/cron"
+    positive_examples:
+      - "cron_config_path: /etc/cron.d"
+    cwe: ['CWE-250']
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1053.003']
+    cis_controls: ['CIS-4.1', 'CIS-8.2']
+    nist_controls: ['AC-6', 'AC-6(1)', 'AU-2', 'AU-12', 'CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1', '10.2.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC6.3', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "kernel_module_loading"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "Kernel Module Loading"
+    description: >-
+        insmod / modprobe / rmmod is invoked. Kernel modules run with full ring-0
+        privilege; loading an unverified module is equivalent to root code execution
+        in the kernel.
+    recommendation: |
+      Avoid runtime kernel module loading (`insmod`/`modprobe`/`rmmod`) from playbooks - LKM loads are the primary rootkit-installation primitive (MITRE T1547.006). For modules genuinely required at boot, declare them in `/etc/modules-load.d/<package>.conf` (so the package owns the change and `kernel.modules_disabled=1` post-boot can lock the kernel). Block unwanted modules with `/etc/modprobe.d/blacklist-<name>.conf` plus `install <name> /bin/true`. On kernels >= 5.4 enable `module.sig_enforce=1` so unsigned modules cannot load at all; on regulated systems (PCI/HIPAA) flip `kernel.modules_disabled=1` after boot in `/etc/sysctl.d/` so no further module loads are possible without a reboot.
+    regex: "(?:insmod|modprobe|rmmod)\\s+"
+    positive_examples:
+      - "- modprobe - remove redundant conversions to unicode (https://github.com/ansible-collections/community.general/pull/11098)."
+    cwe: ['CWE-250']
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1014', 'T1547.006']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['AC-6', 'AC-6(1)', 'CM-6', 'CM-7', 'SI-3']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1']
+    soc2: ['CC6.3', 'CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "system_service_manipulation"
+    category: "system_compromise"
+    severity: "MEDIUM"
+    title: "System Service Manipulation"
+    description: >-
+        systemctl start/stop/enable/disable/mask receives a {{ ... }} expression as
+        its unit name. User-controlled unit names allow attackers to disable
+        security services or enable rogue ones.
+    regex: "systemctl\\s+(?:start|stop|enable|disable|mask)\\s+\\{\\{[^}]*\\}\\}"
+    positive_examples:
+      - "systemctl start {{}}"
+    recommendation: "Validate the service name against an allow-list before passing it to ansible.builtin.systemd_service / ansible.builtin.service: use ansible.builtin.assert with a regex like ^[a-zA-Z0-9_.@-]+$ and a known-services set rather than passing {{ var }} straight to systemctl."
+    cwe: ['CWE-20', 'CWE-250']
+    owasp_appsec: ["A03:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1543.002']
+    cis_controls: ['CIS-4.1', 'CIS-8.2']
+    nist_controls: ['AC-6', 'AC-6(1)', 'AU-2', 'AU-12', 'CM-6', 'CM-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '7.2.1', '10.2.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC6.3', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "firewall_rule_modification"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "Firewall Rule Modification"
+    description: >-
+        iptables / ufw / firewall-cmd is invoked with disable, flush, or delete. The
+        shape erases network controls and is often the first move before a noisier
+        attack stage.
+    regex: "(?:iptables|ufw|firewall-cmd).*(?:disable|flush|delete)"
+    positive_examples:
+      - "- name: Reset ufw to factory defaults and disable"
+    recommendation: "Manage firewall state declaratively via ansible.posix.firewalld / community.general.ufw / ansible.builtin.iptables modules with state: present, rather than imperatively flushing or disabling rules from a shell task."
+    cwe: ['CWE-693']
+    mitre_attack: ['T1562.004']
+    cis_controls: ['CIS-4.1', 'CIS-12.3']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "user_account_creation"
+    category: "system_compromise"
+    severity: "MEDIUM"
+    title: "User Account Creation with Privileges"
+    description: >-
+        useradd -G or usermod -aG adds an account into sudo/wheel/admin. New
+        administrative accounts are a textbook persistence mechanism.
+    regex: "useradd.*-G.*(?:sudo|wheel|admin)|usermod.*-a.*-G.*(?:sudo|wheel|admin)"
+    positive_examples:
+      - "useradd-Gsudo"
+    recommendation: "Use ansible.builtin.user with the groups: list and append: true so membership is idempotent and reviewable; gate the play with a permissions guardrail (e.g. an explicit allow-list of accounts permitted in sudo / wheel / admin)."
+    cwe: ['CWE-269']
+    owasp_appsec: ["A04:2021"]
+    mitre_attack: ['T1098', 'T1136.001']
+    cis_controls: ['CIS-5.1', 'CIS-6.8']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1', '7.2.5']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.2', 'CC6.3']
+
+  - id: "backdoor_listener"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Backdoor Network Listener"
+    description: "Opening a listening socket that spawns a shell (netcat/socat/ncat backdoor)"
+    regex: "(?:(?:nc|ncat|netcat)\\s+(?:-\\w*l\\w*|--listen)\\s+.*-e\\s+(?:/bin/)?(?:ba)?sh|socat\\s+(?:TCP4?-LISTEN|OPENSSL-LISTEN).*EXEC:)"
+    positive_examples:
+      - "nc -l -e sh"
+    recommendation: "A listening nc/ncat/socat with -e or EXEC: is a textbook reverse shell; remove the task and audit the host for compromise. Legitimate one-off shells should be delivered via ansible.builtin.ssh with key-based auth, never an unauthenticated TCP listener."
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004', 'T1571']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "web_shell_drop"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Web Shell Drop to Webroot"
+    description: "Writing executable scripts with shell-exec primitives into a webroot directory"
+    regex: "(?:/var/www/|/srv/www/|/usr/share/nginx/html/|htdocs/|wwwroot/).*\\.(?:php|jsp|aspx?|cgi)(?:[\"'\\s]|$)"
+    positive_examples:
+      - "dest: /var/www/html/index.php"
+    recommendation: "Writing executable script files into a webroot is the canonical web-shell deployment pattern; remove the task, audit the webroot for unknown files, and deploy application code via packaged artifacts (RPM/DEB, container image, git checkout) rather than ansible.builtin.copy of loose .php / .jsp files."
+    cwe: ['CWE-434', 'CWE-506']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V12.2.1", "V12.4.1"]
+    mitre_attack: ['T1505.003']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7']
+    pci_dss: ['2.2.1', '2.2.4']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  # -- Windows Defense Evasion / Post-Compromise ------------------------------
+  - id: "windows_shadow_copies_delete"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Windows Shadow Copy / Backup Deletion"
+    description: "Deletes Volume Shadow Copies or Windows Server Backup catalogs via vssadmin delete shadows, wbadmin delete catalog|backup, wmic shadowcopy delete, or PowerShell Remove-WmiObject Win32_ShadowCopy / Get-WmiObject ... | Remove-WmiObject. This is a near-universal ransomware precursor that prevents rollback."
+    regex: "(?:vssadmin(?:\\.exe)?\\s+delete\\s+shadows|wbadmin(?:\\.exe)?\\s+delete\\s+(?:catalog|backup|systemstatebackup)|wmic(?:\\.exe)?\\s+shadowcopy\\s+delete|Get-WmiObject\\s+Win32_ShadowCopy[\\s\\S]{0,100}Remove-WmiObject|Remove-WmiObject\\s+Win32_ShadowCopy)"
+    positive_examples:
+      - "vssadmin delete shadows"
+    recommendation: "Volume Shadow Copy deletion is essentially never a legitimate operation in configuration management. Flag this as an incident, verify backups are intact offsite, and hunt for additional impact-stage activity (encryption, event-log clearing) from the same actor."
+    cwe: ['CWE-404', 'CWE-693']
+    mitre_attack: ['T1485', 'T1490']
+    cis_controls: ['CIS-11.1', 'CIS-11.4']
+    nist_controls: ['SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7']
+
+  - id: "windows_defender_tamper"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Windows Defender Configuration Tampering"
+    description: "Uses Set-MpPreference to disable real-time protection / cloud protection / script scanning, Add-MpPreference to add broad exclusion paths (C:\\, %TEMP%, %APPDATA%), or modifies the DisableAntiSpyware registry key. These are direct defense-evasion primitives - an attacker disables EDR so subsequent tooling runs without alerts."
+    regex: "(?:Set-MpPreference\\s+-(?:DisableRealtimeMonitoring|DisableBehaviorMonitoring|DisableIOAVProtection|DisableScriptScanning|MAPSReporting\\s+0|SubmitSamplesConsent\\s+2)|Add-MpPreference\\s+-Exclusion(?:Path|Process|Extension)\\s+[\"']?(?:C:\\\\?[\"']?$|C:\\\\\\\\$|\\*|\\.)|DisableAntiSpyware\\s*[:=]\\s*(?:1|0x1|true))"
+    positive_examples:
+      - "Set-MpPreference -DisableRealtimeMonitoring"
+    recommendation: "Defender config is managed centrally (Group Policy / Intune / Defender for Endpoint portal). Host-local Set-MpPreference calls bypass that policy. Audit the exclusion list, re-enable real-time protection, and investigate what ran while protection was off."
+    cwe: ['CWE-693', 'CWE-778']
+    owasp_appsec: ["A09:2021"]
+    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    mitre_attack: ['T1562.001']
+    cis_controls: ['CIS-10.1', 'CIS-10.7']
+    nist_controls: ['AU-2', 'AU-3', 'AU-12', 'SC-8', 'SC-8(1)', 'SI-3']
+    pci_dss: ['2.2.7', '4.2.1', '10.2.1', '10.2.1.1']
+    hipaa: ['164.312(b)', '164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC6.8', 'CC7.2']
+
+  - id: "event_log_clear_windows"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Windows Event Log Clearing"
+    description: "Clears Windows event logs via wevtutil cl <log>, Clear-EventLog, Remove-EventLog, or WMIC nteventlog where(...)=TRUE call ClearEventLog(). Log clearing is a defense-evasion primitive almost always associated with post-exploitation cleanup - there is rarely a legitimate automation reason to clear Security/System/Application logs."
+    regex: "(?:wevtutil(?:\\.exe)?\\s+cl\\s+(?:Security|System|Application|Setup|Microsoft-Windows)|Clear-EventLog\\s+-LogName|Remove-EventLog\\s+-LogName|wmic(?:\\.exe)?\\s+nteventlog[\\s\\S]{0,100}ClearEventLog)"
+    positive_examples:
+      - "wevtutil cl Security"
+    recommendation: "Do not clear event logs from automation. Forward logs to a centralized SIEM (Windows Event Forwarding, Splunk UF, Elastic Beats) so retention is not host-local. If log volume is the concern, adjust retention/size instead of clearing."
+    cwe: ['CWE-117', 'CWE-778']
+    owasp_appsec: ["A09:2021"]
+    owasp_asvs: ["V7.1.1", "V7.2.1", "V7.3.1"]
+    mitre_attack: ['T1070.001', 'T1562.002']
+    cis_controls: ['CIS-8.2', 'CIS-8.5']
+    nist_controls: ['AU-2', 'AU-3', 'AU-12']
+    pci_dss: ['10.2.1', '10.2.1.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC7.2']
+
+  # -- Kernel-level exploitation primitives (2024-2026) ---------------------
+  - id: "userfaultfd_kernel_exploit_primitive"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "userfaultfd Syscall Enabled for Unprivileged Users (Kernel Exploit Primitive)"
+    description: "Enables userfaultfd(2) for unprivileged users by writing `1` to `/proc/sys/vm/unprivileged_userfaultfd` or removing the sysctl hardening. userfaultfd is a documented exploitation primitive used in Dirty Pipe, Dirty Cred, and numerous io_uring / tmpfs races because it lets an attacker stall a kernel page-fault handler at an attacker-controlled address - turning many race-condition bugs into reliable privilege escalation."
+    regex: "(?:vm\\.unprivileged_userfaultfd|unprivileged_userfaultfd)[\\s\\S]{0,80}?(?:value|content|line|[:=])\\s*[:=]?\\s*[\"']?1\\b|/proc/sys/vm/unprivileged_userfaultfd[\\s\\S]{0,80}(?:content|line)\\s*[:=]\\s*[\"']?1"
+    positive_examples:
+      - "vm.unprivileged_userfaultfdvalue1"
+    multiline: true
+    window: 6
+    recommendation: "Keep `vm.unprivileged_userfaultfd=0` in `/etc/sysctl.d/90-hardening.conf`. If a workload genuinely needs userfaultfd, grant `CAP_SYS_PTRACE` to that specific process rather than opening it fleet-wide."
+    cwe: ['CWE-362', 'CWE-1023']
+    mitre_attack: ['T1068']
+    cis_controls: ['CIS-3.3']
+
+  - id: "proc_self_mem_write_primitive"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "/proc/self/mem or /proc/<pid>/mem Write (Dirty-Pipe Style Primitive)"
+    description: "Writes to `/proc/self/mem` or `/proc/<pid>/mem`, the primitive at the heart of Dirty Pipe (CVE-2022-0847), Dirty Cred, and suid-binary overwrite chains. Legitimate Ansible automation essentially never needs `dd of=/proc/*/mem`."
+    regex: "(?:dd\\s+[^\\n]*\\bof=/proc/(?:self|\\d+|\\$\\$)/mem|>\\s*/proc/(?:self|\\d+|\\$\\$)/mem)"
+    positive_examples:
+      - "dd of=/proc/self/mem"
+    recommendation: "Remove the task; if you genuinely need in-memory patching (extremely rare), use a signed kernel-live-patching framework (kpatch, livepatch) through the vendor's channel rather than raw `/proc/*/mem` writes."
+    cwe: ['CWE-276', 'CWE-787']
+    cve: ["CVE-2022-0847"]
+    owasp_appsec: ["A01:2021"]
+    mitre_attack: ['T1068', 'T1211']
+    cis_controls: ['CIS-3.3']
+
+  - id: "systemd_timer_persistence_world_writable_unit"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "systemd Timer + Service Unit Dropped With Suspicious ExecStart Or World-Writable Path"
+    description: "A task creates a paired `.timer` + `.service` unit under `/etc/systemd/system/` or `~/.config/systemd/user/` whose `ExecStart=` references a world-writable directory (`/tmp`, `/var/tmp`, `/dev/shm`), a base64 payload (`bash -c 'echo <b64> | base64 -d | bash'`), or a script downloaded inline with `curl | bash`. systemd timers are the Linux equivalent of scheduled tasks and the #1 persistence primitive in 2024-2025 Linux intrusion reports (MITRE T1053.006)."
+    regex: "(?:\\.timer|\\.service)[\\s\\S]{0,600}?ExecStart\\s*=\\s*[^\\n]*(?:/tmp/|/var/tmp/|/dev/shm/|base64\\s+-d\\s*\\|\\s*(?:bash|sh)|curl\\s+[^|]{0,200}\\|\\s*(?:bash|sh)|wget\\s+[^|]{0,200}\\|\\s*(?:bash|sh))"
+    positive_examples:
+      - |2-
+        .service"
+              # ...
+              ExecStart=/bin/bash -c 'curl -fsSL https://claude.ai/install.sh | bash
+    multiline: true
+    window: 30
+    recommendation: "Remove the unit. Legitimate systemd timers place `ExecStart` at a root-owned, non-world-writable path (e.g. `/usr/local/bin/`), reference a file that was provisioned via a signed-and-pinned package or a `copy` task with explicit `owner: root`, `group: root`, `mode: '0755'`, and never inline base64 or `curl | bash`. Audit existing timers with `systemctl list-timers --all` and inspect `ExecStart` for each unit. Monitor `/etc/systemd/system/*.{timer,service}` with auditd."
+    cwe: ['CWE-426', 'CWE-506', 'CWE-732']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1053.006', 'T1543.002']
+    cis_controls: ['CIS-3.3', 'CIS-4.1', 'CIS-10.5']
+    nist_controls: ['AC-6', 'AU-12', 'CM-7', 'SI-4']
+    pci_dss: ['2.2.1', '7.2.1', '10.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC7.2']
+
+  - id: "grub_password_disabled_or_set_from_playbook"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "GRUB Password Set Inline From Playbook Or Boot Menu Unlocked"
+    description: "A task renders `/etc/grub.d/40_custom` / `/etc/default/grub` with `set superusers=\"\"` (empty), `--unrestricted` on a menu entry, or a `grub.pbkdf2.sha512` hash set from an inline variable. Empty superusers disable boot-menu authentication entirely (allowing `init=/bin/bash` single-user escalation at the console). Inline-provisioned GRUB password hashes end up in Git/CI logs, defeating the control they're meant to enforce."
+    regex: "(?:set\\s+superusers\\s*=\\s*['\"]{2}|--unrestricted\\b|password_pbkdf2\\s+\\w+\\s+grub\\.pbkdf2\\.sha512\\.[^\\n\\s]+)"
+    positive_examples:
+      - "grub__menuentry_access: '--unrestricted'"
+    recommendation: "Set `superusers` to a named account and generate the PBKDF2 hash with `grub-mkpasswd-pbkdf2` on an out-of-band admin host, then store the hash in ansible-vault (not plaintext). Remove `--unrestricted` from every `menuentry`. Verify with `grep -E 'set superusers|--unrestricted|password_pbkdf2' /boot/grub2/grub.cfg` (or `/boot/grub/grub.cfg`). For physical-access threat models, also enable BIOS/UEFI admin-password + Secure Boot."
+    cwe: ['CWE-287', 'CWE-306', 'CWE-798']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.1.1", "V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1542.003', 'T1543']
+    cis_controls: ['CIS-4.5', 'CIS-5.2', 'CIS-6.8']
+    nist_controls: ['AC-3', 'CM-6', 'IA-2', 'SC-12']
+    pci_dss: ['2.2.1', '8.3.1']
+    hipaa: ['164.310(c)']
+    soc2: ['CC6.1', 'CC6.2']
+
+  - id: "efi_secureboot_disabled_or_uefi_vars_tampered"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Secure Boot Disabled Or UEFI SetupMode Re-Enabled Via efivar / mokutil"
+    description: "A task invokes `mokutil --disable-validation`, writes to `/sys/firmware/efi/efivars/SecureBoot-*`, or runs `efibootmgr` with `-c` (create) targeting an unsigned `.efi` binary on a Secure-Boot-enforced system. Disabling Secure Boot from automation opens the host to bootkits (BlackLotus, CosmicStrand, MoonBounce 2024-2025 resurgence) that survive OS reinstall and evade every in-OS EDR."
+    regex: "mokutil\\s+(?:--disable-validation|--reset)|/sys/firmware/efi/efivars/SecureBoot[^\\s]*|efibootmgr\\s+-c\\s+[^\\n]*(?:--loader|-l)\\s+[^\\n]*\\.(?:efi|EFI)\\b"
+    positive_examples:
+      - "mokutil --disable-validation"
+    recommendation: "Never disable Secure Boot from a playbook. If you genuinely need to boot a custom kernel/initramfs, sign it with a MOK enrolled interactively at the console (not via automation), or build it into an internally-signed RHEL/SLES shim. Verify posture with `mokutil --sb-state` expecting `SecureBoot enabled`, and enforce Secure Boot + TPM-PCR measured-boot attestation via a platform like Keylime or Azure Attestation."
+    no_ansible_remediation: true
+    cwe: ['CWE-347', 'CWE-693', 'CWE-798']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1542.001', 'T1542.003']
+    cis_controls: ['CIS-4.5', 'CIS-10.5']
+    nist_controls: ['CM-6', 'CM-7', 'SC-12', 'SI-7']
+    pci_dss: ['2.2.1', '6.3.2']
+    hipaa: ['164.312(c)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "openssh_regresshion_vulnerable_install"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "OpenSSH Installed/Pinned At Version Vulnerable To regreSSHion (CVE-2024-6387)"
+    description: "A task installs or pins `openssh-server` / `openssh` at a version in the vulnerable range (glibc-based Linux, `OpenSSH 8.5p1` through `9.7p1` inclusive, plus the reintroduced regression that affects `4.4p1` through `8.5p1` without the backported fix) AND sets `LoginGraceTime` to a non-zero default (120 sec), OR fails to pin `>= 9.8p1`. CVE-2024-6387 (Qualys, Jul 2024) is an unauthenticated race-condition -> pre-auth RCE as root on glibc Linux; every unpatched sshd listening on the internet is a one-packet takeover. The default debian/RHEL packages lagged the upstream patch by ~1-2 weeks, so version-pinned playbooks written in that window still install vulnerable sshd."
+    regex: "(?:ansible\\.builtin\\.(?:package|apt|dnf|yum))[\\s\\S]{0,300}?name\\s*:\\s*['\"]?openssh(?:-server|-clients)?['\"]?[\\s\\S]{0,300}?(?:version|state)\\s*:\\s*['\"]?(?:(?:8\\.(?:[5-9])|9\\.[0-7])(?:p[0-9])?|present|latest)(?![\\s\\S]{0,400}LoginGraceTime\\s*[:=]\\s*0\\b)"
+    positive_examples:
+      - "ansible.builtin.packagename:opensshversion:8.5"
+    multiline: true
+    window: 30
+    recommendation: "Pin `openssh-server >= 9.8p1` (upstream regreSSHion fix, Jul 1 2024). On distros that have not yet released 9.8p1 in their stable channel, apply the one-line mitigation in `/etc/ssh/sshd_config`: `LoginGraceTime 0` (disables the vulnerable timer -> SIGALRM race). Verify with `ssh -V` and re-check after every kernel / glibc update. Monitor for exploitation indicators via auditd on `/usr/sbin/sshd` SIGALRM delivery + Falco rule `ssh_brute_force_with_alarm`. Restrict sshd to management subnets via `AllowUsers`, `Match Address`, and a fail2ban jail with a narrow `findtime`."
+    cwe: ['CWE-362', 'CWE-364', 'CWE-787']
+    cve: ["CVE-2024-6387"]
+    mitre_attack: ['T1068', 'T1190', 'T1210']
+    cis_controls: ['CIS-4.8', 'CIS-7.3', 'CIS-7.7']
+    nist_controls: ['RA-5', 'SI-2', 'SI-3']
+    pci_dss: ['6.3.3', '11.3.1']
+    hipaa: ['164.308(a)(1)(ii)(B)', '164.312(a)(1)']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "redis_module_load_arbitrary_so"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Redis MODULE LOAD Of Arbitrary .so File (RCE-As-Redis-User Primitive)"
+    description: "A task issues `redis-cli MODULE LOAD /path/to/module.so`, templates a Redis config file with `loadmodule /path/to/module.so`, or uses `community.general.redis` to run a `MODULE LOAD` command. Redis modules are C shared objects loaded into the `redis-server` process address-space with no sandbox - `MODULE LOAD` is effectively `dlopen()` as the `redis` user. Attacker-controlled `.so` paths (or attacker-controlled Redis configs pointing at a writable tmp-dir module) are one of the most common `unauthenticated-Redis -> RCE` chains exploited by 2024 H2Miner / Kinsing / Muhstik cryptomining botnets."
+    regex: "(?:redis-cli\\s+[^\\n]*MODULE\\s+LOAD|MODULE\\s+LOAD\\s+['\"]?/[^'\"\\s]+\\.so|loadmodule\\s+['\"]?/[^'\"\\s]+\\.so|community\\.general\\.redis[\\s\\S]{0,300}?command\\s*:\\s*['\"]?MODULE\\s+LOAD)"
+    positive_examples:
+      - "redis-cli MODULE LOAD"
+    multiline: true
+    recommendation: "Remove the `MODULE LOAD` task entirely and audit the target Redis for unauthorised modules: `redis-cli MODULE LIST` - anything not matching your allowlist is an incident. Set `enable-module-command no` in `redis.conf` (Redis 7.0+) to disable the command entirely. Bind Redis to loopback / private network only, require `requirepass <strong>` + `aclfile /etc/redis/users.acl`, and run with `rename-command MODULE \"\"` for defence-in-depth. For legitimate modules, install from the distro package manager only, pin the module hash in the playbook, and load via a read-only `redis.conf` built into the image rather than runtime `MODULE LOAD`."
+    cwe: ['CWE-78', 'CWE-94', 'CWE-427']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059', 'T1068', 'T1574.006']
+    cis_controls: ['CIS-2.1', 'CIS-4.8', 'CIS-16.11']
+    nist_controls: ['CM-7', 'SC-39', 'SI-3']
+    pci_dss: ['2.2.1', '6.3.3']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "postgres_copy_program_rce_as_postgres"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "PostgreSQL COPY ... PROGRAM Used From Playbook (RCE-As-postgres-User Primitive)"
+    description: "A task issues a SQL statement via `community.postgresql.postgresql_query`, `postgresql_script`, or raw `psql -c` containing `COPY <table> FROM PROGRAM '...'` / `COPY <table> TO PROGRAM '...'`. `COPY ... PROGRAM` (PG 11+) executes the argument as a shell command in the `postgres` OS user context - it is the documented Postgres-superuser RCE primitive. Any SQL-injection finding in an application that eventually reaches a playbook-run query becomes a trivial RCE. Even legitimate use is a red flag because it requires the `pg_execute_server_program` role (PG 11+) / superuser privileges, which should never be granted to an Ansible-provisioned app role."
+    regex: "COPY\\s+[\\w\\.\"]+\\s+(?:FROM|TO)\\s+PROGRAM\\s+['\"]"
+    positive_examples:
+      - "COPY a FROM PROGRAM '"
+    multiline: true
+    recommendation: "Never use `COPY ... PROGRAM` from Ansible; replace with `COPY ... FROM '/path/file.csv'` for file ingestion (no shell-out). Revoke the `pg_execute_server_program` role from all app users: `REVOKE pg_execute_server_program FROM app_role;`. For data-loading pipelines, use `\\copy` (client-side, runs as the OS user running psql, far narrower blast radius) or a dedicated ETL process with a purpose-built FDW. Audit existing grants: `SELECT member::regrole, granted_by::regrole FROM pg_auth_members WHERE roleid = 'pg_execute_server_program'::regrole;`."
+    cwe: ['CWE-78', 'CWE-250', 'CWE-269']
+    owasp_appsec: ["A03:2021", "A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1059', 'T1210']
+    cis_controls: ['CIS-2.1', 'CIS-5.4', 'CIS-16.11']
+    nist_controls: ['AC-6', 'CM-7', 'SI-10']
+    pci_dss: ['6.3.3', '7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "polkit_rule_world_allow_any_user"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "polkit Rule Installed In /etc/polkit-1/rules.d With polkit.Result.YES For Any User"
+    description: "A task installs a `*.rules` file under `/etc/polkit-1/rules.d/` or `/usr/share/polkit-1/rules.d/` whose JavaScript body returns `polkit.Result.YES` for any subject/action without a proper subject check - e.g. `polkit.addRule(function(action,subject){ return polkit.Result.YES; })` or `if (subject.isInGroup('users')) return polkit.Result.YES`. polkit rules run with full authority to grant any `org.freedesktop.*` authorisation to any PID that satisfies the (attacker-controlled) JS predicate - this is the persistence primitive used in Pwnkit (CVE-2021-4034) post-exploit and in 2024 Linux-ransomware persistence (Kinsing, XorDDoS) to elevate cron-scheduled tasks to root without entering a password."
+    regex: "(?:ansible\\.builtin\\.(?:copy|template|file)|lineinfile|blockinfile)[\\s\\S]{0,300}?(?:dest|path)\\s*:\\s*['\"]?(?:/etc/polkit-1/rules\\.d/|/usr/share/polkit-1/rules\\.d/)[^'\"\\n]*\\.rules['\"]?[\\s\\S]{0,2000}?polkit\\.(?:addRule|addAdminRule)[\\s\\S]{0,500}?polkit\\.Result\\.YES(?![\\s\\S]{0,200}(?:subject\\.user\\s*==\\s*['\"][a-z][a-z0-9_-]+['\"]|action\\.id\\.indexOf))"
+    positive_examples:
+      - "ansible.builtin.copydest:/etc/polkit-1/rules.d/.rulespolkit.addRulepolkit.Result.YES"
+    multiline: true
+    window: 120
+    recommendation: "Never install custom polkit rules via Ansible. If legitimately required (specific service-account running specific action), the rule MUST: (1) check `subject.user` against an explicit allowlist of named users, (2) check `action.id` against an explicit allowlist of action IDs, (3) return `polkit.Result.AUTH_ADMIN_KEEP` not `YES` where possible. Audit existing rules: `find /etc/polkit-1/rules.d/ /usr/share/polkit-1/rules.d/ -name '*.rules' -exec grep -L 'subject.user' {} \\;` - any file without a `subject.user` check is suspect. Monitor for new `.rules` files via auditd: `-w /etc/polkit-1/rules.d/ -p wa -k polkit_persistence`."
+    cwe: ['CWE-250', 'CWE-269', 'CWE-732']
+    cve: ["CVE-2021-4034"]
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    mitre_attack: ['T1068', 'T1543', 'T1546']
+    cis_controls: ['CIS-4.8', 'CIS-5.4', 'CIS-6.8']
+    nist_controls: ['AC-6', 'CM-7', 'SI-3']
+    pci_dss: ['2.2.1', '7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "runc_leaky_vessels_vulnerable_install"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "runc Installed/Pinned At Version Vulnerable To Leaky Vessels (CVE-2024-21626)"
+    description: "A task installs or pins `runc` / `containerd.io` / `docker-ce` at a version known vulnerable to CVE-2024-21626 (Leaky Vessels, Snyk Jan 2024) - specifically runc `< 1.1.12`, containerd `< 1.6.28`/`< 1.7.13`, Docker `< 25.0.2`. Leaky Vessels is a file-descriptor leak in `runc run`/`exec` that allows a malicious container image or a crafted `WORKDIR`/`--workdir` argument to escape the container and read/write the host filesystem - a full container-escape achievable with standard, non-privileged image pulls (no CAP_SYS_ADMIN required). In 2024-2025 this remains the most-exploited container-escape CVE per the Sysdig Threat Report."
+    regex: "(?:ansible\\.builtin\\.(?:package|apt|dnf|yum))[\\s\\S]{0,300}?name\\s*:\\s*['\"]?(?:runc|containerd(?:\\.io)?|docker(?:-ce)?)['\"]?[\\s\\S]{0,300}?(?:version|state)\\s*:\\s*['\"]?(?:1\\.1\\.(?:[0-9]|1[01])(?![0-9])|1\\.6\\.(?:[0-9]|1[0-9]|2[0-7])(?![0-9])|1\\.7\\.(?:[0-9]|1[0-2])(?![0-9])|2[0-4]\\.\\d+\\.\\d+|present|latest)"
+    positive_examples:
+      - "ansible.builtin.packagename:runcversion:1.1.0"
+    multiline: true
+    window: 30
+    recommendation: "Upgrade immediately: `runc >= 1.1.12`, `containerd >= 1.6.28` or `>= 1.7.13`, `docker-ce >= 25.0.2`, `moby-engine >= 25.0.2`. On RHEL/OpenShift, patch via `dnf upgrade runc containerd` and restart every node. For airgapped environments that cannot immediately upgrade, mitigate by: (1) only pulling images from signed/trusted registries (cosign verification via `policy-controller`), (2) running rootless containers (`--userns-remap` or `--security-opt userns=<map>`), (3) enabling seccomp default profile + AppArmor. Scan running containers for exploitation attempts via Falco rule `runc_leak_exploit_attempt`."
+    cwe: ['CWE-668', 'CWE-672', 'CWE-787']
+    cve: ["CVE-2024-21626"]
+    owasp_appsec: ["A01:2021"]
+    mitre_attack: ['T1068', 'T1190', 'T1611']
+    cis_controls: ['CIS-4.8', 'CIS-7.3', 'CIS-7.7']
+    nist_controls: ['RA-5', 'SC-39', 'SI-2']
+    pci_dss: ['6.3.3', '11.3.1']
+    hipaa: ['164.308(a)(1)(ii)(B)']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "io_uring_runtime_enabled_without_seccomp_filter"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "io_uring Runtime Enabled On Host Without Seccomp/AppArmor Filter"
+    description: "A task sets `kernel.io_uring_disabled = 0` in sysctl, loads the `io_uring` module via `modprobe`, or renders a Docker/Kubernetes config with `io_uring` explicitly enabled in the seccomp profile (`\"defaultAction\": \"SCMP_ACT_ALLOW\"` for `io_uring_*` syscalls). `io_uring` is the Linux kernel's async-IO subsystem - since 5.1 it has accumulated >30 CVEs (CVE-2024-0582, CVE-2024-1086, CVE-2023-6932, CVE-2022-1015) most of which are unauthenticated container-to-kernel LPE. Critically, `io_uring` operations BYPASS most eBPF-based runtime detection (Falco, Tetragon) because syscalls are issued via a shared ring buffer, not through `sys_enter_*`. Google (2023), DigitalOcean (2024), and ChromeOS (2024) all disabled `io_uring` host-wide citing this tradeoff."
+    regex: "(?:kernel\\.io_uring_disabled\\s*=\\s*0|modprobe\\s+io_uring|insmod\\s+[^\\s]*io_uring|echo\\s+0\\s*>\\s*/proc/sys/kernel/io_uring_disabled|io_uring_setup[\\s\\S]{0,200}?SCMP_ACT_ALLOW|\"io_uring_setup\"[\\s\\S]{0,200}?\"action\"\\s*:\\s*\"SCMP_ACT_ALLOW\")"
+    positive_examples:
+      - "kernel.io_uring_disabled=0"
+    multiline: true
+    window: 10
+    recommendation: "Disable io_uring host-wide: `sysctl -w kernel.io_uring_disabled=2` (persistent via `/etc/sysctl.d/99-io-uring.conf`) - the 2023-introduced sysctl that blocks `io_uring_setup()` entirely. For workloads that genuinely need async-IO, use a seccomp filter that returns `SCMP_ACT_ERRNO` for `io_uring_setup`, `io_uring_enter`, `io_uring_register` OR restrict via AppArmor/SELinux to a narrow set of known-good binaries. On Kubernetes, add `io_uring_setup` to the default seccomp-deny list in the RuntimeDefault profile (`/var/lib/kubelet/seccomp/profiles/default.json`). Audit exploitation-attempt via auditd: `-a always,exit -F arch=b64 -S io_uring_setup -k iouring_attempt`."
+    cwe: ['CWE-284', 'CWE-732', 'CWE-829']
+    cve: ["CVE-2022-1015", "CVE-2023-6932", "CVE-2024-0582", "CVE-2024-1086"]
+    owasp_appsec: ["A01:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1", "V12.4.1"]
+    mitre_attack: ['T1068', 'T1562.001', 'T1611']
+    cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-5.7']
+    nist_controls: ['CM-7', 'SC-39', 'SI-3']
+    pci_dss: ['2.2.1', '6.3.3']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "kexec_load_hot_patch_persistence"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "kexec Used To Load Arbitrary Kernel (Boot-Chain Persistence / SecureBoot Bypass Primitive)"
+    description: "A task runs `kexec -l <kernel>`, `kexec --load`, or `kexec_load(2)` with an `--initrd` / `--append` argument - especially from a playbook that does not describe a legitimate live-kernel-patch rollout (kpatch / livepatch). `kexec` loads a new kernel image directly into memory and (via `kexec -e`) transfers control without a full BIOS/UEFI boot - this BYPASSES Secure Boot signature verification, persists across reboots as long as the kexec-loaded kernel stays resident, and leaves no trace in `/boot` / UEFI firmware logs. The 2024 UNC5221 / Velvet Ant Linux-persistence campaigns use `kexec` to swap the running kernel for an attacker-controlled variant with a rootkit pre-installed."
+    regex: "(?:kexec\\s+(?:-l|--load)\\s+[^\\s]+|kexec_load\\s*\\(|ansible\\.builtin\\.command\\s*:\\s*['\"]?kexec\\s+-l|ansible\\.builtin\\.shell[\\s\\S]{0,200}?kexec\\s+-l)(?![\\s\\S]{0,500}(?:kpatch|livepatch|kdump))"
+    positive_examples:
+      - "kexec -l x"
+    multiline: true
+    window: 20
+    recommendation: "Remove the `kexec` task unless it is part of a documented kdump / crash-capture flow. For legitimate live kernel patching use `kpatch` (RHEL/CentOS), `livepatch` (Ubuntu Pro), or `kGraft` (SLES) - all of which are signed, audited, and preserve Secure Boot chain. Disable kexec_load host-wide if not needed: `echo 1 > /proc/sys/kernel/kexec_load_disabled` (one-way until reboot), persistent via `kernel.kexec_load_disabled=1` in sysctl. On kernels built with `CONFIG_KEXEC_SIG=y`, require signed kernel images: `kernel.kexec_image_verify_sig=1`. Monitor kexec invocations via auditd: `-a always,exit -F arch=b64 -S kexec_load,kexec_file_load -k kexec_use`."
+    cwe: ['CWE-250', 'CWE-345', 'CWE-506']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1014', 'T1542.003', 'T1547']
+    cis_controls: ['CIS-4.8', 'CIS-5.4', 'CIS-10.5']
+    nist_controls: ['AC-6', 'CM-7', 'SI-7']
+    pci_dss: ['2.2.1', '11.5.1']
+    hipaa: ['164.312(c)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "kernel_yama_ptrace_scope_disabled"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "kernel.yama.ptrace_scope Set To 0 (Cross-Process Memory Read Enabled)"
+    description: "A task sets `kernel.yama.ptrace_scope = 0` in sysctl / sysctl.d / /proc, which DISABLES the YAMA LSM's ptrace restriction and allows ANY process owned by a user to `PTRACE_ATTACH` ANY other process of the same user - including gpg-agent, ssh-agent, browsers holding session cookies, 1Password CLI, and keyring daemons. Default since Ubuntu 10.10, Fedora, RHEL 8+ is `1` (child-only). Dropping to `0` is the exact post-exploitation step used by Pegasus/Predator droppers, APT41, and the 2024 xz backdoor research to dump credential caches from long-lived session agents without root. No legitimate production workload needs scope=0."
+    regex: "(?:kernel\\.yama\\.ptrace_scope|yama/ptrace_scope)[\\s\\S]{0,80}?(?:value|content|line|[:=])\\s*[:=]?\\s*[\"']?0\\b"
+    positive_examples:
+      - |2-
+        kernel.yama.ptrace_scope: 1
+                  net.ipv4.ip_forward: 0
+    multiline: true
+    window: 6
+    recommendation: "Keep the distro default: `kernel.yama.ptrace_scope = 1` (child-only) for general fleets, `2` (admin-only, requires CAP_SYS_PTRACE) for PCI/HIPAA-scoped hosts, `3` (no ptrace at all) for kiosks / single-app servers. Persist via `/etc/sysctl.d/10-ptrace.conf` and validate at boot via a CIS-baseline Ansible task. If a legitimate debugger needs scope=0 TEMPORARILY, gate it behind a `tags: dev-only` role and never ship it to staging/prod."
+    cwe: ['CWE-200', 'CWE-284', 'CWE-732']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1", "V12.4.1"]
+    mitre_attack: ['T1003', 'T1068', 'T1562.001']
+    cis_controls: ['CIS-3.3', 'CIS-4.1', 'CIS-4.8']
+    nist_controls: ['AC-6', 'CM-7', 'SC-39']
+    pci_dss: ['2.2.1', '7.2.1']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "kernel_dmesg_restrict_disabled"
+    category: "system_compromise"
+    severity: "MEDIUM"
+    title: "kernel.dmesg_restrict Set To 0 (Kernel Log Readable By Unprivileged Users)"
+    description: "A task sets `kernel.dmesg_restrict = 0`, which allows any unprivileged user to read `/dev/kmsg` and `dmesg(1)` output. Kernel logs routinely contain driver addresses, %p pointer leaks, oopses with RIP/RSP values, crypto key fingerprints, and disk layout - all of which defeat KASLR and are the direct information-leak primitive exploited in the 2024 cachewarp / retbleed / Inception PoCs. RHEL 7+, Ubuntu 22.04+, Debian 12+ all default to `1`. Dropping to `0` has no legitimate operational benefit - use `journalctl -k` with `adm`-group membership for ops staff."
+    regex: "(?:kernel\\.dmesg_restrict)[\\s\\S]{0,80}?(?:value|content|line|[:=])\\s*[:=]?\\s*[\"']?0\\b"
+    positive_examples:
+      - "kernel.dmesg_restrictvalue0"
+    multiline: true
+    window: 6
+    recommendation: "Set `kernel.dmesg_restrict = 1` in `/etc/sysctl.d/10-kernel-hardening.conf`. Grant `adm` or `systemd-journal` group to ops staff who legitimately need dmesg. Validate via CIS Benchmark L1 rule 1.5.3 (RHEL) / 1.6.3 (Ubuntu). On Kubernetes nodes add an additional kernel commandline arg `dmesg_restrict=1` to harden against runtime sysctl reverts."
+    cwe: ['CWE-200', 'CWE-209', 'CWE-497']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1082', 'T1592.002']
+    cis_controls: ['CIS-3.3', 'CIS-4.1']
+    nist_controls: ['AC-6', 'AU-9', 'SI-11']
+    pci_dss: ['7.2.1', '10.2.1']
+    soc2: ['CC6.1']
+
+  - id: "kernel_kptr_restrict_disabled"
+    category: "system_compromise"
+    severity: "MEDIUM"
+    title: "kernel.kptr_restrict Set To 0 (Kernel Pointer Leak, KASLR Defeated)"
+    description: "A task sets `kernel.kptr_restrict = 0`, which causes `%pK` printk format specifiers to leak raw kernel pointers via `/proc/kallsyms`, `/proc/modules`, `/proc/net/*`, `/sys/kernel/*` - readable by any user. Raw pointers immediately defeat Kernel ASLR and convert otherwise-unreliable 1-byte-OOB-write bugs into deterministic LPE. Mainline default is `2` (never show pointers to anyone). Debian/Ubuntu default is `1` (admin-only)."
+    regex: "(?:kernel\\.kptr_restrict)[\\s\\S]{0,80}?(?:value|content|line|[:=])\\s*[:=]?\\s*[\"']?0\\b"
+    positive_examples:
+      - |2-
+        kernel.kptr_restrict: 2
+                  kernel.kexec_load_disabled: 1
+                  kernel.sysrq: 0
+    multiline: true
+    window: 6
+    recommendation: "Set `kernel.kptr_restrict = 2` in `/etc/sysctl.d/10-kernel-hardening.conf` (strictest, only violates niche profiler use-cases). `kernel.perf_event_paranoid = 3` should accompany it to close the same leak via perf. Revert to `1` ONLY on hosts running perf/eBPF profilers in prod, not on application servers."
+    cwe: ['CWE-200', 'CWE-497', 'CWE-1013']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1082']
+    cis_controls: ['CIS-3.3', 'CIS-4.1']
+    nist_controls: ['AC-6', 'SI-11']
+    pci_dss: ['7.2.1']
+    soc2: ['CC6.1']
+
+  - id: "kernel_fs_protected_symlinks_disabled"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "fs.protected_symlinks Or fs.protected_hardlinks Disabled (TOCTOU / symlink-race Primitive)"
+    description: "A task sets `fs.protected_symlinks = 0` or `fs.protected_hardlinks = 0`. These sysctls (enabled by default on every mainstream distro since 2013) block the canonical `/tmp` symlink-race / TOCTOU pattern: a sticky-bit directory with a writable file owned by another user is dereferenced by a privileged process that follows a symlink implanted by an attacker. Disabling them reintroduces a 20-year-old exploitation class used by `tmpwatch`, `logrotate`, and any CI runner that writes into `/tmp`/`/var/tmp`. The 2024 `cron` + `inotifywait` privesc PoC specifically requires one of these to be `0`."
+    regex: "(?:fs\\.protected_(?:symlinks|hardlinks|fifos|regular))[\\s\\S]{0,80}?(?:value|content|line|[:=])\\s*[:=]?\\s*[\"']?0\\b"
+    positive_examples:
+      - |2-
+        fs.protected_fifos: 1
+                  fs.protected_regular: 2
+                  fs.suid_dumpable: 0
+    multiline: true
+    window: 6
+    recommendation: "Keep ALL of `fs.protected_symlinks=1`, `fs.protected_hardlinks=1`, `fs.protected_fifos=2`, `fs.protected_regular=2` in `/etc/sysctl.d/10-fs-hardening.conf`. These are cost-free - no legitimate workload ever needs them disabled. If a specific app breaks, fix the app to stop following user-supplied symlinks; do not weaken the kernel-wide hardening."
+    cwe: ['CWE-59', 'CWE-367', 'CWE-732']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1068', 'T1548.001']
+    cis_controls: ['CIS-3.3', 'CIS-4.8']
+    nist_controls: ['AC-6', 'CM-7', 'SI-10']
+    pci_dss: ['2.2.1', '7.2.1']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "kernel_unprivileged_userns_clone_enabled"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "kernel.unprivileged_userns_clone Set To 1 (User-Namespace Escape Primitive)"
+    description: "A task sets `kernel.unprivileged_userns_clone = 1` or `user.max_user_namespaces` to a non-zero value on a Debian/Ubuntu/RHEL fleet where the distro default disables unprivileged userns. Unprivileged user-namespaces are the prerequisite for the 2024 CVE-2024-1086 nft_verdict_init UAF (Pwn2Own Toronto -> root), CVE-2024-26808 netfilter-userns, and every `runc` / `containerd` escape since 2019. Systems that don't run rootless containers (Podman, Bubblewrap, Flatpak) have zero operational need to enable it."
+    regex: "(?:kernel\\.unprivileged_userns_clone|user\\.max_user_namespaces)[\\s\\S]{0,80}?(?:value|content|line|[:=])\\s*[:=]?\\s*[\"']?(?:1|[1-9][0-9]*)\\b"
+    positive_examples:
+      - "kernel.unprivileged_userns_clonevalue1"
+    multiline: true
+    window: 6
+    recommendation: "Set `kernel.unprivileged_userns_clone = 0` (or `user.max_user_namespaces = 0`) in `/etc/sysctl.d/10-userns.conf`. If the host must run rootless Podman/Flatpak/Bubblewrap, set `user.max_user_namespaces = 15000` instead of removing the cap entirely, and add a seccomp-filter on `unshare(CLONE_NEWUSER)` via the container runtime. On Kubernetes nodes with userns-remap enabled for hostProcess, restrict via `PodSecurityPolicy`/`PSA` to a dedicated namespace only."
+    cwe: ['CWE-284', 'CWE-668', 'CWE-732']
+    cve: ["CVE-2024-1086", "CVE-2024-26808"]
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1068', 'T1611']
+    cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-5.7']
+    nist_controls: ['AC-6', 'CM-7', 'SC-39']
+    pci_dss: ['2.2.1', '7.2.1']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "kernel_modules_disabled_flipped_off_then_modprobe"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "kernel.modules_disabled Flipped Off Then modprobe Executed (LKM Rootkit Load Primitive)"
+    description: "A playbook sets `kernel.modules_disabled = 0` (or runs `echo 0 > /proc/sys/kernel/modules_disabled`) and in the same file runs `modprobe <module>` / `insmod`. On hardened hosts `modules_disabled=1` is the one-way lockdown that prevents any further module loads for the lifetime of the boot - flipping it back to `0` before loading a module is a classic pre-stage for LKM rootkits (Diamorphine, Reptile, bedevil) and happens in the 2024 DragonRank / Mélofée Linux-persistence chains."
+    regex: "(?:kernel\\.modules_disabled\\s*=\\s*0|/proc/sys/kernel/modules_disabled[\\s\\S]{0,120}?(?:content|line)\\s*[:=]?\\s*[\"']?0)[\\s\\S]{0,800}?(?:modprobe|insmod)\\s+[A-Za-z0-9_/.-]+"
+    positive_examples:
+      - "kernel.modules_disabled=0modprobe A"
+    multiline: true
+    window: 40
+    recommendation: "Never flip `kernel.modules_disabled` back to 0 in a playbook - the whole point of this one-way sysctl is that it cannot be un-set without a reboot, giving you a forensic signal. If the host legitimately needs a new module at run-time, load it via `/etc/modules-load.d/*.conf` early in boot BEFORE lockdown takes effect. For reactive runs, reboot the host into a maintenance window with `modules_disabled=0`, load the module with Secure-Boot-signed `kmod-*` packages, and immediately re-apply `modules_disabled=1`. Add auditd `-w /proc/sys/kernel/modules_disabled -p wa -k modules_lockdown_flip`."
+    cwe: ['CWE-250', 'CWE-284', 'CWE-506']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1014', 'T1547.006', 'T1562.001']
+    cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-10.5']
+    nist_controls: ['AC-6', 'CM-7', 'SI-7']
+    pci_dss: ['2.2.1', '11.5.1']
+    hipaa: ['164.312(c)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "kernel_net_rp_filter_disabled"
+    category: "system_compromise"
+    severity: "MEDIUM"
+    title: "net.ipv4.conf.all.rp_filter Set To 0 (Reverse-Path Filtering Disabled, IP Spoofing Enabler)"
+    description: "A task sets `net.ipv4.conf.all.rp_filter = 0` (or `default.rp_filter = 0`), which disables the kernel's reverse-path source-address validation. This allows the host to both accept spoofed inbound packets (e.g. pretend-to-be-loopback packets from the wire) AND forward locally-spoofed egress packets - the exact primitives used in DNS-cache-poisoning side-channels (SADDNS / CVE-2020-25705), cross-cluster pod spoofing on flat CNI networks, and kube-apiserver impersonation when combined with API-server trust of `X-Forwarded-For`. Mainline default is `2` (loose) on most distros, `1` on systemd-networkd - `0` is always a regression."
+    regex: "net\\.ipv4\\.conf\\.(?:all|default)\\.rp_filter[\\s\\S]{0,80}?(?:value|content|line|[:=])\\s*[:=]?\\s*[\"']?0\\b"
+    positive_examples:
+      - "net.ipv4.conf.all.rp_filtervalue0"
+    multiline: true
+    window: 6
+    recommendation: "Set `net.ipv4.conf.all.rp_filter = 1` (strict) and `net.ipv4.conf.default.rp_filter = 1` in `/etc/sysctl.d/10-network-hardening.conf`. On multi-homed hosts with asymmetric routing (e.g. rare BGP edges), use `2` (loose) not `0`. Validate via `sysctl -a | grep rp_filter` after boot and export the value to your CIS-Benchmark compliance dashboard."
+    cwe: ['CWE-290', 'CWE-346']
+    cve: ["CVE-2020-25705"]
+    owasp_appsec: ["A07:2021"]
+    mitre_attack: ['T1498.002', 'T1557.002']
+    cis_controls: ['CIS-3.3', 'CIS-12.2']
+    nist_controls: ['AC-4', 'SC-5', 'SC-7']
+    pci_dss: ['1.3.2', '1.4.1']
+    soc2: ['CC6.6', 'CC6.7']
+
+  - id: "mysql_grant_file_privilege"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "MySQL GRANT FILE Privilege (Arbitrary File Read/Write Primitive)"
+    description: "A task runs `GRANT FILE ON *.* TO '<user>'@'%'` (or `community.mysql.mysql_user` with `priv: '*.*:FILE'`). The FILE privilege lets the grantee use `SELECT ... INTO OUTFILE`, `LOAD DATA INFILE`, and `LOAD_FILE()` - giving arbitrary file read/write as the `mysqld` process user across any path `mysqld` has filesystem access to. This is THE classic MySQL privesc-to-RCE primitive: read `/etc/shadow`, write a webshell into the document root, or plant a UDF library in the plugin dir (`plugin_dir`) to load as `CREATE FUNCTION ... SONAME`."
+    regex: "(?:GRANT\\s+FILE\\s+ON\\s+\\*\\.\\*\\s+TO\\s+['\"][^'\"]+['\"]|community\\.mysql\\.mysql_user[\\s\\S]{0,200}?priv\\s*:\\s*['\"]?[^'\"]*?\\*\\.\\*\\s*:\\s*[^'\"]*?\\bFILE\\b)"
+    positive_examples:
+      - "GRANT FILE ON *.* TO 'x'"
+    multiline: true
+    window: 8
+    recommendation: "Never grant FILE to application users. If a specific import/export job legitimately needs file I/O, create a dedicated MySQL user restricted to `secure_file_priv` directory: `SET GLOBAL secure_file_priv = '/var/lib/mysql-files/'`, `GRANT FILE ON *.* TO 'etl_user'@'127.0.0.1'` + connection-restricted to loopback. Revoke from existing users: `REVOKE FILE ON *.* FROM '<user>'@'%'`. Audit with `SELECT User, Host, File_priv FROM mysql.user WHERE File_priv='Y'` - every row is a review-required escalation."
+    cwe: ['CWE-250', 'CWE-269', 'CWE-732']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    mitre_attack: ['T1059', 'T1068', 'T1078.003']
+    cis_controls: ['CIS-3.3', 'CIS-6.8', 'CIS-16.5']
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(5)']
+    pci_dss: ['7.2.1', '7.2.2', '8.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "postgres_alter_role_superuser"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "PostgreSQL ALTER ROLE WITH SUPERUSER (Unrestricted Cluster Takeover)"
+    description: "A task runs `ALTER ROLE <user> WITH SUPERUSER`, `CREATE ROLE <user> WITH SUPERUSER`, or `community.postgresql.postgresql_user` with `role_attr_flags: SUPERUSER`. A Postgres SUPERUSER bypasses ALL permission checks, can execute `COPY TO PROGRAM 'shell-cmd'` (RCE as the postgres UNIX user), load arbitrary C extensions, read/write any file via `pg_read_server_files`, and change `pg_hba.conf` at runtime. The rule fires even on first grant - there's never a legitimate reason to elevate an application role to SUPERUSER in a CI/CD playbook."
+    regex: "(?:(?:ALTER|CREATE)\\s+(?:ROLE|USER)\\s+[\"']?[a-zA-Z_][a-zA-Z0-9_]*[\"']?\\s+(?:WITH\\s+)?[^;]*?\\bSUPERUSER\\b|community\\.postgresql\\.postgresql_user[\\s\\S]{0,300}?role_attr_flags\\s*:\\s*['\"][^'\"]*?SUPERUSER[^'\"]*['\"])"
+    positive_examples:
+      - "ALTER ROLE a SUPERUSER"
+    multiline: true
+    window: 10
+    recommendation: "Use role inheritance with targeted privileges instead of SUPERUSER. For DBA automation, grant specific attributes (`CREATEROLE`, `CREATEDB`, `REPLICATION`) as needed - not the nuclear SUPERUSER bundle. For `COPY` / `pg_read_server_files` specifically, grant `pg_read_server_files` / `pg_write_server_files` predefined roles (Postgres 11+) which are narrower. Audit existing superusers: `SELECT rolname FROM pg_roles WHERE rolsuper = true` - should only contain the `postgres` bootstrap account. Revoke via `ALTER ROLE <user> NOSUPERUSER`. Require dual-control (two DBAs) for any `CREATE ROLE ... SUPERUSER`."
+    cwe: ['CWE-250', 'CWE-269', 'CWE-732']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    mitre_attack: ['T1059', 'T1068', 'T1078.003']
+    cis_controls: ['CIS-3.3', 'CIS-6.8', 'CIS-16.5']
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(5)']
+    pci_dss: ['7.2.1', '7.2.2', '8.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "postgres_untrusted_language_extension_created"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "PostgreSQL CREATE EXTENSION plpython3u / plperlu / pltclu (OS Code Execution Primitive)"
+    description: "A task runs `CREATE EXTENSION plpython3u`, `CREATE EXTENSION plperlu`, `CREATE EXTENSION pltclu`, `CREATE EXTENSION plsh`, or `community.postgresql.postgresql_ext` with one of those extensions. The `u` (untrusted) variants run with unrestricted access to the underlying OS as the `postgres` UNIX user - any function defined `LANGUAGE plpython3u` can `os.system('/bin/sh -c <cmd>')`. This is the standard PG-to-RCE pivot used in every Postgres CTF and in real-world attacks post-SQLi."
+    regex: "(?:CREATE\\s+(?:OR\\s+REPLACE\\s+)?EXTENSION\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?[\"']?(?:plpython3u|plpythonu|plperlu|pltclu|plsh|pllua|pllua_u|plv8)[\"']?|community\\.postgresql\\.postgresql_ext[\\s\\S]{0,200}?name\\s*:\\s*['\"]?(?:plpython3u|plpythonu|plperlu|pltclu|plsh|pllua|pllua_u|plv8)['\"]?)"
+    positive_examples:
+      - "CREATE EXTENSION plpython3u"
+    multiline: true
+    window: 8
+    recommendation: "Use the TRUSTED `plpython3` (no `u` suffix - PG 13+) / `plperl` / `pltcl` variants which run in a sandboxed interpreter without direct OS access. If OS-level integration is truly required, move it OUT of the database into a separate service (e.g. trigger a message on a queue consumed by a sandboxed worker). Remove existing untrusted extensions: `DROP EXTENSION plpython3u CASCADE`. Restrict extension creation to the `postgres` role only: `REVOKE CREATE ON DATABASE <db> FROM PUBLIC` (default in PG 15+). Audit with `SELECT extname FROM pg_extension WHERE extname IN ('plpython3u','plperlu','pltclu','plsh')` - every row is a review-required backdoor."
+    cwe: ['CWE-78', 'CWE-94', 'CWE-829']
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1"]
+    mitre_attack: ['T1059.006', 'T1068', 'T1505']
+    cis_controls: ['CIS-3.3', 'CIS-16.5', 'CIS-16.11']
+    nist_controls: ['AC-6', 'CM-7', 'SI-10']
+    pci_dss: ['2.2.1', '6.3.3']
+    hipaa: ['164.312(c)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "clickhouse_access_management_user_enabled"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "ClickHouse User With access_management=1 (Privilege-Granting Backdoor)"
+    description: "A ClickHouse users.xml / SQL-based access config has `<access_management>1</access_management>` (or `access_management=1`) on a non-admin user. This gives the user the ability to CREATE/DROP/GRANT any role or user in the cluster - a full administrative escalation path. Combined with default ClickHouse installs that leave the `default` user unauthenticated on `9000/tcp`, this is a common finding in the 2024 Censys report on exposed ClickHouse."
+    regex: "(?:<access_management>\\s*1\\s*</access_management>|access_management\\s*[:=]\\s*1(?!\\d))"
+    positive_examples:
+      - "<access_management>1</access_management>"
+    multiline: true
+    window: 8
+    recommendation: "Set `access_management = 0` for all non-DBA users. Maintain a single dedicated admin user (separate from `default`) with `access_management = 1`, reachable only from a management subnet. Enforce authentication on the `default` user: `<users><default><password_sha256_hex>...</password_sha256_hex><networks><ip>10.0.0.0/8</ip></networks></default></users>`. Bind ClickHouse to internal interfaces only (`listen_host` = internal IP, NOT `0.0.0.0`). Audit with `SELECT name, access_management FROM system.users WHERE access_management = 1` - should only contain the designated cluster admin."
+    cwe: ['CWE-269', 'CWE-284', 'CWE-732']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1068', 'T1078', 'T1098']
+    cis_controls: ['CIS-3.3', 'CIS-6.8']
+    nist_controls: ['AC-3', 'AC-6', 'IA-2']
+    pci_dss: ['7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "cassandra_allow_all_authenticator_with_superuser"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Cassandra AllowAllAuthenticator Configured With Default cassandra/cassandra Superuser"
+    description: "A rendered `cassandra.yaml` has `authenticator: AllowAllAuthenticator` (no password check) OR the default `cassandra/cassandra` superuser credentials were not rotated while `PasswordAuthenticator` is enabled. Cassandra's default install leaves `AllowAllAuthenticator` on port 9042 - anyone who reaches that port can DROP KEYSPACE, read any column family, and use `ALTER TABLE` to plant triggers. The 2023-2024 Shadowserver reports show >4000 Internet-reachable unauth Cassandra clusters from exactly this misconfig."
+    regex: "(?:authenticator\\s*:\\s*['\"]?AllowAllAuthenticator['\"]?|cqlsh\\s+[^\\n]*-u\\s+cassandra\\s+[^\\n]*-p\\s+cassandra\\b)"
+    positive_examples:
+      - "authenticator: AllowAllAuthenticator"
+    multiline: true
+    window: 8
+    recommendation: "Set `authenticator: PasswordAuthenticator` and `authorizer: CassandraAuthorizer` in `cassandra.yaml`. On first boot change the default `cassandra/cassandra` superuser password: `ALTER USER cassandra WITH PASSWORD '$(openssl rand -base64 32)'`. Create a new superuser, then `ALTER USER cassandra NOSUPERUSER` or drop it. Enable inter-node encryption (`server_encryption_options.internode_encryption: all`) and client encryption (`client_encryption_options.enabled: true`). Bind `listen_address` and `rpc_address` to internal interfaces only. Audit Internet-exposure via `nmap -p 9042 --script cassandra-info`."
+    cwe: ['CWE-306', 'CWE-521', 'CWE-798']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.1.1", "V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1078', 'T1078.001']
+    cis_controls: ['CIS-3.3', 'CIS-6.5', 'CIS-16.5']
+    nist_controls: ['AC-3', 'IA-2', 'IA-5']
+    pci_dss: ['2.3.1', '8.3.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)']
+    soc2: ['CC6.1', 'CC6.2']
+
+  - id: "elasticsearch_xpack_security_disabled_bound_public"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Elasticsearch xpack.security.enabled=false With Bind On 0.0.0.0 (Unauth Data Exfil)"
+    description: "An Elasticsearch / OpenSearch config (`elasticsearch.yml`, `opensearch.yml`, or env-var in a Docker/K8s manifest) has `xpack.security.enabled: false` (or `plugins.security.disabled: true` for OpenSearch) AND `network.host: 0.0.0.0` (or unspecified, which defaults to 0.0.0.0). This combination exposes an unauthenticated ES cluster - anyone reachable at port 9200 can read/write all indices and use scripting engines (Painless) for RCE. The 2024 Shadowserver report counts >15,000 Internet-exposed unauth ES clusters; this is the canonical 'I just wanted to dev locally' production leak."
+    regex: "(?:xpack\\.security\\.enabled\\s*[:=]\\s*false|plugins\\.security\\.disabled\\s*[:=]\\s*true|plugins\\.security\\.ssl\\.http\\.enabled\\s*[:=]\\s*false)[\\s\\S]{0,800}?(?:network\\.host\\s*[:=]\\s*['\"]?(?:0\\.0\\.0\\.0|_site_|_global_)['\"]?|http\\.host\\s*[:=]\\s*['\"]?0\\.0\\.0\\.0['\"]?)"
+    positive_examples:
+      - "xpack.security.enabled:falsenetwork.host:0.0.0.0"
+    multiline: true
+    window: 40
+    recommendation: "Enable X-Pack Security (free since 7.10): `xpack.security.enabled: true`, `xpack.security.transport.ssl.enabled: true`, `xpack.security.http.ssl.enabled: true`. On first boot run `elasticsearch-setup-passwords auto` and store the generated passwords in a secrets manager. Bind to internal interface only: `network.host: 10.0.0.X` + `discovery.seed_hosts: [internal-es-1, internal-es-2]`. Put Kibana + API behind an authenticated reverse proxy if exposed externally. For OpenSearch: enable `plugins.security` + set `chefClient`-generated admin password. Audit: `curl -s http://<host>:9200/_cluster/health` should return 401; if it returns 200, you're exposed."
+    cwe: ['CWE-284', 'CWE-306', 'CWE-668']
+    owasp_appsec: ["A01:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1"]
+    mitre_attack: ['T1133', 'T1210', 'T1530']
+    cis_controls: ['CIS-3.3', 'CIS-4.4', 'CIS-6.5']
+    nist_controls: ['AC-3', 'IA-2', 'SC-7']
+    pci_dss: ['1.2.1', '8.3.1']
+    hipaa: ['164.312(a)(2)(i)', '164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.6']
+
+  - id: "auditd_rules_flushed_auditctl_D"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "auditctl -D Flushes All Audit Rules (Blind-The-EDR Primitive)"
+    description: "A task runs `auditctl -D` - which DELETES every loaded audit rule in-place without rewriting `/etc/audit/rules.d/*` - leaving the kernel audit subsystem running but with zero match rules. All syscalls, file watches, and exec events stop generating audit records until a reload. This is the canonical quiet-the-EDR step used by TeamTNT, Kinsing, Perfctl, and the 2024 SandStrike Linux implant - distinct from `auditctl -e 0` (which disables audit entirely) because the audit service appears healthy in `systemctl status auditd` and `service auditd status`, while producing zero events. The existing `audit_disable` rule only catches `-e 0`; this one catches the silent-flush variant."
+    regex: "(?:ansible\\.builtin\\.)?(?:shell|command|raw)\\s*:[^\\n]{0,200}?auditctl\\s+[^\\n]*?-D\\b|auditctl\\s+-D(?:\\s|$)"
+    positive_examples:
+      - "shell:auditctl -D"
+    multiline: true
+    window: 6
+    recommendation: "Never `auditctl -D` in a playbook. Manage audit rules declaratively by writing to `/etc/audit/rules.d/<name>.rules` and invoking `augenrules --load` (which PRESERVES non-overlapping rule-set files). For a full replacement, use `ansible.builtin.template` -> `/etc/audit/rules.d/zz-baseline.rules` with `notify: reload auditd`. Add an immutable marker `-e 2` at the END of the ruleset so the audit config cannot be modified until reboot - any playbook needing `auditctl -D` after `-e 2` is an immediate alert. Audit with `auditctl -l` (list rules) + `auditctl -s` (show config) - alert when the rule count drops unexpectedly between consecutive CMDB inventory snapshots."
+    no_ansible_remediation: true
+    cwe: ['CWE-284', 'CWE-693', 'CWE-778']
+    owasp_appsec: ["A01:2021", "A09:2021"]
+    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    mitre_attack: ['T1070', 'T1562.001', 'T1562.006']
+    cis_controls: ['CIS-8.2', 'CIS-8.5', 'CIS-8.11']
+    nist_controls: ['AU-2', 'AU-6', 'AU-9', 'SI-4']
+    pci_dss: ['10.2.1', '10.3.1', '10.5.1']
+    hipaa: ['164.308(a)(1)(ii)(D)', '164.312(b)']
+    soc2: ['CC7.2', 'CC7.3']
+
+  - id: "auditctl_failure_mode_silent"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "auditctl -f 0 Sets Audit Failure Mode To Silent (Buffer-Overflow Loss)"
+    description: "A task runs `auditctl -f 0` (or renders `-f 0` into `/etc/audit/audit.rules`), which sets the audit subsystem's failure mode to `silent` - when the audit buffer fills (DoS from an attacker creating thousands of events), further events are DISCARDED without panic or log entry. Production baselines require `-f 1` (printk warning) or `-f 2` (kernel panic) so an overflow cannot be exploited as an anti-forensic primitive. RHEL / CIS L2 / DISA STIG all require `-f 2` on regulated workloads."
+    regex: "(?:^|[\\s;&|])auditctl\\s+-f\\s+0\\b|failure_mode\\s*[:=]\\s*['\"]?silent['\"]?|-f\\s+0\\s*$"
+    positive_examples:
+      - " auditctl -f 0"
+    multiline: true
+    window: 3
+    recommendation: "Set `-f 2` (kernel panic on audit-subsystem failure) on regulated/PCI/HIPAA hosts - if an attacker can exhaust the buffer, the host halts rather than silently drops events. On non-critical fleets use `-f 1` (printk warning visible in dmesg). Increase `-b` (backlog limit) to at least 8192 to absorb bursty workloads: `auditctl -b 8192`. Validate via `auditctl -s | grep -E 'failure|backlog'` and export to your compliance dashboard."
+    cwe: ['CWE-693', 'CWE-703', 'CWE-778']
+    owasp_appsec: ["A09:2021"]
+    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    mitre_attack: ['T1070', 'T1562.001', 'T1562.006']
+    cis_controls: ['CIS-8.2', 'CIS-8.3', 'CIS-8.11']
+    nist_controls: ['AU-4', 'AU-5', 'AU-9']
+    pci_dss: ['10.2.1', '10.3.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC7.2']
+
+  - id: "journald_storage_none_or_volatile"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "systemd-journald Storage=none Or =volatile (Log Persistence Eliminated)"
+    description: "A task renders `/etc/systemd/journald.conf` (or a `journald.conf.d/*.conf` drop-in) with `Storage=none` (no journal written anywhere, events only in-memory with runtime view) or `Storage=volatile` (in-memory tmpfs under `/run/log/journal`, wiped on reboot). On a system without `rsyslog`/`syslog-ng` catching the journal, this eliminates all post-reboot forensic evidence of intrusion. Distinct from the existing `rsyslog_or_journald_stopped_masked` rule which catches the service-stop variant - this one catches the `Storage=` setting which silently disables persistence while the service appears fully running."
+    regex: "/etc/systemd/journald\\.conf(?:\\.d/[^/\\s]+)?[\\s\\S]{0,1500}?^\\s*Storage\\s*=\\s*(?:none|volatile)\\b|^\\s*Storage\\s*=\\s*(?:none|volatile)\\s*$"
+    positive_examples:
+      - "Storage=none"
+    multiline: true
+    window: 30
+    recommendation: "Set `Storage=persistent` in `/etc/systemd/journald.conf` and ensure `/var/log/journal` exists (`systemd-tmpfiles --create --prefix /var/log/journal`). Size appropriately: `SystemMaxUse=2G`, `SystemKeepFree=4G`, `MaxRetentionSec=3month` for PCI-scoped hosts. Ship journal off-host with `systemd-journal-upload.service` to a central SIEM - that way even if on-host persistence is tampered with, centrally-collected events remain. Alert on `Storage=` changes via auditd `-w /etc/systemd/journald.conf -p wa -k journald_cfg`."
+    cwe: ['CWE-284', 'CWE-693', 'CWE-778']
+    owasp_appsec: ["A01:2021", "A09:2021"]
+    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    mitre_attack: ['T1070.002', 'T1562.001', 'T1562.006']
+    cis_controls: ['CIS-8.2', 'CIS-8.5', 'CIS-8.10']
+    nist_controls: ['AU-4', 'AU-9', 'AU-11']
+    pci_dss: ['10.2.1', '10.5.3', '10.7.1']
+    hipaa: ['164.308(a)(1)(ii)(D)', '164.312(b)']
+    soc2: ['CC7.2', 'CC7.3']
+
+  - id: "journald_rate_limit_burst_zero_disables_capture"
+    category: "system_compromise"
+    severity: "MEDIUM"
+    title: "systemd-journald RateLimitBurst=0 With Short Interval (Event Dropping Primitive)"
+    description: "A task renders `/etc/systemd/journald.conf` with `RateLimitBurst=0` combined with a non-zero `RateLimitIntervalSec` - which in systemd ≥ 240 is the documented way to DISABLE rate-limiting but in older systemd (≤ 239) is the pathological config that rate-limits every message to zero within the interval (i.e. total silencing). More commonly: `RateLimitBurst=1` + `RateLimitIntervalSec=1h` silences the log file after one event per hour - a plausible-looking config that destroys forensic timelines. Any explicit rate-limit config on a host with CIS-L2 baseline is suspect because CIS requires rate-limit=off."
+    regex: "/etc/systemd/journald\\.conf(?:\\.d/[^/\\s]+)?[\\s\\S]{0,1500}?RateLimitBurst\\s*=\\s*(?:0|1|[1-9])\\b[\\s\\S]{0,200}?RateLimitIntervalSec\\s*=\\s*(?!0\\b)[0-9]+[smhd]?|RateLimitBurst\\s*=\\s*(?:0|1)\\s*$"
+    positive_examples:
+      - |2-
+            /etc/systemd/journald.conf
+            [Journal]
+            RateLimitBurst=0
+            RateLimitIntervalSec=30s
+    multiline: true
+    window: 20
+    recommendation: "Leave journald rate-limiting at the distro default on audit-in-scope systems, OR disable it explicitly with `RateLimitIntervalSec=0` (canonical systemd ≥240 form - unambiguous, no `RateLimitBurst=0` ambiguity). If you must rate-limit on a noisy host, use `RateLimitBurst=10000` + `RateLimitIntervalSec=30s` so legitimate burst storms are absorbed. Forward all events to a central SIEM with `systemd-journal-upload` where rate-limiting can be re-applied centrally without affecting on-host retention. Alert on any change to these two knobs."
+    cwe: ['CWE-400', 'CWE-693', 'CWE-778']
+    owasp_appsec: ["A09:2021"]
+    owasp_asvs: ["V7.1.1", "V7.2.1", "V14.1.3"]
+    mitre_attack: ['T1562.001', 'T1562.006']
+    cis_controls: ['CIS-8.2', 'CIS-8.3']
+    nist_controls: ['AU-4', 'AU-5', 'AU-9']
+    pci_dss: ['10.2.1', '10.3.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC7.2']
+
+  - id: "lsm_apparmor_selinux_runtime_permissive"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "SELinux setenforce 0 / AppArmor aa-complain Applied At Runtime (LSM Downgrade)"
+    description: "A task runs `setenforce 0` (SELinux runtime -> permissive), `setsebool` with `-N` on a security-critical boolean, `aa-complain /etc/apparmor.d/usr.sbin.*`, `aa-disable`, or `apparmor_parser -R` on a loaded profile. Distinct from the existing `selinux_disabled` rule (which catches `/etc/selinux/config SELINUX=disabled` requiring reboot) - this catches the runtime downgrade that persists until next boot WITHOUT changing any on-disk config, making it a stealth primitive. Used in Sandfly Security's 2024 Linux-rootkit research as the step between 'got shell' and 'drop kernel module'."
+    regex: "(?:ansible\\.builtin\\.)?(?:shell|command|raw)\\s*:[^\\n]{0,200}?(?:setenforce\\s+(?:0|Permissive)|aa-(?:complain|disable)\\s+[^\\n]+|apparmor_parser\\s+-R\\s+[^\\n]+|setsebool\\s+[^\\n]*?-N\\s+[a-z_]+\\s+(?:off|0|false))|setenforce\\s+(?:0|Permissive)\\b|aa-complain\\s+/etc/apparmor\\.d/"
+    positive_examples:
+      - "command: /usr/sbin/setenforce 0"
+    multiline: true
+    window: 8
+    recommendation: "Never runtime-downgrade MAC (Mandatory Access Control). If SELinux breaks a legitimate app, FIX the policy: `audit2allow -M mymodule -i /var/log/audit/audit.log`, then `semodule -i mymodule.pp` - enforcing mode stays on. For AppArmor, profile adjustments go in `/etc/apparmor.d/local/<name>` (local customization) and are reloaded via `apparmor_parser -r`, not disabled. If a break-glass is genuinely needed, scope to a single binary via `permissive <type>` (SELinux) or `complain` on ONE profile (AppArmor) - never disable the entire LSM. Alert on runtime-mode-change events: auditd `-a always,exit -F arch=b64 -S setxattr -F key=MAC_status_change`."
+    cwe: ['CWE-284', 'CWE-693', 'CWE-732']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1068', 'T1562.001', 'T1562.004']
+    cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-10.5']
+    nist_controls: ['AC-3', 'AC-6', 'CM-7']
+    pci_dss: ['2.2.1', '7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "mokutil_secure_boot_disabled_or_sbat_bypass"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "mokutil --disable-validation / sb-state Disable Or SBAT Bypass (Pre-OS Root Of Trust Broken)"
+    description: "A task runs `mokutil --disable-validation`, `mokutil --sb-state off`, `sbctl disable-secureboot`, or writes a MokList entry that enrolls an attacker-controllable key (e.g. `mokutil --import /path/to/<attacker>.der`). Disabling Secure Boot at the shim layer allows arbitrary unsigned EFI binaries (bootkits) to execute pre-OS with DMA-capable access to memory. The 2023 BlackLotus UEFI bootkit, 2024 CosmicStrand, and 2024 Pikabot-EFI specifically require this step as persistence. Enterprise fleets that disable Secure Boot for driver-signing workarounds (NVIDIA, VirtualBox) create the exact window attackers exploit. Distinct from BIOS-level Secure Boot settings (firmware-managed) - this catches the OS-initiated shim/MokList bypass via mokutil."
+    regex: "(?:mokutil\\s+(?:--disable-validation|--sb-state\\s+(?:off|disabled)|--import\\s+[^\\n]+\\.(?:der|cer)\\b)|sbctl\\s+disable-secureboot|efibootmgr\\s+[^\\n]*?-c\\s+[^\\n]*?(?:/EFI/[^/\\s]+/\\S*\\.efi)(?!.*--verify)|dbxtool\\s+--force-clear)"
+    positive_examples:
+      - "mokutil --disable-validation"
+    multiline: true
+    window: 10
+    recommendation: "Never disable Secure Boot on production hosts. For driver-signing workarounds, ENROLL your driver-signing cert via `mokutil --import <internal-ca>.der` (which adds to MokList WITHOUT disabling validation) + sign drivers with that cert. For NVIDIA/VMware-tools kernel modules, use the distro's pre-signed variant (`kmod-nvidia` from RPM Fusion for RHEL, `nvidia-dkms` with distro-signed kernel for Ubuntu), not an unsigned hand-compiled module. Maintain a SBAT revocation-policy baseline: `sbverify --list /boot/efi/EFI/*/shimx64.efi` should show a current-year SBAT policy. Audit: `mokutil --sb-state` must return `SecureBoot enabled`. Alert on `mokutil --disable-validation` or `sbctl disable-secureboot` via auditd `-w /usr/bin/mokutil -p x -k secure_boot` + centralize events."
+    no_ansible_remediation: true
+    cwe: ['CWE-347', 'CWE-347', 'CWE-1329']
+    owasp_appsec: ["A02:2021"]
+    mitre_attack: ['T1542.001', 'T1542.003', 'T1553.006']
+    cis_controls: ['CIS-2.3', 'CIS-4.1', 'CIS-10.5']
+    nist_controls: ['SA-12', 'SC-18', 'SI-7']
+    pci_dss: ['2.2.1', '11.5.2']
+    hipaa: ['164.308(a)(5)(ii)(B)']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "grub2_password_not_set_with_custom_kernel_entries"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "GRUB2 Superuser/Password Missing With Custom Or Rescue Kernel Entry Defined"
+    description: "A task renders `/etc/grub.d/40_custom` / `/etc/grub.d/41_custom` (custom GRUB entries) OR defines a rescue kernel entry in `/boot/grub2/user.cfg` WITHOUT also setting `set superusers=\"...\"` + `password_pbkdf2 <user> grub.pbkdf2.sha512.10000....`. Without a GRUB password, anyone with physical access (or a KVM / iLO / DRAC console) can boot the kernel with `init=/bin/bash` for an unauthenticated root shell - bypassing disk encryption unlock prompts that rely on the boot chain having been tamper-protected. CIS L1 for every Linux benchmark requires GRUB password protection. The custom-entry variant is specifically dangerous because custom entries often omit `${CLASS}` -> inherit no password restriction even if the default entry has one."
+    regex: "(?:/etc/grub\\.d/(?:4[01]_custom|9[0-9]_custom)|/boot/grub2?/(?:user\\.cfg|custom\\.cfg)|GRUB_CUSTOM_ENTRIES)[\\s\\S]{0,1500}?menuentry\\s+['\"][^'\"]+['\"][\\s\\S]{0,1000}?linux(?:16|efi)?\\s+[^\\n]+(?![\\s\\S]{0,2000}?(?:set\\s+superusers|password_pbkdf2|password\\s+))"
+    positive_examples:
+      - "/etc/grub.d/40_custommenuentry 'x'linux x"
+    multiline: true
+    window: 60
+    recommendation: "Set a GRUB password across ALL entries: 1) Generate PBKDF2 hash: `grub2-mkpasswd-pbkdf2` -> copy the `grub.pbkdf2.sha512.10000.<salt>.<hash>` value. 2) Add to `/etc/grub.d/01_users` (persistent): `set superusers=\"grubadmin\"` + `password_pbkdf2 grubadmin grub.pbkdf2.sha512.10000.XXX...`. 3) Regenerate: `grub2-mkconfig -o /boot/grub2/grub.cfg` (RHEL) or `update-grub` (Debian). 4) For custom entries that should be accessible WITHOUT password at boot but not edit, use `--unrestricted` flag on the `menuentry`. For highest assurance, combine with full-disk-encryption (LUKS) + TPM-backed unlock (Clevis + tang) so even physical-presence can't extract data. Enforce via CIS scan: `/etc/grub2.cfg` must contain `password_pbkdf2` and `/etc/grub.d/` entries must NOT have `--unrestricted` on rescue/emergency entries."
+    no_ansible_remediation: true
+    cwe: ['CWE-250', 'CWE-272', 'CWE-306']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.1.1", "V14.2.2"]
+    mitre_attack: ['T1068', 'T1078.003', 'T1542.003']
+    cis_controls: ['CIS-2.3', 'CIS-4.1', 'CIS-10.5']
+    nist_controls: ['AC-3', 'IA-2', 'SI-7']
+    pci_dss: ['2.2.1', '8.3.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "firmware_update_service_disabled_fwupd_uefi_capsule"
+    category: "system_compromise"
+    severity: "MEDIUM"
+    title: "fwupd / UEFI Capsule Update Service Disabled Or Masked (Firmware Patching Blocked)"
+    description: "A task runs `systemctl mask fwupd` / `systemctl disable --now fwupd`, sets `DisabledPlugins=*` or `UpdateMotd=false` + `EnableUefiCapsuleUpdates=false` in `/etc/fwupd/fwupd.conf`, or removes the `fwupd-refresh.timer`. `fwupd` is the Linux mechanism that applies UEFI/BIOS/microcode capsule updates published via LVFS (Linux Vendor Firmware Service) - disabling it blocks every CPU microcode patch (including post-discovery Spectre/Meltdown/Retbleed/Inception/Downfall/Reptar class fixes) AND every UEFI firmware patch (BlackLotus, MoonBounce, CosmicStrand mitigations). Distinct from generic unattended-upgrades - this is the specific firmware-layer patching channel."
+    regex: "(?:systemctl\\s+(?:mask|disable)\\s+[^\\n]*?fwupd(?:\\.service|-refresh\\.timer)?|fwupd\\.service[\\s\\S]{0,200}?state\\s*:\\s*['\"]?(?:stopped|masked|disabled)['\"]?|/etc/fwupd/fwupd\\.conf[\\s\\S]{0,500}?(?:DisabledPlugins\\s*=\\s*\\*|EnableUefiCapsuleUpdates\\s*=\\s*false|UpdateMotd\\s*=\\s*false)|EnableUefiCapsuleUpdates\\s*=\\s*false)"
+    positive_examples:
+      - "systemctl mask fwupd"
+    multiline: true
+    window: 15
+    recommendation: "Keep fwupd running and weekly-scheduled: `systemctl enable --now fwupd-refresh.timer`. Refresh LVFS metadata: `fwupdmgr refresh --force` + auto-update eligible devices: `fwupdmgr update`. For air-gapped environments, pre-download firmware capsules via a DMZ staging host + transfer via signed channels + apply via `fwupdmgr install <capsule.cab>`. Opt into LVFS testing stream for early microcode patches: `fwupdmgr enable-remote lvfs-testing`. Do NOT disable `EnableUefiCapsuleUpdates` - this is the mechanism that applies Spectre/Meltdown/Retbleed microcode. For compliance, capture firmware inventory via `fwupdmgr get-devices --json` + ingest to CMDB. Alert on any playbook action that masks/disables fwupd."
+    cwe: ['CWE-657', 'CWE-1104', 'CWE-1329']
+    owasp_appsec: ["A04:2021", "A06:2021"]
+    mitre_attack: ['T1542.001', 'T1562.001']
+    cis_controls: ['CIS-7.3', 'CIS-7.7', 'CIS-10.2']
+    nist_controls: ['SA-22', 'SI-2', 'SI-2(2)']
+    pci_dss: ['6.3.3', '11.5.2']
+    hipaa: ['164.308(a)(5)(ii)(B)']
+    soc2: ['CC7.1']
+
+  - id: "kernel_perf_event_paranoid_lowered_or_unprivileged_bpf_enabled"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "kernel.perf_event_paranoid Lowered Or kernel.unprivileged_bpf_disabled=0 (Userland Tracing / BPF Primitive)"
+    description: "A task sets `kernel.perf_event_paranoid` to `-1`, `0`, or `1` (default is `2` on Debian/Ubuntu/RHEL 9+, `3` on hardened kernels) OR sets `kernel.unprivileged_bpf_disabled` to `0` (default `1`/`2`). Lowered `perf_event_paranoid` permits unprivileged users to run `perf record` / `perf trace` on arbitrary processes - enabling syscall tracing, stack unwinding, and TSC-skew side-channel attacks (used in 2024 RetBleed and Downfall exploit chains). Setting `unprivileged_bpf_disabled=0` permits unprivileged BPF program loading - the exact primitive used in CVE-2022-23222 (BPF pointer arithmetic escape), CVE-2023-2163 (BPF verifier bypass), and the 2024 BPFDoor variants. Red Hat's 2024 hardening guide for RHEL 9 explicitly requires `perf_event_paranoid >= 2` and `unprivileged_bpf_disabled = 1`."
+    regex: "(?:sysctl|ansible\\.posix\\.sysctl|ansible\\.builtin\\.sysctl|/etc/sysctl\\.(?:conf|d/[^\\s]+))[\\s\\S]{0,400}?(?:kernel\\.perf_event_paranoid\\s*[:=]\\s*['\"]?(?:-1|0|1)['\"]?|kernel\\.unprivileged_bpf_disabled\\s*[:=]\\s*['\"]?0['\"]?)|name\\s*:\\s*kernel\\.perf_event_paranoid[\\s\\S]{0,200}?value\\s*:\\s*['\"]?(?:-1|0|1)['\"]?|name\\s*:\\s*kernel\\.unprivileged_bpf_disabled[\\s\\S]{0,200}?value\\s*:\\s*['\"]?0['\"]?|(?:^|\\n)\\s*(?:kernel\\.perf_event_paranoid\\s*=\\s*(?:-1|0|1)\\b|kernel\\.unprivileged_bpf_disabled\\s*=\\s*0\\b)"
+    positive_examples:
+      - "sysctlkernel.perf_event_paranoid:-1"
+    multiline: true
+    window: 10
+    recommendation: "Set `kernel.perf_event_paranoid = 2` (or `3` on workloads with no legitimate `perf` users) and `kernel.unprivileged_bpf_disabled = 1` (or `2` to fully disable unprivileged BPF). Persist in `/etc/sysctl.d/99-hardening.conf` + `sysctl --system`. For workloads that NEED `perf` (legitimate profiling, tracing), grant `CAP_PERFMON` + `CAP_BPF` to the specific service account via `setcap` or systemd `CapabilityBoundingSet=` - never lower the system-wide knob. For k8s nodes, bake these values into the node-image via cloud-init + immutable infrastructure pipeline. Audit via `sysctl kernel.perf_event_paranoid kernel.unprivileged_bpf_disabled` - fail on any deviation from `>= 2` / `>= 1`. Alert on `sysctl` audit events targeting these keys (`auditctl -w /proc/sys/kernel/perf_event_paranoid -p wa -k kernel_hardening`)."
+    cwe: ['CWE-284', 'CWE-732', 'CWE-1269']
+    cve: ["CVE-2022-23222", "CVE-2023-2163"]
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1055.009', 'T1068', 'T1562.001']
+    cis_controls: ['CIS-3.3', 'CIS-4.1', 'CIS-4.8']
+    nist_controls: ['AC-3', 'AC-6', 'CM-6']
+    pci_dss: ['2.2.1', '7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "kernel_cmdline_mitigations_disabled_nopti_nosmep_nosmap"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Kernel Command Line Disables CPU Side-Channel Mitigations (nopti/nosmep/nosmap/nokaslr/mitigations=off)"
+    description: "A task renders a bootloader config (`/etc/default/grub`, `/boot/loader/entries/*.conf`, `kernelopts` tuning, cloud-init `kernel_cmdline`) including `mitigations=off`, `nopti` (no page-table isolation -> Meltdown), `nosmep` (no Supervisor Mode Execution Prevention -> kernel exec-from-userland), `nosmap` (no Supervisor Mode Access Prevention -> kernel read/write userland freely), `nokaslr` (no kernel-address randomization -> ROP gadgets at fixed offsets), `nospectre_v1`/`nospectre_v2`, `noibrs`/`noibpb`/`nospec_store_bypass_disable`, or `spectre_v2=off`. Each of these knobs re-enables a hardware-class vulnerability that has a live in-the-wild exploit (Meltdown 2018, RetBleed 2022, Downfall 2023, Reptar 2023, GhostRace 2024). `mitigations=off` is the master switch used by perf-focused HPC and gaming communities - also by attackers who want their shellcode to work despite hardware defenses."
+    regex: "(?:/etc/default/grub|GRUB_CMDLINE_LINUX(?:_DEFAULT)?|kernelopts|kernel_cmdline|/boot/loader/entries|linux[\\s\\\\t]+[^\\n]*?vmlinuz)[\\s\\S]{0,800}?\\b(?:mitigations=off|nopti|nosmep|nosmap|nokaslr|nospectre_v[12]|noibrs|noibpb|nospec_store_bypass_disable|spectre_v2=off|pti=off|spec_store_bypass_disable=off|l1tf=off|mds=off|tsx_async_abort=off)\\b|(?:^|\\s)(?:mitigations=off|nopti|nosmep|nosmap|spectre_v2=off)(?:\\s|$)"
+    positive_examples:
+      - "/etc/default/grub mitigations=off"
+    multiline: true
+    window: 15
+    recommendation: "Never add CPU-mitigation-disabling flags to kernel cmdline. For performance-critical workloads, FIRST measure actual overhead (`perf stat` with + without mitigations) - typical impact is 2-8%, not the 30-50% some vendors claim. If specific mitigations demonstrably have unacceptable overhead for your workload (e.g. L1TF=full on a single-tenant host), disable ONLY that ONE and document the risk-acceptance in a security-exception register - never `mitigations=off` (which is a shotgun). For cloud workloads, upgrade instance type - newer Intel Ice Lake / AMD Zen 4 / Graviton3 have hardware-level fixes with near-zero performance cost. Validate: `grep -E 'mitigations|nopti|nosmep|nosmap' /proc/cmdline` must return nothing. Check `cat /sys/devices/system/cpu/vulnerabilities/*` - every file should show `Mitigation:` or `Not affected`, never `Vulnerable`."
+    cwe: ['CWE-203', 'CWE-693', 'CWE-1037']
+    mitre_attack: ['T1068', 'T1202', 'T1562.001']
+    cis_controls: ['CIS-3.3', 'CIS-4.1', 'CIS-7.3']
+    nist_controls: ['CM-6', 'SI-3', 'SI-7']
+    pci_dss: ['6.3.3', '11.5.2']
+    hipaa: ['164.308(a)(5)(ii)(B)']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "sshd_weak_hostkey_dsa_or_rsa_under_2048"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "SSH HostKey Generated As DSA Or RSA < 2048 Bits (Weak Server Identity)"
+    description: "A task runs `ssh-keygen -t dsa` (DSA is deprecated since 2015, removed from OpenSSH 9.8 in 2024), `ssh-keygen -t rsa -b 1024` / `-b 1536` (below NIST SP 800-131A minimum 2048), or writes a `HostKey` directive in `sshd_config` pointing at such a key. A weak host key lets an on-path attacker (with months of quantum-adversary compute, or in-the-wild today for RSA-1024 via dedicated hardware) forge the server's identity, defeating SSH's primary integrity guarantee. Distinct from `sshd_password_authentication_enabled` (user-authN) - this catches the server-identity weakness which affects EVERY session regardless of auth method."
+    regex: "(?:ssh-keygen\\s+[^\\n]*?-t\\s+(?:dsa|DSA)\\b|ssh-keygen\\s+[^\\n]*?-t\\s+rsa\\s+[^\\n]*?-b\\s+(?:512|768|1024|1536)\\b|ssh-keygen\\s+[^\\n]*?-b\\s+(?:512|768|1024|1536)\\s+[^\\n]*?-t\\s+rsa|HostKey\\s+[^\\n]*?ssh_host_dsa_key|HostKeyAlgorithms\\s+[^\\n]*?ssh-dss\\b|PubkeyAcceptedAlgorithms\\s+[^\\n]*?ssh-dss\\b)"
+    positive_examples:
+      - "ssh-keygen -t dsa"
+    multiline: true
+    window: 8
+    recommendation: "Generate modern host keys on every SSH server: `ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ''` (primary - EdDSA 256-bit, immune to bad RNG, fixed-size signatures) + `ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ''` (fallback for legacy clients). Delete any existing `ssh_host_dsa_key*` and `ssh_host_rsa_key*` below 4096 bits. Pin supported algorithms in `/etc/ssh/sshd_config`: `HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256` + `KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,sntrup761x25519-sha512@openssh.com` (post-quantum hybrid). Distribute host keys via SSHFP DNS records (DNSSEC-signed) or SSH Certificate Authority (`ssh-keygen -s ca -I host-cert` + `TrustedUserCAKeys`) so clients verify without TOFU. Audit: `ssh-keyscan <host> | ssh-keygen -l -f -` - reject anything with `(DSA)` or RSA < 4096."
+    cwe: ['CWE-326', 'CWE-327', 'CWE-331']
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ['T1021.004', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-4.8', 'CIS-12.6']
+    nist_controls: ['SC-8', 'SC-12', 'SC-13']
+    pci_dss: ['4.2.1', '8.3.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "byovd_known_vulnerable_kernel_driver_install"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Bring Your Own Vulnerable Driver (BYOVD) - Known-Vulnerable Kernel Driver Load / Install"
+    description: "A task copies, installs, or loads a known-vulnerable kernel driver via `win_copy`, `win_service`, `sc create`, `fltmc`, `sysdrv`, `/driver_load`, `NtLoadDriver`, or systemd modprobe: `RTCore64.sys` (MSI Afterburner, CVE-2019-16098), `procexp152.sys` (Process Explorer, PrintNightmare pivot), `iqvw64e.sys` (Intel, CVE-2015-2291), `gdrv.sys` (Gigabyte, CVE-2018-19320), `dbutil_2_3.sys` (Dell, CVE-2021-21551), `mhyprot2.sys` (Genshin anti-cheat), `capcom.sys` (Capcom), `atillk64.sys` (ATI), `agent64.sys` (Avast), `trufos.sys` (Bitdefender), `asIO.sys` (ASUS), `viragt64.sys` (OpenLibSys / OpenHardwareMonitor), `kprocesshacker.sys`. These signed-but-vulnerable drivers are the #1 primitive for disabling EDR/AV in 2023-2024 ransomware operations (LockBit 3.0 BYOVD disabler `EDRSandBlast`, `TrueSightKiller`, `Terminator`, `BadMatter`). Microsoft maintains a public vulnerable-driver blocklist that is NOT enabled by default on older Windows; detection here catches the deployment step."
+    regex: "\\b(?:RTCore64|procexp152|procexp|iqvw64e|gdrv|dbutil_2_3|dbutil|mhyprot2|capcom|atillk64|asIO|agent64|trufos|viragt64|kprocesshacker|amifldrv64|advmon64|BS_Hwio64|ntiolib|asrdrv10|asrdrv101|GLCKIO2|gmer|gmer64|navdefender|pcimem|piddrv64|renesas|speedfan|stdcdrv64|wnt|msi-util|msio64|truesight|terminator|gigabyte\\.sys|gigbyte|vulndrv|koutech-sys|taskkilldrv)\\.sys\\b|CVE-(?:2019-16098|2015-2291|2018-19320|2021-21551|2022-36991|2022-38623|2023-38544)\\b|(?:NtLoadDriver|StartService|sc\\s+create|fltmc|fltMC)[\\s\\S]{0,400}?\\b(?:RTCore64|procexp152|dbutil|mhyprot|gdrv|iqvw)\\.sys|\\\\drivers\\\\(?:RTCore64|procexp152|dbutil|mhyprot|iqvw|gdrv|agent64|capcom|viragt64)\\.sys"
+    positive_examples:
+      - "RTCore64.sys"
+    multiline: true
+    window: 10
+    recommendation: "Enable Microsoft's **vulnerable driver blocklist** on every Windows host: `Windows Security -> Device Security -> Core Isolation -> Microsoft Vulnerable Driver Blocklist = On`. For Windows 10/11/Server 2022, this blocks the Microsoft-curated list of ~300 known-abusive drivers at kernel load time via Windows Defender Application Control (WDAC). For older hosts (Win Server 2019 and earlier), deploy the blocklist manually via WDAC policy XML (Microsoft publishes the reference XML at https://github.com/MicrosoftDocs/windows-itpro-docs). Combine with: **HVCI** (Hypervisor-enforced Code Integrity) to prevent attacker-loaded unsigned drivers at all, **Smart App Control** (Win 11 22H2+), and EDR behavioral detection for driver-load anomalies. For Linux, enable kernel lockdown: `kernel.lockdown=confidentiality` via `/sys/kernel/security/lockdown` and sign all modules with a locally-held MOK (machine owner key). Audit installed kernel drivers periodically: `fltmc instances` (Windows filter drivers), `driverquery /v` (Windows), `lsmod` (Linux) + cross-reference against vulnerable-driver databases (`loldrivers.io`). Alert on NEW driver loads via Sysmon Event ID 6 (DriverLoad) + correlate with the `loldrivers.io` feed in SIEM."
+    no_ansible_remediation: true
+    cwe: ['CWE-94', 'CWE-829', 'CWE-1357']
+    cve: ["CVE-2015-2291", "CVE-2018-19320", "CVE-2019-16098", "CVE-2021-21551"]
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1014', 'T1068', 'T1562.001']
+    cis_controls: ['CIS-2.7', 'CIS-10.5', 'CIS-10.7']
+    nist_controls: ['CM-7', 'SI-3', 'SI-7']
+    pci_dss: ['5.2.1', '6.3.3', '11.5.2']
+    hipaa: ['164.308(a)(5)(ii)(B)', '164.312(c)(1)']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "dll_search_order_hijack_drop_into_system_or_program_files"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "DLL Search-Order / Side-Loading Hijack - DLL Dropped Into System32 Or Program Files App Directory"
+    description: "A task writes / copies a `.dll` or `.ocx` file via `win_copy`, `win_file`, `copy`, `fetch`, or `ansible.windows.win_copy` to a Windows DLL search-order location: `C:\\Windows\\System32\\`, `C:\\Windows\\SysWOW64\\`, `C:\\Windows\\` (root), the current directory of a running service (`C:\\Program Files\\<vendor>\\<app>\\`), or user profile directories where trusted apps search (`%AppData%\\Microsoft\\Office\\`, `%LocalAppData%\\Microsoft\\Teams\\current\\`, `%ProgramData%\\Microsoft\\Windows\\Start Menu\\`). Windows' DLL search order (Known DLLs -> System -> 16-bit System -> Windows -> Current -> PATH) is well-documented; an attacker drops a DLL with a name the target application LoadLibrary's without a full path (e.g. `version.dll`, `wininet.dll`, `secur32.dll`, `propsys.dll`, `oci.dll`) and the app loads the attacker's copy on next startup - executing attacker code with the APP's privileges. MITRE T1574.001. Sysinternals 'Process Monitor' filtered on `NAME NOT FOUND` on `.dll` loads still shows dozens of hijackable locations on every fresh Windows install in 2024."
+    regex: "(?:win_copy|ansible\\.windows\\.win_copy|copy|ansible\\.builtin\\.copy|win_get_url|get_url|fetch)[\\s\\S]{0,600}?(?:dest|path)\\s*[:=]\\s*['\"]?[^'\"\\n]*?(?:C:\\\\Windows\\\\System32\\\\|C:\\\\Windows\\\\SysWOW64\\\\|C:\\\\Windows\\\\(?![Ss]ystem32)[^\\\\\\n]{0,40}?\\\\?\\s*$|C:\\\\Program\\s+Files(?:\\s+\\(x86\\))?\\\\[^\\n\"']+\\\\|%(?:AppData|LocalAppData|ProgramData)%\\\\[^'\"\\n]+?\\\\|AppData\\\\(?:Roaming|Local)\\\\Microsoft\\\\(?:Office|Teams|OneDrive)\\\\[^'\"\\n]*?)[^'\"\\n]*?\\.(?:dll|ocx)['\"]?|(?:dest|path)\\s*[:=]\\s*['\"]?[A-Z]:\\\\Windows\\\\(?:System32|SysWOW64)\\\\[^'\"\\n]{0,40}?\\.dll['\"]?|dll_side[-_]load|\\.dll'?\\s+.*(?:LoadLibrary(?:Ex)?|LoadPackagedLibrary)|(?:src|path|source)\\s*[:=]\\s*['\"]?[^'\"\\n]*?\\\\(?:version|wininet|secur32|propsys|oci|crypt32|cryptbase|dwmapi|uxtheme|shell32|rpcrt4|winmm|dnsapi)\\.dll"
+    positive_examples:
+      - 'win_copydest:C:\Windows\System32\.dll'
+    multiline: true
+    window: 12
+    recommendation: "Never write DLLs into Windows system directories or application Program Files directories via Ansible unless absolutely necessary, and ONLY from a signed, hash-verified source. Use the vendor's official installer/updater where possible (MSI with signed catalog, WinGet, Chocolatey signed package). If a custom DLL replacement IS required: (1) verify the DLL's Authenticode signature with `Get-AuthenticodeSignature <file>.dll` before deployment, (2) write to a dedicated vendor directory (`C:\\Program Files\\<YourCompany>\\<app>\\`) with NTFS deny-write for non-Administrators, (3) set `CWDIllegalInDllSearch` policy (Windows 8+) to `0xFFFFFFFF` to remove the current directory from DLL search, (4) enable **Safe DLL Search Mode** (`HKLM\\System\\CurrentControlSet\\Control\\Session Manager\\SafeDllSearchMode = 1`, default on Win10+), (5) use explicit LoadLibraryEx with `LOAD_LIBRARY_SEARCH_SYSTEM32` flag in your own code. Detect hijack attempts: Sysmon Event ID 7 (ImageLoaded) where `SignatureStatus != Valid` or `Signed = false` - this single rule catches nearly every DLL-hijack. Enforce WDAC with a user-mode code integrity policy in Audit or Enforce mode. Audit: Sysinternals `Process Monitor` filtered `Operation is Load Image` + `Path contains .dll` + `Signed is False` - any match is suspicious."
+    cwe: ['CWE-426', 'CWE-427', 'CWE-732']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1543.003', 'T1574.001', 'T1574.002']
+    cis_controls: ['CIS-2.7', 'CIS-10.5', 'CIS-16.4']
+    nist_controls: ['CM-5', 'SI-3', 'SI-7']
+    pci_dss: ['5.2.1', '6.3.3']
+    hipaa: ['164.308(a)(5)(ii)(B)', '164.312(c)(1)']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "macos_gatekeeper_and_sip_tamper_playbook_executed"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "macOS Gatekeeper globally disabled (spctl --master-disable / --global-disable)"
+    description: "A task executes `spctl --master-disable` or `spctl --global-disable` (macOS 14+ syntax) on a macOS host. This globally disables Gatekeeper - the OS-level check that every executable is signed by an Apple-notarized developer ID. With Gatekeeper off, any unsigned or malware-signed binary runs without warning, Quarantine attributes are ignored, and the 2020+ Apple notarization chain is bypassed entirely. This is the #1 macOS post-compromise action in the 2024 Mandiant M-Trends report (North-Korean BeaverTail, Charming-Kitten, and APT38 all use it)."
+    regex: "(?:ansible\\.builtin\\.command|ansible\\.builtin\\.shell|command|shell|raw)\\s*:[\\s\\S]{0,400}?spctl\\s+(?:--master-disable|--global-disable|-m\\s+disable)|cmd\\s*:\\s*['\"]?[^'\"\\n]*spctl\\s+--(?:master|global)-disable"
+    positive_examples:
+      - "ansible.builtin.command:spctl --master-disable"
+    multiline: true
+    window: 6
+    recommendation: "Never disable Gatekeeper. If a specific app legitimately can't be notarized (internal tooling only), sign it with a Developer ID and notarize via `xcrun notarytool submit` - then it runs with Gatekeeper enabled. For dev-environment exceptions, use `spctl --add --label 'DevTooling' /path/to/app` to allow a specific path WITHOUT disabling globally. Enforce Gatekeeper state via MDM (Jamf `Restrictions` -> `Gatekeeper: App Store and identified developers`). Audit: `spctl --status` should return `assessments enabled` on every managed Mac. Monitor for the disable action via `log stream --predicate 'subsystem == \"com.apple.syspolicy\"'` and alert on any occurrence."
+    no_ansible_remediation: true
+    cwe: ['CWE-284', 'CWE-693']
+    owasp_appsec: ["A01:2021"]
+    mitre_attack: ['T1553.001', 'T1562.001', 'T1562.010']
+    cis_controls: ['CIS-10.1', 'CIS-10.2', 'CIS-10.5']
+    nist_controls: ['CM-7', 'SI-3', 'SI-7']
+    pci_dss: ['5.2.1', '5.3.3']
+    hipaa: ['164.308(a)(5)(ii)(B)']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "macos_system_integrity_protection_disabled_csrutil"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "macOS System Integrity Protection (SIP) disabled via csrutil disable"
+    description: "A task executes `csrutil disable`, `csrutil authenticated-root disable`, or `nvram boot-args=\"rootless=0\"` - disabling System Integrity Protection (SIP), the kernel-enforced protection that prevents ANY process (including root) from modifying `/System`, `/usr` (except `/usr/local`), `/bin`, `/sbin`, Apple-signed kexts, or the boot environment. With SIP off, rootkits can install unsigned kernel extensions, modify the dyld shared cache to inject into every process, and persist across OS upgrades. `csrutil` can only run from Recovery Mode - any task that attempts it from a running macOS is a (non-functional) indicator of intent; any task that reboots to Recovery and runs it is actively subverting the OS security model."
+    regex: "(?:ansible\\.builtin\\.command|ansible\\.builtin\\.shell|command|shell|raw)\\s*:[\\s\\S]{0,400}?(?:csrutil\\s+(?:disable|authenticated-root\\s+disable)|nvram\\s+boot-args\\s*=\\s*['\"][^'\"]*rootless=0)|cmd\\s*:\\s*['\"]?[^'\"\\n]*(?:csrutil\\s+(?:disable|authenticated-root\\s+disable)|boot-args.*rootless=0)"
+    positive_examples:
+      - "ansible.builtin.command:csrutil disable"
+    multiline: true
+    window: 6
+    recommendation: "Never disable SIP on a production or user-facing Mac. For the extremely rare case a dev tool requires SIP-off (low-level kernel research, legacy kext development), isolate it to a DEDICATED test Mac that is not on the production network and holds no production data. Enforce SIP-enabled via MDM and alert on any disabled status (`csrutil status` should return `System Integrity Protection status: enabled.` - anything else is a P0 incident). For legitimate kext needs, use the new System Extensions framework (Network, Endpoint Security, DriverKit) which works with SIP enabled. Audit on boot via a LaunchDaemon that invokes `csrutil status` and ships the result to SIEM. Treat `csrutil disable` as equivalent to `rm -rf / --no-preserve-root` for incident-response purposes."
+    no_ansible_remediation: true
+    cwe: ['CWE-250', 'CWE-693']
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1014', 'T1562.001']
+    cis_controls: ['CIS-4.8', 'CIS-10.2', 'CIS-10.5']
+    nist_controls: ['AC-6', 'CM-7', 'SI-7']
+    pci_dss: ['2.2.1', '5.2.1', '6.3.3']
+    hipaa: ['164.308(a)(5)(ii)(B)', '164.312(c)(1)']
+    soc2: ['CC6.1', 'CC7.1']

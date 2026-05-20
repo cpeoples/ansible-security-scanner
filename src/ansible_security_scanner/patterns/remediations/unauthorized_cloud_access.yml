@@ -1,0 +1,1160 @@
+# Companion Secure Fix snippets for unauthorized_cloud_access rules.
+# See ../../patterns/remediations/README.md for the schema and conventions.
+#
+# Each `secure_fix:` is a multi-line YAML scalar that the renderer drops
+# verbatim into a fenced ```yaml block under "✅ Secure Fix Example".
+# The Ansible shown here mirrors the rule's `recommendation:` prose -
+# keep them in sync when you edit either.
+
+remediations:
+
+  # -- AWS: encryption-at-rest defaults --
+  aws_ebs_volume_encrypted_false:
+    secure_fix: |
+      - name: Enable account-wide EBS default encryption (region-scoped)
+        amazon.aws.ec2_ebs_default_encryption:
+          state: present
+          region: "{{ aws_region }}"
+
+      - name: Create EBS volume with KMS encryption (CMK)
+        amazon.aws.ec2_vol:
+          name: app-data
+          volume_size: 100
+          volume_type: gp3
+          encrypted: true
+          kms_key_id: "{{ ebs_cmk_arn }}"
+          region: "{{ aws_region }}"
+
+  aws_efs_filesystem_without_encryption_at_rest:
+    secure_fix: |
+      - name: Create EFS with at-rest encryption + customer-managed KMS key
+        community.aws.efs:
+          name: app-shared
+          encrypt: true
+          kms_key_id: "{{ efs_cmk_arn }}"
+          performance_mode: general_purpose
+          throughput_mode: bursting
+          state: present
+
+      - name: Schedule cross-region backup with AWS Backup
+        community.aws.backup_plan:
+          name: app-shared-efs-plan
+          rules:
+            - rule_name: daily-with-cross-region-copy
+              target_backup_vault_name: "{{ primary_vault }}"
+              schedule: "cron(0 5 ? * * *)"
+              copy_actions:
+                - destination_backup_vault_arn: "{{ dr_vault_arn }}"
+
+  aws_s3_bucket_without_server_side_encryption:
+    secure_fix: |
+      - name: Create S3 bucket with SSE-KMS + deny-unencrypted bucket policy
+        amazon.aws.s3_bucket:
+          name: "{{ bucket_name }}"
+          state: present
+          encryption: aws:kms
+          encryption_key_id: "{{ s3_cmk_arn }}"
+          versioning: true
+          public_access:
+            block_public_acls: true
+            ignore_public_acls: true
+            block_public_policy: true
+            restrict_public_buckets: true
+          policy: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Sid": "DenyUnencryptedTransport",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:*",
+                "Resource": [
+                  "arn:aws:s3:::{{ bucket_name }}",
+                  "arn:aws:s3:::{{ bucket_name }}/*"
+                ],
+                "Condition": {"Bool": {"aws:SecureTransport": "false"}}
+              }]
+            }
+
+  aws_s3_bucket_without_access_logging:
+    secure_fix: |
+      - name: Enable S3 server access logging to dedicated log-archive bucket
+        amazon.aws.s3_bucket:
+          name: "{{ bucket_name }}"
+          state: present
+          requester_pays: false
+        # Logging must point at a bucket in the centralized log-archive
+        # account with Object Lock + cross-region replication.
+      - name: Configure S3 logging target
+        amazon.aws.s3_logging:
+          name: "{{ bucket_name }}"
+          target_bucket: "{{ log_archive_bucket }}"
+          target_prefix: "s3-access-logs/{{ bucket_name }}/"
+
+  azure_storage_account_default_network_rule_allow:
+    secure_fix: |
+      - name: Storage account with default network rule = Deny + private endpoint
+        azure.azcollection.azure_rm_storageaccount:
+          resource_group: "{{ rg }}"
+          name: "{{ sa_name }}"
+          account_type: Standard_LRS
+          kind: StorageV2
+          minimum_tls_version: TLS1_2
+          allow_blob_public_access: false
+          network_acls:
+            default_action: Deny
+            bypass: AzureServices
+            virtual_network_rules:
+              - id: "{{ trusted_subnet_id }}"
+            ip_rules: []
+
+  azure_vm_disk_encryption_not_enabled:
+    secure_fix: |
+      - name: Enable Azure Disk Encryption with platform-managed CMK
+        azure.azcollection.azure_rm_virtualmachineextension:
+          resource_group: "{{ rg }}"
+          virtual_machine_name: "{{ vm_name }}"
+          name: AzureDiskEncryption
+          publisher: Microsoft.Azure.Security
+          virtual_machine_extension_type: AzureDiskEncryption
+          type_handler_version: "2.2"
+          auto_upgrade_minor_version: true
+          settings:
+            EncryptionOperation: EnableEncryption
+            KeyVaultURL: "{{ kv_url }}"
+            KeyVaultResourceId: "{{ kv_resource_id }}"
+            KeyEncryptionKeyURL: "{{ kek_url }}"
+            VolumeType: All
+
+  gcp_compute_disk_without_cmek:
+    secure_fix: |
+      - name: GCE disk encrypted with customer-managed KMS key (CMEK)
+        google.cloud.gcp_compute_disk:
+          name: app-data
+          size_gb: 100
+          type: pd-ssd
+          zone: "{{ gcp_zone }}"
+          disk_encryption_key:
+            kms_key_name: "{{ kms_key_self_link }}"
+          project: "{{ gcp_project }}"
+          auth_kind: serviceaccount
+          service_account_file: "{{ gcp_sa_file }}"
+          state: present
+
+  # -- AWS: public-exposure / wildcard-principal --
+  aws_ami_or_snapshot_public_share_launch_permission_all:
+    secure_fix: |
+      - name: Share AMI with specific account IDs only (never group=all)
+        community.aws.ec2_ami_launch_permission:
+          image_id: "{{ ami_id }}"
+          user_ids:
+            - "{{ partner_account_id }}"
+          state: present
+        # NEVER set `group_names: [all]` - that flips an AMI public.
+
+      - name: Share EBS snapshot with specific account ID + KMS grant
+        community.aws.ec2_snapshot:
+          snapshot_id: "{{ snap_id }}"
+          state: present
+        # Snapshot ACL via boto3 lookup if needed; never modify-snapshot-attribute --group-names all.
+
+  aws_ec2_instance_assigns_public_ip:
+    secure_fix: |
+      - name: Launch EC2 in private subnet behind ALB (no public IP)
+        amazon.aws.ec2_instance:
+          name: app-private
+          instance_type: t3.medium
+          image_id: "{{ ami_id }}"
+          vpc_subnet_id: "{{ private_subnet_id }}"
+          security_groups: ["{{ app_sg }}"]
+          network:
+            assign_public_ip: false
+          state: running
+
+  aws_ecs_service_assigns_public_ip:
+    secure_fix: |
+      - name: ECS service in private subnets behind ALB
+        community.aws.ecs_service:
+          name: app
+          cluster: "{{ cluster }}"
+          task_definition: app:latest
+          desired_count: 2
+          launch_type: FARGATE
+          network_configuration:
+            subnets: "{{ private_subnet_ids }}"
+            security_groups: ["{{ task_sg }}"]
+            assign_public_ip: DISABLED
+          load_balancers:
+            - target_group_arn: "{{ alb_target_group_arn }}"
+              container_name: app
+              container_port: 8080
+          state: present
+
+  aws_ecs_taskdefinition_network_mode_not_awsvpc:
+    secure_fix: |
+      - name: ECS task definition with network_mode=awsvpc + per-task IAM role
+        community.aws.ecs_taskdefinition:
+          family: app
+          network_mode: awsvpc
+          launch_type: FARGATE
+          cpu: "512"
+          memory: "1024"
+          task_role_arn: "{{ task_role_arn }}"
+          execution_role_arn: "{{ exec_role_arn }}"
+          containers:
+            - name: app
+              image: "{{ image_uri }}"
+              portMappings:
+                - containerPort: 8080
+                  protocol: tcp
+              logConfiguration:
+                logDriver: awslogs
+                options:
+                  awslogs-group: /ecs/app
+                  awslogs-region: "{{ aws_region }}"
+                  awslogs-stream-prefix: app
+          state: present
+
+  aws_eks_cluster_public_endpoint_access_cidr_open:
+    secure_fix: |
+      - name: EKS cluster with private endpoint + locked public CIDR allowlist
+        community.aws.eks_cluster:
+          name: app
+          version: "1.30"
+          role_arn: "{{ eks_role_arn }}"
+          subnets: "{{ private_subnet_ids }}"
+          security_groups: ["{{ control_plane_sg }}"]
+          resources_vpc_config:
+            endpoint_public_access: false
+            endpoint_private_access: true
+            public_access_cidrs: []  # ignored when public_access=false
+          state: present
+
+  aws_lambda_function_url_auth_type_none:
+    secure_fix: |
+      - name: Lambda function URL requires SigV4 (AWS_IAM)
+        community.aws.lambda:
+          name: api-handler
+          state: present
+          runtime: python3.12
+          handler: app.handler
+          role: "{{ lambda_role_arn }}"
+          zip_file: "{{ artifact_path }}"
+        # Function URL is configured separately via lambda_function_url
+        # (or boto3) with AuthType: AWS_IAM. Callers must SigV4-sign
+        # requests with an IAM principal that has lambda:InvokeFunctionUrl.
+
+  aws_rds_publicly_accessible_true:
+    secure_fix: |
+      - name: RDS instance in private subnet, never public
+        amazon.aws.rds_instance:
+          id: app-db
+          engine: postgres
+          engine_version: "16.4"
+          instance_class: db.r6g.large
+          allocated_storage: 100
+          storage_encrypted: true
+          kms_key_id: "{{ rds_cmk_arn }}"
+          db_subnet_group_name: "{{ private_subnet_group }}"
+          vpc_security_group_ids: ["{{ db_sg }}"]
+          publicly_accessible: false
+          backup_retention_period: 14
+          deletion_protection: true
+          state: present
+
+  aws_s3_bucket_policy_principal_wildcard_with_write:
+    secure_fix: |
+      - name: S3 bucket policy - read-only public website only, never write
+        amazon.aws.s3_bucket:
+          name: "{{ bucket_name }}"
+          state: present
+          public_access:
+            block_public_acls: true
+            ignore_public_acls: true
+            block_public_policy: false  # explicit website policy needed
+            restrict_public_buckets: false
+          policy: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Sid": "PublicReadOnlyOverHTTPS",
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::{{ bucket_name }}/*",
+                "Condition": {"Bool": {"aws:SecureTransport": "true"}}
+              }]
+            }
+
+  aws_ecr_repository_policy_public:
+    secure_fix: |
+      - name: ECR repository policy - cross-account by ARN, never Principal=*
+        community.aws.ecs_ecr:
+          name: app
+          state: present
+          policy: |
+            {
+              "Version": "2008-10-17",
+              "Statement": [{
+                "Sid": "ScopedCrossAccountPull",
+                "Effect": "Allow",
+                "Principal": {"AWS": ["arn:aws:iam::111111111111:root"]},
+                "Action": [
+                  "ecr:GetDownloadUrlForLayer",
+                  "ecr:BatchGetImage",
+                  "ecr:BatchCheckLayerAvailability"
+                ],
+                "Condition": {"StringEquals": {"aws:PrincipalOrgID": "{{ org_id }}"}}
+              }]
+            }
+
+  aws_iam_role_trust_wildcard_principal:
+    secure_fix: |
+      - name: IAM role trust policy scoped to specific principal
+        community.aws.iam_role:
+          name: app-role
+          assume_role_policy_document: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Principal": {"AWS": "arn:aws:iam::123456789012:root"},
+                "Action": "sts:AssumeRole",
+                "Condition": {
+                  "StringEquals": {"sts:ExternalId": "{{ external_id }}"}
+                }
+              }]
+            }
+          state: present
+
+  aws_iam_pass_role_wildcard_to_compute_service:
+    secure_fix: |
+      - name: IAM policy with iam:PassRole scoped to explicit role ARNs
+        community.aws.iam_managed_policy:
+          policy_name: app-pass-role-scoped
+          policy: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Action": "iam:PassRole",
+                "Resource": [
+                  "arn:aws:iam::{{ account_id }}:role/lambda-exec-*",
+                  "arn:aws:iam::{{ account_id }}:role/ecs-task-*"
+                ],
+                "Condition": {
+                  "StringEquals": {
+                    "iam:PassedToService": ["lambda.amazonaws.com", "ecs-tasks.amazonaws.com"]
+                  }
+                }
+              }]
+            }
+          state: present
+
+  aws_iam_password_policy_weak_or_missing:
+    secure_fix: |
+      - name: IAM account password policy - modern hardened baseline
+        community.aws.iam_password_policy:
+          state: present
+          minimum_password_length: 14
+          require_symbols: true
+          require_numbers: true
+          require_uppercase_characters: true
+          require_lowercase_characters: true
+          allow_password_change: true
+          max_password_age: 90
+          password_reuse_prevent: 24
+          hard_expiry: false
+
+  aws_iam_policy_attached_directly_to_user:
+    secure_fix: |
+      - name: Group-based IAM permission assignment (never directly to users)
+        community.aws.iam_group:
+          name: Developers
+          state: present
+          managed_policies:
+            - "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+
+      - name: Add user to group instead of attaching policy directly
+        community.aws.iam_user:
+          name: alice
+          state: present
+          groups: ["Developers"]
+
+  aws_iam_policy_cross_account_assumerole_without_external_id:
+    secure_fix: |
+      - name: Cross-account trust policy with sts:ExternalId condition
+        community.aws.iam_role:
+          name: third-party-integration
+          assume_role_policy_document: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Principal": {"AWS": "arn:aws:iam::{{ partner_account_id }}:root"},
+                "Action": "sts:AssumeRole",
+                "Condition": {
+                  "StringEquals": {"sts:ExternalId": "{{ per_customer_external_id }}"}
+                }
+              }]
+            }
+          state: present
+
+  aws_kms_key_policy_wildcard_principal:
+    secure_fix: |
+      - name: KMS key policy with explicit principal ARNs + ViaService scope
+        community.aws.kms_key:
+          alias: app-data-cmk
+          policy: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Sid": "AllowAppRoleViaS3",
+                "Effect": "Allow",
+                "Principal": {"AWS": "arn:aws:iam::{{ account_id }}:role/app-role"},
+                "Action": ["kms:Encrypt","kms:Decrypt","kms:GenerateDataKey"],
+                "Resource": "*",
+                "Condition": {"StringEquals": {"kms:ViaService": "s3.{{ aws_region }}.amazonaws.com"}}
+              }]
+            }
+          state: present
+
+  aws_security_group_default_rules_not_restricted:
+    secure_fix: |
+      - name: Default VPC security group - explicit empty rule sets
+        amazon.aws.ec2_security_group:
+          name: default
+          description: default VPC security group (locked)
+          vpc_id: "{{ vpc_id }}"
+          rules: []
+          rules_egress: []
+          state: present
+
+  aws_sso_admin_permission_set:
+    secure_fix: |
+      - name: SSO permission set - scoped duties + permissions boundary
+        community.aws.identitystore_permission_set:
+          instance_arn: "{{ sso_instance_arn }}"
+          name: EC2-Operator
+          description: Scoped EC2 operator (no IAM, no KMS)
+          session_duration: PT1H
+          managed_policies:
+            - "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
+          permissions_boundary:
+            managed_policy: "arn:aws:iam::aws:policy/PowerUserAccess"
+          state: present
+
+  aws_sts_assume_role_without_mfa_for_privileged_role:
+    secure_fix: |
+      - name: Privileged role trust policy requires MFA + recent auth
+        community.aws.iam_role:
+          name: privileged-admin
+          assume_role_policy_document: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Principal": {"AWS": "arn:aws:iam::{{ account_id }}:root"},
+                "Action": "sts:AssumeRole",
+                "Condition": {
+                  "Bool": {"aws:MultiFactorAuthPresent": "true"},
+                  "NumericLessThan": {"aws:MultiFactorAuthAge": "3600"}
+                }
+              }]
+            }
+          state: present
+
+  aws_sts_assumerole_empty_external_id:
+    secure_fix: |
+      - name: Cross-account trust policy with mandatory ExternalId
+        community.aws.iam_role:
+          name: vendor-integration
+          assume_role_policy_document: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Principal": {"AWS": "arn:aws:iam::{{ vendor_account_id }}:root"},
+                "Action": "sts:AssumeRole",
+                "Condition": {
+                  "StringEquals": {"sts:ExternalId": "{{ unique_external_id }}"}
+                }
+              }]
+            }
+          state: present
+
+  aws_api_gateway_route_authorization_none:
+    secure_fix: |
+      - name: API Gateway HTTP API route requires JWT authorizer
+        community.aws.api_gateway:
+          name: app-api
+          openapi_definition:
+            openapi: 3.0.1
+            paths:
+              "/orders":
+                get:
+                  security: [{"jwtAuthorizer": []}]
+            components:
+              securitySchemes:
+                jwtAuthorizer:
+                  type: openIdConnect
+                  openIdConnectUrl: "https://{{ idp_host }}/.well-known/openid-configuration"
+          state: present
+
+  aws_apigateway_method_authorization_none:
+    secure_fix: |
+      - name: API Gateway REST method - AWS_IAM authorization
+        community.aws.api_gateway_method:
+          rest_api_id: "{{ rest_api_id }}"
+          resource_id: "{{ resource_id }}"
+          http_method: GET
+          authorization_type: AWS_IAM  # never NONE for production
+          api_key_required: false
+          state: present
+
+  # -- Credentials in playbooks - use lookups, never embed --
+  aws_credentials_in_playbook:
+    secure_fix: |
+      - name: Use the execution environment's IAM role / instance profile
+        amazon.aws.aws_caller_info:
+          # No `aws_access_key_id` / `aws_secret_access_key` - resolved
+          # via the environment (IRSA, EC2 instance profile, IAM Roles
+          # Anywhere, AWS SSO session, etc.).
+
+      - name: Or fetch short-lived creds from AWS Secrets Manager at run-time
+        ansible.builtin.set_fact:
+          db_password: "{{ lookup('amazon.aws.aws_secret', 'prod/db/password', region=aws_region) }}"
+
+  azure_credentials_in_playbook:
+    secure_fix: |
+      - name: Use Managed Identity (no credentials in playbook)
+        azure.azcollection.azure_rm_resource_info:
+          resource_group: "{{ rg }}"
+          # auth_source: msi (default when running on an Azure VM/AKS pod
+          # with Managed Identity). No client_id/secret/tenant in the
+          # playbook.
+
+      - name: Or pull a secret from Key Vault at run-time
+        ansible.builtin.set_fact:
+          db_password: "{{ lookup('azure.azcollection.azure_keyvault_secret', 'db-password', vault_url='https://{{ kv_name }}.vault.azure.net') }}"
+
+  azure_storage_connection_string_embedded_in_playbook:
+    secure_fix: |
+      - name: Storage connection string from Key Vault at run-time
+        ansible.builtin.set_fact:
+          storage_conn: "{{ lookup('azure.azcollection.azure_keyvault_secret', 'storage-connection-string', vault_url=kv_url) }}"
+        no_log: true
+
+      - name: Or use Managed Identity + Entra ID RBAC (no string at all)
+        azure.azcollection.azure_rm_storageblob:
+          resource_group: "{{ rg }}"
+          storage_account_name: "{{ sa_name }}"
+          container: app-data
+          blob: report.csv
+          src: /tmp/report.csv
+          # Managed Identity must hold "Storage Blob Data Contributor"
+          # scoped to this container.
+
+  azure_storage_sas_token_long_lived_or_over_privileged:
+    secure_fix: |
+      - name: Use User-Delegation SAS scoped to ≤24h + read-only + IP-locked
+        azure.azcollection.azure_rm_storageblob:
+          resource_group: "{{ rg }}"
+          storage_account_name: "{{ sa_name }}"
+          container: deliveries
+          blob: report.csv
+          # Generate the SAS via Entra-authenticated user delegation:
+          # az storage blob generate-sas --as-user --auth-mode login \
+          #   --permissions r --expiry "$(date -u -d '+1 hour' +%FT%TZ)" \
+          #   --ip <partner-egress-cidr> --https-only
+
+  vault_token_in_playbook:
+    secure_fix: |
+      - name: Vault Agent auto-auth (token stays out of the playbook)
+        ansible.builtin.template:
+          src: vault-agent.hcl.j2
+          dest: /etc/vault-agent/vault-agent.hcl
+          owner: vault
+          group: vault
+          mode: '0640'
+        # Vault Agent renews/refreshes via AppRole or a Kubernetes
+        # auth method; tasks below read tokens from a sink file or
+        # use community.hashi_vault lookups.
+
+      - name: Read a secret via AppRole-backed lookup, no embedded token
+        ansible.builtin.set_fact:
+          db_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/data/db:password auth_method=approle role_id={{ approle_id }} secret_id={{ approle_secret_id }} url=https://vault.example.com') }}"
+
+  aws_secrets_manager_get:
+    secure_fix: |
+      - name: Use the aws_secret lookup, run as IAM role (not extracted to disk)
+        ansible.builtin.set_fact:
+          db_password: "{{ lookup('amazon.aws.aws_secret', 'prod/db/password', region=aws_region) }}"
+        no_log: true
+        # No `aws s3 cp`, no `aws secretsmanager get-secret-value` to
+        # local files - the secret never leaves Ansible's in-memory fact.
+
+  aws_ssm_parameter_store:
+    secure_fix: |
+      - name: Use the aws_ssm lookup, no parameter values written to disk
+        ansible.builtin.set_fact:
+          api_endpoint: "{{ lookup('amazon.aws.aws_ssm', '/app/prod/api_endpoint', region=aws_region, decrypt=True) }}"
+        no_log: true
+
+  gcp_service_account_key:
+    secure_fix: |
+      - name: Use Workload Identity Federation (no JSON key on disk)
+        google.cloud.gcp_compute_instance_info:
+          project: "{{ gcp_project }}"
+          zone: "{{ gcp_zone }}"
+          auth_kind: application
+          # Application Default Credentials resolves via Workload
+          # Identity, gcloud login, or attached service account.
+
+  gcp_service_account_key_created_user_managed:
+    secure_fix: |
+      - name: Use Workload Identity Federation (federated identity, no keys)
+        google.cloud.gcp_iam_workload_identity_pool_provider:
+          name: github-oidc
+          parent: "projects/{{ project_number }}/locations/global/workloadIdentityPools/{{ pool_name }}"
+          oidc:
+            issuer_uri: https://token.actions.githubusercontent.com
+            attribute_mapping:
+              "google.subject": "assertion.sub"
+              "attribute.repository": "assertion.repository"
+            attribute_condition: "assertion.repository == '{{ org }}/{{ repo }}'"
+          state: present
+
+  gcloud_secrets_access:
+    secure_fix: |
+      - name: Use Secret Manager via the gcp_secret_manager lookup
+        ansible.builtin.set_fact:
+          db_password: "{{ lookup('google.cloud.gcp_secret_manager', 'prod-db-password', project=gcp_project) }}"
+        no_log: true
+
+  # -- Docker / Podman: privileged + host-mount + run-from-playbook --
+  docker_privileged:
+    secure_fix: |
+      - name: Run container with capability drop, no privileged, read-only FS
+        community.docker.docker_container:
+          name: app
+          image: "{{ image }}"
+          state: started
+          privileged: false
+          read_only: true
+          cap_drop: [ALL]
+          cap_add: [NET_BIND_SERVICE]
+          security_opts:
+            - "no-new-privileges:true"
+            - "seccomp=/etc/docker/seccomp-profiles/app.json"
+          tmpfs:
+            "/tmp": "rw,noexec,nosuid,size=64m"
+          user: "10001:10001"
+
+  podman_run_command:
+    secure_fix: |
+      - name: Run rootless Podman container via the supported module
+        containers.podman.podman_container:
+          name: app
+          image: "{{ image }}"
+          state: started
+          privileged: false
+          read_only: true
+          cap_drop: [all]
+          cap_add: [NET_BIND_SERVICE]
+          security_opt:
+            - "no-new-privileges=true"
+            - "label=type:container_t"
+          user: "10001:10001"
+          userns: "keep-id"
+
+  docker_host_mount:
+    secure_fix: |
+      - name: Container with named volume, no host-FS bind mounts
+        community.docker.docker_container:
+          name: app
+          image: "{{ image }}"
+          state: started
+          volumes:
+            - "app-data:/var/lib/app:rw"
+            - "/etc/app/config.yml:/etc/app/config.yml:ro"  # narrow ro file mount only
+          # Never bind-mount /, /var, /etc, /proc, /sys, /var/run/docker.sock
+          # into the container.
+
+  docker_run_command:
+    secure_fix: |
+      - name: Replace `docker run` shell call with the supported module
+        community.docker.docker_container:
+          name: app
+          image: "{{ image }}"
+          state: started
+          restart_policy: unless-stopped
+          recreate: false
+          pull: missing
+
+  docker_exec_command:
+    secure_fix: |
+      - name: Replace `docker exec` shell with module-driven container ops
+        community.docker.docker_container_exec:
+          container: app
+          command: ["/bin/healthcheck"]
+          # For one-shot maintenance, use a sidecar job that runs in
+          # its own container rather than exec into a long-lived one.
+
+  docker_login_command:
+    secure_fix: |
+      - name: Registry login with credentials from a Vault lookup, no log
+        community.docker.docker_login:
+          registry_url: "{{ registry_url }}"
+          username: "{{ registry_username }}"
+          password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/data/registry:password url=https://vault.example.com') }}"
+          reauthorize: true
+        no_log: true
+
+  # -- Azure cluster --
+  aks_managed_identity_broad_scope:
+    secure_fix: |
+      - name: AKS managed identity scoped to specific resource groups only
+        azure.azcollection.azure_rm_aks:
+          resource_group: "{{ rg }}"
+          name: app-cluster
+          identity:
+            type: UserAssigned
+            user_assigned_identities:
+              "{{ uami_id }}": {}
+          # Then assign roles to the UAMI on a tightly-scoped resource:
+      - name: Grant Reader role on a single namespace, not subscription
+        azure.azcollection.azure_rm_roleassignment:
+          scope: "{{ specific_rg_id }}"
+          assignee_object_id: "{{ uami_principal_id }}"
+          role_definition_id: "/subscriptions/{{ sub_id }}/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7"  # Reader
+
+  azure_blob_public_access_container_or_blob:
+    secure_fix: |
+      - name: Storage account with allow_blob_public_access=false
+        azure.azcollection.azure_rm_storageaccount:
+          resource_group: "{{ rg }}"
+          name: "{{ sa_name }}"
+          allow_blob_public_access: false
+          minimum_tls_version: TLS1_2
+
+      - name: Container with public_access=None (the only safe value)
+        azure.azcollection.azure_rm_storageblob:
+          resource_group: "{{ rg }}"
+          storage_account_name: "{{ sa_name }}"
+          container: app-data
+          public_access: None
+
+  azure_cosmosdb_network_ip_filter_wide_open:
+    secure_fix: |
+      - name: Cosmos DB with VNet rules + private endpoint, no broad IP filter
+        azure.azcollection.azure_rm_cosmosdbaccount:
+          resource_group: "{{ rg }}"
+          name: app-cosmos
+          location: "{{ location }}"
+          kind: GlobalDocumentDB
+          public_network_access: Disabled
+          is_virtual_network_filter_enabled: true
+          virtual_network_rules:
+            - subnet: "{{ trusted_subnet_id }}"
+              ignore_missing_vnet_service_endpoint: false
+          ip_rules: []  # never 0.0.0.0/0 or wide CIDRs
+
+  azure_nsg_inbound_ssh_rdp_from_internet:
+    secure_fix: |
+      - name: NSG rule - SSH/RDP allowed only from corporate VPN CIDR
+        azure.azcollection.azure_rm_securitygroup:
+          resource_group: "{{ rg }}"
+          name: app-nsg
+          rules:
+            - name: allow-ssh-from-vpn
+              priority: 1000
+              direction: Inbound
+              protocol: Tcp
+              source_address_prefix: "{{ corporate_vpn_cidr }}"
+              source_port_range: "*"
+              destination_address_prefix: "VirtualNetwork"
+              destination_port_range: "22"
+              access: Allow
+
+  azure_privileged_role_assigned_permanent_not_pim_eligible:
+    secure_fix: |
+      - name: Make privileged role PIM-eligible (just-in-time, MFA gated)
+        azure.azcollection.azure_rm_roleassignment:
+          scope: "{{ subscription_scope }}"
+          assignee_object_id: "{{ user_object_id }}"
+          role_definition_id: "{{ owner_role_def_id }}"
+          # Use Azure AD PIM via az rest / Graph API to convert this to
+          # an *eligible* assignment with activation requirements:
+          # - mfa_required: true
+          # - max_activation_duration: PT8H
+          # - approval_required: true (for Owner-tier roles)
+
+  azure_sql_firewall_rule_allow_all_public_ips:
+    secure_fix: |
+      - name: SQL firewall - explicit corporate egress CIDRs only, no 0.0.0.0
+        azure.azcollection.azure_rm_sqlfirewallrule:
+          resource_group: "{{ rg }}"
+          server_name: "{{ sql_server }}"
+          name: corporate-egress
+          start_ip_address: "{{ corp_cidr_start }}"
+          end_ip_address: "{{ corp_cidr_end }}"
+
+  azure_subnet_without_network_security_group:
+    secure_fix: |
+      - name: Subnet with explicit NSG attached (deny-by-default ingress)
+        azure.azcollection.azure_rm_subnet:
+          resource_group: "{{ rg }}"
+          virtual_network_name: "{{ vnet }}"
+          name: app-subnet
+          address_prefix_cidr: "10.0.1.0/24"
+          security_group: "{{ app_nsg_id }}"
+
+  # -- GCP / GKE --
+  gcp_compute_instance_full_cloud_api_scope:
+    secure_fix: |
+      - name: GCE instance scoped to specific OAuth scopes (no cloud-platform)
+        google.cloud.gcp_compute_instance:
+          name: app
+          machine_type: "n2-standard-2"
+          zone: "{{ gcp_zone }}"
+          service_accounts:
+            - email: "{{ scoped_sa_email }}"
+              scopes:
+                - "https://www.googleapis.com/auth/devstorage.read_only"
+                - "https://www.googleapis.com/auth/logging.write"
+                - "https://www.googleapis.com/auth/monitoring.write"
+
+  gcp_sql_instance_public_ip_enabled:
+    secure_fix: |
+      - name: Cloud SQL with private IP only + authorized networks empty
+        google.cloud.gcp_sql_instance:
+          name: app-db
+          settings:
+            ip_configuration:
+              ipv4_enabled: false
+              private_network: "projects/{{ project }}/global/networks/{{ vpc }}"
+              authorized_networks: []
+              require_ssl: true
+            tier: db-custom-2-8192
+          database_version: POSTGRES_16
+          region: "{{ region }}"
+          state: present
+
+  gcp_wif_provider_empty_attribute_condition:
+    secure_fix: |
+      - name: WIF provider with strict attribute_condition (repo + ref pinned)
+        google.cloud.gcp_iam_workload_identity_pool_provider:
+          name: github-oidc
+          parent: "projects/{{ project_number }}/locations/global/workloadIdentityPools/{{ pool_name }}"
+          oidc:
+            issuer_uri: https://token.actions.githubusercontent.com
+            attribute_mapping:
+              "google.subject": "assertion.sub"
+              "attribute.repository": "assertion.repository"
+              "attribute.ref": "assertion.ref"
+          attribute_condition: |
+            assertion.repository == '{{ org }}/{{ repo }}' &&
+            assertion.ref == 'refs/heads/main'
+          state: present
+
+  gcs_bucket_iam_alluser_storage_admin:
+    secure_fix: |
+      - name: GCS bucket - never grant allUsers; use signed URLs or VPC-SC
+        google.cloud.gcp_storage_bucket:
+          name: "{{ bucket }}"
+          location: "{{ region }}"
+          uniform_bucket_level_access:
+            enabled: true
+          iam_configuration:
+            public_access_prevention: enforced
+          state: present
+
+  gke_workload_identity_broad_ksa_binding:
+    secure_fix: |
+      - name: KSA bound to one GSA scoped to one namespace + role
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: v1
+            kind: ServiceAccount
+            metadata:
+              name: app-ksa
+              namespace: app
+              annotations:
+                iam.gke.io/gcp-service-account: "{{ gsa_email }}"
+
+      - name: Grant the GSA only the IAM roles its workload needs
+        google.cloud.gcp_iam_role:
+          name: roles/secretmanager.secretAccessor
+          members:
+            - "serviceAccount:{{ gsa_email }}"
+          # Scope: project or specific resource - never roles/owner.
+
+
+  # -- CloudFormation / EKS / k8s --
+  cloudformation_rogue_iam_user_with_access_key_or_login_profile:
+    secure_fix: |
+      # Reject IAM users with login profiles in templates; deploy roles instead
+      - name: CloudFormation policy - block IAM::User w/ LoginProfile or AccessKey
+        amazon.aws.cloudformation:
+          stack_name: app-stack
+          template_body: "{{ lookup('file', 'app.yml') }}"
+          state: present
+        # SCP at the org root denies iam:CreateUser, iam:CreateLoginProfile,
+        # iam:CreateAccessKey on accounts that should be human-free, so a
+        # rogue CFN template fails at deploy.
+
+  eks_oidc_unverified_thumbprint:
+    secure_fix: |
+      - name: EKS OIDC provider with verified, refreshed thumbprint
+        community.aws.iam_oidc_identity_provider:
+          url: "{{ eks_oidc_issuer }}"
+          client_id_list: ["sts.amazonaws.com"]
+          thumbprint_list: ["{{ eks_oidc_root_ca_sha1 }}"]
+          state: present
+
+  # -- Identity / IDP / MFA --
+  entra_conditional_access_excludes_all_or_broad_users:
+    secure_fix: |
+      # Use Microsoft Graph; never exclude "All users" or whole privileged roles
+      - name: Entra CA policy - require MFA for ALL users (no broad excludes)
+        ansible.builtin.uri:
+          url: "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies"
+          method: POST
+          headers:
+            Authorization: "Bearer {{ vault_graph_token }}"
+            Content-Type: application/json
+          body_format: json
+          body:
+            displayName: require-mfa-for-all
+            state: enabled
+            conditions:
+              users: { includeUsers: ["All"], excludeUsers: [] }
+              applications: { includeApplications: ["All"] }
+            grantControls:
+              operator: OR
+              builtInControls: ["mfa"]
+          status_code: 201
+
+  entra_conditional_access_excludes_all_users_or_privileged_role:
+    secure_fix: |
+      - name: Entra CA - never exclude privileged role from MFA
+        ansible.builtin.uri:
+          url: "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies/{{ policy_id }}"
+          method: PATCH
+          headers:
+            Authorization: "Bearer {{ vault_graph_token }}"
+          body_format: json
+          body:
+            conditions:
+              users:
+                includeRoles: ["62e90394-69f5-4237-9190-012177145e10"]   # Global Admin
+                excludeRoles: []
+                excludeUsers: []
+          status_code: 204
+
+  okta_policy_rule_zero_factors_or_anywhere_network:
+    secure_fix: |
+      - name: Okta sign-on policy rule - require MFA, scope to corp networks
+        ansible.builtin.uri:
+          url: "https://{{ okta_org }}.okta.com/api/v1/policies/{{ policy_id }}/rules/{{ rule_id }}"
+          method: PUT
+          headers:
+            Authorization: "SSWS {{ vault_okta_admin_token }}"
+            Content-Type: application/json
+          body_format: json
+          body:
+            actions:
+              signon:
+                access: ALLOW
+                requireFactor: true
+                factorPromptMode: ALWAYS
+                factorLifetime: 60
+            conditions:
+              network:
+                connection: ZONE
+                include: ["{{ corp_network_zone_id }}"]
+          status_code: 200
+
+  snowflake_user_created_without_mfa_or_external_oauth:
+    secure_fix: |
+      - name: Snowflake user - federated SSO + MFA, no password
+        community.general.snowflake_user:
+          name: alice
+          login_name: alice@example.com
+          must_change_password: false
+          disabled: false
+          default_role: ANALYST
+          default_warehouse: COMPUTE_WH
+          authentication_type: SAML   # never PASSWORD only
+          state: present
+
+  # -- Helm / charts --
+  helm_untrusted_repo:
+    secure_fix: |
+      - name: Helm - add only internal mirror, signed
+        kubernetes.core.helm_repository:
+          name: internal
+          repo_url: https://charts.internal.example.com/stable
+          state: present
+
+      - name: Helm install pinned to chart digest
+        kubernetes.core.helm:
+          name: app
+          chart_ref: internal/app
+          chart_version: 1.4.2
+          release_namespace: app
+          values:
+            image:
+              repository: registry.internal.example.com/app
+              tag: "1.4.2"
+              digest: "sha256:{{ app_image_sha256 }}"
+          state: present
+
+  # -- MCP server / vector DB / Ollama hardening --
+  mcp_model_context_protocol_server_no_auth_or_stdio_over_network:
+    secure_fix: |
+      - name: MCP server - bound to UNIX socket, mTLS for any TCP exposure
+        ansible.builtin.copy:
+          dest: /etc/mcp/server.yaml
+          content: |
+            transport: stdio    # local-only by default
+            tcp:
+              enabled: false    # OR: enabled w/ tls + client_ca + token
+          owner: mcp
+          group: mcp
+          mode: '0640'
+
+  ollama_server_bound_to_public_interface_no_auth:
+    secure_fix: |
+      - name: Ollama - loopback bind + reverse proxy with auth
+        ansible.builtin.systemd:
+          name: ollama
+          state: started
+          enabled: true
+      - name: Override service unit to bind 127.0.0.1 only
+        ansible.builtin.copy:
+          dest: /etc/systemd/system/ollama.service.d/override.conf
+          content: |
+            [Service]
+            Environment="OLLAMA_HOST=127.0.0.1:11434"
+          mode: '0644'
+        notify:
+          - daemon-reload
+          - restart-ollama
+
+  vector_db_weaviate_qdrant_milvus_anonymous_or_empty_api_key:
+    secure_fix: |
+      - name: Qdrant - require API key + TLS (no anonymous reads)
+        ansible.builtin.copy:
+          dest: /etc/qdrant/config.yaml
+          content: |
+            service:
+              api_key: "{{ vault_qdrant_api_key }}"
+              read_only_api_key: "{{ vault_qdrant_ro_key }}"
+              enable_tls: true
+              tls:
+                cert: /etc/qdrant/tls.crt
+                key:  /etc/qdrant/tls.key
+                ca_cert: /etc/qdrant/ca.crt
+                cert_ttl: 86400
+          owner: qdrant
+          group: qdrant
+          mode: '0640'
+        notify: restart-qdrant
+
+  # -- Filesystem / SMB / NFS --
+  nfs_export_no_root_squash_plus_rw:
+    secure_fix: |
+      - name: NFS export - root_squash + read-only (or per-host RW)
+        ansible.builtin.copy:
+          dest: /etc/exports.d/app.exports
+          content: |
+            /srv/app   10.0.5.0/24(ro,sync,root_squash,sec=krb5p,no_subtree_check)
+            /srv/app   10.0.6.10(rw,sync,root_squash,sec=krb5p,no_subtree_check)
+          owner: root
+          group: root
+          mode: '0644'
+        notify: reload-nfs-exports
+
+  samba_server_min_protocol_nt1_or_core:
+    secure_fix: |
+      - name: Samba - min protocol = SMB3, signing required
+        ansible.builtin.lineinfile:
+          path: /etc/samba/smb.conf
+          regexp: '^\s*server min protocol\s*='
+          line: '   server min protocol = SMB3'
+        notify: restart-samba
+      - name: Samba - require signing
+        ansible.builtin.lineinfile:
+          path: /etc/samba/smb.conf
+          regexp: '^\s*server signing\s*='
+          line: '   server signing = required'
+        notify: restart-samba
+
+  # -- Palo Alto / firewall hygiene --
+  panos_management_profile_insecure_protocols:
+    secure_fix: |
+      - name: PAN-OS interface mgmt profile - HTTPS+SSH only, no Telnet/HTTP
+        paloaltonetworks.panos.panos_management_profile:
+          provider:
+            ip_address: "{{ panos_host }}"
+            api_key: "{{ vault_panos_api_key }}"
+          name: mgmt-secure
+          ssh: true
+          https: true
+          ping: true
+          telnet: false
+          http: false
+          snmp: false
+          state: present
+
+  panos_security_rule_application_or_service_any:
+    secure_fix: |
+      - name: PAN-OS rule - explicit App-IDs and services (never any/any)
+        paloaltonetworks.panos.panos_security_rule:
+          provider:
+            ip_address: "{{ panos_host }}"
+            api_key: "{{ vault_panos_api_key }}"
+          rule_name: app-prod-ingress
+          source_zone: ["dmz"]
+          destination_zone: ["app"]
+          source_ip: ["10.10.0.0/16"]
+          destination_ip: ["10.20.5.0/24"]
+          application: ["ssl", "web-browsing", "app-prod"]
+          service: ["application-default"]
+          action: allow
+          log_end: true
+          state: present
+
+  panos_security_rule_src_any_and_dst_any:
+    secure_fix: |
+      - name: PAN-OS rule - explicit src/dst zones AND CIDRs
+        paloaltonetworks.panos.panos_security_rule:
+          provider:
+            ip_address: "{{ panos_host }}"
+            api_key: "{{ vault_panos_api_key }}"
+          rule_name: app-prod-ingress
+          source_zone: ["dmz"]
+          destination_zone: ["app"]
+          source_ip: ["10.10.0.0/16"]
+          destination_ip: ["10.20.5.0/24"]
+          application: ["ssl", "web-browsing"]
+          service: ["application-default"]
+          action: allow
+          state: present
+
+  # -- S3 ACL public --
+  s3_bucket_acl_public_read_write_literal:
+    secure_fix: |
+      - name: S3 bucket - private ACL, full Block Public Access
+        amazon.aws.s3_bucket:
+          name: "{{ bucket }}"
+          public_access:
+            block_public_acls: true
+            ignore_public_acls: true
+            block_public_policy: true
+            restrict_public_buckets: true
+          policy: "{{ lookup('file', 'policies/private-only.json') }}"
+          state: present

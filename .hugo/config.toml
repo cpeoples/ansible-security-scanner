@@ -1,0 +1,54 @@
+baseURL = "/"
+languageCode = "en-us"
+title = "Ansible Security Scanner"
+theme = "hugo-theme-relearn"
+
+uglyURLs = false
+
+[params]
+  themeVariant = ["relearn-dark", "relearn-light"]
+  themeVariantAuto = ["relearn-dark", "relearn-light"]
+  themeVariantDefault = "relearn-dark"
+
+  search = true
+  searchMaxResultLength = 20
+
+  disableBreadcrumb = false
+  disableNextPrev = false
+
+  collapsibleMenu = true
+  alwaysopen = false
+
+  externalLinkTarget = "_blank"
+
+  sidebarmenus = [
+    { type = "page", identifier = "main", disableTitle = true, pageRef = "/" }
+  ]
+
+  customCSS = ["css/custom.css"]
+  customJS = ["js/custom.js"]
+
+  showVisitedLinks = false
+  print = true
+  printPageBreak = true
+
+  [[params.boxStyle]]
+    identifier = "note"
+    color = "#3b82f6"
+
+[markup]
+  [markup.highlight]
+    codeFences = true
+    lineNos = true
+    lineNumbersInTable = true
+    style = "monokai"
+    noClasses = false
+
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
+  [markup.goldmark.parser]
+    [markup.goldmark.parser.attribute]
+      block = true
+      title = true

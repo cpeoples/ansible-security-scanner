@@ -1,0 +1,181 @@
+:root,
+:root[data-r-theme-variant="relearn-dark"],
+:root[data-r-theme-variant="relearn-light"] {
+  --PRIMARY-color: #3b82f6 !important;
+  --PRIMARY-HOVER-color: #60a5fa !important;
+  --SECONDARY-color: #3b82f6 !important;
+  --SECONDARY-HOVER-color: #60a5fa !important;
+  --ACCENT-color: #3b82f6 !important;
+  --ACCENT-HOVER-color: #60a5fa !important;
+  --CODE-INLINE-color: #3b82f6 !important;
+}
+
+.logo-title,
+.logo-title a {
+  color: #ffffff !important;
+  font-weight: 500 !important;
+}
+
+.R-sidebarmenu,
+.R-sidebarmenu a,
+.R-sidebarmenu li {
+  color: #ffffff !important;
+}
+
+.R-sidebarmenu li.active > a {
+  color: #3b82f6 !important;
+}
+
+.R-shortcutmenu-homelinks li.active > a,
+.R-shortcutmenu li.active > a {
+  color: #ffffff !important;
+  background: transparent !important;
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 3px !important;
+}
+
+.R-shortcutmenu-homelinks a:hover,
+.R-shortcutmenu a:hover {
+  color: #ffffff !important;
+  background: transparent !important;
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 3px !important;
+}
+
+#R-sidebar .collapsible-menu label i.fa-chevron-right,
+#R-sidebar .collapsible-menu label i.fa-chevron-down {
+  color: #ffffff !important;
+}
+
+#R-sidebar .collapsible-menu label {
+  margin-right: 8px !important;
+}
+
+#R-sidebar input[type="checkbox"]:checked + label i.fa-chevron-right,
+#R-sidebar input[type="checkbox"]:checked + label i.fa-chevron-down {
+  color: #3b82f6 !important;
+}
+
+#R-sidebar .collapsible-menu label:hover i {
+  color: #3b82f6 !important;
+}
+
+.severity-critical { color: #ef4444; font-weight: bold; }
+.severity-high { color: #f97316; font-weight: bold; }
+.severity-medium { color: #eab308; font-weight: bold; }
+.severity-low { color: #22c55e; }
+
+.pattern-count {
+  display: inline-block;
+  background: #3b82f6;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  margin-left: 4px;
+}
+
+/* Refs-column chips: deep-link to NVD / MITRE CWE / ATT&CK. */
+.framework-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.framework-chip {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.75em;
+  font-family: var(--CODE-font, monospace);
+  text-decoration: none !important;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.framework-chip:hover {
+  text-decoration: none !important;
+  filter: brightness(1.1);
+}
+
+.framework-chip-cve {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444 !important;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.framework-chip-cwe {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6 !important;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.framework-chip-mitre {
+  background: rgba(168, 85, 247, 0.12);
+  color: #a855f7 !important;
+  border-color: rgba(168, 85, 247, 0.35);
+}
+
+.framework-chip-more {
+  display: inline-block;
+  padding: 1px 7px;
+  font-size: 0.7em;
+  color: var(--MAIN-TEXT-color, #6b7280);
+  font-style: italic;
+}
+
+.framework-chip-empty {
+  color: var(--MAIN-TEXT-color, #6b7280);
+  opacity: 0.4;
+  font-size: 0.85em;
+}
+
+/* Pattern table column widths. */
+.pattern-table table th:nth-child(1),
+.pattern-table table td:nth-child(1) {
+  white-space: nowrap;
+}
+.pattern-table table th:nth-child(2),
+.pattern-table table td:nth-child(2) {
+  width: 5rem;
+  white-space: nowrap;
+}
+.pattern-table table th:nth-child(5),
+.pattern-table table td:nth-child(5) {
+  width: 9rem;
+  vertical-align: top;
+}
+
+table td code,
+table th code {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+#R-body-inner > .flex-block-wrapper article h1 {
+  justify-content: center;
+  text-align: center;
+  text-transform: none;
+  overflow-x: visible;
+  font-size: 2.25rem;
+}
+
+#R-body-inner > .flex-block-wrapper article h1 .heading-icon img {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Drop the theme's right-side gutter on the main content area so wide
+   pattern tables can breathe. Theme default is `0 3.25rem 4rem 3.25rem`. */
+#R-body-inner {
+  padding: 0 0 0rem 0rem;
+}
+
+#R-body .flex-block-wrapper {
+  max-width: calc(var(--INTERNAL-MAIN-MAX-width) - var(--INTERNAL-MENU-L-width) + 30rem) !important;
+  width: 95% !important;
+}

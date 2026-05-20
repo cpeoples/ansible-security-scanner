@@ -1,0 +1,1417 @@
+# MITRE ATT&CK technique catalog - Enterprise matrix v15 (2024-04-23 release).
+#
+# Purpose
+# -------
+# Maps every MITRE ATT&CK technique ID referenced by the scanner's patterns to
+# its official name, parent technique (for sub-techniques), tactic(s), and
+# canonical URL. Consumed by `link_resolver` to enrich findings in the
+# Markdown / HTML / SARIF / CycloneDX reports.
+#
+# Authoring rules
+# ---------------
+# 1. Add only techniques actually referenced by a pattern YAML. An automated
+#    test in `tests/test_framework_catalog.py` fails the build if a pattern
+#    references an ID not listed here, so "curated by need" is enforced.
+# 2. Use MITRE's canonical names verbatim - don't paraphrase. Source:
+#    https://attack.mitre.org/techniques/enterprise/
+# 3. `parent` is set for sub-techniques (IDs of the form Txxxx.NNN). For
+#    top-level techniques it's omitted.
+# 4. `url` must be the deep-link shape: /techniques/Txxxx/ or /techniques/Txxxx/NNN/.
+# 5. `tactics` is a list (some techniques belong to more than one).
+
+T1003:
+  name: "OS Credential Dumping"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1003/"
+
+T1003.001:
+  name: "LSASS Memory"
+  parent: "OS Credential Dumping"
+  parent_id: "T1003"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1003/001/"
+
+T1003.006:
+  name: "DCSync"
+  parent: "OS Credential Dumping"
+  parent_id: "T1003"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1003/006/"
+
+T1003.008:
+  name: "/etc/passwd and /etc/shadow"
+  parent: "OS Credential Dumping"
+  parent_id: "T1003"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1003/008/"
+
+T1005:
+  name: "Data from Local System"
+  tactics: ["Collection"]
+  url: "https://attack.mitre.org/techniques/T1005/"
+
+T1014:
+  name: "Rootkit"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1014/"
+
+T1016:
+  name: "System Network Configuration Discovery"
+  tactics: ["Discovery"]
+  url: "https://attack.mitre.org/techniques/T1016/"
+
+T1021:
+  name: "Remote Services"
+  tactics: ["Lateral Movement"]
+  url: "https://attack.mitre.org/techniques/T1021/"
+
+T1021.001:
+  name: "Remote Desktop Protocol"
+  parent: "Remote Services"
+  parent_id: "T1021"
+  tactics: ["Lateral Movement"]
+  url: "https://attack.mitre.org/techniques/T1021/001/"
+
+T1021.002:
+  name: "SMB/Windows Admin Shares"
+  parent: "Remote Services"
+  parent_id: "T1021"
+  tactics: ["Lateral Movement"]
+  url: "https://attack.mitre.org/techniques/T1021/002/"
+
+T1021.004:
+  name: "SSH"
+  parent: "Remote Services"
+  parent_id: "T1021"
+  tactics: ["Lateral Movement"]
+  url: "https://attack.mitre.org/techniques/T1021/004/"
+
+T1021.006:
+  name: "Windows Remote Management"
+  parent: "Remote Services"
+  parent_id: "T1021"
+  tactics: ["Lateral Movement", "Execution"]
+  url: "https://attack.mitre.org/techniques/T1021/006/"
+
+T1027:
+  name: "Obfuscated Files or Information"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1027/"
+
+T1027.002:
+  name: "Software Packing"
+  parent: "Obfuscated Files or Information"
+  parent_id: "T1027"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1027/002/"
+
+T1036.005:
+  name: "Match Legitimate Name or Location"
+  parent: "Masquerading"
+  parent_id: "T1036"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1036/005/"
+
+T1040:
+  name: "Network Sniffing"
+  tactics: ["Credential Access", "Discovery"]
+  url: "https://attack.mitre.org/techniques/T1040/"
+
+T1041:
+  name: "Exfiltration Over C2 Channel"
+  tactics: ["Exfiltration"]
+  url: "https://attack.mitre.org/techniques/T1041/"
+
+T1046:
+  name: "Network Service Discovery"
+  tactics: ["Discovery"]
+  url: "https://attack.mitre.org/techniques/T1046/"
+
+T1048:
+  name: "Exfiltration Over Alternative Protocol"
+  tactics: ["Exfiltration"]
+  url: "https://attack.mitre.org/techniques/T1048/"
+
+T1048.003:
+  name: "Exfiltration Over Unencrypted Non-C2 Protocol"
+  parent: "Exfiltration Over Alternative Protocol"
+  parent_id: "T1048"
+  tactics: ["Exfiltration"]
+  url: "https://attack.mitre.org/techniques/T1048/003/"
+
+T1049:
+  name: "System Network Connections Discovery"
+  tactics: ["Discovery"]
+  url: "https://attack.mitre.org/techniques/T1049/"
+
+T1053:
+  name: "Scheduled Task/Job"
+  tactics: ["Execution", "Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1053/"
+
+T1053.003:
+  name: "Cron"
+  parent: "Scheduled Task/Job"
+  parent_id: "T1053"
+  tactics: ["Execution", "Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1053/003/"
+
+T1055:
+  name: "Process Injection"
+  tactics: ["Defense Evasion", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1055/"
+
+T1057:
+  name: "Process Discovery"
+  tactics: ["Discovery"]
+  url: "https://attack.mitre.org/techniques/T1057/"
+
+T1059:
+  name: "Command and Scripting Interpreter"
+  tactics: ["Execution"]
+  url: "https://attack.mitre.org/techniques/T1059/"
+
+T1059.001:
+  name: "PowerShell"
+  parent: "Command and Scripting Interpreter"
+  parent_id: "T1059"
+  tactics: ["Execution"]
+  url: "https://attack.mitre.org/techniques/T1059/001/"
+
+T1059.003:
+  name: "Windows Command Shell"
+  parent: "Command and Scripting Interpreter"
+  parent_id: "T1059"
+  tactics: ["Execution"]
+  url: "https://attack.mitre.org/techniques/T1059/003/"
+
+T1059.004:
+  name: "Unix Shell"
+  parent: "Command and Scripting Interpreter"
+  parent_id: "T1059"
+  tactics: ["Execution"]
+  url: "https://attack.mitre.org/techniques/T1059/004/"
+
+T1059.006:
+  name: "Python"
+  parent: "Command and Scripting Interpreter"
+  parent_id: "T1059"
+  tactics: ["Execution"]
+  url: "https://attack.mitre.org/techniques/T1059/006/"
+
+T1059.007:
+  name: "JavaScript"
+  parent: "Command and Scripting Interpreter"
+  parent_id: "T1059"
+  tactics: ["Execution"]
+  url: "https://attack.mitre.org/techniques/T1059/007/"
+
+T1070:
+  name: "Indicator Removal"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1070/"
+
+T1070.001:
+  name: "Clear Windows Event Logs"
+  parent: "Indicator Removal"
+  parent_id: "T1070"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1070/001/"
+
+T1070.002:
+  name: "Clear Linux or Mac System Logs"
+  parent: "Indicator Removal"
+  parent_id: "T1070"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1070/002/"
+
+T1070.006:
+  name: "Timestomp"
+  parent: "Indicator Removal"
+  parent_id: "T1070"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1070/006/"
+
+T1071.001:
+  name: "Web Protocols"
+  parent: "Application Layer Protocol"
+  parent_id: "T1071"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1071/001/"
+
+T1071.004:
+  name: "DNS"
+  parent: "Application Layer Protocol"
+  parent_id: "T1071"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1071/004/"
+
+T1068:
+  name: "Exploitation for Privilege Escalation"
+  tactics: ["Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1068/"
+
+T1078:
+  name: "Valid Accounts"
+  tactics: ["Defense Evasion", "Persistence", "Privilege Escalation", "Initial Access"]
+  url: "https://attack.mitre.org/techniques/T1078/"
+
+T1078.001:
+  name: "Default Accounts"
+  parent: "Valid Accounts"
+  parent_id: "T1078"
+  tactics: ["Defense Evasion", "Initial Access", "Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1078/001/"
+
+T1078.002:
+  name: "Domain Accounts"
+  parent: "Valid Accounts"
+  parent_id: "T1078"
+  tactics: ["Defense Evasion", "Persistence", "Privilege Escalation", "Initial Access"]
+  url: "https://attack.mitre.org/techniques/T1078/002/"
+
+T1078.003:
+  name: "Local Accounts"
+  parent: "Valid Accounts"
+  parent_id: "T1078"
+  tactics: ["Defense Evasion", "Initial Access", "Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1078/003/"
+
+T1078.004:
+  name: "Cloud Accounts"
+  parent: "Valid Accounts"
+  parent_id: "T1078"
+  tactics: ["Defense Evasion", "Initial Access", "Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1078/004/"
+
+T1083:
+  name: "File and Directory Discovery"
+  tactics: ["Discovery"]
+  url: "https://attack.mitre.org/techniques/T1083/"
+
+T1087.004:
+  name: "Cloud Account"
+  parent: "Account Discovery"
+  parent_id: "T1087"
+  tactics: ["Discovery"]
+  url: "https://attack.mitre.org/techniques/T1087/004/"
+
+T1090.001:
+  name: "Internal Proxy"
+  parent: "Proxy"
+  parent_id: "T1090"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1090/001/"
+
+T1090.002:
+  name: "External Proxy"
+  parent: "Proxy"
+  parent_id: "T1090"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1090/002/"
+
+T1095:
+  name: "Non-Application Layer Protocol"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1095/"
+
+T1098:
+  name: "Account Manipulation"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1098/"
+
+T1098.001:
+  name: "Additional Cloud Credentials"
+  parent: "Account Manipulation"
+  parent_id: "T1098"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1098/001/"
+
+T1098.003:
+  name: "Additional Cloud Roles"
+  parent: "Account Manipulation"
+  parent_id: "T1098"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1098/003/"
+
+T1098.004:
+  name: "SSH Authorized Keys"
+  parent: "Account Manipulation"
+  parent_id: "T1098"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1098/004/"
+
+T1098.007:
+  name: "Additional Local or Domain Groups"
+  parent: "Account Manipulation"
+  parent_id: "T1098"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1098/007/"
+
+T1105:
+  name: "Ingress Tool Transfer"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1105/"
+
+T1133:
+  name: "External Remote Services"
+  tactics: ["Persistence", "Initial Access"]
+  url: "https://attack.mitre.org/techniques/T1133/"
+
+T1134.001:
+  name: "Token Impersonation/Theft"
+  parent: "Access Token Manipulation"
+  parent_id: "T1134"
+  tactics: ["Defense Evasion", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1134/001/"
+
+T1134.002:
+  name: "Create Process with Token"
+  parent: "Access Token Manipulation"
+  parent_id: "T1134"
+  tactics: ["Defense Evasion", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1134/002/"
+
+T1134.003:
+  name: "Make and Impersonate Token"
+  parent: "Access Token Manipulation"
+  parent_id: "T1134"
+  tactics: ["Defense Evasion", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1134/003/"
+
+T1136.001:
+  name: "Local Account"
+  parent: "Create Account"
+  parent_id: "T1136"
+  tactics: ["Persistence"]
+  url: "https://attack.mitre.org/techniques/T1136/001/"
+
+T1136.003:
+  name: "Cloud Account"
+  parent: "Create Account"
+  parent_id: "T1136"
+  tactics: ["Persistence"]
+  url: "https://attack.mitre.org/techniques/T1136/003/"
+
+T1140:
+  name: "Deobfuscate/Decode Files or Information"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1140/"
+
+T1190:
+  name: "Exploit Public-Facing Application"
+  tactics: ["Initial Access"]
+  url: "https://attack.mitre.org/techniques/T1190/"
+
+T1195:
+  name: "Supply Chain Compromise"
+  tactics: ["Initial Access"]
+  url: "https://attack.mitre.org/techniques/T1195/"
+
+T1195.001:
+  name: "Compromise Software Dependencies and Development Tools"
+  parent: "Supply Chain Compromise"
+  parent_id: "T1195"
+  tactics: ["Initial Access"]
+  url: "https://attack.mitre.org/techniques/T1195/001/"
+
+T1195.002:
+  name: "Compromise Software Supply Chain"
+  parent: "Supply Chain Compromise"
+  parent_id: "T1195"
+  tactics: ["Initial Access"]
+  url: "https://attack.mitre.org/techniques/T1195/002/"
+
+T1199:
+  name: "Trusted Relationship"
+  tactics: ["Initial Access"]
+  url: "https://attack.mitre.org/techniques/T1199/"
+
+T1207:
+  name: "Rogue Domain Controller"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1207/"
+
+T1210:
+  name: "Exploitation of Remote Services"
+  tactics: ["Lateral Movement"]
+  url: "https://attack.mitre.org/techniques/T1210/"
+
+T1222:
+  name: "File and Directory Permissions Modification"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1222/"
+
+T1222.002:
+  name: "Linux and Mac File and Directory Permissions Modification"
+  parent: "File and Directory Permissions Modification"
+  parent_id: "T1222"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1222/002/"
+
+T1484.002:
+  name: "Domain Trust Modification"
+  parent: "Domain or Tenant Policy Modification"
+  parent_id: "T1484"
+  tactics: ["Defense Evasion", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1484/002/"
+
+T1485:
+  name: "Data Destruction"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1485/"
+
+T1486:
+  name: "Data Encrypted for Impact"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1486/"
+
+T1490:
+  name: "Inhibit System Recovery"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1490/"
+
+T1499.002:
+  name: "Service Exhaustion Flood"
+  parent: "Endpoint Denial of Service"
+  parent_id: "T1499"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1499/002/"
+
+T1499.003:
+  name: "Application Exhaustion Flood"
+  parent: "Endpoint Denial of Service"
+  parent_id: "T1499"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1499/003/"
+
+T1505.003:
+  name: "Web Shell"
+  parent: "Server Software Component"
+  parent_id: "T1505"
+  tactics: ["Persistence"]
+  url: "https://attack.mitre.org/techniques/T1505/003/"
+
+T1525:
+  name: "Implant Internal Image"
+  tactics: ["Persistence"]
+  url: "https://attack.mitre.org/techniques/T1525/"
+
+T1528:
+  name: "Steal Application Access Token"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1528/"
+
+T1530:
+  name: "Data from Cloud Storage"
+  tactics: ["Collection"]
+  url: "https://attack.mitre.org/techniques/T1530/"
+
+T1531:
+  name: "Account Access Removal"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1531/"
+
+T1543.002:
+  name: "Systemd Service"
+  parent: "Create or Modify System Process"
+  parent_id: "T1543"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1543/002/"
+
+T1543.003:
+  name: "Windows Service"
+  parent: "Create or Modify System Process"
+  parent_id: "T1543"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1543/003/"
+
+T1546:
+  name: "Event Triggered Execution"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1546/"
+
+T1546.004:
+  name: "Unix Shell Configuration Modification"
+  parent: "Event Triggered Execution"
+  parent_id: "T1546"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1546/004/"
+
+T1546.005:
+  name: "Trap"
+  parent: "Event Triggered Execution"
+  parent_id: "T1546"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1546/005/"
+
+T1547.001:
+  name: "Registry Run Keys / Startup Folder"
+  parent: "Boot or Logon Autostart Execution"
+  parent_id: "T1547"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1547/001/"
+
+T1547.006:
+  name: "Kernel Modules and Extensions"
+  parent: "Boot or Logon Autostart Execution"
+  parent_id: "T1547"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1547/006/"
+
+T1548:
+  name: "Abuse Elevation Control Mechanism"
+  tactics: ["Privilege Escalation", "Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1548/"
+
+T1548.001:
+  name: "Setuid and Setgid"
+  parent: "Abuse Elevation Control Mechanism"
+  parent_id: "T1548"
+  tactics: ["Privilege Escalation", "Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1548/001/"
+
+T1548.003:
+  name: "Sudo and Sudo Caching"
+  parent: "Abuse Elevation Control Mechanism"
+  parent_id: "T1548"
+  tactics: ["Defense Evasion", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1548/003/"
+
+T1548.005:
+  name: "Temporary Elevated Cloud Access"
+  parent: "Abuse Elevation Control Mechanism"
+  parent_id: "T1548"
+  tactics: ["Privilege Escalation", "Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1548/005/"
+
+T1550.001:
+  name: "Application Access Token"
+  parent: "Use Alternate Authentication Material"
+  parent_id: "T1550"
+  tactics: ["Defense Evasion", "Lateral Movement"]
+  url: "https://attack.mitre.org/techniques/T1550/001/"
+
+T1550.003:
+  name: "Pass the Ticket"
+  parent: "Use Alternate Authentication Material"
+  parent_id: "T1550"
+  tactics: ["Defense Evasion", "Lateral Movement"]
+  url: "https://attack.mitre.org/techniques/T1550/003/"
+
+T1552:
+  name: "Unsecured Credentials"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1552/"
+
+T1552.001:
+  name: "Credentials In Files"
+  parent: "Unsecured Credentials"
+  parent_id: "T1552"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1552/001/"
+
+T1552.004:
+  name: "Private Keys"
+  parent: "Unsecured Credentials"
+  parent_id: "T1552"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1552/004/"
+
+T1552.005:
+  name: "Cloud Instance Metadata API"
+  parent: "Unsecured Credentials"
+  parent_id: "T1552"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1552/005/"
+
+T1552.006:
+  name: "Group Policy Preferences"
+  parent: "Unsecured Credentials"
+  parent_id: "T1552"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1552/006/"
+
+T1552.007:
+  name: "Container API"
+  parent: "Unsecured Credentials"
+  parent_id: "T1552"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1552/007/"
+
+T1553.002:
+  name: "Code Signing"
+  parent: "Subvert Trust Controls"
+  parent_id: "T1553"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1553/002/"
+
+T1554:
+  name: "Compromise Host Software Binary"
+  tactics: ["Persistence"]
+  url: "https://attack.mitre.org/techniques/T1554/"
+
+T1555:
+  name: "Credentials from Password Stores"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1555/"
+
+T1555.003:
+  name: "Credentials from Web Browsers"
+  parent: "Credentials from Password Stores"
+  parent_id: "T1555"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1555/003/"
+
+T1555.004:
+  name: "Windows Credential Manager"
+  parent: "Credentials from Password Stores"
+  parent_id: "T1555"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1555/004/"
+
+T1556:
+  name: "Modify Authentication Process"
+  tactics: ["Credential Access", "Defense Evasion", "Persistence"]
+  url: "https://attack.mitre.org/techniques/T1556/"
+
+T1557:
+  name: "Adversary-in-the-Middle"
+  tactics: ["Collection", "Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1557/"
+
+T1557.001:
+  name: "LLMNR/NBT-NS Poisoning and SMB Relay"
+  parent: "Adversary-in-the-Middle"
+  parent_id: "T1557"
+  tactics: ["Collection", "Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1557/001/"
+
+T1557.002:
+  name: "ARP Cache Poisoning"
+  parent: "Adversary-in-the-Middle"
+  parent_id: "T1557"
+  tactics: ["Collection", "Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1557/002/"
+
+T1558.001:
+  name: "Golden Ticket"
+  parent: "Steal or Forge Kerberos Tickets"
+  parent_id: "T1558"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1558/001/"
+
+T1558.003:
+  name: "Kerberoasting"
+  parent: "Steal or Forge Kerberos Tickets"
+  parent_id: "T1558"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1558/003/"
+
+T1560.001:
+  name: "Archive via Utility"
+  parent: "Archive Collected Data"
+  parent_id: "T1560"
+  tactics: ["Collection"]
+  url: "https://attack.mitre.org/techniques/T1560/001/"
+
+T1561:
+  name: "Disk Wipe"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1561/"
+
+T1561.001:
+  name: "Disk Content Wipe"
+  parent: "Disk Wipe"
+  parent_id: "T1561"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1561/001/"
+
+T1561.002:
+  name: "Disk Structure Wipe"
+  parent: "Disk Wipe"
+  parent_id: "T1561"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1561/002/"
+
+T1562:
+  name: "Impair Defenses"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1562/"
+
+T1562.001:
+  name: "Disable or Modify Tools"
+  parent: "Impair Defenses"
+  parent_id: "T1562"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1562/001/"
+
+T1562.002:
+  name: "Disable Windows Event Logging"
+  parent: "Impair Defenses"
+  parent_id: "T1562"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1562/002/"
+
+T1562.004:
+  name: "Disable or Modify System Firewall"
+  parent: "Impair Defenses"
+  parent_id: "T1562"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1562/004/"
+
+T1562.006:
+  name: "Indicator Blocking"
+  parent: "Impair Defenses"
+  parent_id: "T1562"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1562/006/"
+
+T1562.007:
+  name: "Disable or Modify Cloud Firewall"
+  parent: "Impair Defenses"
+  parent_id: "T1562"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1562/007/"
+
+T1562.008:
+  name: "Disable or Modify Cloud Logs"
+  parent: "Impair Defenses"
+  parent_id: "T1562"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1562/008/"
+
+T1565.001:
+  name: "Stored Data Manipulation"
+  parent: "Data Manipulation"
+  parent_id: "T1565"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1565/001/"
+
+T1567:
+  name: "Exfiltration Over Web Service"
+  tactics: ["Exfiltration"]
+  url: "https://attack.mitre.org/techniques/T1567/"
+
+T1567.002:
+  name: "Exfiltration to Cloud Storage"
+  parent: "Exfiltration Over Web Service"
+  parent_id: "T1567"
+  tactics: ["Exfiltration"]
+  url: "https://attack.mitre.org/techniques/T1567/002/"
+
+T1569.002:
+  name: "Service Execution"
+  parent: "System Services"
+  parent_id: "T1569"
+  tactics: ["Execution"]
+  url: "https://attack.mitre.org/techniques/T1569/002/"
+
+T1571:
+  name: "Non-Standard Port"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1571/"
+
+T1572:
+  name: "Protocol Tunneling"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1572/"
+
+T1573.001:
+  name: "Symmetric Cryptography"
+  parent: "Encrypted Channel"
+  parent_id: "T1573"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1573/001/"
+
+T1574:
+  name: "Hijack Execution Flow"
+  tactics: ["Persistence", "Privilege Escalation", "Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1574/"
+
+T1574.006:
+  name: "Dynamic Linker Hijacking"
+  parent: "Hijack Execution Flow"
+  parent_id: "T1574"
+  tactics: ["Persistence", "Privilege Escalation", "Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1574/006/"
+
+T1574.007:
+  name: "Path Interception by PATH Environment Variable"
+  parent: "Hijack Execution Flow"
+  parent_id: "T1574"
+  tactics: ["Persistence", "Privilege Escalation", "Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1574/007/"
+
+T1578:
+  name: "Modify Cloud Compute Infrastructure"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1578/"
+
+T1578.002:
+  name: "Create Cloud Instance"
+  parent: "Modify Cloud Compute Infrastructure"
+  parent_id: "T1578"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1578/002/"
+
+T1580:
+  name: "Cloud Infrastructure Discovery"
+  tactics: ["Discovery"]
+  url: "https://attack.mitre.org/techniques/T1580/"
+
+T1609:
+  name: "Container Administration Command"
+  tactics: ["Execution"]
+  url: "https://attack.mitre.org/techniques/T1609/"
+
+T1610:
+  name: "Deploy Container"
+  tactics: ["Defense Evasion", "Execution"]
+  url: "https://attack.mitre.org/techniques/T1610/"
+
+T1611:
+  name: "Escape to Host"
+  tactics: ["Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1611/"
+
+T1648:
+  name: "Serverless Execution"
+  tactics: ["Execution"]
+  url: "https://attack.mitre.org/techniques/T1648/"
+
+T1649:
+  name: "Steal or Forge Authentication Certificates"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1649/"
+
+T1651:
+  name: "Cloud Administration Command"
+  tactics: ["Execution"]
+  url: "https://attack.mitre.org/techniques/T1651/"
+
+T1204:
+  name: "User Execution"
+  url: "https://attack.mitre.org/techniques/T1204/"
+
+T1556.006:
+  name: "Modify Authentication Process: Multi-Factor Authentication"
+  url: "https://attack.mitre.org/techniques/T1556/006/"
+
+T1098.005:
+  name: "Account Manipulation: Device Registration"
+  url: "https://attack.mitre.org/techniques/T1098/005/"
+
+T1606.002:
+  name: "Forge Web Credentials: SAML Tokens"
+  url: "https://attack.mitre.org/techniques/T1606/002/"
+
+T1211:
+  name: "Exploitation for Defense Evasion"
+  url: "https://attack.mitre.org/techniques/T1211/"
+
+T0830:
+  name: "Adversary-in-the-Middle"
+  tactics: ["ICS - Collection"]
+  url: "https://attack.mitre.org/techniques/T0830/"
+
+T1003.003:
+  name: "NTDS"
+  parent: "OS Credential Dumping"
+  parent_id: "T1003"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1003/003/"
+
+T1020:
+  name: "Automated Exfiltration"
+  tactics: ["Exfiltration"]
+  url: "https://attack.mitre.org/techniques/T1020/"
+
+T1047:
+  name: "Windows Management Instrumentation"
+  tactics: ["Execution"]
+  url: "https://attack.mitre.org/techniques/T1047/"
+
+T1053.006:
+  name: "Systemd Timers"
+  parent: "Scheduled Task/Job"
+  parent_id: "T1053"
+  tactics: ["Execution", "Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1053/006/"
+
+T1070.003:
+  name: "Clear Command History"
+  parent: "Indicator Removal"
+  parent_id: "T1070"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1070/003/"
+
+T1090:
+  name: "Proxy"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1090/"
+
+T1090.004:
+  name: "Domain Fronting"
+  parent: "Proxy"
+  parent_id: "T1090"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1090/004/"
+
+T1197:
+  name: "BITS Jobs"
+  tactics: ["Defense Evasion", "Persistence"]
+  url: "https://attack.mitre.org/techniques/T1197/"
+
+T1213:
+  name: "Data from Information Repositories"
+  tactics: ["Collection"]
+  url: "https://attack.mitre.org/techniques/T1213/"
+
+T1213.003:
+  name: "Code Repositories"
+  parent: "Data from Information Repositories"
+  parent_id: "T1213"
+  tactics: ["Collection"]
+  url: "https://attack.mitre.org/techniques/T1213/003/"
+
+T1218:
+  name: "System Binary Proxy Execution"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1218/"
+
+T1218.005:
+  name: "Mshta"
+  parent: "System Binary Proxy Execution"
+  parent_id: "T1218"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1218/005/"
+
+T1218.010:
+  name: "Regsvr32"
+  parent: "System Binary Proxy Execution"
+  parent_id: "T1218"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1218/010/"
+
+T1219:
+  name: "Remote Access Software"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1219/"
+
+T1491:
+  name: "Defacement"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1491/"
+
+T1542.001:
+  name: "System Firmware"
+  parent: "Pre-OS Boot"
+  parent_id: "T1542"
+  tactics: ["Defense Evasion", "Persistence"]
+  url: "https://attack.mitre.org/techniques/T1542/001/"
+
+T1542.003:
+  name: "Bootkit"
+  parent: "Pre-OS Boot"
+  parent_id: "T1542"
+  tactics: ["Defense Evasion", "Persistence"]
+  url: "https://attack.mitre.org/techniques/T1542/003/"
+
+T1543:
+  name: "Create or Modify System Process"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1543/"
+
+T1546.003:
+  name: "Windows Management Instrumentation Event Subscription"
+  parent: "Event Triggered Execution"
+  parent_id: "T1546"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1546/003/"
+
+T1558.004:
+  name: "AS-REP Roasting"
+  parent: "Steal or Forge Kerberos Tickets"
+  parent_id: "T1558"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1558/004/"
+
+T1565.002:
+  name: "Transmitted Data Manipulation"
+  parent: "Data Manipulation"
+  parent_id: "T1565"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1565/002/"
+
+T1070.004:
+  name: "File Deletion"
+  parent: "Indicator Removal"
+  parent_id: "T1070"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1070/004/"
+
+T1102.001:
+  name: "Dead Drop Resolver"
+  parent: "Web Service"
+  parent_id: "T1102"
+  tactics: ["Command and Control"]
+  url: "https://attack.mitre.org/techniques/T1102/001/"
+
+T1110.002:
+  name: "Password Cracking"
+  parent: "Brute Force"
+  parent_id: "T1110"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1110/002/"
+
+T1498.002:
+  name: "Reflection Amplification"
+  parent: "Network Denial of Service"
+  parent_id: "T1498"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1498/002/"
+
+T1539:
+  name: "Steal Web Session Cookie"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1539/"
+
+T1606.001:
+  name: "Web Cookies"
+  parent: "Forge Web Credentials"
+  parent_id: "T1606"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1606/001/"
+
+T1111:
+  name: "Multi-Factor Authentication Interception"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1111/"
+
+T1547:
+  name: "Boot or Logon Autostart Execution"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1547/"
+
+T1553.005:
+  name: "Mark-of-the-Web Bypass"
+  parent: "Subvert Trust Controls"
+  parent_id: "T1553"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1553/005/"
+
+T1621:
+  name: "Multi-Factor Authentication Request Generation"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1621/"
+
+T1082:
+  name: "System Information Discovery"
+  url: "https://attack.mitre.org/techniques/T1082/"
+
+T1110:
+  name: "Brute Force"
+  url: "https://attack.mitre.org/techniques/T1110/"
+
+T1204.002:
+  name: "User Execution: Malicious File"
+  url: "https://attack.mitre.org/techniques/T1204/002/"
+
+T1505:
+  name: "Server Software Component"
+  url: "https://attack.mitre.org/techniques/T1505/"
+
+T1543.001:
+  name: "Create or Modify System Process: Launch Agent"
+  url: "https://attack.mitre.org/techniques/T1543/001/"
+
+T1543.004:
+  name: "Create or Modify System Process: Launch Daemon"
+  url: "https://attack.mitre.org/techniques/T1543/004/"
+
+T1548.006:
+  name: "Abuse Elevation Control Mechanism: TCC Manipulation"
+  url: "https://attack.mitre.org/techniques/T1548/006/"
+
+T1550:
+  name: "Use Alternate Authentication Material"
+  url: "https://attack.mitre.org/techniques/T1550/"
+
+T1553:
+  name: "Subvert Trust Controls"
+  url: "https://attack.mitre.org/techniques/T1553/"
+
+T1553.001:
+  name: "Subvert Trust Controls: Gatekeeper Bypass"
+  url: "https://attack.mitre.org/techniques/T1553/001/"
+
+T1586.002:
+  name: "Compromise Accounts: Email Accounts"
+  url: "https://attack.mitre.org/techniques/T1586/002/"
+
+T1592.002:
+  name: "Gather Victim Host Information: Software"
+  url: "https://attack.mitre.org/techniques/T1592/002/"
+
+T1613:
+  name: "Container and Resource Discovery"
+  url: "https://attack.mitre.org/techniques/T1613/"
+
+T1018:
+  name: Remote System Discovery
+  tactics:
+    - Discovery
+  url: https://attack.mitre.org/techniques/T1018/
+T1069.002:
+  name: 'Permission Groups Discovery: Domain Groups'
+  tactics:
+    - Discovery
+  url: https://attack.mitre.org/techniques/T1069/002/
+T1072:
+  name: Software Deployment Tools
+  tactics:
+    - Execution
+    - Lateral Movement
+  url: https://attack.mitre.org/techniques/T1072/
+T1087.002:
+  name: 'Account Discovery: Domain Account'
+  tactics:
+    - Discovery
+  url: https://attack.mitre.org/techniques/T1087/002/
+T1112:
+  name: Modify Registry
+  tactics:
+    - Defense Evasion
+  url: https://attack.mitre.org/techniques/T1112/
+T1550.002:
+  name: 'Use Alternate Authentication Material: Pass the Hash'
+  tactics:
+    - Defense Evasion
+    - Lateral Movement
+  url: https://attack.mitre.org/techniques/T1550/002/
+T1553.006:
+  name: 'Subvert Trust Controls: Code Signing Policy Modification'
+  tactics:
+    - Defense Evasion
+  url: https://attack.mitre.org/techniques/T1553/006/
+T1055.009:
+  name: 'Process Injection: Proc Memory'
+  tactics:
+    - Defense Evasion
+    - Privilege Escalation
+  url: https://attack.mitre.org/techniques/T1055/009/
+T1202:
+  name: Indirect Command Execution
+  tactics:
+    - Defense Evasion
+  url: https://attack.mitre.org/techniques/T1202/
+T1499:
+  name: Endpoint Denial of Service
+  tactics:
+    - Impact
+  url: https://attack.mitre.org/techniques/T1499/
+T1499.004:
+  name: 'Endpoint Denial of Service: Application or System Exploitation'
+  tactics:
+    - Impact
+  url: https://attack.mitre.org/techniques/T1499/004/
+T1563:
+  name: Remote Service Session Hijacking
+  tactics:
+    - Lateral Movement
+  url: https://attack.mitre.org/techniques/T1563/
+T1587.001:
+  name: 'Develop Capabilities: Malware'
+  tactics:
+    - Resource Development
+  url: https://attack.mitre.org/techniques/T1587/001/
+T1600:
+  name: Weaken Encryption
+  tactics:
+    - Defense Evasion
+  url: https://attack.mitre.org/techniques/T1600/
+T1059.005:
+  name: 'Command and Scripting Interpreter: Visual Basic'
+  parent: T1059
+  tactics:
+    - Execution
+  url: https://attack.mitre.org/techniques/T1059/005/
+T1127.001:
+  name: 'Trusted Developer Utilities Proxy Execution: MSBuild'
+  parent: T1127
+  tactics:
+    - Defense Evasion
+  url: https://attack.mitre.org/techniques/T1127/001/
+T1137.001:
+  name: 'Office Application Startup: Office Template Macros'
+  parent: T1137
+  tactics:
+    - Persistence
+  url: https://attack.mitre.org/techniques/T1137/001/
+T1203:
+  name: Exploitation for Client Execution
+  tactics:
+    - Execution
+  url: https://attack.mitre.org/techniques/T1203/
+T1537:
+  name: Transfer Data to Cloud Account
+  tactics:
+    - Exfiltration
+  url: https://attack.mitre.org/techniques/T1537/
+T1548.002:
+  name: 'Abuse Elevation Control Mechanism: Bypass User Account Control'
+  parent: T1548
+  tactics:
+    - Defense Evasion
+    - Privilege Escalation
+  url: https://attack.mitre.org/techniques/T1548/002/
+T1574.001:
+  name: 'Hijack Execution Flow: DLL Search Order Hijacking'
+  parent: T1574
+  tactics:
+    - Defense Evasion
+    - Persistence
+    - Privilege Escalation
+  url: https://attack.mitre.org/techniques/T1574/001/
+T1574.002:
+  name: 'Hijack Execution Flow: DLL Side-Loading'
+  parent: T1574
+  tactics:
+    - Defense Evasion
+    - Persistence
+    - Privilege Escalation
+  url: https://attack.mitre.org/techniques/T1574/002/
+T1574.009:
+  name: 'Hijack Execution Flow: Path Interception by Unquoted Path'
+  parent: T1574
+  tactics:
+    - Defense Evasion
+    - Persistence
+    - Privilege Escalation
+  url: https://attack.mitre.org/techniques/T1574/009/
+
+T1562.010:
+  name: "Downgrade Attack"
+  parent: "Impair Defenses"
+  parent_id: "T1562"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1562/010/"
+
+T1584.002:
+  name: "DNS Server"
+  parent: "Compromise Infrastructure"
+  parent_id: "T1584"
+  tactics: ["Resource Development"]
+  url: "https://attack.mitre.org/techniques/T1584/002/"
+
+T1098.002:
+  name: "Account Manipulation: Additional Email Delegate Permissions"
+  parent: "Account Manipulation"
+  parent_id: "T1098"
+  tactics: ["Persistence", "Privilege Escalation"]
+  url: "https://attack.mitre.org/techniques/T1098/002/"
+
+T1114.003:
+  name: "Email Collection: Email Forwarding Rule"
+  parent: "Email Collection"
+  parent_id: "T1114"
+  tactics: ["Collection"]
+  url: "https://attack.mitre.org/techniques/T1114/003/"
+
+T1187:
+  name: "Forced Authentication"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1187/"
+
+T1189:
+  name: "Drive-by Compromise"
+  tactics: ["Initial Access"]
+  url: "https://attack.mitre.org/techniques/T1189/"
+
+T1204.001:
+  name: "User Execution: Malicious Link"
+  parent: "User Execution"
+  parent_id: "T1204"
+  tactics: ["Execution"]
+  url: "https://attack.mitre.org/techniques/T1204/001/"
+
+T1498:
+  name: "Network Denial of Service"
+  tactics: ["Impact"]
+  url: "https://attack.mitre.org/techniques/T1498/"
+
+T1552.002:
+  name: "Unsecured Credentials: Credentials in Registry"
+  parent: "Unsecured Credentials"
+  parent_id: "T1552"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1552/002/"
+
+T1566.001:
+  name: "Phishing: Spearphishing Attachment"
+  parent: "Phishing"
+  parent_id: "T1566"
+  tactics: ["Initial Access"]
+  url: "https://attack.mitre.org/techniques/T1566/001/"
+
+T1566.002:
+  name: "Phishing: Spearphishing Link"
+  parent: "Phishing"
+  parent_id: "T1566"
+  tactics: ["Initial Access"]
+  url: "https://attack.mitre.org/techniques/T1566/002/"
+
+T1585.002:
+  name: "Establish Accounts: Email Accounts"
+  parent: "Establish Accounts"
+  parent_id: "T1585"
+  tactics: ["Resource Development"]
+  url: "https://attack.mitre.org/techniques/T1585/002/"
+
+T1590.002:
+  name: "Gather Victim Network Information: DNS"
+  parent: "Gather Victim Network Information"
+  parent_id: "T1590"
+  tactics: ["Reconnaissance"]
+  url: "https://attack.mitre.org/techniques/T1590/002/"
+
+T1598.002:
+  name: "Phishing for Information: Spearphishing Attachment"
+  parent: "Phishing for Information"
+  parent_id: "T1598"
+  tactics: ["Reconnaissance"]
+  url: "https://attack.mitre.org/techniques/T1598/002/"
+
+T1526:
+  name: "Cloud Service Discovery"
+  tactics: ["Discovery"]
+  url: "https://attack.mitre.org/techniques/T1526/"
+
+T1110.001:
+  name: "Brute Force: Password Guessing"
+  parent: "Brute Force"
+  parent_id: "T1110"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1110/001/"
+
+T1110.003:
+  name: "Brute Force: Password Spraying"
+  parent: "Brute Force"
+  parent_id: "T1110"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1110/003/"
+
+T1583.002:
+  name: "Acquire Infrastructure: DNS Server"
+  parent: "Acquire Infrastructure"
+  parent_id: "T1583"
+  tactics: ["Resource Development"]
+  url: "https://attack.mitre.org/techniques/T1583/002/"
+
+T1578.005:
+  name: "Modify Cloud Compute Configurations"
+  parent: "Modify Cloud Compute Infrastructure"
+  parent_id: "T1578"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1578/005/"

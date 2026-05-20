@@ -1,0 +1,85 @@
+---
+# Test fixture: contract for jinja2_render_sensitive_var.
+#
+# The rule's regex matches any Jinja reference to a *_password / *_token
+# / *_secret / *_api_key / *_private_key variable. Without context the
+# rule fires on every task that PASSES a secret to an API at runtime -
+# the correct Ansible pattern - not just tasks that RENDER one to disk,
+# which is the actual leak vector.
+#
+# Post-filter (file_scanner._find_enclosing_module) now suppresses the
+# match unless the enclosing task is a disk-writing module
+# (template/copy/lineinfile/blockinfile/replace/...).
+#
+# All values are SYNTHETIC.
+
+- name: fixture play for jinja2_render_sensitive_var
+  hosts: localhost
+  gather_facts: false
+  vars:
+    app_password: "{{ vault_app_password }}"
+    app_api_token: "{{ vault_app_api_token }}"
+
+  tasks:
+    # -- Disk-sink modules - rule MUST fire -----------------------------
+    - name: render config template containing a secret
+      ansible.builtin.template:
+        src: app.conf.j2
+        dest: /etc/example/app.conf
+        mode: '0600'
+      vars:
+        rendered_password: "{{ app_password }}"                          # scanner-test: expect jinja2_render_sensitive_var
+
+    - name: copy inline content containing a secret to disk
+      ansible.builtin.copy:
+        dest: /etc/example/creds.conf
+        content: "password={{ app_password }}\n"                         # scanner-test: expect jinja2_render_sensitive_var
+        mode: '0600'
+
+    - name: lineinfile injects a token into a disk file
+      ansible.builtin.lineinfile:
+        path: /etc/example/app.env
+        line: "API_TOKEN={{ app_api_token }}"                            # scanner-test: expect jinja2_render_sensitive_var
+        create: true
+
+    # -- Runtime-API modules - rule MUST NOT fire -----------------------
+    - name: pass password to an HTTP API (correct pattern, no disk write)
+      ansible.builtin.uri:
+        url: "https://api.example.com/v1/login"
+        method: POST
+        body:
+          password: "{{ app_password }}"                                 # scanner-test: reject jinja2_render_sensitive_var
+        body_format: json
+
+    - name: uri with password arg - also correct
+      ansible.builtin.uri:
+        url: "https://api.example.com/v1/resource"
+        user: admin
+        password: "{{ app_password }}"                                   # scanner-test: reject jinja2_render_sensitive_var
+        force_basic_auth: true
+
+    - name: shell passes token as CLI flag (passthrough, not disk write)
+      ansible.builtin.shell: >-
+        example-cli --token "{{ app_api_token }}" --action run           # scanner-test: reject jinja2_render_sensitive_var
+
+    - name: command passes password flag
+      ansible.builtin.command:
+        cmd: example-tool --password "{{ app_password }}" apply          # scanner-test: reject jinja2_render_sensitive_var
+
+    - name: set_fact on a secret (kept in-memory, not rendered to disk)
+      ansible.builtin.set_fact:
+        current_password: "{{ app_password }}"                           # scanner-test: reject jinja2_render_sensitive_var
+
+    - name: debug prints a secret (bad for logs, but not this rule's concern)
+      ansible.builtin.debug:
+        msg: "using password {{ app_password }}"                         # scanner-test: reject jinja2_render_sensitive_var
+
+    # -- Task-header-anchored finding (multi-line rule) -----------------
+    # Some scanner paths anchor a finding on the task-NAME line rather
+    # than the line that matched. The post-filter must still be able to
+    # resolve the enclosing module by walking DOWNWARD from the task
+    # header, otherwise this whole-task suppression fails open.
+
+    - name: run a shell curl that pastes a password into a command       # scanner-test: reject jinja2_render_sensitive_var
+      ansible.builtin.shell: |-
+        curl -k -u admin:{{ app_password }} https://api.example.com/v1/x

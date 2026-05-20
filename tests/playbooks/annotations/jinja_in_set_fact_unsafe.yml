@@ -1,0 +1,61 @@
+---
+# Test fixture: contract for jinja_in_set_fact_unsafe.
+#
+# The rule flags set_fact tasks that store attacker-controlled input
+# into a fact without sanitisation - classic second-order template
+# injection. The old regex `(user|input|request|param|query|body|header)`
+# was a substring match and produced hundreds of FPs on ordinary
+# config names like `SOAR_adminUsername`, `ansible_user`,
+# `X_RequestId`, `useragent`. The new regex requires the token to be
+# a word-bounded attacker-input shape (`user_input`, `request_body`,
+# `query_params`, `raw_input`, `post_data`, ...).
+#
+# The rule is multi-line (window=8); it now anchors on the offending
+# value line (e.g. ``foo: "{{ user_input }}"``) so the file:line link
+# points reviewers at the exact attacker-input expression.
+# Annotations below live on the value line, not the ``set_fact:`` key.
+#
+# All values are SYNTHETIC.
+
+- name: fixture play for jinja_in_set_fact_unsafe
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    # -- Attacker-input shapes - MUST fire ------------------------------
+    - name: store raw user input without sanitising
+      ansible.builtin.set_fact:
+        foo: "{{ user_input }}"                                          # scanner-test: expect jinja_in_set_fact_unsafe
+
+    - name: store raw request body
+      ansible.builtin.set_fact:
+        payload: "{{ request_body }}"                                    # scanner-test: expect jinja_in_set_fact_unsafe
+
+    - name: store a request header
+      ansible.builtin.set_fact:
+        ua: "{{ request_headers['User-Agent'] }}"                        # scanner-test: expect jinja_in_set_fact_unsafe
+
+    - name: store a query param
+      ansible.builtin.set_fact:
+        q: "{{ query_params.search }}"                                   # scanner-test: expect jinja_in_set_fact_unsafe
+
+    # -- Ordinary config/fact names - MUST NOT fire ---------------------
+    - name: store a configured admin username (not attacker-controlled)
+      ansible.builtin.set_fact:                                           # scanner-test: reject jinja_in_set_fact_unsafe
+        admin_user: "{{ SOAR_adminUsername }}"
+
+    - name: copy the ansible ssh user (legitimate fact)
+      ansible.builtin.set_fact:                                           # scanner-test: reject jinja_in_set_fact_unsafe
+        ssh_user: "{{ ansible_user }}"
+
+    - name: store an admin user id
+      ansible.builtin.set_fact:                                           # scanner-test: reject jinja_in_set_fact_unsafe
+        uid: "{{ admin_user_id }}"
+
+    - name: capture a user-agent string from vars
+      ansible.builtin.set_fact:                                           # scanner-test: reject jinja_in_set_fact_unsafe
+        ua_header: "{{ my_useragent }}"
+
+    - name: propagate a request id correlation value
+      ansible.builtin.set_fact:                                           # scanner-test: reject jinja_in_set_fact_unsafe
+        correlation: "{{ x_requestid }}"

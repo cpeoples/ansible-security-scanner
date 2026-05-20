@@ -1,0 +1,246 @@
+name: "Webshell Deployment"
+author: "Ansible Security Scanner Team"
+description: "Detects deployment of web shells, backdoor scripts, and malicious web application files"
+
+patterns:
+  - id: "php_webshell"
+    category: "webshell_deployment"
+    severity: "CRITICAL"
+    title: "PHP Webshell Deployment"
+    description: "Deploys a PHP file containing shell execution functions commonly used in webshells"
+    regex: "(?:content|src).*\\.php.*(?:system\\s*\\(|exec\\s*\\(|passthru\\s*\\(|shell_exec\\s*\\(|eval\\s*\\(.*\\$_(?:GET|POST|REQUEST|COOKIE))|(?:system|exec|passthru|shell_exec).*\\$_(?:GET|POST|REQUEST)"
+    positive_examples:
+      - "content.phpsystem("
+    recommendation: "PHP webshells allow remote code execution; remove immediately and scan for compromise"
+    cwe: ["CWE-94", "CWE-912"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1505.003"]
+    cis_controls: ["CIS-10.1", "CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "jsp_webshell"
+    category: "webshell_deployment"
+    severity: "CRITICAL"
+    title: "JSP Webshell Deployment"
+    description: "Deploys a JSP file with Runtime.exec or ProcessBuilder patterns used in webshells"
+    regex: "\\.jsp.*(?:Runtime\\.getRuntime\\(\\)\\.exec|ProcessBuilder|<%.*request\\.getParameter)"
+    positive_examples:
+      - ".jspRuntime.getRuntime().exec"
+    recommendation: "JSP webshells allow remote code execution on Java servers; remove immediately"
+    cwe: ["CWE-94", "CWE-912"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1505.003"]
+    cis_controls: ["CIS-10.1", "CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "aspx_webshell"
+    category: "webshell_deployment"
+    severity: "CRITICAL"
+    title: "ASPX Webshell Deployment"
+    description: "Deploys an ASPX file with Process.Start or cmd.exe invocation patterns"
+    regex: "\\.aspx.*(?:Process\\.Start|ProcessStartInfo|cmd\\.exe|powershell\\.exe|Request\\.(?:QueryString|Form))"
+    positive_examples:
+      - ".aspxProcess.Start"
+    recommendation: "ASPX webshells allow remote code execution on IIS; remove immediately"
+    cwe: ["CWE-94", "CWE-912"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1505.003"]
+    cis_controls: ["CIS-10.1", "CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "python_webshell"
+    category: "webshell_deployment"
+    severity: "CRITICAL"
+    title: "Python Webshell / Backdoor Server"
+    description: "Starts a Python HTTP server with command execution capabilities"
+    regex: "python[23]?.*(?:http\\.server|SimpleHTTPServer|BaseHTTPServer|CGIHTTPServer|subprocess).*(?:Popen|exec|system)|flask.*(?:os\\.popen|subprocess)"
+    positive_examples:
+      - "pythonhttp.serverPopen"
+    recommendation: "Python web backdoors should not appear in playbooks; investigate immediately"
+    cwe: ["CWE-94", "CWE-912"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1505.003"]
+    cis_controls: ["CIS-10.1", "CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "cgi_script_deployment"
+    category: "webshell_deployment"
+    severity: "HIGH"
+    title: "CGI Script Deployment to Web Directory"
+    description: >-
+        Task deploys a .pl/.py/.sh/.rb/.cgi script under /var/www/cgi-bin (or
+        nginx/lampp/srv equivalents). Executable scripts in CGI directories are the
+        classic webshell deployment shape.
+    regex: "(?:dest|path):\\s*['\"]?(?:/var/www|/srv/www|/usr/share/nginx|/opt/lampp).*(?:cgi-bin|cgi)/.*(?:\\.(?:pl|py|sh|rb|cgi))\\b"
+    positive_examples:
+      - "dest:/var/wwwcgi-bin/.pl"
+    recommendation: "CGI scripts in web directories can be remote code execution vectors; audit carefully"
+    cwe: ["CWE-912"]
+    mitre_attack: ["T1505.003"]
+    cis_controls: ["CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4']
+    soc2: ['CC6.8', 'CC8.1']
+
+  - id: "web_directory_write"
+    category: "webshell_deployment"
+    severity: "HIGH"
+    title: "Suspicious File Write to Web Root"
+    description: "Writes executable or script files directly to web server document roots"
+    regex: "(?:dest|path):\\s*['\"]?(?:/var/www/html|/srv/www|/usr/share/nginx/html|/opt/lampp/htdocs)/.*(?:\\.(?:php|jsp|aspx|asp|war|jar|py|pl|cgi))\\b"
+    positive_examples:
+      - "dest: /var/www/html/index.php"
+    recommendation: "File writes to web roots should be from trusted deployment pipelines only"
+    cwe: ["CWE-434", "CWE-912"]
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V12.2.1", "V12.4.1"]
+    mitre_attack: ["T1505.003"]
+    cis_controls: ["CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4']
+    soc2: ['CC6.8', 'CC8.1']
+
+  # -- Named Webshell Tools -------------------------------------------------
+  - id: "weevely_webshell"
+    category: "webshell_deployment"
+    severity: "CRITICAL"
+    title: "Weevely Webshell Generator"
+    description: "Invokes weevely, a PHP backdoor generator that creates encrypted webshells with shell-like sessions"
+    regex: '\bweevely\s+(?:generate|session)\b'
+    positive_examples:
+      - "weevely generate"
+    recommendation: "Weevely is a known webshell tool; remove immediately and investigate the host for compromise"
+    no_ansible_remediation: true
+    cwe: ["CWE-506", "CWE-912"]
+    mitre_attack: ["T1027", "T1505.003"]
+    cis_controls: ["CIS-10.1", "CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4']
+    soc2: ['CC6.8', 'CC8.1']
+
+  - id: "antsword_webshell"
+    category: "webshell_deployment"
+    severity: "CRITICAL"
+    title: "AntSword Webshell Deployment"
+    description: "Deploys content associated with AntSword, a webshell management platform"
+    regex: '(?:antSword|antsword|ant_shell|ant_).*(?:\.php|\.jsp|\.aspx)|(?:\.php|\.jsp|\.aspx).*(?:antSword|antsword)'
+    positive_examples:
+      - "antSword.php"
+    recommendation: "AntSword is a webshell management tool; remove associated files and investigate immediately"
+    no_ansible_remediation: true
+    cwe: ["CWE-506", "CWE-912"]
+    mitre_attack: ["T1027", "T1505.003"]
+    cis_controls: ["CIS-10.1", "CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4']
+    soc2: ['CC6.8', 'CC8.1']
+
+  - id: "godzilla_webshell"
+    category: "webshell_deployment"
+    severity: "CRITICAL"
+    title: "Godzilla Webshell Deployment"
+    description: "Deploys content associated with Godzilla, a Java/.NET encrypted webshell framework"
+    regex: '(?i)(?:godzilla(?:shell)?|godzilla_(?:php|jsp|aspx)).*(?:\.php|\.jsp|\.aspx|\.war)'
+    positive_examples:
+      - "godzilla_php.php"
+    recommendation: "Godzilla is a known encrypted webshell; remove immediately and scan the host"
+    no_ansible_remediation: true
+    cwe: ["CWE-506", "CWE-912"]
+    mitre_attack: ["T1027", "T1505.003"]
+    cis_controls: ["CIS-10.1", "CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4']
+    soc2: ['CC6.8', 'CC8.1']
+
+  - id: "behinder_webshell"
+    category: "webshell_deployment"
+    severity: "CRITICAL"
+    title: "Behinder Webshell Deployment"
+    description: "Deploys content associated with Behinder (冰蝎), an encrypted webshell supporting PHP/JSP/.NET"
+    regex: '(?i)(?:behinder|bingxie|rebeyond).*(?:\.php|\.jsp|\.aspx)|(?:\.php|\.jsp|\.aspx).*(?:behinder|rebeyond)'
+    positive_examples:
+      - "behinder.php"
+    recommendation: "Behinder is a known encrypted webshell tool; remove immediately and investigate"
+    no_ansible_remediation: true
+    cwe: ["CWE-506", "CWE-912"]
+    mitre_attack: ["T1027", "T1505.003"]
+    cis_controls: ["CIS-10.1", "CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4']
+    soc2: ['CC6.8', 'CC8.1']
+
+  - id: "china_chopper_webshell"
+    category: "webshell_deployment"
+    severity: "CRITICAL"
+    title: "China Chopper Webshell Pattern"
+    description: "Detects the classic China Chopper one-liner pattern that evaluates HTTP request parameters"
+    regex: 'eval\s*\(\s*(?:Request|request)\s*\[\s*[''"]|<%.*eval\s*\(\s*request\s*\.\s*getParameter'
+    positive_examples:
+      - "eval(Request['"
+    recommendation: "China Chopper is a classic one-line webshell; remove immediately and audit all web files"
+    no_ansible_remediation: true
+    cwe: ["CWE-506", "CWE-912"]
+    mitre_attack: ["T1027", "T1505.003"]
+    cis_controls: ["CIS-10.1", "CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4']
+    soc2: ['CC6.8', 'CC8.1']
+
+  - id: "named_php_shells"
+    category: "webshell_deployment"
+    severity: "CRITICAL"
+    title: "Known PHP Webshell Deployment (b374k/c99/r57)"
+    description: "Deploys known named PHP webshells (b374k, c99, r57) to web-accessible paths"
+    regex: '(?:b374k|c99shell|r57shell|c99\.php|r57\.php|b374k\.php).*(?:/var/www|/srv/www|/usr/share/nginx)|(?:/var/www|/srv/www|/usr/share/nginx).*(?:b374k|c99shell|r57shell)'
+    positive_examples:
+      - "b374k/var/www"
+    recommendation: "Named webshells indicate active compromise; remove files and perform full incident response"
+    no_ansible_remediation: true
+    cwe: ["CWE-506", "CWE-912"]
+    mitre_attack: ["T1027", "T1505.003"]
+    cis_controls: ["CIS-10.1", "CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4']
+    soc2: ['CC6.8', 'CC8.1']
+
+  - id: "nodejs_web_backdoor"
+    category: "webshell_deployment"
+    severity: "CRITICAL"
+    title: "Node.js Web Backdoor Deployment"
+    description: "Writes Node.js files combining HTTP server functionality with child_process command execution to web directories"
+    regex: '(?:dest|path):\s*[''"]?(?:/var/www|/srv/www|/usr/share/nginx).*\.js.*(?:child_process|\.exec\b)|(?:child_process|createServer).*(?:dest|path):\s*[''"]?(?:/var/www|/srv/www)'
+    positive_examples:
+      - "dest:/var/www.jschild_process"
+    recommendation: "Node.js files with child_process in web roots are likely backdoors; remove and investigate"
+    no_ansible_remediation: true
+    cwe: ["CWE-506", "CWE-912"]
+    mitre_attack: ["T1505.003"]
+    cis_controls: ["CIS-10.1", "CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4']
+    soc2: ['CC6.8', 'CC8.1']
+
+  - id: "perl_cgi_webshell"
+    category: "webshell_deployment"
+    severity: "HIGH"
+    title: "Perl CGI Webshell Deployment"
+    description: "Deploys Perl CGI scripts with system execution capabilities to web directories"
+    regex: '(?:dest|path):\s*[''"]?(?:/var/www|/srv/www|/usr/share/nginx|/opt/lampp).*\.(?:pl|cgi).*(?:system\s*\(|`\$|exec\s*\()|(?:system|exec|open\s*\().*(?:dest|path):\s*[''"]?.*cgi-bin.*\.(?:pl|cgi)'
+    positive_examples:
+      - "dest:/var/www.plsystem("
+    recommendation: "Perl CGI scripts with shell execution in web paths are likely webshells; remove and audit"
+    no_ansible_remediation: true
+    cwe: ["CWE-912"]
+    mitre_attack: ["T1505.003"]
+    cis_controls: ["CIS-16.1"]
+    nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4']
+    soc2: ['CC6.8', 'CC8.1']

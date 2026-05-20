@@ -1,0 +1,135 @@
+# Companion Secure Fix snippets for ansible_hygiene rules.
+
+remediations:
+
+  allow_unsafe_lookups_enabled:
+    secure_fix: |
+      - name: ansible.cfg - allow_unsafe_lookups=False (default)
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: allow_unsafe_lookups
+          value: "False"
+          mode: '0640'
+
+  ansible_block_without_rescue_or_always:
+    secure_fix: |
+      - name: Block / rescue / always - guarantees cleanup + clear error path
+        block:
+          - name: Apply DB migration
+            ansible.builtin.command: /opt/app/bin/migrate up
+        rescue:
+          - name: Roll back on failure
+            ansible.builtin.command: /opt/app/bin/migrate down 1
+          - name: Notify on-call
+            ansible.builtin.uri:
+              url: "{{ pagerduty_event_url }}"
+              method: POST
+              body_format: json
+              body: { event_action: trigger, payload: { summary: "DB migrate failed" } }
+        always:
+          - name: Release the deploy lock
+            ansible.builtin.file:
+              path: /var/run/app-deploy.lock
+              state: absent
+
+  ansible_host_key_checking_false_in_env_or_config:
+    secure_fix: |
+      # Don't disable host-key checking; pre-seed known_hosts
+      - name: Ensure ANSIBLE_HOST_KEY_CHECKING is NOT exported as False
+        ansible.builtin.lineinfile:
+          path: /etc/profile.d/ansible.sh
+          regexp: '^export ANSIBLE_HOST_KEY_CHECKING'
+          line: 'export ANSIBLE_HOST_KEY_CHECKING=True'
+          create: true
+          mode: '0644'
+
+  ansible_vault_encrypt_string_with_inline_plaintext:
+    secure_fix: |
+      # Use ansible-vault encrypt_string OUT-OF-BAND, then paste only ciphertext:
+      # $ ansible-vault encrypt_string --vault-id prod@vault.sh \
+      #     'super-secret-value' --name 'app_db_password'
+      app_db_password: !vault |
+            $ANSIBLE_VAULT;1.2;AES256;prod
+            33623365353563326565633763616...   # ciphertext only
+      # The plaintext is never typed into a file or shell history.
+
+  commented_out_auth_block:
+    secure_fix: |
+      # Don't ship commented-out auth blocks in playbooks. Either remove
+      # entirely or guard with a `when:` so the intent is explicit:
+      - name: Production runtime - basic auth ALWAYS active
+        ansible.builtin.template:
+          src: nginx-auth.conf.j2
+          dest: /etc/nginx/conf.d/auth.conf
+          mode: '0644'
+        when: env == "prod"
+        notify: reload-nginx
+
+  debug_var_of_registered_credential_output:
+    secure_fix: |
+      - name: Run an authenticated API call (ALWAYS no_log)
+        ansible.builtin.uri:
+          url: https://api.internal.example.com/login
+          method: POST
+          body_format: json
+          body: { username: "{{ user }}", password: "{{ vault_pwd }}" }
+        register: api_login
+        no_log: true
+
+      - name: Use the registered token without printing it
+        ansible.builtin.uri:
+          url: https://api.internal.example.com/users/me
+          headers:
+            Authorization: "Bearer {{ api_login.json.token }}"
+        no_log: true
+        # Never `ansible.builtin.debug: var: api_login` - it would
+        # print the bearer token to stdout/CI logs.
+
+  github_actions_allow_unsecure_commands_env_true:
+    secure_fix: |
+      # .github/workflows/build.yml - never set ACTIONS_ALLOW_UNSECURE_COMMANDS
+      jobs:
+        build:
+          runs-on: ubuntu-latest
+          permissions:
+            contents: read
+          env:
+            # Keep this list ALWAYS empty / never includes UNSECURE_COMMANDS
+            CI: "true"
+          steps:
+            - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+            - run: ./scripts/build.sh
+
+  ignore_errors_security:
+    secure_fix: |
+      # Don't blanket-ignore_errors on security tasks; either let it
+      # fail loudly OR scope ignore to a specific, expected condition:
+      - name: Apply security baseline (no ignore_errors)
+        ansible.builtin.import_role:
+          name: my_company.security_baseline
+        # If a single sub-task may legitimately fail, use failed_when:
+      - name: Tighten sysctl (skip when not Linux)
+        ansible.posix.sysctl:
+          name: kernel.dmesg_restrict
+          value: '1'
+          state: present
+        failed_when: false
+        when: ansible_os_family in ['RedHat','Debian']
+
+  no_log_false_on_secret_handling_task:
+    secure_fix: |
+      - name: "Set DB password (always no_log: true)"
+        community.postgresql.postgresql_user:
+          db: appdb
+          name: app
+          password: "{{ vault_app_db_password }}"
+          state: present
+        no_log: true
+
+  secret_in_comment:
+    secure_fix: |
+      # Strip secrets from comments. Reference vault keys instead:
+      # The application bearer token is fetched at runtime from
+      # community.hashi_vault.vault_kv2_get('secret/app/api', 'token').
+      # Cleartext examples like `# token: abc123` MUST be deleted.

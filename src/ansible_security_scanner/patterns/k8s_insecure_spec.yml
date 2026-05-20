@@ -1,0 +1,835 @@
+name: "Kubernetes Insecure Pod/Workload Spec Patterns"
+author: "Ansible Security Scanner Team"
+description: "Deep-walk detection of insecure Kubernetes pod and workload specs embedded in Ansible playbooks via kubernetes.core.k8s (and similar) modules."
+
+# NOTE: These rules are primarily enforced by the structural walker in
+# file_scanner._scan_k8s_structural(), which parses the full YAML tree.
+# The regexes below exist as a backstop for bare/inline K8s manifests that
+# never get parsed as a task dict (e.g. raw Helm values files, one-line
+# copies-to-stdin, etc.). Walker-enforced rules carry the same IDs.
+
+patterns:
+  - id: "k8s_privileged_container"
+    category: "k8s_insecure_spec"
+    severity: "CRITICAL"
+    title: "Kubernetes Container Runs as Privileged"
+    description: "Container's securityContext sets privileged: true, granting equivalent privileges to processes on the host - effectively full root access to the node, including ability to access /dev, load kernel modules, and escape the container."
+    regex: "securityContext:[\\s\\S]{0,200}?privileged:\\s*(?i:true|yes)"
+    positive_examples:
+      - |2-
+        securityContext:
+                    privileged: true
+    multiline: true
+    window: 10
+    recommendation: "Remove privileged: true. Grant only specific capabilities via capabilities.add as needed (e.g. NET_ADMIN). Use Pod Security Standards 'restricted' profile to block privileged pods cluster-wide."
+    cis_controls: ["CIS-K8s-5.2.1"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1611"]
+    references: ["https://kubernetes.io/docs/concepts/security/pod-security-standards/"]
+    cwe: ['CWE-250', 'CWE-269']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    stig: ['V-254800']
+
+  - id: "k8s_host_network"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Kubernetes Pod Uses hostNetwork: true"
+    description: "Pod shares the host's network namespace - can sniff node traffic, bind to privileged ports, bypass NetworkPolicies, and reach services on the host loopback."
+    regex: "hostNetwork:\\s*(?i:true|yes)"
+    positive_examples:
+      - "hostNetwork: true"
+    multiline: true
+    window: 6
+    recommendation: "Remove hostNetwork: true. If you truly need host network access (e.g. CNI plugins), run the workload as a DaemonSet with a dedicated PodSecurity exception and a specific serviceAccount."
+    cis_controls: ["CIS-K8s-5.2.4"]
+    nist_controls: ['AC-6', 'AC-6(1)']
+    pci_dss: ['7.2.1']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1611"]
+    cwe: ['CWE-250', 'CWE-1327']
+    owasp_asvs: ["V14.2.2"]
+    stig: ['V-254800']
+
+  - id: "k8s_host_pid"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Kubernetes Pod Uses hostPID: true"
+    description: "Pod shares the host's PID namespace - can see and signal every process on the node, including kubelet. Enables trivial container escape via /proc/1/root and cross-pod credential harvesting."
+    regex: "hostPID:\\s*(?i:true|yes)"
+    positive_examples:
+      - "hostPID: true"
+    multiline: true
+    window: 6
+    recommendation: "Remove hostPID: true. Use a sidecar container or shareProcessNamespace (pod-scoped) if cross-process visibility is genuinely required."
+    cis_controls: ["CIS-K8s-5.2.2"]
+    nist_controls: ['AC-6', 'AC-6(1)']
+    pci_dss: ['7.2.1']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1611"]
+    cwe: ['CWE-250']
+    owasp_asvs: ["V14.2.2"]
+    stig: ['V-254800']
+
+  - id: "k8s_host_ipc"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Kubernetes Pod Uses hostIPC: true"
+    description: "Pod shares the host's IPC namespace - can read shared-memory regions and semaphores from other host processes, including kubelet-managed workloads."
+    regex: "hostIPC:\\s*(?i:true|yes)"
+    positive_examples:
+      - "hostIPC: true"
+    multiline: true
+    window: 6
+    recommendation: "Remove hostIPC: true. Use pod-scoped IPC or an explicit volume mount if containers need to share state."
+    cis_controls: ["CIS-K8s-5.2.3"]
+    nist_controls: ['AC-6', 'AC-6(1)']
+    pci_dss: ['7.2.1']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1611"]
+    cwe: ['CWE-250']
+    owasp_asvs: ["V14.2.2"]
+    stig: ['V-254800']
+
+  - id: "k8s_capabilities_add_dangerous"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Kubernetes Container Adds Dangerous Linux Capability"
+    description: "Container's securityContext.capabilities.add grants a high-risk capability (SYS_ADMIN, NET_ADMIN, SYS_PTRACE, DAC_READ_SEARCH, SYS_MODULE, etc.) that enables container escape or host-level tampering."
+    regex: "capabilities:[\\s\\S]{0,200}?add:[\\s\\S]{0,200}?(?:SYS_ADMIN|NET_ADMIN|SYS_PTRACE|DAC_READ_SEARCH|SYS_MODULE|SYS_RAWIO|SYS_BOOT|SYS_TIME)"
+    positive_examples:
+      - |2-
+        capabilities:
+                      add: ["SYS_ADMIN"]
+    multiline: true
+    window: 12
+    recommendation: "Drop ALL capabilities and add only what the workload truly requires. SYS_ADMIN is near-equivalent to privileged: true and almost never necessary. Document each added capability in a code comment."
+    cis_controls: ["CIS-K8s-5.2.9"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1611"]
+    cwe: ['CWE-250', 'CWE-269']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+
+  - id: "k8s_run_as_root"
+    category: "k8s_insecure_spec"
+    severity: "MEDIUM"
+    title: "Kubernetes Container Runs as UID 0 (root)"
+    description: "securityContext.runAsUser: 0 or runAsNonRoot: false permits the container process to run as root, increasing the blast radius of any RCE vulnerability inside the container."
+    regex: "(?:runAsUser:\\s*0\\b|runAsNonRoot:\\s*(?i:false|no))"
+    positive_examples:
+      - "runAsUser: 0"
+    multiline: true
+    window: 6
+    recommendation: "Set runAsNonRoot: true and pick a non-zero runAsUser. Use distroless base images or chown the writable paths so the process does not need UID 0."
+    cis_controls: ["CIS-K8s-5.2.5", "CIS-K8s-5.2.6"]
+    nist_controls: ['AC-6', 'AC-6(1)']
+    pci_dss: ['7.2.1']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1078.003"]
+    cwe: ['CWE-250']
+    owasp_asvs: ["V14.2.2"]
+    stig: ['V-230503', 'V-254800']
+
+  - id: "k8s_default_service_account"
+    category: "k8s_insecure_spec"
+    severity: "MEDIUM"
+    title: "Kubernetes Pod Uses Default ServiceAccount"
+    description: "Pod omits serviceAccountName (or sets it to 'default'). The default service account in many clusters is granted broad read/list permissions via legacy RBAC, and its token is auto-mounted into every container."
+    regex: "serviceAccountName:\\s*['\"]?default['\"]?\\s*$"
+    positive_examples:
+      - "serviceAccountName:default"
+    multiline: true
+    window: 4
+    recommendation: "Create a dedicated ServiceAccount per workload with a minimal Role/RoleBinding. Disable auto-mounting on the default account: `automountServiceAccountToken: false` on the `default` SA manifest."
+    cis_controls: ["CIS-K8s-5.1.5", "CIS-K8s-5.1.6"]
+    nist_controls: ['AC-3', 'AC-6']
+    pci_dss: ['7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1078.004"]
+    cwe: ['CWE-284', 'CWE-1188']
+    owasp_appsec: ["A01:2021"]
+    stig: ['V-254800']
+
+  - id: "k8s_automount_sa_token"
+    category: "k8s_insecure_spec"
+    severity: "MEDIUM"
+    title: "Kubernetes Pod Auto-Mounts ServiceAccount Token"
+    description: "automountServiceAccountToken defaults to true - any RCE in the pod gets a kubeconfig for the pod's SA, enabling lateral movement to the API server. Must be explicitly disabled unless the workload calls the API."
+    regex: "automountServiceAccountToken:\\s*(?i:true|yes)"
+    positive_examples:
+      - "automountServiceAccountToken: true"
+    multiline: true
+    window: 6
+    recommendation: "Set automountServiceAccountToken: false at both the ServiceAccount and the Pod level unless the workload genuinely calls the Kubernetes API. If it does, create a dedicated SA with least-privilege RBAC."
+    cis_controls: ["CIS-K8s-5.1.5"]
+    nist_controls: ['IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+    mitre_attack: ["T1078.004"]
+    cwe: ['CWE-522', 'CWE-1188']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1"]
+
+  - id: "k8s_allow_privilege_escalation"
+    category: "k8s_insecure_spec"
+    severity: "MEDIUM"
+    title: "Kubernetes Container Allows Privilege Escalation"
+    description: "securityContext.allowPrivilegeEscalation: true (or missing) permits a container process to gain more privileges than its parent - enabling setuid binaries to escalate to root inside the container."
+    regex: "allowPrivilegeEscalation:\\s*(?i:true|yes)"
+    positive_examples:
+      - "allowPrivilegeEscalation: true"
+    multiline: true
+    window: 6
+    recommendation: "Set allowPrivilegeEscalation: false on every container (pair with runAsNonRoot: true and dropped capabilities). Required by the 'restricted' Pod Security Standard."
+    cis_controls: ["CIS-K8s-5.2.8"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1611"]
+    cwe: ['CWE-250', 'CWE-269']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    stig: ['V-230503', 'V-254800']
+
+  - id: "k8s_readonly_root_filesystem_false"
+    category: "k8s_insecure_spec"
+    severity: "LOW"
+    title: "Kubernetes Container readOnlyRootFilesystem: false"
+    description: "readOnlyRootFilesystem left unset or false means the container can write anywhere in its rootfs, which aids malware persistence and disk-based tampering on compromise."
+    regex: "readOnlyRootFilesystem:\\s*(?i:false|no)"
+    positive_examples:
+      - "readOnlyRootFilesystem:false"
+    multiline: true
+    window: 6
+    recommendation: "Set readOnlyRootFilesystem: true and mount emptyDir volumes only at the specific paths the workload must write (e.g. /tmp, /var/cache)."
+    cis_controls: ["CIS-K8s-5.2.12"]
+    nist_controls: ['AC-3', 'AC-6']
+    pci_dss: ['7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    cwe: ['CWE-732']
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1611']
+
+  - id: "k8s_hostpath_volume"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Kubernetes Pod Mounts Host Path"
+    description: "hostPath volume gives the pod direct read/write access to the node filesystem - can mount /var/run/docker.sock, /etc, /proc, /root, or the kubelet client cert and escape to the host."
+    regex: "hostPath:[\\s\\S]{0,100}?path:\\s*['\"]?/(?:etc|root|var/run|var/lib/kubelet|proc|sys|dev|boot|home)"
+    positive_examples:
+      - |2-
+        hostPath:
+                    path: /lib/modules
+                - name: var-run-calico
+                  hostPath:
+                    path: /var/run
+    multiline: true
+    window: 10
+    recommendation: "Replace hostPath with a PersistentVolumeClaim, emptyDir, or configMap/secret mount. If hostPath is unavoidable (CNI, CSI drivers), restrict with a PodSecurityPolicy/AdmissionController allow-list of paths."
+    cis_controls: ["CIS-K8s-5.2.10"]
+    nist_controls: ['AC-3', 'AC-6', 'AC-6(1)']
+    pci_dss: ['7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1611"]
+    cwe: ['CWE-250', 'CWE-732']
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+
+  # -- Advanced K8s hardening gaps -----------------------------------------
+  # These sit alongside the existing rules above; the structural walker in
+  # file_scanner._scan_k8s_specs() enforces them primarily - the regexes are
+  # backstops for inline/Helm-values snippets that never parse as a task dict.
+  - id: "k8s_seccomp_unconfined"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Kubernetes Container Uses seccompProfile Unconfined"
+    description: "`securityContext.seccompProfile.type: Unconfined` disables the seccomp syscall filter, giving the container access to the full ~400-syscall kernel surface. The Linux kernel is the single largest attack surface exposed to a container; without seccomp, kernel-exploit CVEs (Dirty Pipe, cgroups v1 release_agent, nf_tables, io_uring) become directly weaponizable from inside the pod."
+    regex: "seccompProfile:[\\s\\S]{0,100}?type:\\s*['\"]?Unconfined"
+    positive_examples:
+      - |2-
+        seccompProfile:
+                  type: Unconfined
+    multiline: true
+    window: 8
+    recommendation: "Set `seccompProfile.type: RuntimeDefault` (blocks ~44 syscalls, no app impact) at the pod level. For workloads that need a narrower profile, use `type: Localhost` + `localhostProfile: profiles/myapp.json` and ship the JSON via a DaemonSet that drops it in /var/lib/kubelet/seccomp/profiles/."
+    cis_controls: ["CIS-K8s-5.7.2"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.7', '4.2.1', '7.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.3', 'CC6.6', 'CC6.7']
+    mitre_attack: ["T1611"]
+    cwe: ['CWE-250', 'CWE-693']
+    owasp_asvs: ["V14.2.2"]
+
+  - id: "k8s_apparmor_unconfined"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Kubernetes Pod Annotated AppArmor Unconfined"
+    description: "`container.apparmor.security.beta.kubernetes.io/<container>: unconfined` (or the 1.30+ `securityContext.appArmorProfile.type: Unconfined`) disables the AppArmor LSM for that container. AppArmor blocks a meaningful subset of host-touching syscalls (mount, ptrace of non-child, raw socket) by default; disabling it removes a cheap layer of defense-in-depth on Debian/Ubuntu-derived nodes."
+    regex: "(?:container\\.apparmor\\.security\\.beta\\.kubernetes\\.io/[A-Za-z0-9_.-]+\\s*:\\s*['\"]?unconfined|appArmorProfile:[\\s\\S]{0,80}?type:\\s*['\"]?Unconfined)"
+    positive_examples:
+      - |2-
+        appArmorProfile:
+                  type: Unconfined
+    multiline: true
+    window: 6
+    recommendation: "Remove the `unconfined` annotation (or use `runtime/default`). On AppArmor-enabled nodes, Kubernetes attaches the `runtime/default` profile automatically; explicit `unconfined` is almost never justified. If a workload needs a looser profile, load a named profile on the nodes and reference it with `localhost/<profile-name>` instead of `unconfined`."
+    cis_controls: ["CIS-K8s-5.7.3"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.7', '4.2.1', '7.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.3', 'CC6.6', 'CC6.7']
+    mitre_attack: ["T1611"]
+    cwe: ['CWE-250', 'CWE-693']
+    owasp_asvs: ["V14.2.2"]
+
+  - id: "k8s_wildcard_rbac"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Kubernetes RBAC Rule Uses Wildcard verbs/resources/apiGroups"
+    description: "A `Role` or `ClusterRole` rule sets `verbs`, `resources`, or `apiGroups` to `'*'`. A wildcard verb on any resource allows create/update/delete/exec/portforward; a wildcard resource on any verb includes secrets and tokenreviews; a wildcard apiGroup covers every CRD that ever gets installed. This is the #1 RBAC over-grant pattern and effectively equivalent to cluster-admin for the subjects bound to it."
+    regex: "(?:(?:resources|verbs|apiGroups)\\s*:\\s*\\[[^\\]\\n]*['\"]\\*['\"][^\\]\\n]*\\]|(?:resources|verbs|apiGroups)\\s*:\\s*\\n(?:\\s*#[^\\n]*\\n)*\\s*-\\s*['\"]?\\*['\"]?\\s*$)"
+    multiline: true
+    window: 6
+    positive_examples:
+      - |2-
+          rules:
+            - apiGroups: ['*']
+              resources: ['*']
+              verbs: ['*']
+    negative_examples:
+      - |2-
+          rules:
+            - apiGroups: ['']
+              resources: ['pods']
+              verbs: ['get', 'list']
+    recommendation: "Enumerate the exact verbs (`get`, `list`, `watch`, `create`, ...), resources (`pods`, `configmaps`), and apiGroups (`''`, `apps`, `batch`) the workload actually needs. Build the allow-list by running with a minimal Role, collecting `Forbidden` events, and adding only what the controller actually calls. Never use `*` outside of `kubectl`-style admin Roles."
+    cis_controls: ["CIS-K8s-5.1.1", "CIS-K8s-5.1.3"]
+    nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1078.004", "T1548"]
+    cwe: ['CWE-250', 'CWE-269', 'CWE-732']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    stig: ['V-254800']
+
+  - id: "k8s_image_latest_or_untagged"
+    category: "k8s_insecure_spec"
+    severity: "MEDIUM"
+    title: "Kubernetes Container Image Uses :latest (Mutable Tag)"
+    description: "Container spec sets `image: <repo>:latest` or any other mutable tag. `:latest` is re-pointed on every upstream push - two pods with identical manifests can run different code, rollback by manifest is impossible, and a compromised registry can silently ship malicious content to the next pod restart. This is the K8s equivalent of `pip install package` with no version."
+    regex: "image:\\s*['\"]?[A-Za-z0-9][A-Za-z0-9./_-]*:latest['\"]?\\s*$"
+    positive_examples:
+      - "image: rg.fr-par.scw.cloud/namespace-ansible-ci/nginx:latest"
+    multiline: true
+    window: 2
+    recommendation: "Pin to an immutable digest: `image: ghcr.io/org/app@sha256:<64-hex>`. If you must use a tag, pin to a specific semver (`app:1.2.3`) AND set `imagePullPolicy: IfNotPresent` so the tag is resolved once. CI should fail on any `:latest` reference via `kubeval`/`conftest`/Kyverno admission policy."
+    cis_controls: ["CIS-K8s-5.1.4"]
+    nist_controls: ['CM-11', 'SA-10', 'SI-7']
+    pci_dss: ['6.3.2']
+    soc2: ['CC7.1', 'CC8.1']
+    mitre_attack: ["T1195.002", "T1525"]
+    cwe: ['CWE-829', 'CWE-1104']
+    owasp_appsec: ["A06:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1"]
+
+  - id: "k8s_ephemeral_debug_container"
+    category: "k8s_insecure_spec"
+    severity: "MEDIUM"
+    title: "Kubernetes Pod Ships Debug Ephemeral Container"
+    description: "Pod spec has an `ephemeralContainers:` entry referencing a debug image (busybox, alpine, `nicolaka/netshoot`, `nixery.dev/shell`). Ephemeral containers share the target pod's namespaces and SA token; a debug sidecar shipped in production manifests gives every pod a pre-authenticated recon shell with full kubectl access via the mounted SA token, regardless of the app's own hardening."
+    regex: "ephemeralContainers:[\\s\\S]{0,400}?image:\\s*['\"]?(?:busybox|alpine|nicolaka/netshoot|nixery\\.dev|ubuntu|debian)(?::[A-Za-z0-9._-]+)?['\"]?"
+    positive_examples:
+      - "ephemeralContainers:image:busybox"
+    multiline: true
+    window: 20
+    recommendation: "Remove `ephemeralContainers` from production manifests. If operators need a debug path, use `kubectl debug` on-demand (which injects the debug container only for the running troubleshooting session) - never commit debug containers to Git. Enforce with a Kyverno/OPA policy that denies non-empty `ephemeralContainers` on admission."
+    cis_controls: ["CIS-K8s-5.1.5"]
+    mitre_attack: ["T1609", "T1610"]
+    cwe: ['CWE-489', 'CWE-1188']
+    nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7', 'SA-15', 'SI-4']
+    pci_dss: ['2.2.1', '6.3.1', '7.2.1']
+    soc2: ['CC6.1', 'CC6.3', 'CC7.1', 'CC8.1']
+
+  - id: "k8s_hostport_privileged"
+    category: "k8s_insecure_spec"
+    severity: "MEDIUM"
+    title: "Kubernetes Container Binds hostPort in Privileged Range"
+    description: "`container.ports[].hostPort` is set to a value <1024 (privileged port range). A hostPort binding schedules at most one pod per node on that port, bypasses Service/LoadBalancer, and in the privileged range frequently clashes with node-level services (sshd/22, DNS/53, kubelet/10250). The port is bound on every node's primary interface with no NetworkPolicy applicable - effectively a cluster-wide ingress hole."
+    regex: "hostPort:\\s*(?:[1-9]\\d?|[1-9]\\d{2}|10[0-1]\\d|102[0-3])\\b"
+    positive_examples:
+      - "hostPort: 80"
+    multiline: true
+    window: 2
+    recommendation: "Remove `hostPort`. Expose the workload via a `Service` (ClusterIP/NodePort/LoadBalancer) or an Ingress so traffic routes through kube-proxy/CNI and is covered by NetworkPolicies. If you genuinely need a node-local bind (CNI, CSI), use a DaemonSet with `hostNetwork: true` in a dedicated namespace under PSS `privileged`."
+    cis_controls: ["CIS-K8s-5.2.4"]
+    nist_controls: ['AC-6', 'AC-6(1)']
+    pci_dss: ['7.2.1']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1610"]
+    cwe: ['CWE-250', 'CWE-1327']
+    owasp_asvs: ["V14.2.2"]
+
+  - id: "k8s_service_nodeport"
+    category: "k8s_insecure_spec"
+    severity: "LOW"
+    title: "Kubernetes Service Uses Type: NodePort"
+    description: "A `Service` sets `type: NodePort`, which opens a port (default 30000-32767) on every node, bound to 0.0.0.0. NodePort bypasses Ingress/LoadBalancer controls (no TLS termination, no WAF, no rate-limiting) and the port is reachable from any node's external NIC - turning every worker node into a direct ingress target."
+    regex: "kind:\\s*Service[\\s\\S]{0,400}?type:\\s*['\"]?NodePort"
+    positive_examples:
+      - |2-
+        kind: Service
+                        # ...
+                        type: NodePort
+    multiline: true
+    window: 20
+    recommendation: "Prefer `type: ClusterIP` + an `Ingress` (with TLS, rate limits, WAF) or `type: LoadBalancer` (cloud-provider-managed LB with security groups). If you must use NodePort (bare-metal, no LB), pair it with NetworkPolicies to restrict node ingress and firewall rules on the node itself - NodePort Services ignore NetworkPolicies by default."
+    cis_controls: ["CIS-K8s-5.3.2"]
+    nist_controls: ['AC-3', 'AC-6']
+    pci_dss: ['7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1046", "T1133"]
+    cwe: ['CWE-284', 'CWE-1327']
+    owasp_appsec: ["A01:2021"]
+    stig: ['V-254801']
+
+  - id: "k8s_no_resource_limits"
+    category: "k8s_insecure_spec"
+    severity: "LOW"
+    title: "Kubernetes Container Missing Resource Limits"
+    description: "Container spec omits `resources.limits` (and often `resources.requests`). Without limits, a single compromised or buggy pod can consume all CPU/memory on its node, triggering OOM-kills of co-tenants (noisy-neighbor DoS) and driving the node into NotReady. For memory specifically, missing limits means the container can never be OOM-killed early by cgroup - it keeps growing until it evicts legitimate workloads."
+    regex: "resources:\\s*\\{\\s*\\}"
+    positive_examples:
+      - "- computeResources: {}"
+    multiline: true
+    window: 4
+    recommendation: "Set both `requests` (baseline scheduling) and `limits` (hard ceiling) on every container: `resources.limits.cpu: 500m`, `resources.limits.memory: 512Mi`, `resources.requests.cpu: 100m`, `resources.requests.memory: 128Mi`. Enforce cluster-wide with a `LimitRange` per namespace and a Kyverno policy that rejects pods missing either field."
+    cis_controls: ["CIS-K8s-5.1.5"]
+    mitre_attack: ["T1499.003"]
+    cwe: ['CWE-400', 'CWE-770']
+    owasp_asvs: ["V14.1.3"]
+    nist_controls: ['AC-3', 'AC-6', 'SC-5', 'SI-10']
+    pci_dss: ['6.3.1', '7.2.1']
+    soc2: ['A1.1', 'CC6.3']
+    stig: ['V-242442']
+
+  # -- 2024-2026 container-runtime & admission hygiene -----------------------
+  - id: "k8s_pod_shares_host_namespace"
+    category: "k8s_insecure_spec"
+    severity: "CRITICAL"
+    title: "Pod Shares Host PID/Network/IPC Namespace"
+    description: "A Pod, Deployment, StatefulSet, or DaemonSet spec combines two or more of `hostPID: true`, `hostNetwork: true`, `hostIPC: true`. Any of the three alone is dangerous; combining them effectively gives the pod full host visibility - it can enumerate every process on the node (hostPID), bind to every host port (hostNetwork), and read/write host shared-memory segments (hostIPC). This is the same combination used by 'host-escape' operator images and by Kinsing/TeamTNT miner deployments."
+    regex: "(?:host(?:PID|Network|IPC))\\s*:\\s*(?:true|yes)[\\s\\S]{0,300}?(?:host(?:PID|Network|IPC))\\s*:\\s*(?:true|yes)"
+    positive_examples:
+      - |2-
+        hostNetwork: true
+                  hostPID: true
+    multiline: true
+    window: 20
+    recommendation: "Remove all three flags unless a specific kube-system component needs them (e.g. node-exporter, kube-proxy, cilium). For monitoring agents, prefer the `securityContext.capabilities.add: [SYS_PTRACE]` + `hostPID: true` combo only on the exporter's own DaemonSet - never on application workloads. Enforce with Pod Security Admission (`pod-security.kubernetes.io/enforce: restricted`) which blocks all three."
+    cis_controls: ['CIS-K8s-5.2.2', 'CIS-K8s-5.2.3', 'CIS-K8s-5.2.4']
+    nist_controls: ['AC-3', 'AC-6', 'CM-7', 'SI-4']
+    pci_dss: ['2.2.1', '7.2.1']
+    soc2: ['CC6.1', 'CC6.3']
+    mitre_attack: ['T1610', 'T1611']
+    cwe: ['CWE-250', 'CWE-269']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    stig: ['V-254800']
+
+  # -- CRI-O / containerd runtime hardening ---------------------------------
+  - id: "crio_privileged_runtime_default"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "CRI-O runtime-level privileged_without_host_devices Enabled"
+    description: "Sets `privileged_without_host_devices = true` in a `/etc/crio/crio.conf` or `/etc/crio/crio.conf.d/*.conf` runtime block. That makes every privileged Pod scheduled on the node automatically get host-device access (/dev/*), silently turning Pod Security Admission `privileged` from a capability-only escalation into a full host-devices breakout. Documented attacker primitive on managed OpenShift / Talos / Fedora-CoreOS clusters."
+    regex: "privileged_without_host_devices\\s*=\\s*true"
+    positive_examples:
+      - "privileged_without_host_devices=true"
+    recommendation: "Set `privileged_without_host_devices = false` (default) on every crio.conf runtime block. Audit `crio config` on every node (`ansible -m shell -a \"crio config | grep -i privileged\"`). Gate privileged pods with Pod Security Admission at cluster + namespace scope."
+    cis_controls: ["CIS-K8s-5.2.1"]
+    mitre_attack: ["T1611"]
+    cwe: ["CWE-250"]
+    owasp_asvs: ["V14.2.2"]
+
+  - id: "k8s_no_new_privileges_false"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Kubernetes securityContext.allowPrivilegeEscalation=true without no-new-privileges"
+    description: "A Pod spec either explicitly sets `securityContext.allowPrivilegeEscalation: true` and omits a matching `no_new_privs` Pod Security Standard, or sets the CRI-level annotation `io.kubernetes.cri-o.TrySkipVolumeSELinuxLabel` alongside a suid-containing image. Without `no_new_privileges`, a suid binary inside the container can still gain privileges at exec() time even if the caller dropped capabilities - this bypass has been used in three public CVE-chains since 2024."
+    regex: "allowPrivilegeEscalation\\s*:\\s*(?:true|yes)(?:(?!no_new_privs|allowedUnsafeSysctls)[\\s\\S]){0,200}"
+    positive_examples:
+      - "allowPrivilegeEscalation: true"
+    multiline: true
+    window: 15
+    recommendation: "Set `allowPrivilegeEscalation: false` on every container (enforced by Pod Security Admission `baseline`). For the rare legitimate case (e.g. `sudo` inside a dev container), set both `allowPrivilegeEscalation: true` AND `securityContext.runAsNonRoot: true` + `readOnlyRootFilesystem: true`; audit via `kubectl get pods -A -o json | jq ...`."
+    cis_controls: ["CIS-K8s-5.2.5"]
+    nist_controls: ["AC-6", "CM-7"]
+    pci_dss: ["7.2.1"]
+    soc2: ["CC6.1"]
+    mitre_attack: ["T1068", "T1611"]
+    cwe: ["CWE-250", "CWE-269"]
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    stig: ["V-230503", "V-254800"]
+
+  - id: "pod_security_admission_privileged_namespace"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Namespace Labelled With Pod Security Admission enforce=privileged (Or No enforce Label)"
+    description: "A task creates/updates a `Namespace` with label `pod-security.kubernetes.io/enforce: privileged` (or omits the `enforce` label entirely, which falls back to the cluster default that is `privileged` in most installs until `PodSecurityAdmission` is explicitly wired to `baseline` or `restricted`). `privileged` PSA allows hostPath, hostNetwork, hostPID, privileged containers, and arbitrary capabilities - the entire pre-PSP set of workload escapes. This is the single biggest regression in clusters that migrated from PodSecurityPolicy (removed in 1.25) without migrating to PSS/PSA properly."
+    regex: "kind\\s*:\\s*Namespace[\\s\\S]{0,800}?pod-security\\.kubernetes\\.io/enforce\\s*:\\s*['\"]?privileged['\"]?|kind\\s*:\\s*Namespace[\\s\\S]{0,300}?labels\\s*:(?:(?!pod-security\\.kubernetes\\.io/enforce)[\\s\\S]){0,500}name\\s*:\\s*['\"]?(?:production|prod|default|kube-system)"
+    positive_examples:
+      - |2-
+        kind: Namespace
+            # ...
+            pod-security.kubernetes.io/enforce: privileged
+    multiline: true
+    window: 40
+    recommendation: "Set `pod-security.kubernetes.io/enforce: restricted` on every production namespace, and `baseline` on namespaces that truly need some elevated capabilities (e.g. `ingress-nginx`). Never leave a namespace without an explicit label. Configure the cluster-wide `AdmissionConfiguration` to default to `restricted` so omitting a label fails-safe. Audit existing namespaces with: `kubectl get ns -o=jsonpath='{range .items[*]}{.metadata.name}{\"\\t\"}{.metadata.labels.pod-security\\.kubernetes\\.io/enforce}{\"\\n\"}{end}'`."
+    cwe: ['CWE-269', 'CWE-284', 'CWE-732']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1068', 'T1611']
+    cis_controls: ['CIS-3.3', 'CIS-4.1', 'CIS-5.7']
+    nist_controls: ['AC-3', 'AC-6', 'CM-7', 'SC-39']
+    pci_dss: ['2.2.1', '7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "ingress_nginx_snippet_annotation_enabled"
+    category: "k8s_insecure_spec"
+    severity: "CRITICAL"
+    title: "ingress-nginx configuration-snippet Annotation Enabled (IngressNightmare CVE-2025-1974)"
+    description: "A task renders an Ingress manifest with `nginx.ingress.kubernetes.io/configuration-snippet`, `server-snippet`, `auth-snippet`, or `modsecurity-snippet` annotations AND the cluster's `ingress-nginx` controller does not have `allow-snippet-annotations: false` in its ConfigMap. `configuration-snippet` allows arbitrary Lua/Nginx directives to be injected via a namespace-level Ingress annotation - which, pre-CVE-2025-1974 (`IngressNightmare`, Wiz Research Mar 2025), means any user with Ingress-write permission in ANY namespace can template directives that get loaded by the cluster-wide ingress controller running as a privileged pod with cluster-admin-like secrets access. Unauthenticated pre-auth RCE when combined with the admission-controller path."
+    regex: "nginx\\.ingress\\.kubernetes\\.io/(?:configuration-snippet|server-snippet|auth-snippet|modsecurity-snippet)\\s*:"
+    positive_examples:
+      - "nginx.ingress.kubernetes.io/configuration-snippet:"
+    recommendation: "Set `allow-snippet-annotations: false` in the `ingress-nginx-controller` ConfigMap (this is the default since ingress-nginx 1.11.0, Jul 2024 - upgrade and re-deploy). Patch to `>= 1.11.5` or `>= 1.12.1` for the CVE-2025-1974 fixes. Remove all snippet annotations from Ingress manifests and migrate legitimate customisations to a custom-template-based image or an `annotation-value-word-blocklist`. If you genuinely need snippet support (you probably don't), gate it behind a Kyverno policy that restricts the annotations to specific hardened namespaces."
+    cwe: ['CWE-20', 'CWE-94', 'CWE-284']
+    cve: ["CVE-2025-1974"]
+    owasp_appsec: ["A01:2021", "A03:2021"]
+    mitre_attack: ['T1068', 'T1190', 'T1611']
+    cis_controls: ['CIS-2.1', 'CIS-5.7', 'CIS-16.11']
+    nist_controls: ['CM-7', 'SC-39', 'SI-2']
+    pci_dss: ['6.3.3', '11.3.1']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "rbac_binds_cluster_admin_or_system_masters"
+    category: "k8s_insecure_spec"
+    severity: "CRITICAL"
+    title: "RoleBinding/ClusterRoleBinding Grants cluster-admin Or system:masters To Non-Default Subject"
+    description: "A task renders a `ClusterRoleBinding` (or `RoleBinding` with `roleRef.kind: ClusterRole`) whose `roleRef.name` is `cluster-admin` OR whose `subjects[].name` contains `system:masters` - to a ServiceAccount, Group, or User that is not one of the platform-baseline subjects (`system:nodes`, `system:kube-controller-manager`). `cluster-admin` is the superuser role; `system:masters` is the certificate-authenticated superuser group (bypasses RBAC entirely). Either granted to a namespace-scoped ServiceAccount makes that SA's token a cluster-takeover primitive - the 2024 Goose/Ransomware-in-Kubernetes campaigns specifically hunt for these bindings."
+    regex: "kind\\s*:\\s*(?:Cluster)?RoleBinding[\\s\\S]{0,1500}?roleRef\\s*:[\\s\\S]{0,200}?name\\s*:\\s*['\"]?cluster-admin['\"]?[\\s\\S]{0,1500}?subjects\\s*:[\\s\\S]{0,800}?kind\\s*:\\s*(?:ServiceAccount|Group|User)(?![\\s\\S]{0,500}name\\s*:\\s*['\"]?(?:system:nodes|system:kube-controller-manager|system:masters))|subjects\\s*:[\\s\\S]{0,500}?name\\s*:\\s*['\"]?system:masters['\"]?"
+    multiline: true
+    window: 60
+    positive_examples:
+      - |2
+        kind: ClusterRoleBinding
+        metadata:
+          name: my-binding
+        roleRef:
+          kind: ClusterRole
+          name: cluster-admin
+          apiGroup: rbac.authorization.k8s.io
+        subjects:
+          - kind: ServiceAccount
+            name: my-app
+            namespace: default
+    recommendation: "Never bind `cluster-admin` to a ServiceAccount - create a purpose-built ClusterRole with only the verbs/resources needed. Never reference `system:masters` as a subject; that group is meant only for the certificate-signed kube-apiserver-internal paths. Audit existing bindings: `kubectl get clusterrolebindings -o json | jq -r '.items[] | select(.roleRef.name==\"cluster-admin\") | .metadata.name + \" -> \" + (.subjects // [] | map(.kind + \"/\" + .name) | join(\", \"))'`. Remove every binding that isn't `cluster-admin -> system:masters` (the kube-apiserver internal binding) or the controller-manager binding."
+    cwe: ['CWE-269', 'CWE-284', 'CWE-732']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1078.004', 'T1098', 'T1611']
+    cis_controls: ['CIS-3.3', 'CIS-5.4', 'CIS-5.7']
+    nist_controls: ['AC-3', 'AC-6', 'AC-6(1)']
+    pci_dss: ['7.2.1', '7.2.5', '8.3.1']
+    hipaa: ['164.308(a)(3)(i)', '164.312(a)(1)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "opa_gatekeeper_kyverno_dryrun_on_critical_policy"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "OPA Gatekeeper Constraint Or Kyverno ClusterPolicy In dryrun/Audit On Critical Policy"
+    description: "A task renders a Gatekeeper `Constraint` with `enforcementAction: dryrun` or `enforcementAction: warn`, OR a Kyverno `ClusterPolicy`/`Policy` with `validationFailureAction: Audit` - on a policy whose name / labels indicate it is a baseline-security control (`disallow-privileged`, `disallow-host-namespaces`, `require-non-root`, `restrict-image-registries`, `verify-image-signatures`, `psp-*`, `pss-*`, `security.tier=critical`). Non-enforcing admission policies on baseline-security rules are 'policy theatre' - they log violations into observability but do nothing to prevent the violating pod from scheduling and running."
+    regex: "kind\\s*:\\s*(?:Constraint|K8s[A-Z][A-Za-z]+|ClusterPolicy|Policy)[\\s\\S]{0,500}?(?:name|namespace)\\s*:\\s*['\"]?(?:disallow-[a-z-]+|require-[a-z-]+|restrict-[a-z-]+|verify-[a-z-]+|psp-[a-z-]+|pss-[a-z-]+)[^\\n]*[\\s\\S]{0,1500}?(?:enforcementAction\\s*:\\s*['\"]?(?:dryrun|warn)['\"]?|validationFailureAction\\s*:\\s*['\"]?(?:[Aa]udit|warn)['\"]?)"
+    positive_examples:
+      - "kind:Constraintnamespace:disallow-aenforcementAction:dryrun"
+    multiline: true
+    window: 80
+    recommendation: "Set `enforcementAction: deny` on every security-baseline Gatekeeper Constraint, and `validationFailureAction: Enforce` on every Kyverno ClusterPolicy tagged as security-critical. Roll out enforcement in stages: apply with `dryrun` for 48h, confirm zero legitimate violations in the admission-controller audit logs, then flip to `deny`/`Enforce`. For genuinely noisy policies keep `dryrun` but add a label `policy.kyverno.io/status: migrating` with an owner + expiry date so un-enforced policies don't rot."
+    cwe: ['CWE-284', 'CWE-693', 'CWE-754']
+    owasp_appsec: ["A01:2021"]
+    mitre_attack: ['T1562.001', 'T1611']
+    cis_controls: ['CIS-3.3', 'CIS-5.7', 'CIS-16.11']
+    nist_controls: ['AC-3', 'CM-7', 'SI-4']
+    pci_dss: ['6.3.3', '11.3.1']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "kubelet_read_only_port_10255_enabled"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "kubelet read-only-port=10255 Enabled (Unauthenticated Node Metadata Leak)"
+    description: "A kubelet config (`/var/lib/kubelet/config.yaml`, `--read-only-port`, `KubeletConfiguration.readOnlyPort`) sets `readOnlyPort: 10255` or passes `--read-only-port=10255`. The kubelet read-only API on TCP/10255 is UNAUTHENTICATED and UNENCRYPTED and exposes: `/pods` (every pod spec with env-vars - often containing secrets/tokens), `/stats/*` (cgroup metrics), `/spec/` (node spec), `/metrics/*`. This is the direct data source used in the 2024 Wiz-reported cryptojacking campaigns that scanned cloud ASNs for `10255/tcp` and pulled AWS creds from pod env. Kubernetes 1.10+ defaults to `0` (disabled)."
+    regex: "(?:readOnlyPort|--read-only-port)\\s*[:=]\\s*['\"]?10255['\"]?|readOnlyPort\\s*:\\s*10255"
+    positive_examples:
+      - "readOnlyPort:10255"
+    recommendation: "Set `readOnlyPort: 0` in every kubelet config (`/var/lib/kubelet/config.yaml`). Verify fleet-wide with Kubernetes Bench (`kube-bench run --targets=node --check=4.2.4`). On managed providers (EKS, AKS, GKE) this is already default - but custom kubelet args can re-enable it, so check via `kubectl get nodes -o json | jq '.items[].metadata.annotations.\"node.kubernetes.io/config.source\"'`. If metrics are needed, use the authenticated Metrics Server or Prometheus `kubelet` job scraping `https://<node>:10250/metrics/cadvisor` with ServiceAccount token."
+    cwe: ['CWE-200', 'CWE-306', 'CWE-319']
+    owasp_appsec: ["A01:2021", "A02:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1", "V8.1.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1082', 'T1552.001', 'T1613']
+    cis_controls: ['CIS-4.2', 'CIS-5.7', 'CIS-12.6']
+    nist_controls: ['AC-3', 'IA-2', 'SC-8']
+    pci_dss: ['2.2.1', '4.2.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "kubelet_anonymous_auth_enabled"
+    category: "k8s_insecure_spec"
+    severity: "CRITICAL"
+    title: "kubelet anonymous-auth=true Enabled (Unauthenticated Kubelet API)"
+    description: "A kubelet config sets `authentication.anonymous.enabled: true` or passes `--anonymous-auth=true`. This allows ANY unauthenticated request to the kubelet API on TCP/10250 to hit `/run`, `/exec`, `/portForward`, and `/logs/*` endpoints - i.e. full container-exec on every pod scheduled on that node. This is the Kubernetes equivalent of `PermitRootLogin without-password` with passwordless root, and is the most-exploited kubelet misconfiguration (CVE-like pattern exploited by TeamTNT, Kinsing, Siloscape) even though it is not a CVE."
+    regex: "(?:--anonymous-auth\\s*[:=]\\s*true|anonymous-auth\\s*:\\s*true|anonymous\\s*:\\s*\\n\\s*enabled\\s*:\\s*true|anonymous\\s*:\\s*\\{\\s*enabled\\s*:\\s*true\\s*\\})"
+    positive_examples:
+      - "--anonymous-auth:true"
+    multiline: true
+    window: 8
+    recommendation: "Set `authentication.anonymous.enabled: false` in `/var/lib/kubelet/config.yaml` and restart kubelet. ALSO set `authorization.mode: Webhook` (not `AlwaysAllow`) so even authenticated requests are RBAC-checked. Verify via `curl -k https://<node>:10250/pods` - should return `401 Unauthorized`. Audit fleet-wide with `kube-bench run --targets=node --check=4.2.1,4.2.2`. On managed providers, this is fixed by default but custom AMIs/node-images can regress it."
+    cwe: ['CWE-284', 'CWE-287', 'CWE-306']
+    owasp_appsec: ["A01:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1"]
+    mitre_attack: ['T1078', 'T1611', 'T1613']
+    cis_controls: ['CIS-4.2', 'CIS-5.7', 'CIS-6.8']
+    nist_controls: ['AC-3', 'AC-6', 'IA-2']
+    pci_dss: ['7.2.1', '8.3.1']
+    hipaa: ['164.312(a)(2)(i)', '164.312(d)']
+    soc2: ['CC6.1', 'CC6.2']
+
+  - id: "validating_admission_policy_audit_only_on_pods"
+    category: "k8s_insecure_spec"
+    severity: "MEDIUM"
+    title: "ValidatingAdmissionPolicy With validationActions=[Audit] Only On Pod/Deployment (Security Policy In Warn-Only)"
+    description: "A `ValidatingAdmissionPolicyBinding` (K8s 1.30+ GA feature) for a policy that matches Pods/Deployments/DaemonSets/StatefulSets sets `validationActions: [Audit]` (or `[Warn]`) instead of including `Deny`. Audit-only means violating pods are admitted, a log line is emitted, and the cluster continues to run with the violation. This is the new K8s-native Pod Security equivalent of a Gatekeeper/Kyverno `dryrun` policy - seen in production clusters that migrated off Gatekeeper to VAP and forgot to flip from `Audit` to `Deny`."
+    regex: "ValidatingAdmissionPolicyBinding[\\s\\S]{0,1500}?validationActions\\s*:\\s*\\[(?:\\s*['\"]?(?:Audit|Warn)['\"]?\\s*,?)+\\s*\\](?![\\s\\S]{0,200}?Deny)"
+    positive_examples:
+      - "ValidatingAdmissionPolicyBindingvalidationActions:[Audit]"
+    multiline: true
+    window: 60
+    recommendation: "For production security-baseline policies, set `validationActions: [Deny, Audit]` - Deny blocks violations at admission, Audit adds a record to the audit log for forensics. Roll out with `[Audit]` for 48-72h in pre-prod, verify zero legitimate violations in `audit.log` (`jq 'select(.annotations.\"validation.policy.admission.k8s.io/validation_failure\")'`), then flip to `[Deny, Audit]`. Document each policy's enforcement status in a cluster-security-posture dashboard."
+    cwe: ['CWE-284', 'CWE-693', 'CWE-754']
+    owasp_appsec: ["A01:2021"]
+    mitre_attack: ['T1562.001', 'T1611']
+    cis_controls: ['CIS-3.3', 'CIS-5.7']
+    nist_controls: ['AC-3', 'CM-7', 'SI-4']
+    pci_dss: ['6.3.3', '11.3.1']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "pod_hostaliases_metadata_ip_ssrf_bait"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Pod Spec hostAliases Injects Cloud Metadata IP (SSRF Bait)"
+    description: "A Pod/Deployment/StatefulSet spec has `hostAliases:` mapping the cloud instance-metadata IP (`169.254.169.254` on AWS/GCP, or `100.100.100.200` on Aliyun) to an attacker-controlled hostname. Any container inside the pod that resolves the spoofed hostname (e.g. an app config pointing at `metadata.internal`) will be redirected back to the genuine metadata service - but this is the direct primitive the attacker uses to enable SSRF from the pod. The 2024 Wiz 'Hello Kubelet' research describes this as a pod-level IMDS redirect used in multi-tenant cluster takeover chains."
+    regex: "hostAliases\\s*:[\\s\\S]{0,400}?-\\s*ip\\s*:\\s*['\"]?(?:169\\.254\\.169\\.254|100\\.100\\.100\\.200|fd00:ec2::254)['\"]?"
+    positive_examples:
+      - "hostAliases:-ip:169.254.169.254"
+    multiline: true
+    window: 15
+    recommendation: "Never mention the cloud metadata IP in `hostAliases`. For pods that legitimately need to reach IMDS, let the default route handle it (the metadata IP is link-local on every cloud, always reachable from default namespace pods). Block pod access to IMDS entirely with an egress NetworkPolicy: `egress: - to: []` with `ipBlock.except: [169.254.169.254/32]`. On AWS EKS require IMDSv2 + hop-limit=1 in launch template so pod-side SSRF cannot reach IMDS. Enforce via Kyverno policy: `match.any.resources.kinds: [Pod]` + `deny.conditions: 'request.object.spec.hostAliases[*].ip in [\"169.254.169.254\"]'`."
+    cwe: ['CWE-290', 'CWE-346', 'CWE-918']
+    owasp_appsec: ["A07:2021", "A10:2021"]
+    mitre_attack: ['T1552.005', 'T1557']
+    cis_controls: ['CIS-5.7', 'CIS-12.2']
+    nist_controls: ['AC-4', 'SC-7', 'SC-20']
+    pci_dss: ['1.3.2', '1.4.1']
+    soc2: ['CC6.6', 'CC6.7']
+
+  - id: "ephemeral_container_debug_image_latest_tag"
+    category: "k8s_insecure_spec"
+    severity: "MEDIUM"
+    title: "ephemeralContainers Debug Image Pinned To :latest Or No Digest"
+    description: "A Pod spec or a `kubectl debug` invocation creates `ephemeralContainers` with `image:` pointing at a debug-toolbox image tagged `:latest` or without an `@sha256:...` digest (`nicolaka/netshoot:latest`, `busybox`, `alpine`, `ubuntu`). Ephemeral containers share the target pod's network + process namespace (via `targetContainerName`) - a typo-squatted or compromised `:latest` debug image is an immediate pivot into the production pod's env, secrets-mount, and ServiceAccount token. Exploited in 2024 Wiz research by publishing a malicious `nicolaka/netshoot` copy on Docker Hub."
+    regex: "ephemeralContainers[\\s\\S]{0,600}?image\\s*:\\s*['\"]?[a-z0-9][a-z0-9._/-]*(?::latest)?['\"]?\\s*$(?![\\s\\S]{0,40}?@sha256:)"
+    positive_examples:
+      - "ephemeralContainersimage:a"
+    multiline: true
+    window: 20
+    recommendation: "Pin ephemeral-container images by digest and source them from your internal registry: `image: registry.internal/debug/netshoot@sha256:<digest>`. Maintain a small, internally-vetted debug-toolbox image that's rebuilt weekly with current CVE patches. For `kubectl debug`, alias it: `alias kdebug='kubectl debug --image=registry.internal/debug/netshoot@sha256:<pinned>'`. Restrict who can create ephemeral containers via RBAC: `rbac.authorization.k8s.io/v1` Role without `pods/ephemeralcontainers` verb for regular devs."
+    cwe: ['CWE-494', 'CWE-829', 'CWE-1104']
+    owasp_appsec: ["A06:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1195.002', 'T1611']
+    cis_controls: ['CIS-2.4', 'CIS-5.7', 'CIS-16.11']
+    nist_controls: ['CM-14', 'SC-12', 'SI-7']
+    pci_dss: ['6.3.2', '6.3.3']
+    soc2: ['CC6.7', 'CC7.1']
+
+  - id: "k8s_audit_policy_level_none_or_metadata_only"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Kubernetes Audit Policy Rule With level: None Or level: Metadata On Mutating Verbs"
+    description: "A task renders a Kubernetes audit-policy YAML (`/etc/kubernetes/audit-policy.yaml`, passed to kube-apiserver via `--audit-policy-file`) with a rule matching `create`/`update`/`patch`/`delete` verbs OR sensitive resources (`secrets`, `configmaps`, `roles`, `clusterrolebindings`, `serviceaccounts/token`) but with `level: None` (total silence) or `level: Metadata` (no request/response bodies - hides the actual changes made). Attackers post-compromise of the control plane frequently modify the audit policy to silence their own mutations while leaving enough events to pass compliance dashboards. CIS Kubernetes Benchmark 1.9 explicitly requires `level: RequestResponse` for secrets, token-requests, and RBAC mutations. Distinct from the generic `kube_apiserver_no_audit_log` rule; this catches the targeted-silence variant."
+    regex: "apiVersion\\s*:\\s*audit\\.k8s\\.io/[\\s\\S]{0,1500}?rules\\s*:[\\s\\S]{0,3000}?(?:level\\s*:\\s*(?:None|Metadata)[\\s\\S]{0,400}?(?:verbs\\s*:[^\\n]*?(?:create|update|patch|delete)|resources\\s*:[\\s\\S]{0,300}?(?:secrets|configmaps|roles|clusterroles|clusterrolebindings|rolebindings|serviceaccounts/token|tokenreviews))|(?:verbs\\s*:[^\\n]*?(?:create|update|patch|delete)|resources\\s*:[\\s\\S]{0,300}?(?:secrets|configmaps|roles|clusterroles|clusterrolebindings|rolebindings|serviceaccounts/token|tokenreviews))[\\s\\S]{0,400}?level\\s*:\\s*(?:None|Metadata))"
+    multiline: true
+    window: 80
+    positive_examples:
+      - |2
+        apiVersion: audit.k8s.io/v1
+        kind: Policy
+        rules:
+          - level: None
+            verbs: ["create", "update", "delete"]
+            resources:
+              - group: ""
+                resources: ["secrets"]
+    recommendation: "Use `level: RequestResponse` for every rule matching mutating verbs (`create`/`update`/`patch`/`delete`) on sensitive resources: `secrets`, `configmaps`, `roles`, `clusterroles`, `rolebindings`, `clusterrolebindings`, `serviceaccounts`, `serviceaccounts/token`, `tokenreviews`, `certificatesigningrequests`. For high-volume read-heavy noise (e.g. `get pods` from kubelet), use `level: None` or `level: Metadata` ONLY for `verbs: [get, list, watch]` on low-sensitivity resources. Ship audit events off-cluster to a SIEM with fluentd/vector/fluent-bit - never rely on on-cluster audit storage (attacker-modifiable). Enforce audit policy via GitOps + sign the audit-policy ConfigMap with Sigstore cosign so tampering is detected. Audit via `kubectl get --raw /apis/audit.k8s.io/v1/events` (on clusters that expose it) or the audit log file directly - cross-check against a committed baseline. Alert on ANY audit-policy change via a separate meta-audit rule."
+    cwe: ['CWE-284', 'CWE-693', 'CWE-778']
+    owasp_appsec: ["A01:2021", "A09:2021"]
+    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    mitre_attack: ['T1070', 'T1562.001', 'T1562.006']
+    cis_controls: ['CIS-8.2', 'CIS-8.5', 'CIS-8.11']
+    nist_controls: ['AU-2', 'AU-6', 'AU-9', 'AU-12']
+    pci_dss: ['10.2.1', '10.3.1']
+    hipaa: ['164.308(a)(1)(ii)(D)', '164.312(b)']
+    soc2: ['CC7.2', 'CC7.3']
+
+  - id: "k8s_mutating_webhook_failure_policy_ignore_on_security_resources"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "MutatingWebhookConfiguration failurePolicy=Ignore On Security-Critical Resources"
+    description: "A task renders a `MutatingWebhookConfiguration` or `ValidatingWebhookConfiguration` with `failurePolicy: Ignore` (if the webhook is unreachable, the API request PROCEEDS without validation/mutation) AND `rules` matching security-sensitive resources: `pods`, `deployments`, `secrets`, `serviceaccounts`, `roles`, `rolebindings`. Admission webhooks are the primary enforcement point for PodSecurity baselines, image-provenance (Sigstore, Kyverno), and runtime-class pinning (gVisor, Kata). `failurePolicy: Ignore` means a simple DoS of the webhook (network policy blocking port 443 to the webhook service, pod eviction during rolling update, or cert-expiry) silently disables enforcement. Attackers post-cluster-compromise routinely patch the webhook service to fail-fast, then schedule privileged pods that would normally be blocked. CIS K8s Benchmark 1.9 explicitly requires `failurePolicy: Fail` on security webhooks."
+    regex: "kind\\s*:\\s*(?:Mutating|Validating)WebhookConfiguration[\\s\\S]{0,3000}?failurePolicy\\s*:\\s*Ignore[\\s\\S]{0,1500}?(?:resources\\s*:[\\s\\S]{0,500}?(?:pods|deployments|secrets|serviceaccounts|roles|clusterroles|rolebindings|clusterrolebindings|namespaces|podsecuritypolicies))|(?:resources\\s*:[\\s\\S]{0,500}?(?:pods|deployments|secrets|serviceaccounts|roles|clusterroles|rolebindings|clusterrolebindings))[\\s\\S]{0,1500}?failurePolicy\\s*:\\s*Ignore"
+    positive_examples:
+      - "kind:MutatingWebhookConfigurationfailurePolicy:Ignoreresources:pods"
+    multiline: true
+    window: 100
+    recommendation: "Set `failurePolicy: Fail` on every security-enforcement webhook. Pair with HIGH availability: webhook deployment with `replicas: 3`, PodDisruptionBudget `minAvailable: 2`, node-anti-affinity, pre-stop graceful-drain, liveness/readiness probes, and cert-manager for automated cert rotation (preventing expired-cert-induced DoS). Exclude kube-system and kube-public namespaces from the webhook rules to prevent chicken-and-egg during cluster recovery: `namespaceSelector: { matchExpressions: [{ key: kubernetes.io/metadata.name, operator: NotIn, values: [kube-system, kube-public] }] }`. For operators that legitimately need fail-open (e.g. a purely-convenience mutator that injects sidecar images), scope its `rules` to non-security resources (specific CRDs). Monitor webhook error-rate via Prometheus + alert on sustained failures. Audit existing webhooks: `kubectl get mutatingwebhookconfigurations,validatingwebhookconfigurations -o json | jq '.items[] | select(.webhooks[].failurePolicy == \"Ignore\") | .metadata.name'`."
+    cwe: ['CWE-284', 'CWE-693', 'CWE-755']
+    owasp_appsec: ["A01:2021"]
+    mitre_attack: ['T1078.004', 'T1562.001', 'T1562.006']
+    cis_controls: ['CIS-3.3', 'CIS-4.1', 'CIS-16.2']
+    nist_controls: ['AC-3', 'CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '6.3.2']
+    hipaa: ['164.308(a)(1)(ii)(A)', '164.312(a)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "k8s_poddisruptionbudget_blocks_all_evictions"
+    category: "k8s_insecure_spec"
+    severity: "MEDIUM"
+    title: "PodDisruptionBudget With maxUnavailable=0 Or minAvailable=100% (Blocks All Evictions, Scheduler-DoS)"
+    description: "A task creates a `PodDisruptionBudget` (PDB) with `maxUnavailable: 0` or `minAvailable: 100%` (equivalent) applied to a Deployment / StatefulSet. A PDB with these values means the eviction-subresource for the targeted pods NEVER succeeds - blocking node-drain (required for kernel patches, K8s version upgrades, autoscaler scale-down, and graceful disk replacement), blocking Cluster Autoscaler from consolidating workloads, and creating a DoS condition for the cluster itself. Distinct from the legitimate `maxUnavailable: 1` on a 3-replica deployment - this rule catches the absolute-zero case. Used in 2024 LockBit 3.0 ransomware deployments to pin attacker-controlled pods to specific nodes + prevent automated remediation via `kubectl drain`."
+    regex: "kind\\s*:\\s*PodDisruptionBudget[\\s\\S]{0,1000}?(?:spec\\s*:[\\s\\S]{0,500}?(?:maxUnavailable\\s*:\\s*(?:0|['\"]?0['\"]?|['\"]?0%['\"]?)\\b|minAvailable\\s*:\\s*(?:100%|['\"]?100%['\"]?))|(?:maxUnavailable\\s*:\\s*(?:0|['\"]?0['\"]?|['\"]?0%['\"]?)|minAvailable\\s*:\\s*(?:100%|['\"]?100%['\"]?))[\\s\\S]{0,1000}?kind\\s*:\\s*PodDisruptionBudget)"
+    positive_examples:
+      - "kind:PodDisruptionBudgetspec:maxUnavailable:0"
+    multiline: true
+    window: 40
+    recommendation: "Set `maxUnavailable: 1` (one pod evictable at a time - safe for most multi-replica workloads) or `minAvailable: N-1` (for stateful workloads where N is replica count). Never `maxUnavailable: 0`. For single-replica critical workloads that MUST stay up, increase replicas to 2+ and size the PDB accordingly - a PDB cannot create availability that the Deployment doesn't have. For legitimate 'hold this workload in place during a specific operation' scenarios, use a transient PDB with `maxUnavailable: 0` that is DELETED by the same operator when the operation completes - never a permanent PDB. Enforce via Kyverno / OPA Gatekeeper: reject PDBs with `maxUnavailable: 0` or `minAvailable >= <deployment.replicas>`. Audit: `kubectl get pdb -A -o json | jq '.items[] | select((.spec.maxUnavailable == 0 or .spec.maxUnavailable == \"0\") or (.spec.minAvailable == \"100%\")) | .metadata.namespace + \"/\" + .metadata.name'`."
+    cwe: ['CWE-284', 'CWE-400', 'CWE-693']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V14.1.3"]
+    mitre_attack: ['T1499', 'T1499.004', 'T1565.001']
+    cis_controls: ['CIS-3.3', 'CIS-13.6']
+    nist_controls: ['CP-10', 'SC-5', 'SI-13']
+    pci_dss: ['6.3.2']
+    hipaa: ['164.308(a)(7)(i)']
+    soc2: ['A1.2', 'CC7.4']
+
+  - id: "k8s_tokenrequest_expirationseconds_long_lived"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Kubernetes TokenRequest With expirationSeconds > 86400 (Long-Lived ServiceAccount JWT)"
+    description: "A task issues a Kubernetes `TokenRequest` or `BoundServiceAccountTokenVolume` with `spec.expirationSeconds` greater than 86400 (24 hours) - or uses the legacy `kubernetes.io/service-account-token` secret which issues non-expiring tokens. Modern K8s (≥1.22) uses bound, short-lived projected service-account tokens (default TTL 1 hour, auto-rotated) - requesting a >24h token is explicitly a step away from that posture. 7-day, 30-day, or literal 'infinity' (`expirationSeconds: 2147483647`) tokens are a favorite persistence technique in 2024 cluster-compromise campaigns (Microsoft Defender: SiegedSec, TeamTNT, Peach Sandstorm) - an attacker with a one-time `pods/exec` primitive issues a multi-year token, exfiltrates it, and has persistent cluster access even after the original entry is closed. The `audience` field also matters: `audiences: [\"\"]` / omitted = the default kube-apiserver audience = full in-cluster authN."
+    regex: "(?:kind|Kind)\\s*:\\s*TokenRequest[\\s\\S]{0,800}?expirationSeconds\\s*:\\s*(?:[2-9]\\d{5,}|1[0-9]\\d{5}|[2-9]\\d{6,}|\\d{8,})|tokenRequest[\\s\\S]{0,500}?expirationSeconds\\s*[:=]\\s*(?:86401|864[1-9]\\d+|8[6-9]\\d{4,}|9\\d{5,}|\\d{7,})|\\bexpirationSeconds\\s*:\\s*(?:2592000|604800|31536000|2147483647|2419200)\\b|(?:kubectl\\s+create\\s+token|oc\\s+create\\s+token|k8s_service_account_token)[\\s\\S]{0,300}?--duration[= ]\\s*['\"]?(?:[2-9]\\d{2,}|1\\d{3,})[mh]['\"]?|(?:kind|Kind)\\s*:\\s*Secret[\\s\\S]{0,400}?type\\s*:\\s*['\"]?kubernetes\\.io/service-account-token['\"]?"
+    positive_examples:
+      - |2-
+        kind: Secret
+                type: kubernetes.io/service-account-token
+    multiline: true
+    window: 20
+    recommendation: "Use short-lived projected service-account tokens via `ProjectedVolumeSource` with `expirationSeconds: 3600` (1 hour, also the default) - kubelet auto-rotates 80% through the TTL with zero application changes. For legitimate cases where a longer TTL is REALLY needed (external CI/CD against a cluster), use **IAM/OIDC federation** instead: EKS IRSA, GKE Workload Identity, AKS Workload Identity - the cluster issues a bound 1-hour SA token, then your CI exchanges it via STS for a cloud-native 1-hour credential (no long-lived cluster token in existence). For cross-cluster or fleet scenarios, use **SPIFFE/SPIRE** with 5-minute SVID rotation. Never use the legacy `kubernetes.io/service-account-token` secret on K8s ≥1.24 (it's opt-in and should be off). Enforce via policy: Kyverno `ClusterPolicy` with `validate: spec.expirationSeconds < 86400` on every `TokenRequest` + OPA Gatekeeper constraint `K8sBlockLegacySATokens` denying `Secret.type == kubernetes.io/service-account-token`. Audit: `kubectl get secrets --all-namespaces --field-selector type=kubernetes.io/service-account-token` must return only the bootstrap/cluster-trust secrets you explicitly expect."
+    cwe: ['CWE-284', 'CWE-613', 'CWE-798']
+    owasp_appsec: ["A01:2021", "A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1078.004', 'T1098.001', 'T1525']
+    cis_controls: ['CIS-3.11', 'CIS-5.2', 'CIS-16.9']
+    nist_controls: ['AC-2(5)', 'IA-5', 'IA-5(13)']
+    pci_dss: ['8.2.6', '8.3.1', '8.6.3']
+    hipaa: ['164.312(a)(2)(iii)', '164.312(d)']
+    soc2: ['CC6.1', 'CC6.2']
+
+  - id: "kubernetes_pod_security_admission_disabled"
+    category: "k8s_insecure_spec"
+    severity: "HIGH"
+    title: "Kubernetes namespace or cluster has Pod Security Admission disabled or set to privileged"
+    description: "A task renders a namespace manifest with `pod-security.kubernetes.io/enforce: privileged` (the escape-hatch label that disables all PSA enforcement for that namespace), OR a kube-apiserver manifest with `--admission-control-config-file` referencing a config that sets PSA `default.enforce: privileged`, OR omits the `pod-security.kubernetes.io/enforce` label entirely on a production namespace while the cluster-wide default is `privileged`. Since PSP was removed in Kubernetes 1.25, PSA is the ONLY in-tree guardrail against privileged / hostPath / hostNetwork pods - a namespace at `privileged` PSA gives any pod-creator root on the node."
+    regex: "(?:pod-security\\.kubernetes\\.io/(?:enforce|warn|audit)\\s*:\\s*['\"]?privileged['\"]?|defaults\\s*:[\\s\\S]{0,200}?enforce\\s*:\\s*['\"]?privileged['\"]?|kind\\s*:\\s*PodSecurityConfiguration[\\s\\S]{0,500}?enforce\\s*:\\s*['\"]?privileged['\"]?)"
+    positive_examples:
+      - |2-
+        pod-security.kubernetes.io/audit: privileged
+            pod-security.kubernetes.io/enforce: privileged
+    multiline: true
+    window: 15
+    recommendation: "Set every production namespace to `pod-security.kubernetes.io/enforce: restricted` (or `baseline` as a transitional step). Apply `enforce`, `warn`, AND `audit` labels for defense-in-depth. For a cluster-wide default, set the AdmissionConfiguration `defaults.enforce: baseline` minimum and use namespace-level labels to relax for specific workloads (kube-system, operators) - never the other way around. Audit namespaces lacking the enforce label: `kubectl get ns -o jsonpath='{range .items[*]}{.metadata.name}{\" \"}{.metadata.labels.pod-security\\.kubernetes\\.io/enforce}{\"\\n\"}{end}'`. Integrate PSA validation into CI (`kyverno`, `polaris`, `kube-linter`) to fail-fast on manifests that would require a privileged namespace."
+    cwe: ['CWE-250', 'CWE-269', 'CWE-284']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1068', 'T1078', 'T1611']
+    cis_controls: ['CIS-K8s-5.2.1', 'CIS-K8s-5.2.2', 'CIS-K8s-5.3.2']
+    nist_controls: ['AC-3', 'AC-6', 'CM-7']
+    pci_dss: ['2.2.1', '7.2.1']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "kubernetes_sa_token_automount_not_disabled"
+    category: "k8s_insecure_spec"
+    severity: "MEDIUM"
+    title: "Kubernetes ServiceAccount token automount not disabled (pod can call API server by default)"
+    description: "A task creates a `ServiceAccount` or Pod/Deployment spec WITHOUT `automountServiceAccountToken: false`. By default, Kubernetes projects a JWT for the namespace's default SA into every pod at `/var/run/secrets/kubernetes.io/serviceaccount/token` - any process in the pod (including a compromised dependency) can call the Kubernetes API with the SA's RBAC. Even the default SA in a hardened namespace typically has `get pods` + `get secrets` inside its namespace - enough to enumerate and exfiltrate. Workloads that don't need API access MUST opt out."
+    regex: "kind\\s*:\\s*(?:ServiceAccount|Deployment|StatefulSet|DaemonSet|Pod|Job|CronJob)[\\s\\S]{0,2000}?spec\\s*:(?:(?!automountServiceAccountToken\\s*:\\s*false)[\\s\\S]){0,1500}containers\\s*:"
+    positive_examples:
+      - |2-
+        kind: Deployment
+        metadata:
+          name: calico-policy-controller
+          namespace: kube-system
+          labels:
+            k8s-app: calico-policy-controller
+        spec:
+          # Turn this deployment off in favor of the kube-controllers deployment above.
+          replicas: 0
+          strategy:
+            type: Recreate
+          template:
+            metadata:
+              name: calico-policy-controller
+              namespace: kube-system
+              labels:
+                k8s-app: calico-policy-controller
+            spec:
+              hostNetwork: true
+              serviceAccountName: calico-kube-controllers
+              containers:
+    multiline: true
+    window: 60
+    recommendation: "Set `automountServiceAccountToken: false` at the **ServiceAccount** level (applies to every pod using that SA) AND at the **Pod spec** level for defense-in-depth. For workloads that DO need API access, create a dedicated SA with a narrowly-scoped RBAC Role (not the default SA), and project a token with a short `expirationSeconds` (≤1h) via `serviceAccountToken` projected volume instead of the static mount. Mutating admission webhooks (Kyverno, OPA Gatekeeper) can auto-inject `automountServiceAccountToken: false` for namespaces that don't opt in. Audit: `kubectl get sa -A -o json | jq '.items[] | select(.automountServiceAccountToken != false) | {ns: .metadata.namespace, name: .metadata.name}'`."
+    cwe: ['CWE-250', 'CWE-269', 'CWE-732']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    mitre_attack: ['T1078', 'T1552.005', 'T1613']
+    cis_controls: ['CIS-K8s-5.1.5', 'CIS-K8s-5.1.6']
+    nist_controls: ['AC-6', 'CM-7', 'IA-5']
+    pci_dss: ['7.2.1', '7.2.2']
+    soc2: ['CC6.1', 'CC6.3']

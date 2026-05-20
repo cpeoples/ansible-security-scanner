@@ -1,0 +1,34 @@
+---
+# Role defaults - every variable here is safe to override at play time.
+# Use ``{{ lookup('community.hashi_vault.vault_read', ...) }}`` or
+# Ansible Vault-encrypted files for anything sensitive; these defaults
+# carry ONLY non-secret values.
+
+webapp_install_dir: /opt/webapp
+webapp_runtime_user: webapp
+webapp_runtime_group: webapp
+webapp_runtime_uid: 1500
+webapp_runtime_gid: 1500
+
+# Pin every artefact. The SHA256 digest is verified by the pip install
+# step via ``--require-hashes`` pointing at the locked requirements.
+webapp_release_version: "1.4.7"
+webapp_release_tarball_sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+webapp_release_tarball_url: "https://releases.example.com/webapp/1.4.7.tar.gz"
+
+# Locked requirements file (committed to repo, generated with
+# ``pip-compile --generate-hashes``). Referenced by the install task.
+webapp_requirements_path: /opt/webapp/requirements.lock.txt
+
+# System sysctls to enforce. Each one is an allow-list value - setting
+# any of these to a weakening value (e.g. disabling ``dmesg_restrict``)
+# would be flagged by the scanner.
+webapp_sysctls:
+  - name: kernel.dmesg_restrict
+    value: "1"
+  - name: fs.protected_hardlinks
+    value: "1"
+  - name: fs.protected_symlinks
+    value: "1"
+  - name: net.ipv4.conf.all.rp_filter
+    value: "1"

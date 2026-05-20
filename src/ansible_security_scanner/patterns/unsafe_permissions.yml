@@ -1,0 +1,1035 @@
+name: "Unsafe Permissions Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects unsafe file permissions, ownership, and access control issues"
+
+patterns:
+  - id: "world_writable_files"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "World Writable Files"
+    description: >-
+        mode: '0777' is set on a file resource, or chmod 777 is invoked. Any local
+        user can rewrite the path's contents, defeating integrity assumptions of
+        every later task.
+    regex: "mode:\\s*[\"']?0?777[\"']?|chmod.*777"
+    positive_examples:
+      - "mode: \"0777\""
+    recommendation: "Replace mode: '0777' / chmod 777 with the most restrictive mode that satisfies the workload (typically 0640 for files, 0750 for directories) and use group ownership rather than world-writability to share access."
+    cwe: ["CWE-732"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1222.002']
+    cis_controls: ['CIS-3.3', 'CIS-4.1']
+    nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC7.1', 'CC8.1']
+
+  - id: "world_readable_sensitive"
+    category: "unsafe_permissions"
+    severity: "MEDIUM"
+    title: "World Readable Sensitive Files"
+    description: >-
+        mode: '0744' is applied to a file containing 'key', 'secret', 'password', or
+        'credential'. World-readable secrets are a compliance failure mode under
+        PCI-DSS, HIPAA, and SOC 2.
+    regex: "mode:\\s*[\"']?0?744[\"']?.*(?:key|secret|password|credential)"
+    positive_examples:
+      - "mode:744key"
+    recommendation: "Files whose name contains key / secret / password / credential should not be world-readable; set mode: '0600' (or '0640' with a service group) and confirm the owning user matches the consuming service."
+    cwe: ["CWE-200", "CWE-732"]
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1", "V12.4.1"]
+    mitre_attack: ['T1222.002', 'T1552.001']
+    cis_controls: ['CIS-3.3', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '7.2.2', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3', 'CC6.7']
+
+  - id: "legitimate_config_permissions"
+    category: "unsafe_permissions"
+    severity: "INFO"
+    title: "Standard Configuration File Permissions"
+    description: "Standard permissions for configuration files (informational)"
+    # Match mode 0644 paired with a config/etc path within the same task block.
+    regex: "mode:\\s*[\"']?0?644[\"']?[\\s\\S]{0,200}?(?:path|dest|src):\\s*['\"]?(?:/etc/|/opt/|[^'\"\\n]*(?:config|conf)\\b)"
+    multiline: true
+    window: 6
+    exclude: true  # This pattern excludes findings, used to reduce false positives
+    cwe: ['CWE-732']
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1222.002']
+    cis_controls: ['CIS-3.3']
+    nist_controls: ['AC-3', 'AC-6']
+    pci_dss: ['7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+
+  - id: "recursive_permission_change"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "Recursive Permission Change"
+    description: >-
+        chmod -R 777 or 666 walks an entire subtree. Recursive permits rarely target
+        only what's intended and frequently widen permissions on credentials buried
+        in the tree.
+    regex: "chmod\\s+-R\\s+(?:777|666)"
+    positive_examples:
+      - "chmod -R 777"
+    recommendation: "chmod -R 777/666 walks every file under the target and is rarely the intent; scope the change with ansible.builtin.file's recurse: true plus separate mode: for directories vs files, or use find: + file: to apply the right mode per type."
+    cwe: ["CWE-732"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1222.002']
+    cis_controls: ['CIS-3.3', 'CIS-4.1']
+    nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC7.1', 'CC8.1']
+
+  - id: "setuid_permission"
+    category: "unsafe_permissions"
+    severity: "CRITICAL"
+    title: "SetUID Permission"
+    description: >-
+        mode: '<4-7>xxx' or chmod u+s sets the setuid bit on a file. Any unverified
+        setuid binary becomes a privilege-escalation primitive.
+    regex: "mode:\\s*[\"']?[4-7][0-7]{3}[\"']?|chmod.*u\\+s"
+    positive_examples:
+      - "mode:4000"
+    recommendation: "Drop the setuid bit (mode 4xxx / u+s) - prefer filesystem capabilities (setcap cap_X+ep) or a dedicated systemd service with the right User= and AmbientCapabilities= so the binary does not need to run as root."
+    cwe: ["CWE-250", "CWE-732"]
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    mitre_attack: ['T1548.001']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'CM-6', 'CM-7', 'SI-3']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "setgid_permission"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "SetGID Permission"
+    description: >-
+        mode: '<2,3,6,7>xxx' or chmod g+s sets the setgid bit on a file. Setgid on a
+        binary inherits the file's group on execution and is a classic
+        group-escalation primitive.
+    regex: "mode:\\s*[\"']?[2367][0-7]{3}[\"']?|chmod.*g\\+s"
+    positive_examples:
+      - "mode: '2750'"
+    recommendation: "Setgid on regular files is rarely needed and is a privilege-escalation surface; if the goal is shared-group writability on a directory, set mode: '2770' on the directory only and leave files at 0640."
+    cwe: ["CWE-250", "CWE-732"]
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    mitre_attack: ['T1548.001']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'CM-6', 'CM-7', 'SI-3']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "sticky_bit_removal"
+    category: "unsafe_permissions"
+    severity: "MEDIUM"
+    title: "Sticky Bit Removal"
+    description: "Explicitly removing sticky bit from directories using chmod -t"
+    regex: "chmod\\s+.*-t\\s+"
+    positive_examples:
+      - "chmod -t "
+    recommendation: "The sticky bit on shared directories (e.g. /tmp) prevents users from deleting each other's files; do not remove it. If the directory should not be world-writable in the first place, change ownership / mode instead of stripping +t."
+    cwe: ["CWE-732"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1222.002']
+    cis_controls: ['CIS-3.3', 'CIS-4.1']
+    nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC7.1', 'CC8.1']
+
+  # -- SSH / Connection Trust Bypass ------------------------------------
+  # Rules originally in patterns/ssh_trust_bypass.yml; consolidated here
+  # because host-key verification is a permissions/trust concern. Rule
+  # IDs are preserved and still route to SshTrustBypassRemediationGenerator
+  # via _RULE_ID_TO_CATEGORY.
+  - id: "ssh_stricthostkey_disabled"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "SSH StrictHostKeyChecking Disabled"
+    description: "Playbook sets StrictHostKeyChecking=no (via ssh args, ProxyCommand, or -o flag), which accepts any host key and is the primary MitM-enabler for SSH. An attacker on the network path can silently impersonate the target host."
+    regex: "StrictHostKeyChecking\\s*[=: ]\\s*[\"']?(?:no|false|off)\\b"
+    positive_examples:
+      - "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ lookup('env','USER') }}@localhost true"
+    multiline: true
+    window: 6
+    recommendation: "Remove StrictHostKeyChecking=no. Pre-populate ~/.ssh/known_hosts via ssh-keyscan at build time, or use a signed host certificate (ssh -o CASignatureAlgorithms=...) so the key is verified cryptographically instead of trusted on first use."
+    cis_controls: ["CIS-5.2", "CIS-5.2.10"]
+    nist_controls: ['IA-5', 'IA-5(1)', 'SC-8(1)', 'SC-12']
+    pci_dss: ['4.2.1', '4.2.1.1', '8.3.6']
+    hipaa: ['164.312(d)', '164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.7']
+    mitre_attack: ["T1557"]
+    references: ["https://www.ssh.com/academy/ssh/stricthostkeychecking"]
+    cwe: ["CWE-295", "CWE-322"]
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+    stig: ['V-230556', 'V-260468']
+
+  - id: "ssh_userknownhosts_devnull"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "SSH UserKnownHostsFile=/dev/null Discards Host Keys"
+    description: "UserKnownHostsFile=/dev/null (often paired with StrictHostKeyChecking=no) causes ssh to forget host keys after each connection - every connection becomes trust-on-first-use with no record, defeating host-key pinning entirely."
+    regex: "UserKnownHostsFile\\s*[=: ]\\s*[\"']?/dev/null"
+    positive_examples:
+      - "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ lookup('env','USER') }}@localhost true"
+    multiline: true
+    window: 6
+    recommendation: "Point UserKnownHostsFile at a real, persisted file (e.g. ~/.ssh/known_hosts or a role-shipped file) so host-key rotation is visible. Never discard the known-hosts database."
+    cis_controls: ["CIS-5.2.11"]
+    nist_controls: ['SC-8(1)', 'SC-12']
+    pci_dss: ['4.2.1', '4.2.1.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+    mitre_attack: ["T1557"]
+    cwe: ["CWE-295"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+    stig: ['V-230556']
+
+  - id: "ansible_host_key_checking_false"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "ansible_host_key_checking = false"
+    description: "Setting ansible_host_key_checking to false (as a host_var, group_var, or extra-var) disables host-key verification for every SSH connection Ansible makes from that inventory scope. This turns off the entire trust layer for whole host groups at once."
+    regex: "ansible_host_key_checking\\s*[=: ]\\s*[\"']?(?:no|false|0|off)\\b"
+    positive_examples:
+      - "ansible_host_key_checking=no"
+    multiline: true
+    window: 4
+    recommendation: "Leave ansible_host_key_checking at its default (true). Seed known_hosts with ssh-keyscan in a bootstrap play that runs with host_key_checking=false exactly once, then flip it back on for all subsequent plays."
+    cis_controls: ["CIS-5.2.10"]
+    nist_controls: ['SC-8(1)', 'SC-12']
+    pci_dss: ['4.2.1', '4.2.1.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+    mitre_attack: ["T1557"]
+    references: ["https://docs.ansible.com/ansible/latest/inventory_guide/connection_details.html#managing-host-key-checking"]
+    cwe: ["CWE-295"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+
+  - id: "ansible_cfg_host_key_checking_false"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "ansible.cfg host_key_checking = False"
+    description: "The defaults section of ansible.cfg sets host_key_checking = False, disabling host-key verification globally for every playbook run from this config."
+    regex: "^\\s*host_key_checking\\s*=\\s*(?i:false|no|0|off)\\b"
+    positive_examples:
+      - "host_key_checking = False"
+    recommendation: "Remove the line or set host_key_checking = True in [defaults]. If a bootstrap play legitimately needs to accept unknown hosts, scope the bypass to that single play with the ANSIBLE_HOST_KEY_CHECKING=false env var, not the global config."
+    cis_controls: ["CIS-5.2.10"]
+    nist_controls: ['SC-8(1)', 'SC-12']
+    pci_dss: ['4.2.1', '4.2.1.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+    mitre_attack: ["T1557"]
+    cwe: ["CWE-295"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+
+  - id: "ssh_keyscan_auto_accept"
+    category: "unsafe_permissions"
+    severity: "MEDIUM"
+    title: "ssh-keyscan Appending Unverified Keys to known_hosts"
+    description: "Piping ssh-keyscan directly into known_hosts accepts whatever key the network returns, with no fingerprint comparison - the classic 'TOFU at deploy time' pattern that moves the MitM window earlier in the pipeline instead of eliminating it."
+    regex: "ssh-keyscan[^\\n]*>>?\\s*[^\\n]*known_hosts"
+    positive_examples:
+      - "ansible.builtin.shell: 'ssh-keyscan -H -T 10 {{ item.item }} >> {{ gitlab_runner__home + \"/.ssh/known_hosts\" }}'"
+    recommendation: "Pin expected host fingerprints in source control and diff them against ssh-keyscan output before appending (ssh-keyscan ... | awk '{ ... }' | grep -F -f expected_fingerprints.txt). Fail the play if any fingerprint is new."
+    cis_controls: ["CIS-5.2.10"]
+    nist_controls: ['SC-8(1)', 'SC-12']
+    pci_dss: ['4.2.1', '4.2.1.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+    mitre_attack: ["T1557"]
+    cwe: ["CWE-295"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+    stig: ['V-230556']
+
+  - id: "git_accept_hostkey_yes"
+    category: "unsafe_permissions"
+    severity: "MEDIUM"
+    title: "ansible.builtin.git With accept_hostkey: yes (SSH TOFU on Remote Git Clone)"
+    description: "An `ansible.builtin.git` task clones from an SSH remote (`git@host:repo.git` / `ssh://git@host/repo.git`) and sets `accept_hostkey: yes`. This flag tells Ansible to hand OpenSSH a temporary `StrictHostKeyChecking=accept-new` (or `=no` on older Ansible) argument for the single clone - effectively a TOFU (trust-on-first-use) bypass for the git remote's host key. An on-path attacker (rogue GitHub enterprise mirror, DNS-hijacked self-hosted GitLab, BGP-hijacked proxy) gets handed the SSH deploy-key without any fingerprint check, then serves trojanized source code, build artifacts, or Ansible roles that subsequently run with the permissions of the Ansible run. The risk is amplified because most `git:` tasks run with `become: yes` to place the clone into `/opt/`, `/srv/`, `/var/lib/`, etc., so the malicious code inherits root privileges on the managed node."
+    regex: "(?ms)(?:ansible\\.builtin\\.git|^[\\t ]*git)\\s*:[\\s\\S]{0,600}?\\baccept_hostkey\\s*:\\s*(?:true|True|yes|Yes|1)\\b"
+    multiline: true
+    window: 30
+    recommendation: "Remove `accept_hostkey: yes`. Instead, seed the git remote's SSH host key into `/etc/ssh/ssh_known_hosts` (or the running user's `~/.ssh/known_hosts`) BEFORE the `git:` task runs, using `ansible.builtin.known_hosts` with the fingerprint from an out-of-band trusted source (the git server's web UI, DNS CAA/SSHFP record, or a signed attestation). Example: `ansible.builtin.known_hosts: name=github.com key='{{ github_known_hosts_entry }}'` followed by the git task with `accept_hostkey: no`. For fleet-wide management, distribute a signed `ssh_known_hosts` via configuration management and treat it as tamper-evident. The rare legitimate case (a genuinely one-time bootstrap clone from an ephemeral host you control) should carry a targeted `# nosec: git_accept_hostkey_yes reason=\"bootstrap-clone, fingerprint pinned OOB via {{ item }}\"` allowlist comment AND a `known_hosts` seed step."
+    positive_examples:
+      - |
+        - name: clone config repo
+          git:
+            repo: git@github.com:example/config.git
+            dest: /opt/config
+            accept_hostkey: yes
+      - |
+        - name: clone config repo (FQCN)
+          ansible.builtin.git:
+            repo: ssh://git@gitlab.example.com/infra/playbooks.git
+            dest: /srv/playbooks
+            version: v1.2.3
+            accept_hostkey: true
+    negative_examples:
+      - |
+        - name: clone config repo with known_hosts seeded
+          git:
+            repo: git@github.com:example/config.git
+            dest: /opt/config
+      - |
+        - name: clone via https (no host-key semantics)
+          git:
+            repo: https://github.com/example/config.git
+            dest: /opt/config
+            accept_hostkey: no
+    cis_controls: ["CIS-5.2.10", "CIS-16.1"]
+    nist_controls: ['IA-3', 'SC-8(1)', 'SC-12']
+    pci_dss: ['4.2.1', '4.2.1.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+    mitre_attack: ["T1195.002", "T1557"]
+    cwe: ["CWE-295", "CWE-322"]
+    owasp_appsec: ["A07:2021", "A08:2021"]
+    owasp_asvs: ["V9.2.1"]
+
+  - id: "ssh_args_disable_host_key"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "ansible_ssh_common_args / ssh_args Disables Host-Key Verification"
+    description: "ansible_ssh_common_args or ansible_ssh_extra_args contains -o StrictHostKeyChecking=no, -o UserKnownHostsFile=/dev/null, or both, disabling host-key checking for every host under this inventory scope."
+    regex: "ansible_ssh_(?:common|extra)_args[\\s\\S]{0,200}?(?:StrictHostKeyChecking\\s*=\\s*no|UserKnownHostsFile\\s*=\\s*/dev/null)"
+    positive_examples:
+      - |2-
+        ansible_ssh_common_args: "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+              # ansible_ssh_host: "127.0.0.3"
+    multiline: true
+    window: 6
+    recommendation: "Move the StrictHostKeyChecking=no override into a one-time bootstrap play that seeds known_hosts, then remove it. For long-lived inventories, replace the bypass with signed host certificates."
+    cis_controls: ["CIS-5.2.10"]
+    nist_controls: ['SC-8(1)', 'SC-12']
+    pci_dss: ['4.2.1', '4.2.1.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+    mitre_attack: ["T1557"]
+    cwe: ["CWE-295"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+    stig: ['V-230556']
+
+  - id: "ssh_proxycommand_skips_verification"
+    category: "unsafe_permissions"
+    severity: "MEDIUM"
+    title: "SSH ProxyCommand With Trust-Bypass Flags"
+    description: "A nested ProxyCommand that re-invokes ssh with StrictHostKeyChecking=no turns the jump host into a silent MitM: the outer connection is verified, but the hop through the proxy is not."
+    regex: "ProxyCommand\\s*=?\\s*['\"]?ssh[^\\n]*StrictHostKeyChecking\\s*=\\s*no"
+    positive_examples:
+      - "ProxyCommand ssh -F /dev/null -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p -p {{ bastion_port }} {{ real_user }}@{{ bastion_ip }} {% if ansible_ssh_private_key_file is defined %}-i {{ ansible_ssh_private_key_file }}{% endif %}"
+    multiline: true
+    window: 4
+    recommendation: "Remove -o StrictHostKeyChecking=no from the ProxyCommand. Use ssh -J jumphost (native ProxyJump) instead, which verifies both hops against known_hosts."
+    cis_controls: ["CIS-5.2.10"]
+    nist_controls: ['SC-8(1)', 'SC-12']
+    pci_dss: ['4.2.1', '4.2.1.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+    mitre_attack: ["T1557"]
+    cwe: ["CWE-295"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+    stig: ['V-230556']
+
+  - id: "winrm_cert_validation_ignore"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "WinRM ansible_winrm_server_cert_validation = ignore"
+    description: "Setting ansible_winrm_server_cert_validation to 'ignore' disables TLS validation for all WinRM connections - the Windows equivalent of StrictHostKeyChecking=no."
+    regex: "ansible_winrm_server_cert_validation\\s*[=: ]\\s*[\"']?ignore\\b"
+    positive_examples:
+      - "ansible_winrm_server_cert_validation=ignore"
+    recommendation: "Deploy a proper CA-signed certificate on the WinRM listener and set ansible_winrm_server_cert_validation=validate (the default). If using a private CA, import it into the controller's trust store."
+    cis_controls: ["CIS-5.2.10"]
+    nist_controls: ['SC-8(1)', 'SC-12']
+    pci_dss: ['4.2.1', '4.2.1.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+    mitre_attack: ["T1557"]
+    cwe: ["CWE-295"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+
+  # -- Become / Delegate / Connection Misuse ----------------------------
+  # Rules originally in patterns/become_delegate_misuse.yml; consolidated
+  # here because privilege escalation and delegation are permissions
+  # concerns. Rule IDs preserved; remediation still routed to
+  # BecomeDelegateMisuseRemediationGenerator via _RULE_ID_TO_CATEGORY.
+  - id: "become_with_password_plaintext"
+    category: "unsafe_permissions"
+    severity: "CRITICAL"
+    title: "Plaintext become_password in Playbook"
+    description: "ansible_become_password / ansible_become_pass / become_password is set inline to a literal string - the sudo password is stored in cleartext in version control."
+    regex: "(?:ansible_become_(?:password|pass)|become_password)\\s*[=: ]\\s*[\"'](?!{{)[^\"'\\n]{3,}[\"']"
+    positive_examples:
+      - "ansible_become_pass: \"{% for user in vault_users | default([]) if user.name == ansible_user %}{{ user.password | default('') }}{% endfor %}\""
+    recommendation: "Store the become password in Ansible Vault (ansible_become_password: \"{{ vault_sudo_pw }}\") and encrypt the vars file with `ansible-vault encrypt`. Prefer passwordless sudo for specific commands via sudoers."
+    cis_controls: ["CIS-1.3.2"]
+    nist_controls: ['IA-5', 'IA-5(1)', 'IA-5(7)']
+    pci_dss: ['3.5.1', '8.3.6', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(d)']
+    soc2: ['CC6.1']
+    mitre_attack: ["T1552.001", "T1552.006"]
+    cwe: ["CWE-259", "CWE-798"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+
+  - id: "become_flags_nopasswd_inline"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "become_flags Injects NOPASSWD or sudoers Overrides"
+    description: "become_flags contains '-n', '-k', or '--preserve-env' combined with '!authenticate' / NOPASSWD - effectively disables sudo authentication for the remainder of the play."
+    regex: "become_flags:[\\s\\S]{0,200}?(?:--preserve-env|-E|!authenticate|NOPASSWD)"
+    positive_examples:
+      - "become_flags:--preserve-env"
+    multiline: true
+    window: 4
+    recommendation: "Keep become_flags minimal (default is empty). Configure NOPASSWD in sudoers with a narrow command list, not in playbook become_flags."
+    cis_controls: ["CIS-1.3.2"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1548.003"]
+    cwe: ["CWE-269"]
+    owasp_appsec: ["A04:2021"]
+
+  - id: "become_user_root_explicit"
+    category: "unsafe_permissions"
+    severity: "MEDIUM"
+    title: "Explicit become_user: root"
+    description: "Task sets become_user: root. When combined with broad play scopes, this grants every downstream module root - violates least-privilege when a dedicated service user would do."
+    regex: "^\\s*become_user:\\s*['\"]?root['\"]?\\s*$"
+    positive_examples:
+      - "become_user: root"
+    recommendation: "Use the most specific user possible (become_user: nginx, become_user: postgres). Reserve become_user: root for tasks that truly require it (kernel tuning, package install)."
+    cis_controls: ["CIS-1.3.1"]
+    nist_controls: ['AC-6', 'AC-6(1)']
+    pci_dss: ['7.2.1']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1548.003"]
+    cwe: ["CWE-250"]
+    owasp_asvs: ["V14.2.2"]
+
+  - id: "delegate_to_localhost_run_as_remote"
+    category: "unsafe_permissions"
+    severity: "MEDIUM"
+    title: "delegate_to: localhost With Privileged Remote Module"
+    description: "Task uses delegate_to: localhost (or 127.0.0.1) while running a module that otherwise modifies remote state - silently shifts credential context onto the controller, often unnoticed by reviewers."
+    regex: "delegate_to:\\s*(?:localhost|127\\.0\\.0\\.1)[\\s\\S]{0,150}?(?:ansible\\.builtin\\.(?:uri|get_url|copy|shell|command)|community\\.crypto|community\\.aws|amazon\\.aws)"
+    positive_examples:
+      - |2-
+        delegate_to: localhost
+
+            - name: Make instance with an instance_role
+              amazon.aws
+    multiline: true
+    window: 8
+    recommendation: "Use delegate_to deliberately and document why. For controller-side secrets or API calls, prefer `connection: local` scoped to a single task, and pair with run_once: true to avoid N fan-out."
+    cis_controls: ["CIS-1.3.1"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1021.004"]
+    cwe: ["CWE-269"]
+    owasp_appsec: ["A04:2021"]
+
+  - id: "delegate_to_dynamic_host"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "delegate_to With Jinja-Interpolated Host"
+    description: "delegate_to value contains {{ ... }} - if the variable comes from inventory or facts that an attacker can influence, the task runs against an attacker-chosen host with the controller's credentials."
+    regex: "\\bdelegate_to:\\s*['\"]?\\{\\{(?!\\s*(?:inventory_hostname\\b|ansible_host\\b|item\\b|groups[\\[.]))\\s*[^}]*\\}\\}"
+    positive_examples:
+      - "delegate_to: \"{{target_host}}\""
+    negative_examples:
+      - "delegate_to: \"{{ inventory_hostname }}\""
+      - "delegate_to: \"{{ ansible_host }}\""
+      - "delegate_to: \"{{ groups['kube_master'][0] }}\""
+      - "delegate_to: \"{{ groups.test | random }}\""
+      - "delegate_to: \"{{ item.host }}\""
+    recommendation: "Use static host names in delegate_to. If a host must be computed, validate it against an allow-list of known inventory groups before interpolation."
+    cis_controls: ["CIS-1.3.1"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)', 'SI-10']
+    pci_dss: ['6.2.4', '7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC7.1']
+    mitre_attack: ["T1021.004"]
+    cwe: ["CWE-20", "CWE-269"]
+    owasp_appsec: ["A03:2021", "A04:2021"]
+
+  - id: "connection_local_with_privilege_sensitive_module"
+    category: "unsafe_permissions"
+    severity: "MEDIUM"
+    title: "connection: local on Privilege-Sensitive Task"
+    description: "Task sets connection: local while executing a module that changes state (shell, command, copy, file, user, service). Controller-side side-effects are rarely the intent and often indicate a misconfigured delegation."
+    regex: "connection:\\s*local[\\s\\S]{0,200}?(?:ansible\\.builtin\\.(?:user|group|file|copy|shell|command|service|systemd|cron))"
+    positive_examples:
+      - |2-
+        connection: local
+          gather_facts: false
+          tasks:
+            - name: Write access key to file we can source
+              ansible.builtin.copy
+    multiline: true
+    window: 6
+    recommendation: "Scope connection: local to controller-only tasks (API calls, template rendering). For remote state changes, keep the default ssh connection."
+    cis_controls: ["CIS-1.3.1"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1021.004"]
+    cwe: ["CWE-269"]
+    owasp_appsec: ["A04:2021"]
+
+  - id: "become_without_explicit_become_method_for_windows"
+    category: "unsafe_permissions"
+    severity: "LOW"
+    title: "Windows Host Uses become: true Without become_method: runas"
+    description: "Plays targeting Windows hosts need become_method: runas. Missing become_method typically defaults to sudo, which will fail silently or do nothing on Windows, hiding escalation bugs during test runs."
+    regex: "^\\s*become:\\s*(?i:true|yes)[\\s\\S]{0,300}?ansible_connection:\\s*winrm"
+    positive_examples:
+      - "become:trueansible_connection:winrm"
+    multiline: true
+    window: 12
+    recommendation: "On Windows, set become_method: runas (or become_method: psexec) explicitly and pair with become_user."
+    cis_controls: ["CIS-1.3.1"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    cwe: ["CWE-269"]
+    owasp_appsec: ["A04:2021"]
+    mitre_attack: ['T1562.001']
+
+  - id: "raw_module_with_become"
+    category: "unsafe_permissions"
+    severity: "MEDIUM"
+    title: "raw Module Used With become"
+    description: "The raw module bypasses Ansible's module system (no argument sanitisation, no YAML-aware quoting). Combined with become: true, it elevates arbitrary shell commands to root with minimal guardrails."
+    regex: "ansible\\.builtin\\.raw:[\\s\\S]{0,300}?become:\\s*(?i:true|yes)"
+    positive_examples:
+      - |2-
+        ansible.builtin.raw: pacman --noconfirm -Sy python
+              changed_when: false
+              when: lookup('env', 'MOLECULE_DISTRO') == 'generic/arch'
+
+        - name: Wrapper playbook for kitchen testing "ansible-os-hardening" with custom vars for testing
+          hosts: all
+          become: true
+    multiline: true
+    window: 10
+    recommendation: "Prefer script / command / shell modules over raw. If raw is unavoidable (bootstrapping Python-less hosts), drop become and run the one-shot setup manually."
+    cis_controls: ["CIS-1.3.1"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1059.004"]
+    cwe: ["CWE-269"]
+    owasp_appsec: ["A04:2021"]
+
+  # -- ansible.cfg hardening ----------------------------------------------
+  # These detect risky settings in an ansible.cfg file - whether the config
+  # is standalone OR rendered into one via `ansible.builtin.copy.content:`
+  # (a common attack pattern: a playbook ships a weakened config to hosts).
+  # Rules target the exact line `setting = value`, so they fire on both
+  # real .cfg files AND on heredoc content inside playbooks.
+  - id: "ansible_cfg_allow_world_readable_tmpfiles"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "ansible.cfg allow_world_readable_tmpfiles = True"
+    description: "Setting allow_world_readable_tmpfiles = True makes Ansible's per-task temp files (which can briefly contain task parameters including secrets) world-readable. Any local user on the remote host can steal credentials mid-run."
+    regex: "^\\s*allow_world_readable_tmpfiles\\s*=\\s*(?i:true|yes|1)\\b"
+    positive_examples:
+      - "allow_world_readable_tmpfiles = true"
+    recommendation: "Leave allow_world_readable_tmpfiles unset (defaults to False). If a task truly needs this (very rare), enable it per-task via ANSIBLE_KEEP_REMOTE_FILES + become to a non-root user."
+    cis_controls: ["CIS-3.1"]
+    nist_controls: ['AC-3', 'AC-6', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(iv)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.3', 'CC6.7']
+    mitre_attack: ["T1552.001"]
+    cwe: ["CWE-200", "CWE-732"]
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1", "V12.4.1"]
+
+  - id: "ansible_cfg_pipelining_without_requiretty"
+    category: "unsafe_permissions"
+    severity: "LOW"
+    title: "ansible.cfg pipelining = True (verify sudoers)"
+    description: "pipelining = True speeds up runs but REQUIRES `Defaults !requiretty` in /etc/sudoers on every managed host. If requiretty is enabled (default on RHEL/CentOS), pipelining silently breaks become and can mask security issues."
+    regex: "^\\s*pipelining\\s*=\\s*(?i:true|yes|1)\\b"
+    positive_examples:
+      - "pipelining = True"
+    recommendation: "Confirm `Defaults !requiretty` is set on every managed host before enabling pipelining, OR leave pipelining = False."
+    cis_controls: ["CIS-5.3.4"]
+    cwe: ["CWE-1188"]
+    mitre_attack: ['T1562.001']
+    nist_controls: ['AU-9', 'CM-6', 'CM-7', 'IR-4', 'SI-4']
+    pci_dss: ['2.2.1', '10.3.4', '12.10.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC6.1', 'CC7.2']
+
+  - id: "ansible_cfg_retry_files_enabled_true"
+    category: "unsafe_permissions"
+    severity: "MEDIUM"
+    title: "ansible.cfg retry_files_enabled = True"
+    description: "retry_files_enabled writes .retry files containing inventory hostnames after failed runs. On shared systems these files linger with 0644 permissions and can leak inventory structure to other users."
+    regex: "^\\s*retry_files_enabled\\s*=\\s*(?i:true|yes|1)\\b"
+    positive_examples:
+      - "retry_files_enabled=true"
+    recommendation: "Set retry_files_enabled = False, or set retry_files_save_path to a 0700 directory owned by the ansible user."
+    cis_controls: ["CIS-3.4"]
+    nist_controls: ['AU-9']
+    pci_dss: ['10.3.1', '10.3.2']
+    hipaa: ['164.312(b)']
+    soc2: ['C1.1', 'CC6.1']
+    cwe: ["CWE-532"]
+    owasp_appsec: ["A09:2021"]
+    owasp_asvs: ["V7.1.1"]
+    mitre_attack: ['T1552.001']
+
+  - id: "ansible_cfg_log_path_world_readable"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "ansible.cfg log_path points to world-readable location"
+    description: "log_path set to /tmp, /var/tmp, /var/log with default umask - the ansible log captures task names, hostnames, and (without no_log) sometimes module arguments including secrets. A world-readable log is a credential leak waiting to happen."
+    regex: "^\\s*log_path\\s*=\\s*(?:/tmp/|/var/tmp/|/var/log/ansible(?:\\.log)?\\s*$)"
+    positive_examples:
+      - "log_path=/tmp/"
+    recommendation: "Point log_path to a directory owned by the ansible user with 0700 perms (e.g. ~/.ansible/log/ansible.log), OR rely on a log-shipper that writes to a locked-down path."
+    cis_controls: ["CIS-4.2.1"]
+    nist_controls: ['AC-3', 'AU-9', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(1)', '164.312(b)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.7']
+    mitre_attack: ["T1005"]
+    cwe: ["CWE-200", "CWE-532"]
+    owasp_appsec: ["A01:2021", "A09:2021"]
+    owasp_asvs: ["V7.1.1", "V8.1.1"]
+
+  - id: "ansible_cfg_display_skipped_hosts_false"
+    category: "unsafe_permissions"
+    severity: "LOW"
+    title: "ansible.cfg display_skipped_hosts = False"
+    description: "display_skipped_hosts = False hides which hosts skipped a task - useful to reduce noise but also hides evidence that a security-relevant task (firewall, patching, hardening) didn't run on a host."
+    regex: "^\\s*display_skipped_hosts\\s*=\\s*(?i:false|no|0)\\b"
+    positive_examples:
+      - "display_skipped_hosts = no"
+    recommendation: "Leave display_skipped_hosts at its default (True) for security-relevant playbooks so skipped hardening is visible in CI logs."
+    cis_controls: ["CIS-6.2.1"]
+    nist_controls: ['AU-2', 'AU-3', 'AU-12']
+    pci_dss: ['10.2.1', '10.2.1.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC7.2']
+    cwe: ["CWE-778"]
+    owasp_appsec: ["A09:2021"]
+    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    mitre_attack: ['T1562.001']
+
+  - id: "ansible_cfg_nocows_disabled_in_prod"
+    category: "unsafe_permissions"
+    severity: "LOW"
+    title: "ansible.cfg command_warnings = False (silences shell-over-module warnings)"
+    description: "command_warnings = False disables Ansible's warning when you use the command/shell module for something a native module could do better. That warning is a security signal - silencing it hides `shell: apt install ...` style anti-patterns."
+    regex: "^\\s*command_warnings\\s*=\\s*(?i:false|no|0)\\b"
+    positive_examples:
+      - "command_warnings=False"
+    recommendation: "Leave command_warnings = True (default) so reviewers see shell-vs-module smells in CI output."
+    cis_controls: ["CIS-3.3"]
+    nist_controls: ['AC-3', 'AC-6']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    cwe: ["CWE-1188"]
+    mitre_attack: ['T1562.001']
+
+  - id: "ansible_cfg_private_key_file_world_readable_path"
+    category: "unsafe_permissions"
+    severity: "CRITICAL"
+    title: "ansible.cfg private_key_file in world-readable location"
+    description: "private_key_file = /tmp/..., /home/<user>/Desktop/..., ~/Downloads/... - an SSH private key in a world-readable or user-facing directory is effectively leaked. Compare to a proper ~/.ssh/id_rsa with 0600 perms."
+    regex: "^\\s*private_key_file\\s*=\\s*(?:/tmp/|/var/tmp/|~/Downloads/|~/Desktop/|/srv/|/opt/[^/]+/keys?/)"
+    positive_examples:
+      - "private_key_file=/tmp/"
+    recommendation: "Move the key under ~/.ssh/ with 0600 perms (or better, use ssh-agent / a hardware token). Never store a private key in a shared or backed-up directory."
+    cis_controls: ["CIS-Secrets"]
+    nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '7.2.1', '7.2.2', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3']
+    mitre_attack: ["T1552.004"]
+    cwe: ["CWE-522", "CWE-732"]
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V12.4.1"]
+
+  - id: "ansible_cfg_callback_whitelist_unpinned"
+    category: "unsafe_permissions"
+    severity: "MEDIUM"
+    title: "ansible.cfg callback_whitelist = <wildcard or all>"
+    description: "callback_whitelist = * (or a comma-separated list including unvetted plugins) loads every callback plugin on the plugin path. Unlike a specific whitelist, this loads attacker-planted callbacks (e.g. a tampered-with `slack` plugin) that can exfiltrate task output to external services."
+    regex: "^\\s*(?:callback_whitelist|callbacks_enabled)\\s*=\\s*(?:\\*|[^#\\n]*\\*[^#\\n]*)\\s*$"
+    positive_examples:
+      - "callback_whitelist=*"
+    recommendation: "Enumerate callbacks explicitly (e.g. `callbacks_enabled = timer, profile_tasks`). Never use `*`. Pin the plugin path to a read-only directory owned by the ansible user."
+    cis_controls: ["CIS-4.2"]
+    nist_controls: ['CM-11', 'SA-10', 'SI-7']
+    pci_dss: ['6.3.2']
+    soc2: ['CC7.1', 'CC8.1']
+    mitre_attack: ["T1195.001"]
+    cwe: ["CWE-829", "CWE-1188"]
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1"]
+
+  - id: "ansible_cfg_any_errors_fatal_false_in_prod"
+    category: "unsafe_permissions"
+    severity: "LOW"
+    title: "ansible.cfg any_errors_fatal = False for privileged playbooks"
+    description: "With any_errors_fatal = False, a task that fails on ONE host won't stop the run on the other hosts - useful in dev, dangerous in hardening/patching playbooks where partial failure means a fleet in an inconsistent (possibly less-secure) state."
+    regex: "^\\s*any_errors_fatal\\s*=\\s*(?i:false|no|0)\\b"
+    positive_examples:
+      - "any_errors_fatal=False"
+    recommendation: "Set any_errors_fatal = True (or use max_fail_percentage) for playbooks that apply security patches, firewall rules, or user/group changes across a fleet."
+    cis_controls: ["CIS-3.4.1"]
+    cwe: ["CWE-1188"]
+    mitre_attack: ['T1562.001']
+    nist_controls: ['AU-9', 'CM-6', 'CM-7', 'IR-4', 'SI-4']
+    pci_dss: ['2.2.1', '10.3.4', '12.10.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC6.1', 'CC7.2']
+
+  - id: "ansible_cfg_roles_path_writable_location"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "ansible.cfg roles_path / collections_path in world-writable dir"
+    description: "roles_path or collections_path pointing to /tmp, /var/tmp, or another world-writable directory lets any local user on the Ansible controller plant a malicious role/collection that the next playbook run will execute."
+    regex: "^\\s*(?:roles_path|collections_paths?)\\s*=\\s*(?:/tmp(?:/|$)|/var/tmp(?:/|$)|\\./\\.\\./)"
+    positive_examples:
+      - "collections_path = /tmp/collections"
+    recommendation: "Point roles_path / collections_path at a directory owned by the ansible user with 0755 perms (e.g. ~/.ansible/roles, /etc/ansible/roles owned by root)."
+    cis_controls: ["CIS-5.1.2"]
+    nist_controls: ['AC-3', 'AC-6']
+    pci_dss: ['7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1195.001"]
+    cwe: ["CWE-427", "CWE-732"]
+    owasp_asvs: ["V12.4.1"]
+
+  # -- Inventory / group_vars / host_vars hardening -----------------------
+  # These fire on content rendered via copy.content OR on actual inventory
+  # files if the scanner targets them. Each detects a credential / auth
+  # anti-pattern that's specific to inventory vs a regular playbook var.
+  # Regexes are deliberately format-agnostic: they match both INI-style
+  # (`hostname key=value key=value`) and YAML-style (`key: value`) forms.
+  - id: "inventory_ansible_ssh_pass_literal"
+    category: "unsafe_permissions"
+    severity: "CRITICAL"
+    title: "Inventory: ansible_ssh_pass / ansible_password literal"
+    description: "Inventory file (or inventory-style INI/YAML content) sets ansible_ssh_pass / ansible_password to a literal value - any checkout of the repo has every host's SSH password in plaintext."
+    regex: "(?:ansible_ssh_pass|ansible_password)\\s*[:=]\\s*(?!['\"]?\\{\\{)['\"]?[^'\"\\s{][^'\"\\s]{2,}"
+    positive_examples:
+      - "ansible_ssh_pass: \"foobar\""
+    recommendation: "Remove the literal. Use ssh keys + ssh-agent, or at minimum encrypt the value with `ansible-vault encrypt_string` and store only the vault ciphertext."
+    cis_controls: ["CIS-Secrets"]
+    nist_controls: ['IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.3.6', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(d)']
+    soc2: ['CC6.1']
+    mitre_attack: ["T1078.001", "T1552.001"]
+    cwe: ["CWE-259", "CWE-798"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    stig: ['V-230555', 'V-260469']
+
+  - id: "inventory_ansible_become_pass_literal"
+    category: "unsafe_permissions"
+    severity: "CRITICAL"
+    title: "Inventory: ansible_become_pass / ansible_sudo_pass literal"
+    description: "ansible_become_pass / ansible_sudo_pass is set to a literal value in inventory - committing this gives anyone with repo read access the sudo password for every listed host."
+    regex: "(?:ansible_become_pass|ansible_sudo_pass)\\s*[:=]\\s*(?!['\"]?\\{\\{)['\"]?[^'\"\\s{][^'\"\\s]{2,}"
+    positive_examples:
+      - "ansible_become_pass: broken"
+    recommendation: "Vault-encrypt the value (`ansible-vault encrypt_string 'hunter2' --name ansible_become_pass`) or prompt at runtime with --ask-become-pass."
+    cis_controls: ["CIS-Secrets"]
+    nist_controls: ['IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.3.6', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(d)']
+    soc2: ['CC6.1']
+    mitre_attack: ["T1078.003", "T1552.001"]
+    cwe: ["CWE-259", "CWE-798"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+
+  - id: "inventory_ansible_connection_paramiko_without_host_key"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "Inventory: ansible_connection=paramiko with host_key_auto_add"
+    description: "ansible_connection=paramiko combined with paramiko's host_key_auto_add (or no known_hosts file) trusts whatever host key the target presents on first connection - MITM is trivial on the initial handshake."
+    regex: "ansible_connection\\s*[:=]\\s*['\"]?paramiko\\b"
+    positive_examples:
+      - "ansible_connection:paramiko"
+    recommendation: "Prefer ansible_connection=ssh with a pre-populated known_hosts (ssh-keyscan into /etc/ssh/ssh_known_hosts). If you must use paramiko, explicitly set ansible_paramiko_host_key_checking=True."
+    cis_controls: ["CIS-5.2.1"]
+    nist_controls: ['SC-8(1)', 'SC-12']
+    pci_dss: ['4.2.1', '4.2.1.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+    mitre_attack: ["T1557.001"]
+    cwe: ["CWE-295"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+
+  - id: "inventory_become_method_sudo_no_password"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "Inventory: ansible_become_flags contains -n (NOPASSWD sudo)"
+    description: "A host/group var sets ansible_become_flags to contain `-n` (non-interactive), meaning sudo will NEVER prompt for a password. That requires NOPASSWD in sudoers on the target - silently baked into inventory rather than explicitly reviewed."
+    regex: "ansible_become_flags\\s*[:=]\\s*['\"]?[^'\"\\n]*(?:^|[\\s\"'])-n(?:\\s|$|[\"'])"
+    positive_examples:
+      - "ansible_become_flags: -n "
+    recommendation: "Drop -n from become_flags. If the target host truly needs NOPASSWD, document the sudoers entry in a role and version-control it explicitly, don't smuggle it through inventory."
+    cis_controls: ["CIS-5.3"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    mitre_attack: ["T1548.003"]
+    cwe: ["CWE-269"]
+    owasp_appsec: ["A04:2021"]
+    stig: ['V-230503']
+
+  - id: "inventory_winrm_ignore_cert_validation"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "Inventory: ansible_winrm_server_cert_validation=ignore"
+    description: "Inventory sets ansible_winrm_server_cert_validation=ignore - the WinRM TLS handshake accepts any certificate, including an attacker-presented one. MITM on the Windows connection becomes trivial."
+    regex: "ansible_winrm_server_cert_validation\\s*[:=]\\s*['\"]?ignore\\b"
+    positive_examples:
+      - "ansible_winrm_server_cert_validation=ignore"
+    recommendation: "Remove the line or set it to 'validate'. Pre-populate the WinRM CA on the controller so validation actually works."
+    cis_controls: ["CIS-5.4.1"]
+    nist_controls: ['SC-8(1)', 'SC-12']
+    pci_dss: ['4.2.1', '4.2.1.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+    mitre_attack: ["T1557.002"]
+    cwe: ["CWE-295"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+
+  - id: "inventory_group_vars_all_contains_plaintext_secret"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "group_vars/all: variable name suggests secret, value is plaintext"
+    description: "A variable in group_vars/all (or host_vars) named *_password / *_token / *_secret / *_api_key / *_private_key is assigned a non-Jinja, non-vault, non-empty literal. That secret now applies to every host in the inventory."
+    # Exclude pure YAML boolean / null / numeric literals - ``generate_
+    # token: true`` is a boolean flag inside a uri-task body, not a
+    # plaintext secret.  Also exclude ``!vault`` YAML tags (value will
+    # be resolved to an encrypted blob at load time; the following
+    # ``$ANSIBLE_VAULT`` header sits on a later line).  The negative
+    # lookahead immediately after the colon rejects these shapes.
+    regex: "^\\s*[a-zA-Z_][a-zA-Z0-9_]*(?:_password|_passwd|_pw|_pass|_secret|_token|_api_key|_apikey|_private_key)\\s*:\\s*(?!['\"]?(?:true|True|TRUE|false|False|FALSE|yes|Yes|YES|no|No|NO|on|On|ON|off|Off|OFF|null|Null|NULL|~|None|[0-9]+)['\"]?\\s*(?:#|$))(?!!vault\\b)['\"]?(?!\\{\\{)(?!\\$ANSIBLE_VAULT)[^'\"\\s{#][^#\\n]{2,}"
+    recommendation: "Replace the literal with a vault-encrypted value or a lookup from a secret manager. Never commit literal secrets, especially in group_vars/all which applies to the entire fleet."
+    cis_controls: ["CIS-Secrets"]
+    nist_controls: ['IA-5', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(d)']
+    soc2: ['CC6.1']
+    mitre_attack: ["T1552.001"]
+    cwe: ["CWE-312", "CWE-798"]
+    owasp_appsec: ["A04:2021", "A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V6.1.2", "V8.3.1", "V14.1.5"]
+    positive_examples:
+      # Canonical inventory secret: literal password.
+      - 'admin_user_password: "lobster-clam-bake"'
+      - 'service_account_secret: "green-leek-1816"'
+      - 'datablaster_token: "1eef128c-6498-57b5-1009-ea51265def9e"'
+      - 'customer_api_key: "sk-live-abcdef1234567890"'
+    negative_examples:
+      # YAML boolean flag - not a secret value.  This was an FP on
+      # ``generate_token: true`` inside a uri-task body.
+      - 'generate_token: true'
+      - 'rotate_token: false'
+      - 'use_token: yes'
+      # Vault-encrypted value (stored as ``$ANSIBLE_VAULT`` string).
+      - 'db_password: !vault |\n  $ANSIBLE_VAULT;1.1;AES256\n  62313365396662343061393464336163383662...'
+      # Templated - resolved at runtime, not a plaintext literal.
+      - 'admin_password: "{{ vault_admin_password }}"'
+      # Empty string - credential not yet set.
+      - 'api_key: ""'
+      # Numeric literal - e.g., a token-expiry count, not a token value.
+      - 'session_token: 3600'
+
+  - id: "inventory_host_pattern_all_hosts"
+    category: "unsafe_permissions"
+    severity: "LOW"
+    title: "Inventory: host pattern 'all' used in a privileged play"
+    description: "A play targets `hosts: all` AND uses become: true - a single typo, YAML anchor, or rogue PR can apply privileged changes to every host in your inventory at once. A narrower pattern (hosts: webservers, hosts: &prod:!canary) is safer."
+    regex: "hosts:\\s*all\\s*$[\\s\\S]{0,200}?become:\\s*(?i:true|yes)"
+    positive_examples:
+      - |2-
+        hosts: all
+          become: yes
+    multiline: true
+    window: 12
+    recommendation: "Use a named group pattern (`hosts: webservers`) or an explicit intersection (`hosts: webservers:&prod`). Combine with `serial:` to limit blast radius."
+    cis_controls: ["CIS-3.4.1"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+    cwe: ["CWE-269"]
+    owasp_appsec: ["A04:2021"]
+    mitre_attack: ['T1078']
+
+  # -- Dangerous Task Hygiene - filesystem races & write modes ------------
+  # TOCTOU, symlink-follow with privilege, disabled atomic writes, and
+  # edits to security-critical files with no backup. These sit alongside
+  # the existing permission/mode rules because the underlying concern is
+  # the same: an attacker or mis-config can abuse them to gain write
+  # where they shouldn't, silently, at privileged time-of-use.
+  - id: "file_follow_true_with_become"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "file Module with follow: yes + become (Symlink TOCTOU)"
+    description: "An `ansible.builtin.file` (or legacy `file:`) task sets `follow: yes` / `follow: true` AND runs with `become:` privilege escalation. If the `path:` points into a world-writable directory (/tmp, /var/tmp, /dev/shm) or a user-owned directory, a local attacker can swap the target for a symlink to /etc/shadow, /root/.ssh/authorized_keys, or any sensitive file - file then changes mode/owner on the symlink target, as root."
+    regex: "(?:ansible\\.builtin\\.)?file\\s*:[\\s\\S]{0,300}?follow\\s*:\\s*(?:true|yes|True|Yes)[\\s\\S]{0,300}?become\\s*:\\s*(?:true|yes|True|Yes)|become\\s*:\\s*(?:true|yes|True|Yes)[\\s\\S]{0,300}?(?:ansible\\.builtin\\.)?file\\s*:[\\s\\S]{0,300}?follow\\s*:\\s*(?:true|yes|True|Yes)"
+    positive_examples:
+      - "file:follow:truebecome:true"
+    multiline: true
+    window: 14
+    recommendation: "Leave `follow:` at its default (no). If you genuinely need to operate on the symlink target, first validate the path with `stat:` (check that path itself is owned by root and not in a world-writable parent), then chmod/chown the target. Never combine `follow: yes` + `become: true` on a user-controlled path."
+    cwe: ["CWE-59", "CWE-250", "CWE-362"]
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ["T1548.001"]
+    cis_controls: ["CIS-3.3", "CIS-4.1"]
+    nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC7.1', 'CC8.1']
+
+  - id: "copy_unsafe_writes_true"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "copy/template with unsafe_writes: true"
+    description: "A `copy:` or `template:` task sets `unsafe_writes: true`, which disables Ansible's atomic `write-to-tempfile -> rename()` strategy in favor of a direct open-and-truncate on the destination. Any local reader at that instant gets a half-written file; any local writer (even an unprivileged one, if the parent directory is world-writable) can race with the truncate and land arbitrary content in a root-owned file."
+    regex: "(?:ansible\\.builtin\\.)?(?:copy|template)\\s*:[\\s\\S]{0,300}?unsafe_writes\\s*:\\s*(?:true|yes|True|Yes)\\b"
+    positive_examples:
+      - "copy:unsafe_writes:true"
+    multiline: true
+    window: 14
+    recommendation: "Leave `unsafe_writes: false` (the default). If you're hitting a real use case (bind-mounted destination, FUSE filesystem without rename support), isolate it: write to a normal path first, then `command: mount --bind` in a separate task. Never enable unsafe_writes for files in /etc/, /root/, or any security-relevant path."
+    cwe: ["CWE-362", "CWE-367", "CWE-378"]
+    mitre_attack: ["T1222.002"]
+    cis_controls: ["CIS-3.3"]
+    nist_controls: ['AC-3', 'AC-6']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+
+  - id: "template_mode_executable_to_system_path"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "template Rendering Executable File to System Path"
+    description: "A `template:` task renders content to /etc/, /usr/bin/, /usr/local/bin/, /usr/sbin/, /opt/, or /root/ AND sets an executable mode (0755, 0775, 0777, 4xxx, or anything with the x-bit). That combination is the classic webshell / persistence-hook pattern: a templated script that runs during cron/systemd/PATH lookup, easy to forget in audits because it looks like 'just a config file'."
+    regex: "(?:ansible\\.builtin\\.)?template\\s*:[\\s\\S]{0,300}?dest\\s*:\\s*['\"]?(?:/etc/|/usr/(?:local/)?(?:bin|sbin)/|/opt/|/root/)[^\\n]*[\\s\\S]{0,300}?mode\\s*:\\s*['\"]?0?[4-7]?[0-7]?[1357]\\b|(?:ansible\\.builtin\\.)?template\\s*:[\\s\\S]{0,300}?mode\\s*:\\s*['\"]?0?[4-7]?[0-7]?[1357]\\b[\\s\\S]{0,300}?dest\\s*:\\s*['\"]?(?:/etc/|/usr/(?:local/)?(?:bin|sbin)/|/opt/|/root/)"
+    positive_examples:
+      - |2-
+        template:
+            src: dummy_command
+            dest: /usr/bin/dummy{{ item }}
+            owner: root
+            group: root
+            mode: '0755
+    multiline: true
+    window: 18
+    recommendation: "If the file is genuinely a config, use mode 0644 (or 0640 for sensitive). If it's genuinely a script, put it in a role's `files/` directory and use `copy:` (so it's reviewed as a script, not a template) - and deploy it to /usr/local/libexec/<role>/ with an explicit systemd unit/cron line, not by virtue of being PATH-reachable."
+    cwe: ["CWE-250", "CWE-732"]
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    mitre_attack: ["T1505.003", "T1543.002"]
+    cis_controls: ["CIS-4.1", "CIS-10.1"]
+    nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'CM-6', 'CM-7', 'SI-3']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "lineinfile_no_backup_on_sensitive_file"
+    category: "unsafe_permissions"
+    severity: "MEDIUM"
+    title: "lineinfile/blockinfile Editing Sensitive File With backup: no"
+    description: "A `lineinfile:` or `blockinfile:` task edits /etc/sudoers, /etc/sudoers.d/*, /etc/pam.d/*, /etc/ssh/sshd_config, /etc/passwd, /etc/shadow, /etc/group, /etc/nsswitch.conf, /etc/hosts.allow, /etc/hosts.deny, /etc/crontab, /etc/cron.d/*, or /etc/security/* AND explicitly sets `backup: no` (or `backup: false`). A typo in a sudoers line with no backup locks out every admin; a bad sshd_config edit with no backup loses SSH access. The file is version-controlled in the playbook, not on the target - recovery requires console access."
+    regex: "(?:ansible\\.builtin\\.)?(?:lineinfile|blockinfile)\\s*:[\\s\\S]{0,300}?path\\s*:\\s*['\"]?(?:/etc/(?:sudoers|pam\\.d/|ssh/sshd_config|passwd|shadow|group|nsswitch\\.conf|hosts\\.(?:allow|deny)|crontab|cron\\.d/|security/))[^\\n]*[\\s\\S]{0,300}?backup\\s*:\\s*(?:no|false|False|No)\\b|(?:ansible\\.builtin\\.)?(?:lineinfile|blockinfile)\\s*:[\\s\\S]{0,300}?backup\\s*:\\s*(?:no|false|False|No)\\b[\\s\\S]{0,300}?path\\s*:\\s*['\"]?(?:/etc/(?:sudoers|pam\\.d/|ssh/sshd_config|passwd|shadow|group|nsswitch\\.conf|hosts\\.(?:allow|deny)|crontab|cron\\.d/|security/))"
+    positive_examples:
+      - "lineinfile:path:/etc/sudoersbackup:no"
+    multiline: true
+    window: 20
+    recommendation: "Set `backup: yes` (or omit it - it defaults to no, so use `backup: yes` explicitly on sensitive files). For sudoers specifically, always add `validate: 'visudo -cf %s'`; for sshd_config, `validate: '/usr/sbin/sshd -t -f %s'`. These let Ansible roll back before committing the edit if the new content is syntactically invalid."
+    cwe: ["CWE-710", "CWE-755"]
+    mitre_attack: ["T1222.002"]
+    cis_controls: ["CIS-4.1", "CIS-5.3"]
+    nist_controls: ['CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '2.2.4']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "setfacl_mass_permission_grant"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "setfacl Grants rwx to everyone / other on Sensitive Path"
+    description: "A task invokes `setfacl` (or the `ansible.posix.acl` module) to add an ACL entry of `u::rwx,g::rwx,o::rwx`, `m::rwx`, or `user:anyone`/`group:wheel` with `rwx` on paths like `/etc`, `/root`, `/var/log`, `/home`, `/opt`, or the recursive form `-R` on any system path. ACLs silently override POSIX mode bits - a 0600 /etc/shadow with a `user:nobody:rwx` ACL is world-readable in practice. This is a known AV/EDR-evasion trick used by recent Linux ransomware families."
+    regex: "(?:setfacl(?:\\s+-R)?\\s+-m\\s+(?:u:[^:\\s]*:rwx|g:[^:\\s]*:rwx|o::rwx|m::rwx|[ugm]::rwx)[\\s\\S]{0,200}?(?:/etc|/root|/var/log|/home|/opt|/usr)\\b|ansible\\.posix\\.acl\\s*:[\\s\\S]{0,400}?permissions\\s*:\\s*[\"']?(?:rwx|7)[\"']?[\\s\\S]{0,400}?path\\s*:\\s*[\"']?(?:/etc|/root|/var/log|/home|/opt|/usr))"
+    positive_examples:
+      - "setfacl -m u::rwx/etc"
+    multiline: true
+    window: 10
+    recommendation: "Use targeted, minimum-necessary ACLs: `setfacl -m u:jenkins:r-x /srv/app/logs` rather than broad `u::rwx,g::rwx,o::rwx`. Never grant `rwx` to `other` on `/etc/*`. Audit effective ACLs with `getfacl -R /etc /root /var/log | grep rwx`. Enforce with an AIDE rule that alerts on any ACL change to /etc/shadow, /etc/sudoers, /etc/ssh/*."
+    cwe: ["CWE-276", "CWE-732"]
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ["T1222.002"]
+    cis_controls: ["CIS-3.3", "CIS-4.1"]
+    nist_controls: ["AC-3", "AC-6"]
+    pci_dss: ["7.2.1"]
+    soc2: ["CC6.1"]
+
+  - id: "ssh_weak_hostkey_algorithms_reenabled"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "ansible_ssh_common_args / ssh_args Re-Enables Deprecated SSH Host-Key Algorithms (ssh-rsa / ssh-dss)"
+    description: "A task sets `ansible_ssh_common_args`, `ansible_ssh_extra_args`, a playbook `environment:` `ANSIBLE_SSH_ARGS`, or `ssh_args` in `ansible.cfg` to include `-oHostKeyAlgorithms=+ssh-rsa`, `-oPubkeyAcceptedKeyTypes=+ssh-rsa`, `-oPubkeyAcceptedAlgorithms=+ssh-rsa`, `-oHostKeyAlgorithms=+ssh-dss`, `-oCASignatureAlgorithms=+ssh-rsa`, or any equivalent form that re-enables the deprecated SSH SHA-1 host-key family. OpenSSH 8.8 (2021) disabled `ssh-rsa` (SHA-1) by default and 9.8 (2024) removed DSA entirely because SHA-1 collision attacks (SHAttered, 2017) make host-key forgery practical for a well-resourced on-path attacker. Re-enabling these algorithms to 'work around' target OSes stuck on OpenSSH 7.x silently reintroduces MITM risk across every managed node and is a specific CIS/CISA finding in 2024-2025 compliance audits. Distinct from `ssh_args_disable_host_key` (that rule catches `StrictHostKeyChecking=no`); this catches the more subtle 'I kept verification on but trusted a broken algorithm' failure mode."
+    regex: "(?:ansible_ssh_(?:common|extra)_args|ANSIBLE_SSH_ARGS|ssh_args)[\\s\\S]{0,300}?-o\\s*(?:HostKeyAlgorithms|PubkeyAcceptedKeyTypes|PubkeyAcceptedAlgorithms|CASignatureAlgorithms)\\s*=\\s*[+]?(?:ssh-rsa|ssh-dss|rsa-sha-?1)\\b"
+    positive_examples:
+      - "ansible_ssh_common_args-oHostKeyAlgorithms=ssh-rsa"
+    multiline: true
+    window: 8
+    recommendation: "Remove `+ssh-rsa` / `+ssh-dss` from every SSH-args override. If a legacy target truly requires SHA-1 RSA (pre-OpenSSH 7.2 servers, some embedded appliances), upgrade the server first - every distro with vendor support has shipped OpenSSH ≥ 7.2 for years. Where upgrading is impossible in the short term, scope the exception tightly: a single `group_vars/<legacy-group>.yml` with `ansible_ssh_extra_args: \"-oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedAlgorithms=+ssh-rsa,rsa-sha2-256,rsa-sha2-512\"` (so SHA-2 is still preferred when the server advertises it) instead of a global `ansible.cfg` knob, and file a ticket to retire the legacy target. Modern baseline: `HostKeyAlgorithms` defaults to `ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256`, and `PubkeyAcceptedAlgorithms` the same - never widen these without a documented, time-boxed exception."
+    cwe: ["CWE-295", "CWE-326", "CWE-327"]
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V6.2.5", "V9.1.1", "V9.2.1"]
+    mitre_attack: ["T1557"]
+    cis_controls: ["CIS-3.10", "CIS-5.2.10"]
+    nist_controls: ["IA-7", "SC-8", "SC-12", "SC-13"]
+    pci_dss: ["2.2.1", "4.2.1", "8.3.1"]
+    hipaa: ["164.312(a)(2)(iv)", "164.312(e)(2)(ii)"]
+    soc2: ["CC6.1", "CC6.7"]
+    stig: ["V-230250", "V-230252"]

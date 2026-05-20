@@ -1,0 +1,485 @@
+# Companion Secure Fix snippets for operational_security rules.
+# Most of this category is detection-signal stamped no_ansible_remediation
+# upstream; this file covers the remainder that DO have a configurable
+# Ansible fix.
+
+remediations:
+
+  # -- AWS detective controls (re-enable / properly-configure) --
+  aws_autoscaling_group_without_elb_health_check:
+    secure_fix: |
+      - name: ASG with ELB health checks + grace period
+        community.aws.autoscaling_group:
+          name: app-asg
+          launch_template:
+            launch_template_name: app-lt
+            version: "$Latest"
+          min_size: 2
+          max_size: 6
+          desired_capacity: 3
+          health_check_type: ELB
+          health_check_period: 300
+          target_group_arns: ["{{ alb_target_group_arn }}"]
+          state: present
+
+  aws_backup_vault_lock_removed_or_deleted:
+    secure_fix: |
+      - name: AWS Backup vault locked in COMPLIANCE mode (immutable)
+        community.aws.backup_vault:
+          backup_vault_name: prod-vault
+          encryption_key_arn: "{{ backup_cmk_arn }}"
+          state: present
+
+      - name: Apply Vault Lock - permanent compliance lock
+        ansible.builtin.command: >
+          aws backup put-backup-vault-lock-configuration
+          --backup-vault-name prod-vault
+          --min-retention-days 30
+          --max-retention-days 36500
+          --changeable-for-days 0
+
+  aws_cloudtrail_event_selector_read_only_only:
+    secure_fix: |
+      - name: CloudTrail with all management + S3 + Lambda data events
+        community.aws.cloudtrail:
+          name: org-trail
+          state: present
+          is_organization_trail: true
+          is_multi_region_trail: true
+          enable_log_file_validation: true
+          include_global_events: true
+          s3_bucket_name: "{{ ct_logs_bucket }}"
+          kms_key_id: "{{ ct_cmk_arn }}"
+          event_selectors:
+            - read_write_type: All
+              include_management_events: true
+              data_resources:
+                - type: AWS::S3::Object
+                  values: ["arn:aws:s3:::"]
+                - type: AWS::Lambda::Function
+                  values: ["arn:aws:lambda"]
+
+  aws_cloudtrail_without_log_file_validation:
+    secure_fix: |
+      - name: CloudTrail with log file validation enabled
+        community.aws.cloudtrail:
+          name: org-trail
+          state: present
+          enable_log_file_validation: true
+          is_multi_region_trail: true
+          s3_bucket_name: "{{ ct_logs_bucket }}"
+          kms_key_id: "{{ ct_cmk_arn }}"
+
+  aws_cloudwatch_log_group_without_retention_or_kms:
+    secure_fix: |
+      - name: CloudWatch log group with retention + KMS
+        community.aws.cloudwatchlogs_log_group:
+          log_group_name: /app/prod
+          retention: 365
+          kms_key_id: "{{ logs_cmk_arn }}"
+          state: present
+
+  aws_config_recorder_or_aggregator_missing_global_resource_types:
+    secure_fix: |
+      - name: AWS Config recorder with all-supported + global resources
+        community.aws.config_recorder:
+          name: default
+          state: present
+          role_arn: "{{ config_role_arn }}"
+          recording_group:
+            all_supported: true
+            include_global_resource_types: true
+
+  aws_ec2_instance_not_ebs_optimized:
+    secure_fix: |
+      - name: EC2 with EBS optimization always on
+        amazon.aws.ec2_instance:
+          name: app
+          instance_type: m6i.large
+          image_id: "{{ ami_id }}"
+          ebs_optimized: true
+          state: running
+
+  aws_eks_cluster_control_plane_logging_disabled:
+    secure_fix: |
+      - name: EKS cluster - all five control-plane log types enabled
+        community.aws.eks_cluster:
+          name: app
+          version: "1.30"
+          role_arn: "{{ eks_role_arn }}"
+          subnets: "{{ private_subnet_ids }}"
+          security_groups: ["{{ control_plane_sg }}"]
+          logging:
+            cluster_logging:
+              - types: [api, audit, authenticator, controllerManager, scheduler]
+                enabled: true
+          state: present
+
+  aws_lambda_function_xray_tracing_disabled:
+    secure_fix: |
+      - name: Lambda with X-Ray Active tracing
+        community.aws.lambda:
+          name: api-handler
+          state: present
+          runtime: python3.12
+          handler: app.handler
+          role: "{{ lambda_role_arn }}"
+          zip_file: "{{ artifact_path }}"
+          tracing_config:
+            mode: Active
+
+  aws_rds_backup_retention_less_than_seven_days:
+    secure_fix: |
+      - name: RDS backup retention ≥ 7 days (35 = AWS max)
+        amazon.aws.rds_instance:
+          id: app-db
+          engine: postgres
+          backup_retention_period: 35
+          deletion_protection: true
+          copy_tags_to_snapshot: true
+          state: present
+
+  aws_rds_instance_without_deletion_protection:
+    secure_fix: |
+      - name: RDS with deletion protection ON
+        amazon.aws.rds_instance:
+          id: app-db
+          engine: postgres
+          deletion_protection: true
+          backup_retention_period: 35
+          state: present
+
+  aws_s3_object_lock_disabled_or_cleared:
+    secure_fix: |
+      - name: S3 bucket with Object Lock + COMPLIANCE retention
+        amazon.aws.s3_bucket:
+          name: "{{ bucket_name }}"
+          versioning: true
+          object_lock_enabled: true
+          state: present
+        # Apply default retention via boto3 (not in module yet):
+        # aws s3api put-object-lock-configuration --bucket <name> \
+        #   --object-lock-configuration '{ "ObjectLockEnabled": "Enabled",
+        #     "Rule": { "DefaultRetention": { "Mode": "COMPLIANCE",
+        #     "Days": 30 } } }'
+
+  # -- Azure detective + DB controls --
+  azure_postgresql_connection_throttling_off:
+    secure_fix: |
+      - name: Azure Database for PostgreSQL - connection throttling ON
+        azure.azcollection.azure_rm_postgresqlconfiguration:
+          resource_group: "{{ rg }}"
+          server_name: "{{ pg_server }}"
+          name: connection_throttling
+          value: "on"
+          source: user-override
+
+  azure_postgresql_log_checkpoints_or_connections_off:
+    secure_fix: |
+      - name: PostgreSQL logging knobs all ON (checkpoints/conns/disco/duration)
+        azure.azcollection.azure_rm_postgresqlconfiguration:
+          resource_group: "{{ rg }}"
+          server_name: "{{ pg_server }}"
+          name: "{{ item }}"
+          value: "on"
+          source: user-override
+        loop:
+          - log_checkpoints
+          - log_connections
+          - log_disconnections
+          - log_duration
+
+  # -- ESXi hardening --
+  esxi_esxi_shell_or_tsm_service_enabled:
+    secure_fix: |
+      - name: ESXi - stop and disable TSM (Shell)
+        community.vmware.vmware_host_service_manager:
+          hostname: "{{ esxi_host }}"
+          username: "{{ esxi_user }}"
+          password: "{{ vault_esxi_password }}"
+          esxi_hostname: "{{ esxi_host }}"
+          service_name: TSM
+          state: absent
+          service_policy: off
+
+  esxi_shell_ssh_enabled_via_vimcmd:
+    secure_fix: |
+      - name: ESXi - SSH (TSM-SSH) stopped + Policy=off
+        community.vmware.vmware_host_service_manager:
+          esxi_hostname: "{{ esxi_host }}"
+          service_name: TSM-SSH
+          state: absent
+          service_policy: off
+
+  esxi_ntp_service_disabled_or_policy_off:
+    secure_fix: |
+      - name: ESXi - NTP service ON, Policy=on, ≥3 stratum-2 servers
+        community.vmware.vmware_host_ntp:
+          esxi_hostname: "{{ esxi_host }}"
+          ntp_servers:
+            - 0.pool.ntp.org
+            - 1.pool.ntp.org
+            - 2.pool.ntp.org
+          state: present
+      - name: NTP service policy=on + running
+        community.vmware.vmware_host_service_manager:
+          esxi_hostname: "{{ esxi_host }}"
+          service_name: ntpd
+          state: present
+          service_policy: on
+
+  esxi_syslog_remote_destination_disabled_or_missing:
+    secure_fix: |
+      - name: ESXi - remote syslog over TLS to ≥2 collectors
+        community.vmware.vmware_host_config_manager:
+          esxi_hostname: "{{ esxi_host }}"
+          options:
+            "Syslog.global.logHost": "ssl://siem-1.internal.example.com:6514,ssl://siem-2.internal.example.com:6514"
+
+  # -- FIM / fapolicyd / SELinux --
+  aide_integrity_check_disabled:
+    secure_fix: |
+      - name: AIDE timer enabled, baseline shipped from build host
+        ansible.builtin.systemd:
+          name: aidecheck.timer
+          enabled: true
+          state: started
+
+  fapolicyd_disabled_or_permissive:
+    secure_fix: |
+      - name: fapolicyd in enforcing mode (permissive=0)
+        ansible.builtin.lineinfile:
+          path: /etc/fapolicyd/fapolicyd.conf
+          regexp: '^permissive\s*='
+          line: 'permissive = 0'
+        notify: restart-fapolicyd
+      - name: fapolicyd enabled + running
+        ansible.builtin.systemd:
+          name: fapolicyd
+          enabled: true
+          state: started
+
+  # -- Linux kernel cap restrictions --
+  linux_cap_bpf_granted_to_container_or_service:
+    secure_fix: |
+      - name: K8s / Pod - drop ALL caps, never grant CAP_BPF
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: v1
+            kind: Pod
+            metadata: { name: app, namespace: app }
+            spec:
+              containers:
+                - name: app
+                  image: app:1.2.3
+                  securityContext:
+                    capabilities:
+                      drop: ["ALL"]
+                    runAsNonRoot: true
+                    allowPrivilegeEscalation: false
+                    seccompProfile:
+                      type: RuntimeDefault
+
+  # -- Hypervisor / KVM / IPMI --
+  kvm_libvirt_tcp_listen_no_tls:
+    secure_fix: |
+      - name: libvirtd - SSH transport only, no TCP listen
+        ansible.builtin.lineinfile:
+          path: /etc/libvirt/libvirtd.conf
+          regexp: '^#?\s*listen_tcp\s*='
+          line: 'listen_tcp = 0'
+        notify: restart-libvirtd
+      - name: Disable any tcp listen via systemd dropin
+        ansible.builtin.systemd:
+          name: libvirtd-tcp.socket
+          enabled: false
+          state: stopped
+        ignore_errors: true   # socket may not exist on this distro
+
+  hypervisor_root_ssh_permit_with_weak_ciphers:
+    secure_fix: |
+      - name: Hypervisor sshd_config - key-only root + strong ciphers
+        ansible.builtin.blockinfile:
+          path: /etc/ssh/sshd_config
+          marker: "# {mark} ANSIBLE HARDENING"
+          block: |
+            PermitRootLogin prohibit-password
+            PasswordAuthentication no
+            AuthenticationMethods publickey,keyboard-interactive
+            KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org
+            Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+            MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+        notify: restart-sshd
+
+  # -- Logging / observability infra hardening --
+  kafka_security_inter_broker_protocol_plaintext:
+    secure_fix: |
+      - name: Kafka inter-broker - SASL_SSL + ACLs
+        ansible.builtin.blockinfile:
+          path: /etc/kafka/server.properties
+          marker: "# {mark} ANSIBLE-MANAGED TLS"
+          block: |
+            security.inter.broker.protocol=SASL_SSL
+            sasl.mechanism.inter.broker.protocol=SCRAM-SHA-512
+            ssl.keystore.location=/etc/kafka/ssl/server.keystore.jks
+            ssl.truststore.location=/etc/kafka/ssl/server.truststore.jks
+            ssl.endpoint.identification.algorithm=https
+            authorizer.class.name=kafka.security.authorizer.AclAuthorizer
+
+  ldap_signing_or_channel_binding_disabled:
+    secure_fix: |
+      - name: AD DS - require LDAP signing + channel binding (GPO via PS)
+        ansible.windows.win_powershell:
+          script: |
+            Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' `
+              -Name 'LDAPServerIntegrity' -Value 2 -Type DWord
+            Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' `
+              -Name 'LdapEnforceChannelBinding' -Value 2 -Type DWord
+            # 2 = Required (REJECT clients that don't sign / bind).
+
+  systemd_resolved_dnssec_disabled:
+    secure_fix: |
+      - name: systemd-resolved with DNSSEC=true
+        ansible.builtin.copy:
+          dest: /etc/systemd/resolved.conf.d/10-dnssec.conf
+          content: |
+            [Resolve]
+            DNSSEC=true
+            DNSOverTLS=true
+            FallbackDNS=
+          owner: root
+          group: root
+          mode: '0644'
+        notify: restart-resolved
+
+  # -- Misc one-offs --
+  rabbitmq_default_guest_user_enabled_remote:
+    secure_fix: |
+      - name: RabbitMQ - delete the default guest user
+        community.rabbitmq.rabbitmq_user:
+          user: guest
+          state: absent
+      - name: RabbitMQ - bind admin UI to loopback only
+        ansible.builtin.lineinfile:
+          path: /etc/rabbitmq/rabbitmq.conf
+          line: 'listeners.tcp.local = 127.0.0.1:5672'
+          create: true
+          mode: '0644'
+        notify: restart-rabbitmq
+
+  nats_server_authorization_disabled_or_accounts_system_user_default:
+    secure_fix: |
+      - name: NATS - operator JWT auth + scoped accounts (no anonymous)
+        ansible.builtin.copy:
+          dest: /etc/nats/nats-server.conf
+          content: |
+            authorization {
+              token: "{{ vault_nats_token }}"
+              timeout: 2
+            }
+            jetstream { store_dir: /var/lib/nats; max_memory_store: 1G }
+            tls { cert_file: /etc/nats/tls.crt; key_file: /etc/nats/tls.key }
+          owner: nats
+          group: nats
+          mode: '0640'
+
+  otel_collector_grpc_or_http_listener_bound_to_wildcard_interface:
+    secure_fix: |
+      - name: OTEL collector - bind to loopback / cluster-IP, never 0.0.0.0
+        ansible.builtin.copy:
+          dest: /etc/otelcol/config.yaml
+          content: |
+            receivers:
+              otlp:
+                protocols:
+                  grpc:
+                    endpoint: 127.0.0.1:4317
+                    tls:
+                      cert_file: /etc/otelcol/tls.crt
+                      key_file: /etc/otelcol/tls.key
+                  http:
+                    endpoint: 127.0.0.1:4318
+          mode: '0644'
+        notify: restart-otelcol
+
+  ntp_chrony_untrusted_upstream_nopeer_auth:
+    secure_fix: |
+      - name: chrony - authenticated upstream + drift sanity bounds
+        ansible.builtin.copy:
+          dest: /etc/chrony/chrony.conf
+          content: |
+            server time1.internal.example.com iburst nts
+            server time2.internal.example.com iburst nts
+            ntsdumpdir /var/lib/chrony
+            driftfile /var/lib/chrony/drift
+            makestep 1.0 3
+            rtcsync
+            leapsectz right/UTC
+          mode: '0644'
+        notify: restart-chrony
+
+  leapp_upgrade_no_rpm_verify:
+    secure_fix: |
+      - name: leapp upgrade WITH RPM verification (default behaviour)
+        ansible.builtin.command: leapp upgrade
+        # NEVER pass --no-rpm-verify. If a custom internal RPM is the
+        # blocker, sign it with the org's GPG key and import the key
+        # into rpmkeys + leapp's allow-list.
+
+  macos_gatekeeper_disabled_spctl:
+    secure_fix: |
+      - name: macOS Gatekeeper - re-armed, quarantine on
+        ansible.builtin.command: spctl --master-enable
+      - name: macOS LSQuarantine = ON
+        ansible.builtin.command: defaults delete com.apple.LaunchServices LSQuarantine
+        register: r
+        changed_when: r.rc == 0
+        failed_when: false
+
+  # -- GCP detective controls --
+  gcp_audit_config_exempted_members_data_read:
+    secure_fix: |
+      - name: GCP audit config - empty exempted_members on DATA_READ/WRITE
+        google.cloud.gcp_iam_audit_config:
+          service: allServices
+          audit_log_configs:
+            - log_type: DATA_READ
+              exempted_members: []
+            - log_type: DATA_WRITE
+              exempted_members: []
+            - log_type: ADMIN_READ
+              exempted_members: []
+          state: present
+
+  gcp_scc_mute_config_broad_or_all_findings:
+    secure_fix: |
+      - name: SCC mute config narrowly scoped (per-category, per-resource)
+        ansible.builtin.command: >
+          gcloud scc muteconfigs create app-public-bucket-mute
+          --organization {{ org_id }}
+          --description "Known public assets bucket"
+          --filter='category="PUBLIC_BUCKET_ACL" AND resourceName:"//storage.googleapis.com/projects/_/buckets/public-assets"'
+
+  gcp_storage_bucket_without_access_logging:
+    secure_fix: |
+      - name: GCS bucket with access logging to centralized sink
+        google.cloud.gcp_storage_bucket:
+          name: "{{ bucket }}"
+          location: "{{ region }}"
+          logging:
+            log_bucket: "gcs-access-logs-{{ project }}"
+            log_object_prefix: "access-logs/{{ bucket }}/"
+          uniform_bucket_level_access: { enabled: true }
+          state: present
+
+  gcp_vpc_service_controls_perimeter_weakened:
+    secure_fix: |
+      - name: VPC-SC perimeter in REGULAR (strong) mode + status block
+        ansible.builtin.command: >
+          gcloud access-context-manager perimeters update prod_perimeter
+          --policy {{ policy_id }}
+          --perimeter-type=regular
+          --restricted-services=storage.googleapis.com,bigquery.googleapis.com
+          --enable-vpc-accessible-services
+          --vpc-allowed-services=RESTRICTED-SERVICES

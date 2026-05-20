@@ -1,0 +1,122 @@
+# SOC 2 Trust Services Criteria catalog - AICPA TSC 2017 (revised 2022).
+#
+# Purpose
+# -------
+# Maps every SOC 2 Common Criteria point-of-focus referenced by the scanner's
+# patterns to its criterion name and canonical URL. Consumed by
+# `link_resolver` to enrich findings.
+#
+# Authoring rules
+# ---------------
+# 1. Add only criteria actually referenced by a pattern YAML. The framework
+#    test fails the build if a pattern references an unknown criterion.
+# 2. IDs are stored in the canonical form used by AICPA:
+#      CC1.1, CC2.1, CC6.1, CC7.1, etc.
+#    Criteria categories:
+#      CC1 - Control Environment
+#      CC2 - Communication and Information
+#      CC3 - Risk Assessment
+#      CC4 - Monitoring Activities
+#      CC5 - Control Activities
+#      CC6 - Logical and Physical Access Controls (MOST relevant to Ansible)
+#      CC7 - System Operations
+#      CC8 - Change Management
+#      CC9 - Risk Mitigation
+#      A1  - Availability
+#      C1  - Confidentiality
+#      PI1 - Processing Integrity
+#      P1-8 - Privacy
+#    The resolver normalizes on lookup: `soc2-CC6.1`, `CC6.1`, and
+#    `SOC2-CC6.1` all match.
+# 3. `name` is the AICPA common-criterion heading.
+# 4. `url` is AICPA's TSC reference page.
+
+# -- CC6 - Logical and Physical Access Controls ----------------------------
+CC6.1:
+  name: "The entity implements logical access security software, infrastructure, and architectures over protected information assets to protect them from security events"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "Logical and Physical Access Controls"
+
+CC6.2:
+  name: "Prior to issuing system credentials and granting system access, the entity registers and authorizes new internal and external users whose access is administered by the entity"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "Logical and Physical Access Controls"
+
+CC6.3:
+  name: "The entity authorizes, modifies, or removes access to data, software, functions, and other protected information assets based on roles, responsibilities, or the system design and changes"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "Logical and Physical Access Controls"
+
+CC6.6:
+  name: "The entity implements logical access security measures to protect against threats from sources outside its system boundaries"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "Logical and Physical Access Controls"
+
+CC6.7:
+  name: "The entity restricts the transmission, movement, and removal of information to authorized internal and external users and processes"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "Logical and Physical Access Controls"
+
+CC6.8:
+  name: "The entity implements controls to prevent or detect and act upon the introduction of unauthorized or malicious software"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "Logical and Physical Access Controls"
+
+# -- CC7 - System Operations -----------------------------------------------
+CC7.1:
+  name: "To meet its objectives, the entity uses detection and monitoring procedures to identify (1) changes to configurations that result in the introduction of new vulnerabilities, and (2) susceptibilities to newly discovered vulnerabilities"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "System Operations"
+
+CC7.2:
+  name: "The entity monitors system components and the operation of those components for anomalies that are indicative of malicious acts, natural disasters, and errors"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "System Operations"
+
+CC7.3:
+  name: "The entity evaluates security events to determine whether they could or have resulted in a failure of the entity to meet its objectives (security incidents)"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "System Operations"
+
+# -- CC8 - Change Management -----------------------------------------------
+CC8.1:
+  name: "The entity authorizes, designs, develops or acquires, configures, documents, tests, approves, and implements changes to infrastructure, data, software, and procedures"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "Change Management"
+
+# -- C1 - Confidentiality --------------------------------------------------
+C1.1:
+  name: "The entity identifies and maintains confidential information to meet the entity's objectives related to confidentiality"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "Confidentiality"
+
+C1.2:
+  name: "The entity disposes of confidential information to meet the entity's objectives related to confidentiality"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "Confidentiality"
+
+# -- A1 - Availability -----------------------------------------------------
+A1.1:
+  name: "The entity maintains, monitors, and evaluates current processing capacity and use of system components to manage capacity demand and enable the implementation of additional capacity to help meet its objectives"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "Availability"
+
+A1.2:
+  name: "The entity authorizes, designs, develops or acquires, implements, operates, approves, maintains, and monitors environmental protections, software, data backup processes, and recovery infrastructure"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "Availability"
+
+CC7.4:
+  name: "The entity responds to identified security incidents by executing a defined incident response program to understand, contain, remediate, and communicate security incidents, as appropriate"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "System Operations"
+
+A1.3:
+  name: "The entity tests recovery plan procedures supporting system recovery to meet its objectives"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "Availability"
+
+CC7.5:
+  name: "The entity identifies, develops, and implements activities to recover from identified security incidents"
+  url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2"
+  category: "System Operations"

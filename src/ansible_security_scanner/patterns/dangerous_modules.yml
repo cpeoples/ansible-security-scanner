@@ -1,0 +1,127 @@
+name: "Dangerous Module Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects usage of dangerous or deprecated Ansible modules"
+
+patterns:
+  - id: "raw_module_usage"
+    category: "dangerous_modules"
+    severity: "HIGH"
+    title: "Raw Module Usage"
+    description: >-
+        Task uses the raw module, which sends commands over SSH without going
+        through Ansible's Python module layer. Raw bypasses no_log, check mode, and
+        idempotency, and should be reserved for bootstrap only.
+    regex: "^\\s*(?:ansible\\.builtin\\.)?raw:"
+    positive_examples:
+      - "raw: echo 汉语"
+    recommendation: "Use ansible.builtin.command (no shell parsing) or a purpose-built module (ansible.builtin.package, ansible.builtin.service, ansible.builtin.copy) instead of raw:; reserve raw: for bootstrap on hosts that genuinely lack a Python interpreter."
+    cwe: ['CWE-20', 'CWE-78']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "command_module_with_shell"
+    category: "dangerous_modules"
+    severity: "MEDIUM"
+    title: "Command Module with Shell Features"
+    description: >-
+        Task uses the command module but its arguments contain shell metacharacters
+        (|, ;, &, `, $, ()). Either switch to the shell module deliberately or
+        remove the metacharacters; the current shape silently treats them as
+        literals.
+    regex: "^\\s*(?:ansible\\.builtin\\.)?command:.*[|;&`$()]"
+    positive_examples:
+      - "command: \"grep -Pzq '/bin/dummy{{ item }}\\\\n{{ 60 + item|int }}' '{{ alternatives_dir }}/dummy'\""
+    recommendation: "ansible.builtin.command does not invoke a shell, so |, ;, &, `, $(), and () are passed as literal argv tokens and will not behave as expected; either switch to ansible.builtin.shell deliberately (and quote variables with | quote) or refactor into the appropriate dedicated module."
+    cwe: ['CWE-77', 'CWE-78']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "script_module_unsafe"
+    category: "dangerous_modules"
+    severity: "MEDIUM"
+    title: "Script Module with Unsafe Parameters"
+    description: >-
+        Script module is invoked with a Jinja2 expression in its argument string,
+        allowing user-controlled input to flow into a remote shell command and
+        enabling injection.
+    # Match script module with templated args on the same line OR across the
+    # usual two-line block form.
+    regex: "(?:ansible\\.builtin\\.)?script:(?:\\s*\\{\\{[^}]+\\}\\}|[\\s\\S]{0,150}?\\{\\{[^}]+\\}\\})"
+    positive_examples:
+      - "script: '{{ lookup(\"file\", local_tmp.path ~ \"/signed-script.ps1\", rstrip=False) }}'"
+    multiline: true
+    window: 6
+    recommendation: "Pass user-controlled values to ansible.builtin.script via the args: list (arguments are properly argv-escaped) rather than interpolating them into the script-path string, and validate the script's source (Vault-encrypted, pinned-SHA artifact)."
+    cwe: ['CWE-20', 'CWE-78']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004', 'T1105']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "assemble_module_unsafe"
+    category: "dangerous_modules"
+    severity: "MEDIUM"
+    title: "Assemble Module with User Input"
+    description: >-
+        assemble module's `src:` is templated from a user-controlled variable.
+        Attacker-controlled paths can pull files from outside the intended directory
+        and concatenate them into the destination.
+    # Covers inline (`assemble: src=...`) and block form (`assemble:\n  src: {{ x }}`).
+    regex: "(?:ansible\\.builtin\\.)?assemble:[\\s\\S]{0,200}?src:\\s*['\"]?\\{\\{[^}]+\\}\\}"
+    multiline: true
+    window: 8
+    positive_examples:
+      - |2-
+            - ansible.builtin.assemble:
+                src: "{{ user_supplied_dir }}"
+                dest: /etc/ssh/sshd_config
+    negative_examples:
+      - |2-
+            - ansible.builtin.assemble:
+                src: /etc/myapp/fragments
+                dest: /etc/myapp/full.conf
+    recommendation: "Constrain ansible.builtin.assemble's src: to a controller-trusted directory literal; if a variable is required, validate it against a strict allow-list with ansible.builtin.assert before the assemble call."
+    cwe: ['CWE-20', 'CWE-22']
+    owasp_appsec: ["A01:2021", "A03:2021"]
+    owasp_asvs: ["V12.3.1", "V12.3.5"]
+    mitre_attack: ['T1565.001']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "fetch_module_unsafe_dest"
+    category: "dangerous_modules"
+    severity: "MEDIUM"
+    title: "Fetch Module with Unsafe Destination"
+    description: >-
+        fetch module's `dest:` is templated from a user-controlled variable. A
+        path-traversal payload writes the fetched file outside the controller's
+        expected directory.
+    regex: "(?:ansible\\.builtin\\.)?fetch:[\\s\\S]{0,200}?dest:\\s*['\"]?\\{\\{[^}]+\\}\\}"
+    positive_examples:
+      - |2-
+        fetch:
+            src: '{{ remote_tmp_dir }}\signing.pfx'
+            dest: '{{ local_tmp.path }}
+    multiline: true
+    window: 8
+    recommendation: "Build dest: from controller-trusted facts (e.g. ansible_facts['hostname']) and validate any variable input against an allow-list to prevent traversal outside the intended fetch directory."
+    cwe: ['CWE-20', 'CWE-22']
+    owasp_appsec: ["A01:2021", "A03:2021"]
+    owasp_asvs: ["V12.3.1", "V12.3.5"]
+    mitre_attack: ['T1005']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4']
+    soc2: ['CC7.1', 'CC8.1']

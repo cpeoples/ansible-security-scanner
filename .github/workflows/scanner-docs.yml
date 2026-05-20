@@ -1,0 +1,90 @@
+name: Build & Deploy Scanner Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/ansible_security_scanner/patterns/**"
+      - ".hugo/**"
+      - "docs/**"
+      - "README.md"
+      - ".github/workflows/scanner-docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install pyyaml
+
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Generate Hugo content from patterns
+        env:
+          HUGO_BASEURL: ${{ steps.pages.outputs.base_url || '/' }}
+        run: python .hugo/scripts/build_docs.py
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: "0.141.0"
+          extended: true
+
+      - name: Verify Hugo theme submodule
+        working-directory: .hugo
+        run: |
+          if [ ! -f "themes/hugo-theme-relearn/layouts/_default/baseof.html" ]; then
+            echo "ERROR: Theme submodule not populated. Did actions/checkout run with submodules: recursive?"
+            exit 1
+          fi
+
+      - name: Build Hugo site
+        working-directory: .hugo
+        env:
+          HUGO_ENVIRONMENT: production
+        run: |
+          hugo --minify --baseURL "${{ steps.pages.outputs.base_url || '/' }}"
+
+          if [ ! -f public/index.html ]; then
+            echo "ERROR: Hugo build failed - no index.html generated"
+            exit 1
+          fi
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .hugo/public
+
+  deploy-docs:
+    needs: build-docs
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

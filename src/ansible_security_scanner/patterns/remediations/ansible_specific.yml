@@ -1,0 +1,212 @@
+# Companion Secure Fix snippets for ansible_specific rules.
+
+remediations:
+
+  # -- Inventory variable secrets (move to vault / external) --
+  ansible_become_pass:
+    secure_fix: |
+      # group_vars/all/secrets.yml (encrypted with `ansible-vault encrypt`)
+      ansible_become_pass: "{{ vault_become_pass }}"
+      # vault_become_pass lives in a separate vaulted file or is sourced
+      # from HashiCorp Vault via the community.hashi_vault.vault_kv2_get
+      # lookup. NEVER commit the cleartext value to inventory.
+
+  ansible_connection_password:
+    secure_fix: |
+      # Use SSH keys (preferred) or pull the password from a secret store
+      ansible_user: deploy
+      ansible_ssh_private_key_file: "~/.ssh/id_ed25519_deploy"
+      # If a password is unavoidable, source it via lookup at runtime:
+      ansible_password: "{{ lookup('community.hashi_vault.vault_kv2_get', 'ssh/{{ inventory_hostname }}', engine_mount_point='secret').data.data.password }}"
+
+  ansible_ssh_pass:
+    secure_fix: |
+      # Prefer key-based SSH; if a password is required, vault it
+      ansible_user: deploy
+      ansible_ssh_private_key_file: "~/.ssh/id_ed25519_deploy"
+      ansible_ssh_pass: "{{ vault_ssh_pass }}"   # vaulted file only
+
+  ansible_winrm_password:
+    secure_fix: |
+      # WinRM with vaulted password + HTTPS + cert validation
+      ansible_user: ansible-svc@CORP
+      ansible_password: "{{ vault_winrm_password }}"
+      ansible_connection: winrm
+      ansible_winrm_transport: kerberos
+      ansible_winrm_scheme: https
+      ansible_port: 5986
+      ansible_winrm_server_cert_validation: validate
+
+  vault_password_file:
+    secure_fix: |
+      # ansible.cfg - point at an executable script that fetches from
+      # a secret store (Vault / 1Password CLI / macOS Keychain), so no
+      # password ever sits on disk.
+      [defaults]
+      vault_password_file = ~/.config/ansible/vault-password.sh
+
+      # vault-password.sh:
+      # #!/usr/bin/env bash
+      # set -euo pipefail
+      # vault kv get -field=password secret/ansible/vault-passwords/$ANSIBLE_VAULT_ID
+
+  # -- AWX / Automation Controller hardening --
+  awx_ask_credential_on_launch:
+    secure_fix: |
+      - name: AWX Job Template - bound credential, never prompt at launch
+        awx.awx.job_template:
+          name: deploy-app
+          job_type: run
+          inventory: prod
+          project: app-playbooks
+          playbook: deploy.yml
+          credentials: ["app-deploy-ssh", "app-aws-credentials"]
+          ask_credential_on_launch: false
+          ask_variables_on_launch: false
+          state: present
+
+  awx_controller_host_literal_admin:
+    secure_fix: |
+      # Use the SCM-bound admin token, never `admin` literal
+      - name: AWX call from CI - service account token only
+        awx.awx.job_launch:
+          job_template: deploy-app
+          controller_host: "{{ awx_url }}"
+          controller_oauthtoken: "{{ vault_awx_ci_token }}"
+          extra_vars:
+            release_tag: "{{ ci_release_tag }}"
+
+  awx_credential_inputs_literal:
+    secure_fix: |
+      - name: AWX credential - input fields filled from vault, not literals
+        awx.awx.credential:
+          name: app-aws-credentials
+          credential_type: AWS Access Key
+          inputs:
+            username: "{{ vault_aws_access_key_id }}"
+            password: "{{ vault_aws_secret_access_key }}"
+          state: present
+
+  awx_execution_environment_privileged:
+    secure_fix: |
+      - name: AWX EE - never privileged, run as non-root, drop caps
+        awx.awx.execution_environment:
+          name: ee-internal-rhel9
+          image: registry.internal.example.com/ee/ansible/ee-rhel9@sha256:<digest>
+          credential: ee-pull-credential
+          state: present
+        # Privilege flags are set on the ContainerGroup pod_spec, NOT
+        # on the EE record. Make sure the ContainerGroup's pod_spec
+        # has securityContext.privileged=false and runAsNonRoot=true.
+
+  awx_inventory_source_untrusted_scm:
+    secure_fix: |
+      - name: AWX inventory source - bound to org SCM project, signed
+        awx.awx.inventory_source:
+          name: prod-from-scm
+          inventory: prod
+          source: scm
+          source_project: prod-inventory   # internal git project
+          source_path: inventories/prod/hosts.yml
+          update_on_launch: true
+          verbosity: 0
+          state: present
+
+  awx_job_launch_user_extra_vars:
+    secure_fix: |
+      - name: Job template - extra_vars locked, no launch-time override
+        awx.awx.job_template:
+          name: deploy-app
+          ask_variables_on_launch: false
+          extra_vars:
+            release_tag: "{{ release_tag | default('stable') }}"
+          survey_enabled: true   # use a survey for any user input
+          state: present
+
+  awx_notification_template_token:
+    secure_fix: |
+      - name: AWX notification - secret token from vault
+        awx.awx.notification_template:
+          name: slack-prod-deploys
+          notification_type: slack
+          notification_configuration:
+            token: "{{ vault_slack_webhook_token }}"
+            channels: ["#prod-deploys"]
+          state: present
+
+  awx_oauth_token_literal:
+    secure_fix: |
+      # Never put a literal OAuth token in playbooks; load from vault
+      - name: AWX call - controller token from vault
+        awx.awx.job_launch:
+          job_template: nightly-cleanup
+          controller_oauthtoken: "{{ lookup('community.hashi_vault.vault_kv2_get', 'awx/ci-token', engine_mount_point='secret').data.data.token }}"
+
+  awx_survey_password_literal_default:
+    secure_fix: |
+      - name: AWX survey - password questions with empty default
+        awx.awx.job_template:
+          name: rotate-app-password
+          survey_enabled: true
+          survey_spec:
+            name: rotate-pwd
+            description: "Rotate the application password"
+            spec:
+              - question_name: New password
+                variable: new_password
+                type: password
+                default: ""    # never a literal default for password
+                required: true
+          state: present
+
+  awx_webhook_secret_literal:
+    secure_fix: |
+      - name: AWX webhook secret pulled from vault
+        awx.awx.job_template:
+          name: pr-deploy
+          webhook_service: github
+          webhook_credential: github-webhook-secret   # contains $vault_*
+          state: present
+
+  # -- Container/Engine privilege drops --
+  docker_socket_mounted_into_task:
+    secure_fix: |
+      - name: Container WITHOUT docker.sock mount; use BuildKit/Buildah
+        community.docker.docker_container:
+          name: builder
+          image: gcr.io/kaniko-project/executor:v1.22.0
+          read_only: true
+          security_opts: ["no-new-privileges:true"]
+          cap_drop: ["ALL"]
+          # NOT mounted: /var/run/docker.sock
+          state: started
+
+  podman_container_privileged:
+    secure_fix: |
+      - name: Podman rootless container, no privileges, dropped caps
+        containers.podman.podman_container:
+          name: app
+          image: registry.internal.example.com/app:1.2.3
+          privileged: false
+          user: "1001:1001"
+          read_only: true
+          cap_drop: ["ALL"]
+          security_opt: ["no-new-privileges=true", "seccomp=/etc/containers/seccomp.json"]
+          state: started
+
+  # -- Terraform via Ansible --
+  terraform_apply_auto_approve_from_ansible:
+    secure_fix: |
+      - name: Terraform plan-only via Ansible; apply runs in CI w/ approval
+        community.general.terraform:
+          project_path: /opt/iac/network
+          state: planned
+          plan_file: /tmp/network.tfplan
+          variables:
+            env: prod
+        register: tf_plan
+      - name: Capture plan diff for human review (PR comment / review-app)
+        ansible.builtin.copy:
+          content: "{{ tf_plan.stdout }}"
+          dest: artifacts/network.plan.txt
+        delegate_to: localhost

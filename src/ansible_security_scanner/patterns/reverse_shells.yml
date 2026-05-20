@@ -1,0 +1,363 @@
+name: "Reverse Shell Detection"
+author: "Ansible Security Scanner Team"
+description: "Detects reverse shell payloads, bind shells, and interactive shell spawning techniques across multiple languages and protocols"
+
+patterns:
+  - id: "bash_dev_tcp_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Bash /dev/tcp Reverse Shell"
+    description: "Uses bash /dev/tcp to open a reverse shell connection to a remote host"
+    regex: "/dev/tcp/[^\\s]+/\\d+|/dev/udp/[^\\s]+/\\d+"
+    positive_examples:
+      - "/dev/tcp/x/0"
+    recommendation: "Remove this reverse shell payload immediately and investigate the source"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "python_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Python Reverse Shell"
+    description: "Spawns a reverse shell using Python socket and subprocess modules"
+    regex: "python[23]?\\s+(?:-c\\s+)?['\"]?import\\s+(?:socket|pty|os).*(?:subprocess|connect|spawn)"
+    positive_examples:
+      - "python import socketsubprocess"
+    recommendation: "Remove this reverse shell payload immediately and investigate the source"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.006', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "perl_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Perl Reverse Shell"
+    description: >-
+        perl -e ... uses IO::Socket / socket(AF_INET) / exec /bin/sh to spawn a
+        reverse shell. Perl is preinstalled on most Linux boxes, making this a
+        portable post-exploitation idiom.
+    regex: "perl\\s+(?:-e\\s+)?['\"]?.*(?:IO::Socket|socket\\s*\\(.*AF_INET|exec.*\"/bin/(?:ba)?sh)"
+    positive_examples:
+      - "perl IO::Socket"
+    recommendation: "Remove this reverse shell payload immediately and investigate the source"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "ruby_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Ruby Reverse Shell"
+    description: >-
+        ruby -e ... uses TCPSocket.new/open or Socket.tcp combined with
+        exec/spawn/system. The shape is a textbook Ruby reverse shell one-liner.
+    regex: "ruby\\s+(?:-e\\s+)?['\"]?.*(?:TCPSocket\\.(?:new|open)|Socket\\.tcp).*(?:exec|spawn|system)"
+    positive_examples:
+      - "ruby TCPSocket.newexec"
+    recommendation: "Remove this reverse shell payload immediately and investigate the source"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "php_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "PHP Reverse Shell"
+    description: >-
+        php -r ... combines fsockopen/socket_create/proc_open/popen with
+        exec/passthru/shell_exec or /bin/sh. Webshells often hand off to this shape
+        after initial access.
+    regex: "php\\s+(?:-r\\s+)?['\"]?.*(?:fsockopen|socket_create|proc_open|popen).*(?:exec|passthru|shell_exec|/bin/(?:ba)?sh)"
+    positive_examples:
+      - "php fsockopenexec"
+    recommendation: "Remove this reverse shell payload immediately and investigate the source"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "netcat_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Netcat Reverse Shell"
+    description: >-
+        nc/ncat/netcat is invoked with -e /bin/sh, -c /bin/sh, or piped to /bin/sh.
+        All three are direct reverse / bind shell constructions.
+    regex: "\\b(?:nc|ncat|netcat)\\b.*(?:-e\\s+/bin/(?:ba)?sh|-c\\s+/bin/(?:ba)?sh|\\|\\s*/bin/(?:ba)?sh)"
+    positive_examples:
+      - "nc-e /bin/sh"
+    recommendation: "Remove this reverse shell payload immediately and investigate the source"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "socat_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Socat Reverse Shell"
+    description: >-
+        socat builds an EXEC:/bin/sh <-> TCP[46] pair, or uses pty,stderr,setsid.
+        socat reverse shells are TTY-grade and favoured for interactive
+        post-exploitation.
+    regex: "socat\\s+.*(?:EXEC:.*(?:/bin/(?:ba)?sh|cmd\\.exe)|TCP[46]?:.*EXEC|EXEC.*TCP|pty,stderr,setsid)"
+    positive_examples:
+      - "socat EXEC:/bin/sh"
+    recommendation: "Remove this reverse shell payload immediately and investigate the source"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "mkfifo_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Named Pipe (mkfifo) Reverse Shell"
+    description: >-
+        mkfifo is followed by nc/ncat/cat plumbed to /bin/sh -i. The named-pipe
+        shape gives a working reverse shell on hosts where nc lacks -e support.
+    regex: "mkfifo\\s+\\S+.*(?:nc|ncat|cat).*(?:/bin/(?:ba)?sh|sh\\s+-i)"
+    positive_examples:
+      - "mkfifo 0nc/bin/sh"
+    recommendation: "Remove this reverse shell payload immediately and investigate the source"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "bash_interactive_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Bash Interactive Reverse Shell"
+    description: "Spawns an interactive bash shell redirected to a network connection"
+    regex: "(?:bash|sh|zsh)\\s+-i\\s+[>|&]+\\s*/dev/|0<&\\d+.*exec\\s+\\d+<>/dev/tcp"
+    positive_examples:
+      - "bash -i >/dev/"
+    recommendation: "Remove this reverse shell payload immediately and investigate the source"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "openssl_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "OpenSSL Encrypted Reverse Shell"
+    description: >-
+        openssl s_client -connect <host>:<port> with /bin/sh, exec, or bash. The
+        TLS-wrapped reverse shell evades plaintext network IDS rules.
+    regex: "openssl\\s+s_client\\s+.*-connect\\s+[^\\s]+:\\d+.*(?:/bin/(?:ba)?sh|exec|bash)"
+    positive_examples:
+      - "openssl s_client -connect x:0/bin/sh"
+    recommendation: "Remove this encrypted reverse shell payload immediately"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004', 'T1573.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "lua_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Lua Reverse Shell"
+    description: >-
+        lua -e uses socket.tcp or os.execute with /bin/sh / cmd. Lua is preinstalled
+        on many networking devices and routers, making this a quiet reverse-shell
+        shape.
+    regex: "lua[5.]?\\d*\\s+(?:-e\\s+)?['\"]?.*(?:socket\\.tcp|os\\.execute.*(?:/bin/(?:ba)?sh|cmd))"
+    positive_examples:
+      - "lua socket.tcp"
+    recommendation: "Remove this reverse shell payload immediately"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "telnet_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Telnet Reverse Shell"
+    description: "Uses telnet piped to a shell for reverse shell functionality"
+    regex: "telnet\\s+\\S+\\s+\\d+\\s*\\|\\s*/bin/(?:ba)?sh"
+    positive_examples:
+      - "telnet 0 0|/bin/sh"
+    recommendation: "Remove this reverse shell payload immediately"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "awk_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Awk/Gawk Reverse Shell"
+    description: >-
+        awk/gawk/mawk/nawk uses /inet/tcp/<host>/<port>/0 with RS/ORS/BEGIN. gawk's
+        inet networking is the canonical reverse-shell idiom on hardened-shell
+        hosts.
+    regex: "(?:g?awk|mawk|nawk).*(?:/inet/tcp/|RS=.*ORS=.*BEGIN)"
+    positive_examples:
+      - "awk/inet/tcp/"
+    recommendation: "Remove this reverse shell payload immediately"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "node_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Node.js Reverse Shell"
+    description: >-
+        node -e combines child_process / net.Socket / require('spawn') /
+        require('exec') with connect or /bin/sh. The shape is a Node.js one-liner
+        reverse shell.
+    regex: "node\\s+(?:-e\\s+)?['\"]?.*(?:child_process|net\\.Socket|require.*spawn|require.*exec).*(?:connect|/bin/(?:ba)?sh)"
+    positive_examples:
+      - "node child_processconnect"
+    recommendation: "Remove this reverse shell payload immediately"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.007', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "powershell_tcp_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "PowerShell TCP Reverse Shell"
+    description: "Uses PowerShell .NET sockets to establish a reverse shell connection"
+    regex: '(?:New-Object|System)\.?Net\.Sockets\.TCPClient|Net\.Sockets\.TcpListener'
+    positive_examples:
+      - "New-ObjectNet.Sockets.TCPClient"
+    recommendation: "Remove this PowerShell reverse shell payload immediately and investigate the source"
+    no_ansible_remediation: true
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.001', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "java_runtime_exec_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Java Runtime Exec Reverse Shell"
+    description: "Uses Java Runtime.getRuntime().exec() with socket redirection to spawn a reverse shell"
+    regex: 'Runtime\.getRuntime\(\)\.exec\(.*(?:/bin/(?:ba)?sh|cmd\.exe|socket|ServerSocket)'
+    positive_examples:
+      - "Runtime.getRuntime().exec(/bin/sh"
+    recommendation: "Remove this Java reverse shell payload immediately and investigate the source"
+    no_ansible_remediation: true
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059', 'T1071.001']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "xterm_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "Xterm X11 Reverse Shell"
+    description: "Uses xterm with -display to forward a shell over X11 to a remote attacker"
+    regex: 'xterm\s+-display\s+\S+:\d+'
+    positive_examples:
+      - "xterm -display 0:0"
+    recommendation: "Remove this xterm reverse shell payload immediately; X11 forwarding to external hosts is a known attack vector"
+    no_ansible_remediation: true
+    cwe: ['CWE-200', 'CWE-506']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1021.001', 'T1059.004']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['AC-3', 'CM-6', 'CM-7', 'SC-28', 'SI-3', 'SI-4', 'SI-7']
+    pci_dss: ['2.2.1', '2.2.4', '3.3.1', '3.5.1', '11.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.7', 'CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "dnscat2_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "dnscat2 DNS-Tunneled Shell"
+    description: >-
+        dnscat2 is invoked with --dns/--secret/server= or the binary lives at
+        /dnscat. dnscat2 tunnels a shell over DNS, defeating egress controls that
+        allow recursive resolution.
+    regex: '\bdnscat2?\b.*(?:--dns|--secret|server=)|/dnscat\b'
+    positive_examples:
+      - "dnscat--dns"
+    recommendation: "Remove dnscat2 immediately; it provides a covert C2 channel over DNS"
+    no_ansible_remediation: true
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1071.004', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "powershell_conpty_reverse_shell"
+    category: "reverse_shells"
+    severity: "CRITICAL"
+    title: "PowerShell ConPTY/IEX Reverse Shell"
+    description: "Downloads and executes a PowerShell reverse shell script via IEX with TCPClient"
+    regex: '(?:IWR|Invoke-WebRequest|wget).*\|\s*IEX.*\$TCPClient|\$TCPClient.*(?:GetStream|IEX)'
+    positive_examples:
+      - "IWR|IEX$TCPClient"
+    recommendation: "Remove this PowerShell download-and-execute reverse shell payload immediately"
+    no_ansible_remediation: true
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.001', 'T1105']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-4', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '11.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC7.2', 'CC8.1']

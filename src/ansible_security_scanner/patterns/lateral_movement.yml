@@ -1,0 +1,308 @@
+name: "Ansible Lateral Movement & Abuse"
+author: "Ansible Security Scanner Team"
+description: "Detects abuse of Ansible-specific features for lateral movement, pivoting, and unauthorized host targeting"
+
+patterns:
+  - id: "delegate_to_external_host"
+    category: "lateral_movement"
+    severity: "HIGH"
+    title: "delegate_to with External/Dynamic Host"
+    description: "Uses delegate_to with a variable or IP to pivot execution to an arbitrary host"
+    regex: "\\bdelegate_to:\\s*['\"]?\\{\\{(?!\\s*(?:inventory_hostname\\b|ansible_host\\b|item\\b|groups[\\[.]))\\s*[^}]*\\}\\}"
+    positive_examples:
+      - "delegate_to: \"{{target_host}}\""
+    negative_examples:
+      - "delegate_to: \"{{ inventory_hostname }}\""
+      - "delegate_to: \"{{ ansible_host }}\""
+      - "delegate_to: \"{{ groups['kube_master'][0] }}\""
+      - "delegate_to: \"{{ groups.test | random }}\""
+      - "delegate_to: \"{{ item.host }}\""
+    recommendation: "Ensure delegate_to targets are from a trusted inventory, not user-supplied variables"
+    cwe: ['CWE-20', 'CWE-284']
+    owasp_appsec: ["A01:2021", "A03:2021"]
+    mitre_attack: ['T1021', 'T1210']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7', 'SI-4', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '7.2.1', '7.2.2', '11.3.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "add_host_dynamic"
+    category: "lateral_movement"
+    severity: "HIGH"
+    title: "Dynamic Host Injection via add_host"
+    description: "Dynamically adds a host to the inventory, potentially injecting attacker-controlled targets"
+    regex: "(?:ansible\\.builtin\\.)?add_host:.*(?:name:|hostname:)\\s*['\"]?\\{\\{"
+    positive_examples:
+      - "    add_host: name: \"{{ new_host }}\" groups: dynamic"
+    recommendation: "Only add hosts from trusted sources; validate hostnames against an approved list"
+    no_ansible_remediation: true
+    cwe: ['CWE-20', 'CWE-284']
+    owasp_appsec: ["A01:2021", "A03:2021"]
+    mitre_attack: ['T1021']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC7.1', 'CC8.1']
+
+  - id: "local_action_shell"
+    category: "lateral_movement"
+    severity: "HIGH"
+    title: "local_action with Shell Execution"
+    description: "Executes shell commands on the Ansible controller via local_action, which has access to CI/CD secrets"
+    regex: "local_action:\\s*(?:shell|command|raw)\\s"
+    positive_examples:
+      - "local_action: command echo 123"
+    recommendation: "Avoid local_action with shell; use delegate_to: localhost with proper module calls"
+    no_ansible_remediation: true
+    cwe: ['CWE-78', 'CWE-269']
+    owasp_appsec: ["A03:2021", "A04:2021"]
+    mitre_attack: ['T1059.004', 'T1552.001']
+    cis_controls: ['CIS-4.1', 'CIS-Secrets']
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)', 'CM-6', 'CM-7', 'IA-5(7)', 'SC-28', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '3.5.1', '6.2.4', '6.3.1', '7.2.1', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)']
+    soc2: ['CC6.1', 'CC6.3', 'CC7.1', 'CC8.1']
+
+  - id: "connection_local_shell"
+    category: "lateral_movement"
+    severity: "MEDIUM"
+    title: "connection: local with Shell Module"
+    description: >-
+        Task sets connection: local and then runs shell/command/raw. The commands
+        execute on the Ansible controller, not the target host; this is the textbook
+        shape for accidentally leaking controller secrets.
+    regex: "connection:\\s*local[\\s\\S]{0,200}(?:shell:|command:|raw:)"
+    positive_examples:
+      - |2-
+        connection: local
+          gather_facts: True
+          become: yes
+
+          tasks:
+          - name: Get list of all images based distribution on DigitalOcean
+            shell:
+    recommendation: "Review commands running on the controller; prefer dedicated Ansible modules"
+    no_ansible_remediation: true
+    cwe: ['CWE-78', 'CWE-269']
+    owasp_appsec: ["A03:2021", "A04:2021"]
+    mitre_attack: ['T1059.004']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)', 'CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC7.1', 'CC8.1']
+
+  - id: "ansible_python_interpreter_override"
+    category: "lateral_movement"
+    severity: "CRITICAL"
+    title: "Python Interpreter Override"
+    description: "Overrides ansible_python_interpreter to point to a custom Python binary, potentially executing malicious code"
+    regex: "ansible_python_interpreter:\\s*(?!/usr/bin/python|/usr/bin/env\\s+python|auto)\\S+"
+    positive_examples:
+      - "ANSIBLE_PYTHON_INTERPRETER: \"{{ ansible_python_interpreter }}\""
+    recommendation: "Only use system Python interpreters; never point to user-writable paths"
+    no_ansible_remediation: true
+    cwe: ['CWE-427', 'CWE-494']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1059.006', 'T1574']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['CM-5', 'CM-6', 'CM-7', 'SI-7']
+    pci_dss: ['2.2.1', '2.2.4', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "custom_callback_plugin"
+    category: "lateral_movement"
+    severity: "HIGH"
+    title: "Custom Callback Plugin Registration"
+    description: "Registers a custom callback plugin which executes Python code on every task event"
+    regex: "(?:ANSIBLE_CALLBACK_PLUGINS|callback_plugins)\\s*[=:]|callback_whitelist.*(?!default|profile_tasks|timer)"
+    positive_examples:
+      - "- { regexp: '#callback_plugins', line: \"callback_plugins = /usr/local/lib/python2.7/dist-packages/ara/plugins/callbacks\" }"
+    recommendation: "Only use trusted, audited callback plugins from official sources"
+    no_ansible_remediation: true
+    cwe: ['CWE-94', 'CWE-829']
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1"]
+    mitre_attack: ['T1546']
+    cis_controls: ['CIS-Supply-Chain']
+    nist_controls: ['CM-11', 'SA-10', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1', '6.3.2']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "custom_filter_plugin"
+    category: "lateral_movement"
+    severity: "HIGH"
+    title: "Custom Filter/Lookup Plugin Path"
+    description: "Sets custom filter or lookup plugin paths which allow arbitrary code execution during template rendering"
+    regex: "(?:ANSIBLE_FILTER_PLUGINS|filter_plugins|ANSIBLE_LOOKUP_PLUGINS|lookup_plugins)\\s*[=:]\\s*(?!/usr/)"
+    positive_examples:
+      - "lookup_plugins = {{ ara_setup_plugins.stdout }}/lookup"
+    recommendation: "Only use trusted filter/lookup plugins from official Ansible collections"
+    no_ansible_remediation: true
+    cwe: ['CWE-94', 'CWE-829']
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1"]
+    mitre_attack: ['T1546']
+    cis_controls: ['CIS-Supply-Chain']
+    nist_controls: ['CM-11', 'SA-10', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1', '6.3.2']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "facts_d_injection"
+    category: "lateral_movement"
+    severity: "HIGH"
+    title: "Custom facts.d Script Injection"
+    description: "Deploys scripts to /etc/ansible/facts.d which execute automatically during fact gathering"
+    regex: "(?:dest|path):\\s*['\"]?/etc/ansible/facts\\.d/"
+    positive_examples:
+      - "dest: /etc/ansible/facts.d/"
+    recommendation: "Audit all custom facts scripts; ensure they come from trusted sources and are not user-writable"
+    no_ansible_remediation: true
+    cwe: ['CWE-94', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1546.005']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "wait_for_port_scan"
+    category: "lateral_movement"
+    severity: "MEDIUM"
+    title: "wait_for Used for Port Scanning"
+    description: "Uses ansible wait_for module to probe multiple ports, which can be used for network reconnaissance"
+    regex: "(?:ansible\\.builtin\\.)?wait_for:.*port:\\s*\\{\\{.*\\}\\}.*timeout:\\s*[12345]\\b"
+    positive_examples:
+      - "wait_for:port:{{}}timeout:1"
+    recommendation: "Ensure wait_for is only used for legitimate service readiness checks, not port scanning"
+    no_ansible_remediation: true
+    cwe: ['CWE-200']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1046']
+    cis_controls: ['CIS-13.1']
+    nist_controls: ['AC-3', 'SC-28', 'SI-4']
+    pci_dss: ['3.3.1', '3.5.1', '11.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.7', 'CC7.2']
+
+  - id: "ansible_config_override"
+    category: "lateral_movement"
+    severity: "HIGH"
+    title: "Ansible Configuration Override"
+    description: "Sets ANSIBLE_CONFIG to load a custom configuration that may disable security features or load malicious plugins"
+    regex: "ANSIBLE_CONFIG\\s*[=:]\\s*(?!/etc/ansible/ansible\\.cfg)\\S+"
+    positive_examples:
+      - "export ANSIBLE_CONFIG=$(pwd)/ci/ansible-dev.cfg"
+    recommendation: "Only use the default ansible.cfg; custom configs must be audited for security"
+    no_ansible_remediation: true
+    cwe: ['CWE-427', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1"]
+    mitre_attack: ['T1574.006']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['CM-6', 'CM-7', 'CM-11', 'SA-10', 'SI-7']
+    pci_dss: ['2.2.1', '2.2.4', '6.3.2']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "include_role_from_url"
+    category: "lateral_movement"
+    severity: "HIGH"
+    title: "Role Include from Untrusted Source"
+    description: "Includes a role from a URL or git repository that may contain malicious code"
+    regex: "(?:include_role|import_role):.*(?:src|name):\\s*['\"]?(?:https?://|git@|git://)"
+    positive_examples:
+      - "include_role:src:http://"
+    recommendation: "Only include roles from trusted, pinned sources; use requirements.yml with version locks"
+    no_ansible_remediation: true
+    cwe: ['CWE-494', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1105', 'T1195']
+    cis_controls: ['CIS-Supply-Chain']
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
+    pci_dss: ['6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "ansible_vault_password_env"
+    category: "lateral_movement"
+    severity: "HIGH"
+    title: "Vault Password via Environment Variable"
+    description: "Passes Ansible Vault password through an environment variable which may be logged or leaked"
+    regex: "ANSIBLE_VAULT_PASSWORD\\s*[=:]|vault_password_file.*(?:/dev/stdin|/proc/self)"
+    positive_examples:
+      - "ANSIBLE_VAULT_PASSWORD="
+    recommendation: "Use ansible-vault with --ask-vault-pass or a secure vault password file with restricted permissions"
+    no_ansible_remediation: true
+    cwe: ['CWE-522', 'CWE-532']
+    owasp_appsec: ["A04:2021", "A09:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V7.1.1"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AU-9', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(b)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  # -- Windows / Active Directory Lateral Movement ----------------------------
+  - id: "winrm_unencrypted_transport"
+    category: "lateral_movement"
+    severity: "HIGH"
+    title: "WinRM Configured With Unencrypted Transport"
+    description: "Ansible WinRM connection configured with ansible_winrm_transport=basic over HTTP, ansible_winrm_message_encryption=never, or ansible_port=5985 without transport=ssl - sends credentials and task output in cleartext across the network and enables relay/credential-capture attacks."
+    regex: "(?:ansible_winrm_transport\\s*[:=]\\s*[\"']?basic[\"']?|ansible_winrm_message_encryption\\s*[:=]\\s*[\"']?never[\"']?|ansible_winrm_scheme\\s*[:=]\\s*[\"']?http[\"']?(?!s)|ansible_port\\s*[:=]\\s*5985[\\s\\S]{0,200}ansible_winrm_transport\\s*[:=]\\s*[\"']?(?:basic|plaintext)[\"']?)"
+    positive_examples:
+      - |2-
+        ansible_winrm_scheme: http
+              ansible_winrm_transport: ntlm  # Verifies message encryption over HTTP
+    recommendation: "Use ansible_winrm_transport=kerberos (preferred, domain-joined) or credssp/certificate. Require HTTPS (port 5986) with ansible_winrm_scheme=https and validate the server certificate (ansible_winrm_server_cert_validation=validate)."
+    cwe: ['CWE-319', 'CWE-522']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1021.006', 'T1040', 'T1557.001']
+    cis_controls: ['CIS-3.10', 'CIS-13.10']
+    nist_controls: ['IA-5(7)', 'SC-8', 'SC-8(1)', 'SC-28']
+    pci_dss: ['2.2.7', '3.5.1', '4.2.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(d)', '164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.7']
+
+  - id: "psexec_style_service_install"
+    category: "lateral_movement"
+    severity: "CRITICAL"
+    title: "PsExec-Style Remote Service Install"
+    description: "ansible.windows.win_service installs a service whose path points at a remote SMB share (\\\\host\\share\\binary.exe) or an HTTP(S) URL. This mirrors the PsExec / Impacket lateral movement primitive where a binary is fetched from an attacker-controlled location and started as SYSTEM on the target."
+    regex: "(?:ansible\\.windows\\.win_service|win_service)\\s*:[\\s\\S]{0,400}(?:path|binary_path_name|image_path)\\s*:\\s*[\"']?(?:\\\\\\\\[^\\s\"']+|https?://[^\\s\"']+)"
+    positive_examples:
+      - 'ansible.windows.win_service:path:\\x'
+    recommendation: "Copy the binary to local disk (ansible.windows.win_copy) with checksum verification, then install the service pointing at the local path. Never let the service manager resolve a remote UNC/URL at start time."
+    no_ansible_remediation: true
+    cwe: ['CWE-494', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1021.002', 'T1543.003', 'T1569.002']
+    cis_controls: ['CIS-2.3', 'CIS-4.1']
+    nist_controls: ['CM-5', 'CM-6', 'CM-7', 'CM-11', 'SA-10', 'SI-7']
+    pci_dss: ['2.2.1', '2.2.4', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "ad_constrained_delegation_modify"
+    category: "lateral_movement"
+    severity: "CRITICAL"
+    title: "AD Constrained/Unconstrained Delegation Modification"
+    description: "Modifies msDS-AllowedToDelegateTo, msDS-AllowedToActOnBehalfOfOtherIdentity, userAccountControl=TRUSTED_FOR_DELEGATION, or TrustedToAuthForDelegation on a computer or service account. These attributes control Kerberos delegation; writes let an attacker abuse S4U2Self/S4U2Proxy (Resource-Based Constrained Delegation attack) to impersonate arbitrary users against a target service."
+    regex: "(?:ldap_attr|community\\.general\\.ldap_attrs|microsoft\\.ad\\.(?:computer|user)|win_ad_object|ansible\\.windows\\.win_dsc)\\s*:[\\s\\S]{0,400}(?:msDS-AllowedToDelegateTo|msDS-AllowedToActOnBehalfOfOtherIdentity|TrustedToAuthForDelegation|TRUSTED_FOR_DELEGATION|TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION)"
+    positive_examples:
+      - "ldap_attr:msDS-AllowedToDelegateTo"
+    recommendation: "Delegation attribute writes should only come from Tier-0 administrative automation. Review who has write access (should be limited to domain admins). Audit for Resource-Based Constrained Delegation abuse (see: Elad Shamir 'Wagging the Dog')."
+    no_ansible_remediation: true
+    cwe: ['CWE-269', 'CWE-284']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    mitre_attack: ['T1134.003', 'T1558.003']
+    cis_controls: ['CIS-6.8', 'CIS-16.11']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1', '7.2.2', '7.2.5']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.2', 'CC6.3']

@@ -1,0 +1,17 @@
+{{- /*
+  Custom sidebar logo: Ansible icon on top, site title below, centered.
+  Overrides the stock Relearn logo.html.
+*/ -}}
+<a id="R-logo"
+   class="R-default direction-column"
+   href="{{ partial "permalink.gotmpl" (dict "to" site.Home) }}"
+   style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:0.5rem;padding:0.5rem 0;">
+  <span class="logo-image default-animation">
+    <img src="/assets/ansible.svg"
+         alt=""
+         height="48"
+         class="nolightbox"
+         style="display:block;" />
+  </span>
+  <span class="logo-title default-animation" style="display:block;">{{ site.Title }}</span>
+</a>

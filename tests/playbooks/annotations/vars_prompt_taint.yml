@@ -1,0 +1,58 @@
+---
+# Test fixture: contract for cross_file_taint on vars_prompt sources.
+#
+# `vars_prompt` exists so the *operator running the playbook* can type
+# a value interactively. That operator already has shell access to the
+# Ansible controller - they are not an external attacker, and flagging
+# their typed input as tainted generates a flood of HIGH-severity
+# false positives that drown out the rule's real signal (lookup('url'),
+# register from uri, include_vars from /tmp, ...).
+#
+# Contract: the taint tracker MUST treat register-from-uri and
+# lookup-url as taint sources (kept intentionally as positive controls
+# elsewhere in the corpus), but MUST NOT treat vars_prompt as one.
+#
+# All values are SYNTHETIC.
+
+- name: fixture play for vars_prompt cross-file taint
+  hosts: localhost
+  gather_facts: false
+
+  vars_prompt:
+    - name: admin_password
+      prompt: "Admin password"
+      private: true
+    - name: target_host
+      prompt: "Target host"
+      private: false
+    - name: cluster_name
+      prompt: "Cluster name"
+      private: false
+
+  tasks:
+    # -- Operator-prompted values flowing into sinks - MUST NOT fire ----
+    # Each of these used to produce a HIGH-severity cross_file_taint
+    # finding because vars_prompt was treated as an attacker source.
+    # That is a category error: the operator IS the one running
+    # Ansible, and if they wanted to compromise the host they'd skip
+    # the playbook entirely.
+
+    - name: pass prompted password to an HTTP API                         # scanner-test: reject cross_file_taint
+      ansible.builtin.uri:
+        url: "https://api.example.com/v1/login"
+        method: POST
+        body:
+          password: "{{ admin_password }}"
+        body_format: json
+
+    - name: register node under a prompted cluster name                   # scanner-test: reject cross_file_taint
+      ansible.builtin.shell: >-
+        example-cli cluster register --name "{{ cluster_name }}"
+
+    - name: echo prompted target host for confirmation                    # scanner-test: reject cross_file_taint
+      ansible.builtin.command:
+        cmd: echo "Targeting {{ target_host }}"
+
+    - name: set_fact off a prompted value                                 # scanner-test: reject cross_file_taint
+      ansible.builtin.set_fact:
+        chosen_cluster: "{{ cluster_name }}"

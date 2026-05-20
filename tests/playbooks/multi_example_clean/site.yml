@@ -1,0 +1,21 @@
+---
+# Hardened multi-file fixture: top-level play. Zero findings expected.
+# This playbook imports the ``webapp`` role (see ``roles/webapp/``),
+# which is structured to demonstrate realistic role hygiene:
+#   * ``meta/main.yml``     - minimum supported platforms + role deps
+#   * ``defaults/main.yml`` - safe defaults any override can inherit
+#   * ``tasks/main.yml``    - import-orchestration only; no side effects
+#   * ``tasks/install.yml`` - package install with hash-locked pip
+#   * ``tasks/harden.yml``  - OS-level defensive tuning
+#
+# Every task in the role uses explicit module FQCNs, ``no_log: true``
+# wherever a secret could cross the wire, explicit ``mode:`` + owner/
+# group for files carrying secrets, and hash-pinned artefacts.
+- name: Deploy hardened webapp role to production servers
+  hosts: webservers
+  become: true
+  gather_facts: true
+  tags: [webapp, deploy]
+
+  roles:
+    - role: webapp

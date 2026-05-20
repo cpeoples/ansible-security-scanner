@@ -1,0 +1,77 @@
+<!-- compat way of adding custom scripts in old Hugo documentation -->
+{{- $assetBusting := partialCached "assetbusting.gotmpl" site.Home }}
+
+{{- $filePath := "css/custom.css" }}
+{{- with (resources.Get (printf "/%s" $filePath)) }}
+    <link href="{{ .RelPermalink }}{{ $assetBusting }}" rel="stylesheet">
+{{- else }}
+  {{- if (fileExists (printf "/static/%s" $filePath)) }}
+    <link href="{{ printf "%s" $filePath | relURL }}{{ $assetBusting }}" rel="stylesheet">
+  {{- end }}
+{{- end }}
+
+{{- $filePath := "js/custom.js" }}
+{{- with (resources.Get (printf "/%s" $filePath)) }}
+    <script src="{{ .RelPermalink }}{{ $assetBusting }}" defer></script>
+{{- else }}
+  {{- if (fileExists (printf "/static/%s" $filePath)) }}
+    <script src="{{ printf "%s" $filePath | relURL }}{{ $assetBusting }}" defer></script>
+  {{- end }}
+{{- end }}
+
+<script>
+  (function () {
+    var sidebarSelector = '#R-sidebar li.active a';
+    var done = false;
+
+    function center() {
+      if (done) return;
+      var el = document.querySelector(sidebarSelector);
+      if (!el || !el.scrollIntoView) return;
+      done = true;
+      try {
+        el.scrollIntoView({ block: 'center', behavior: 'instant' });
+      } catch (e) {
+        el.scrollIntoView({ block: 'center' });
+      }
+      var orig = el.scrollIntoView;
+      el.scrollIntoView = function () {};
+      window.setTimeout(function () { el.scrollIntoView = orig; }, 500);
+    }
+
+    var mo = new MutationObserver(function () {
+      center();
+      if (done) mo.disconnect();
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () { center(); mo.disconnect(); }, { once: true });
+    } else {
+      center();
+      mo.disconnect();
+    }
+
+    function clearInlinePadding() {
+      var body = document.getElementById('R-body-inner');
+      if (body && body.style.paddingRight && body.style.paddingRight !== '0px') {
+        body.style.paddingRight = '0px';
+      }
+    }
+
+    function watchPadding() {
+      var body = document.getElementById('R-body-inner');
+      if (!body) return false;
+      clearInlinePadding();
+      new MutationObserver(clearInlinePadding).observe(body, { attributes: true, attributeFilter: ['style'] });
+      return true;
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', watchPadding, { once: true });
+    } else {
+      watchPadding();
+    }
+    window.addEventListener('load', watchPadding);
+  })();
+</script>

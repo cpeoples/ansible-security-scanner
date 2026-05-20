@@ -1,0 +1,25 @@
+---
+# Intentionally-vulnerable multi-file fixture: top-level play. This
+# playbook is a regression corpus for the scanner's cross-file
+# analyses (taint tracking, role-meta hygiene, handler flows). It
+# must produce a deterministic, enumerated set of findings - see
+# ``tests/test_integration.py::test_multi_example_bad_known_findings``
+# for the expected rule IDs.
+#
+# DO NOT deploy this role; every pattern here is a known anti-pattern.
+- name: Deploy intentionally-vulnerable webapp role (regression fixture)
+  hosts: webservers
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    # Cross-file taint source: ``untrusted_token`` is tainted by an
+    # env-lookup that the scanner treats as untrusted input. It is
+    # then referenced inside ``roles/webapp/tasks/install.yml`` -
+    # exercising the TaintTracker's cross-file sink detection.
+    - name: Seed a tainted token from the environment
+      ansible.builtin.set_fact:
+        untrusted_token: "{{ lookup('env', 'UNTRUSTED_TOKEN') }}"
+
+  roles:
+    - role: webapp

@@ -1,0 +1,246 @@
+name: "Jinja2 / Lookup RCE Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects remote code execution and information disclosure via Jinja2 lookups, !unsafe tags, and unsanitised template evaluation in when/set_fact/assert clauses."
+
+patterns:
+  # -- lookup() plugin abuse -----------------------------------------------
+  - id: "lookup_pipe_rce"
+    category: "jinja_lookup_rce"
+    severity: "CRITICAL"
+    title: "lookup('pipe', ...) - Arbitrary Command Execution on Controller"
+    description: "The 'pipe' lookup runs an arbitrary shell command on the Ansible controller and returns its stdout. Any variable interpolation inside makes this an RCE sink."
+    regex: "lookup\\(\\s*['\"]pipe['\"]\\s*,"
+    positive_examples:
+      - "brew_prefix: \"{{ lookup('pipe', 'brew --prefix') }}\""
+    recommendation: "Replace lookup('pipe', ...) with a structured module (command/shell on the target, ansible.builtin.slurp for file contents, or a dedicated lookup plugin). If you truly need to shell out on the controller, pin the command to a string literal and never interpolate user/variable data."
+    cis_controls: ["CIS-5.1"]
+    nist_controls: ['SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']
+    mitre_attack: ["T1059"]
+    cwe: ["CWE-78", "CWE-1336"]
+    owasp_appsec: ["A03:2021"]
+    references: ["https://docs.ansible.com/ansible/latest/collections/ansible/builtin/pipe_lookup.html"]
+
+  - id: "lookup_url_rce"
+    category: "jinja_lookup_rce"
+    severity: "HIGH"
+    title: "lookup('url', ...) - Remote Content Retrieval on Controller"
+    description: "The 'url' lookup fetches content from a URL on the Ansible controller during play compilation. Unpinned URLs and missing validation turn this into a remote-payload sink (SSRF, malicious JSON/YAML ingestion, cache poisoning)."
+    regex: "lookup\\(\\s*['\"]url['\"]\\s*,"
+    positive_examples:
+      - "alertmanager_version: \"{{ (lookup('url', 'https://api.github.com/repos/{{ _alertmanager_repo }}/releases/latest', headers=_github_api_headers,"
+    recommendation: "Fetch the content on the managed host with ansible.builtin.uri/get_url (where validate_certs/checksum can be enforced), or vendor the data into the repo. If you must use lookup('url', ...), pin the URL, require HTTPS, and validate_certs=true."
+    cis_controls: ["CIS-3.4"]
+    mitre_attack: ["T1105"]
+    cwe: ["CWE-918"]
+    owasp_appsec: ["A10:2021"]
+    references: ["https://docs.ansible.com/ansible/latest/collections/ansible/builtin/url_lookup.html"]
+    nist_controls: ['SC-7', 'SC-8', 'SC-28', 'SI-3', 'SI-10']
+    pci_dss: ['1.2.1', '3.5.1', '4.2.1', '6.2.4']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.6', 'CC7.1']
+
+  - id: "lookup_env_leak"
+    category: "jinja_lookup_rce"
+    severity: "MEDIUM"
+    title: "lookup('env', ...) Reading Likely-Sensitive Controller Variable"
+    description: "The 'env' lookup reads environment variables from the Ansible controller process (not the managed host). When the variable name looks like a secret (token, key, password, credentials, AWS_*, GH_*, etc.) this leaks controller secrets into the play scope. Benign env reads like HOME / USER / PATH / CI flag do not match."
+    regex: "lookup\\(\\s*['\"]env['\"]\\s*,\\s*['\"][^'\"]*(?i:(?:secret|token|password|passwd|api[_-]?key|access[_-]?key|private[_-]?key|client[_-]?secret|credential|aws_(?:secret|access|session)|gh_(?:token|pat)|gitlab_token|github_token|npm_token|slack_(?:token|webhook)|stripe_key|oauth)|_KEY|_PASS|_PWD|_TOKEN|_SECRET)"
+    recommendation: "Read secrets from the managed host with ansible.builtin.getent/slurp, or use a secrets backend (hashi_vault, aws_secretsmanager, gcp_secret_manager). Never rely on controller environment for target-side credentials."
+    positive_examples:
+      - "    aws_access: \"{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}\""
+      - "    gh_pat: \"{{ lookup('env', 'GH_TOKEN') }}\""
+      - "    db_pw: \"{{ lookup('env', 'POSTGRES_PASSWORD') }}\""
+      - "    api: \"{{ lookup('env', 'STRIPE_SECRET_KEY') }}\""
+    negative_examples:
+      - "    home_dir: \"{{ lookup('env', 'HOME') }}\""
+      - "    out_dir: \"{{ lookup('env', 'OUTPUT_DIR') }}\""
+      - "    is_ci: \"{{ lookup('env', 'CI') }}\""
+      - "    user: \"{{ lookup('env', 'USER') }}\""
+    cis_controls: ["CIS-6.1"]
+    mitre_attack: ["T1552.001"]
+    cwe: ["CWE-526"]
+    owasp_appsec: ["A05:2021"]
+    nist_controls: ['AC-2', 'AC-6', 'IA-5', 'SC-28']
+    pci_dss: ['3.5.1', '8.2.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)']
+    soc2: ['CC6.1', 'CC6.2']
+
+  - id: "lookup_file_traversal"
+    category: "jinja_lookup_rce"
+    severity: "HIGH"
+    title: "lookup('file', ...) With Attacker-Input Path - Controller File Disclosure"
+    description: "The ``file`` lookup reads files from the Ansible controller filesystem. This rule fires when the lookup path contains an INTEROLATED attacker-controlled variable (``user_input``, ``request_body``, ``query_params``, ``raw_input``, ...) OR a literal ``..`` traversal segment. A compromised inventory variable that flows into a ``file`` lookup can disclose ``/etc/shadow``, ``~/.ssh/id_rsa``, or vaulted secrets from the controller. Role-config path vars like ``{{ directory_name }}/config.yml`` are NOT flagged - they're controller-owned and are the normal shape for parameterised role file-reads; the genuine CWE-22 risk requires attacker-controlled input, which this rule now anchors on."
+    # Fire when EITHER:
+    #   (a) the path contains a literal ``..`` segment (classic
+    #       traversal indicator), OR
+    #   (b) the path interpolates a variable whose NAME matches the
+    #       word-bounded attacker-input allowlist (same tokens as
+    #       ``jinja_in_set_fact_unsafe``).
+    # Role vars like ``{{ directory_name }}`` / ``{{ role_path }}`` /
+    # ``{{ inventory_dir }}`` do NOT match either branch - they're
+    # controller-owned paths and were the dominant FP shape.
+    regex: "lookup\\(\\s*['\"]file['\"]\\s*,\\s*['\"](?:[^'\"]*\\.\\.[\\\\/]|[^'\"]*\\{\\{[^}]*\\b(?:user_input|user_supplied|user_data|user_provided|user_controlled|raw_input|request_body|request_headers?|request_params?|request_input|request_query|query_string|query_params?|post_body|post_data|http_body|http_headers?|form_data|url_params?|untrusted|attacker|ext_input)\\b)"
+    recommendation: "Pin the file path to a literal string or resolve it against a known base directory with ``ansible.builtin.expanduser`` + a canonicalisation check. If the path MUST come from external input, validate it is inside an allow-listed directory before the lookup runs: ``when: lookup_path is regex('^/etc/app/safe/[^/]+$')``. Never pass raw user input to ``lookup('file', ...)``."
+    positive_examples:
+      - "    foo: \"{{ lookup('file', 'reports/{{ user_input }}.csv') }}\""
+      - "    bar: \"{{ lookup('file', '/etc/app/{{ request_body.filename }}') }}\""
+      - "    baz: \"{{ lookup('file', '/etc/app/../../{{ role_conf }}') }}\""
+      - "    qux: \"{{ lookup('file', 'uploads/../etc/passwd') }}\""
+    negative_examples:
+      - "    foo: \"{{ lookup('file', '{{ directory_name }}/default/outputs.conf') }}\""
+      - "    bar: \"{{ lookup('file', '{{ role_path }}/files/config.yml') }}\""
+      - "    baz: \"{{ lookup('file', '{{ playbook_dir }}/vars/secrets.yml') }}\""
+      - "    qux: \"{{ lookup('file', '/etc/ssl/{{ cert_name }}.pem') }}\""
+    cis_controls: ["CIS-6.1"]
+    mitre_attack: ["T1552.001"]
+    cwe: ["CWE-22"]
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V12.3.1", "V12.3.5"]
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'IA-5', 'SI-10']
+    pci_dss: ['6.2.4', '8.2.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)']
+    soc2: ['CC6.1', 'CC6.2', 'CC7.1']
+
+  - id: "lookup_password_write_world_readable"
+    category: "jinja_lookup_rce"
+    severity: "HIGH"
+    title: "lookup('password', ...) Writing Plaintext to Shared Path"
+    description: "lookup('password', '/tmp/...' ) or any world-readable path persists the generated password in plaintext on the controller filesystem."
+    regex: "lookup\\(\\s*['\"]password['\"]\\s*,\\s*['\"]/(?:tmp|var/tmp|dev/shm)"
+    positive_examples:
+      - "zabbix_proxy_mysql_auth_salt: \"{{ lookup('password', '/tmp/saltfile', length=20) }}\""
+    recommendation: "Write generated passwords to a vault-encrypted file, a secrets manager, or a path under the controller user's home with mode 0600."
+    cis_controls: ["CIS-4.3"]
+    mitre_attack: ["T1552.001"]
+    cwe: ["CWE-276"]
+    owasp_appsec: ["A01:2021"]
+    nist_controls: ['AC-3', 'AC-6', 'AC-11', 'CM-6', 'IA-5']
+    pci_dss: ['2.2.1', '7.2.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)']
+    soc2: ['CC6.1']
+
+  # -- !unsafe tag bypasses ------------------------------------------------
+  - id: "unsafe_tag_bypass"
+    category: "jinja_lookup_rce"
+    severity: "HIGH"
+    title: "YAML !unsafe Tag Bypasses Template Sandbox"
+    description: "Marking a value !unsafe tells Ansible to treat the string as literal and skip templating - but when the value is later concatenated into a shell/command/jinja context, the attacker-controlled content bypasses input validation."
+    regex: "!unsafe\\s+"
+    positive_examples:
+      - "playbook: !unsafe |"
+    recommendation: "Remove !unsafe. If you need to pass a literal brace string, escape it with {% raw %}...{% endraw %} at the render site instead of disabling template-aware encoding for the whole value."
+    cis_controls: ["CIS-5.2"]
+    nist_controls: ['IA-5', 'IA-5(1)', 'SI-10']
+    pci_dss: ['6.2.4', '8.3.6']
+    hipaa: ['164.312(d)']
+    soc2: ['CC6.1', 'CC7.1']
+    mitre_attack: ["T1059.004"]
+    cwe: ["CWE-20", "CWE-1336"]
+    owasp_appsec: ["A03:2021"]
+    references: ["https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_advanced_syntax.html#unsafe-or-raw-strings"]
+
+  # -- Jinja in control-flow clauses --------------------------------------
+  - id: "jinja_in_when_clause"
+    category: "jinja_lookup_rce"
+    severity: "HIGH"
+    title: "Jinja2 Expression Wrapped Inside when: Clause"
+    description: "Ansible already treats the body of when: as a Jinja2 expression - wrapping it in {{ }} causes it to be rendered twice, enabling template injection if the inner variable is attacker-controlled."
+    regex: "when:\\s*['\"]?\\{\\{.*\\}\\}"
+    positive_examples:
+      - "when: \"{{'rancher-agent' not in containers.stdout}}\""
+    multiline: true
+    window: 4
+    recommendation: "Write when: conditions as raw Jinja expressions (e.g. when: my_var == 'foo'), never as when: '{{ my_var == \"foo\" }}'. Remove the surrounding {{ }} entirely."
+    cis_controls: ["CIS-5.2"]
+    nist_controls: ['IA-5', 'IA-5(1)', 'SI-10']
+    pci_dss: ['6.2.4', '8.3.6']
+    hipaa: ['164.312(d)']
+    soc2: ['CC6.1', 'CC7.1']
+    mitre_attack: ["T1059.004"]
+    cwe: ["CWE-1336"]
+    references: ["https://docs.ansible.com/ansible/latest/reference_appendices/faq.html#when-should-i-use-or-not-use"]
+
+  - id: "jinja_in_set_fact_unsafe"
+    category: "jinja_lookup_rce"
+    severity: "HIGH"
+    title: "set_fact Assigns Unescaped Template Expression"
+    description: "set_fact with a value like key: '{{ user_input }}' stores the rendered (possibly attacker-controlled) template string as a fact. The next task that interpolates that fact renders it again - classic second-order template injection."
+    # Match only attacker-controlled variable SHAPES, not every identifier
+    # that contains the substring ``user`` / ``header``. The original rule
+    # matched identifiers like ``app_adminUsername``, ``ansible_user``,
+    # ``X_RequestId``, etc. - hundreds of FPs on ordinary config/fact
+    # names whose semantics are nothing like "request body". We now
+    # require the attacker-input marker to be its own token
+    # (``user_input``, ``request_body``, ...) rather than a substring,
+    # which is what the rule was designed for.
+    regex: "set_fact:[\\s\\S]{0,300}?:\\s*['\"]?\\{\\{[^}]*\\b(?:user_input|user_supplied|user_data|user_provided|user_controlled|raw_input|request_body|request_headers?|request_params?|request_input|request_query|query_string|query_params?|post_body|post_data|http_body|http_headers?|form_data|url_params?)\\b[^}]*\\}\\}"
+    multiline: true
+    window: 8
+    recommendation: "Mark attacker-controllable facts as !unsafe at the set_fact site (set_fact: foo: !unsafe '{{ user_input }}') OR sanitise the value with a hardening filter (| regex_replace, | int, | bool). Never pass raw user input through a second template render."
+    positive_examples:
+      - |2-
+            set_fact:
+              foo: "{{ user_input }}"
+      - |2-
+            set_fact:
+              payload: "{{ request_body }}"
+      - |2-
+            set_fact:
+              q: "{{ query_params.search }}"
+    negative_examples:
+      - |2-
+            set_fact:
+              user: "{{ app_adminUsername }}"
+      - |2-
+            set_fact:
+              ssh_user: "{{ ansible_user }}"
+      - |2-
+            set_fact:
+              uid: "{{ admin_user_id }}"
+      - |2-
+            set_fact:
+              ua: "{{ my_useragent }}"
+    cis_controls: ["CIS-5.2"]
+    nist_controls: ['IA-5', 'IA-5(1)', 'SI-10']
+    pci_dss: ['6.2.4', '8.3.6']
+    hipaa: ['164.312(d)']
+    soc2: ['CC6.1', 'CC7.1']
+    mitre_attack: ["T1059.004"]
+    cwe: ["CWE-1336"]
+
+  - id: "jinja_in_assert_msg"
+    category: "jinja_lookup_rce"
+    severity: "MEDIUM"
+    title: "assert: fail_msg Interpolates Unsanitised Variable"
+    description: "fail_msg / success_msg render Jinja2. If they interpolate attacker-controlled data, log exfiltration or second-order SSTI becomes possible."
+    regex: "(?:fail_msg|success_msg):\\s*['\"][^'\"]*\\{\\{[^}]*\\}\\}[^'\"]*['\"]"
+    positive_examples:
+      - "fail_msg: \"The file {{ remote_tmp }}/test_empty.txt does not exist.\""
+    recommendation: "Keep assert messages as literal strings. Reference variables with {{ var | e }} (jinja escape) and never concatenate inventory-derived content into the assertion message."
+    cis_controls: ["CIS-5.2"]
+    nist_controls: ['IA-5', 'IA-5(1)', 'SI-10']
+    pci_dss: ['6.2.4', '8.3.6']
+    hipaa: ['164.312(d)']
+    soc2: ['CC6.1', 'CC7.1']
+    mitre_attack: ["T1059.004"]
+    cwe: ["CWE-1336"]
+
+  - id: "jinja_statement_block_lookup"
+    category: "jinja_lookup_rce"
+    severity: "CRITICAL"
+    title: "Jinja2 {% ... %} Statement Block Invoking lookup/pipe/url"
+    description: "A {% %} statement inside a playbook value can call lookup() directly, bypassing the usual {{ }} context-awareness and letting attackers smuggle command execution through what looks like control flow."
+    regex: "\\{%[^%]*\\blookup\\s*\\(\\s*['\"](?:pipe|url|env|file)['\"]"
+    positive_examples:
+      - "{% if lookup('env', 'DOCKER_CERT_PATH') %}"
+    recommendation: "Never use {% ... %} statement blocks to invoke lookup(). Move the data retrieval into an explicit task (uri/get_url/slurp/vars_files) with pinned inputs."
+    cis_controls: ["CIS-5.2"]
+    nist_controls: ['IA-5', 'IA-5(1)', 'SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1', '8.3.6']
+    hipaa: ['164.312(d)']
+    soc2: ['CC6.1', 'CC7.1']
+    mitre_attack: ["T1059.004"]
+    cwe: ["CWE-78", "CWE-1336"]
+    owasp_appsec: ["A03:2021"]

@@ -1,0 +1,63 @@
+---
+# OS-level hardening. Each task enforces a defensive posture:
+# strengthening sysctls, preventing kernel-module load at runtime,
+# enabling audit logging, and fronting the service with a loopback-
+# only listener. Every task is idempotent and safe to re-apply.
+
+- name: Enforce hardened sysctls
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/60-webapp-hardening.conf
+    state: present
+    reload: true
+  loop: "{{ webapp_sysctls }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Record webapp hardening audit rule (auditd)
+  ansible.builtin.lineinfile:
+    path: /etc/audit/rules.d/60-webapp.rules
+    line: "-w {{ webapp_install_dir }} -p wa -k webapp_integrity"
+    create: true
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Restrict binding so webapp only listens on loopback
+  ansible.builtin.copy:
+    content: |
+      [Service]
+      Environment=WEBAPP_BIND_ADDRESS=127.0.0.1
+    dest: /etc/systemd/system/webapp.service.d/bind.conf
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Wrap cache maintenance in block/rescue/always
+  block:
+    - name: Stop webapp before cache rotation
+      ansible.builtin.systemd:
+        name: webapp
+        state: stopped
+
+    - name: Rotate cache directory atomically
+      ansible.builtin.command: /usr/local/bin/webapp-cache-rotate
+      changed_when: false
+
+  rescue:
+    - name: Record cache-rotation failure for audit pipeline
+      ansible.builtin.lineinfile:
+        path: /var/log/webapp/rotation.log
+        line: "rotation failed at {{ ansible_date_time.iso8601 }}"
+        create: true
+        owner: "{{ webapp_runtime_user }}"
+        group: "{{ webapp_runtime_group }}"
+        mode: "0640"
+
+  always:
+    - name: Ensure webapp is started regardless of rotation outcome
+      ansible.builtin.systemd:
+        name: webapp
+        state: started
+        enabled: true

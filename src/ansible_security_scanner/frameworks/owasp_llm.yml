@@ -1,0 +1,63 @@
+---
+# OWASP Top 10 for Large Language Model Applications - v1.1 (2024)
+#
+# The canonical list of prompt-based / agentic-LLM risks maintained by the
+# OWASP GenAI working group. We pin v1.1 (2024-10) because that's the
+# stable published reference; v2.0 is a draft and subject to churn.
+#
+# IDs use the zero-padded form the project publishes (LLM01, LLM02, ...).
+# Authors may write "LLM1" - the resolver normalises both to the canonical
+# zero-padded form at lookup time.
+#
+# Source: https://genai.owasp.org/llm-top-10/ and
+#         https://owasp.org/www-project-top-10-for-large-language-model-applications/
+
+"LLM01":
+  name: "Prompt Injection"
+  url: "https://genai.owasp.org/llmrisk/llm01-prompt-injection/"
+  version: "1.1"
+
+"LLM02":
+  name: "Insecure Output Handling"
+  url: "https://genai.owasp.org/llmrisk/llm02-insecure-output-handling/"
+  version: "1.1"
+
+"LLM03":
+  name: "Training Data Poisoning"
+  url: "https://genai.owasp.org/llmrisk/llm03-training-data-poisoning/"
+  version: "1.1"
+
+"LLM04":
+  name: "Model Denial of Service"
+  url: "https://genai.owasp.org/llmrisk/llm04-model-denial-of-service/"
+  version: "1.1"
+
+"LLM05":
+  name: "Supply Chain Vulnerabilities"
+  url: "https://genai.owasp.org/llmrisk/llm05-supply-chain-vulnerabilities/"
+  version: "1.1"
+
+"LLM06":
+  name: "Sensitive Information Disclosure"
+  url: "https://genai.owasp.org/llmrisk/llm06-sensitive-information-disclosure/"
+  version: "1.1"
+
+"LLM07":
+  name: "Insecure Plugin Design"
+  url: "https://genai.owasp.org/llmrisk/llm07-insecure-plugin-design/"
+  version: "1.1"
+
+"LLM08":
+  name: "Excessive Agency"
+  url: "https://genai.owasp.org/llmrisk/llm08-excessive-agency/"
+  version: "1.1"
+
+"LLM09":
+  name: "Overreliance"
+  url: "https://genai.owasp.org/llmrisk/llm09-overreliance/"
+  version: "1.1"
+
+"LLM10":
+  name: "Model Theft"
+  url: "https://genai.owasp.org/llmrisk/llm10-model-theft/"
+  version: "1.1"

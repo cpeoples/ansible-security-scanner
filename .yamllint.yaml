@@ -1,0 +1,25 @@
+# yamllint config - https://yamllint.readthedocs.io/
+
+extends: default
+
+ignore: |
+  .venv/
+  .hugo/themes/
+  node_modules/
+  dist/
+  build/
+  tests/playbooks/bad_example.yml
+  tests/playbooks/clean_example.yml
+
+rules:
+  line-length: disable
+  document-start: disable
+  comments-indentation: disable
+  comments:
+    min-spaces-from-content: 1
+  truthy:
+    allowed-values:
+      ['true', 'false', 'True', 'False', 'TRUE', 'FALSE',
+       'yes', 'no', 'Yes', 'No', 'YES', 'NO']
+    check-keys: false
+  trailing-spaces: disable

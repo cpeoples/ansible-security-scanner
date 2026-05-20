@@ -1,0 +1,110 @@
+name: "Webhook Exposure Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects exposed webhook URLs with embedded tokens and secrets"
+
+patterns:
+  - id: "slack_webhook_url"
+    category: "webhook_exposure"
+    severity: "HIGH"
+    title: "Slack Webhook URL with Token"
+    description: >-
+        hooks.slack.com/services/<team>/<channel>/<24-char-secret> is embedded in
+        source. Anyone with the URL can post messages as the bot, which is enough
+        for phishing or social engineering.
+    regex: "https://hooks\\.slack\\.com/services/[A-Z0-9]{9,}/[A-Z0-9]{9,}/[a-zA-Z0-9]{24,}"
+    positive_examples:
+      - "api_url: 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'"
+    recommendation: "Treat the leaked Slack webhook as compromised: revoke it in the Slack app settings, rotate to a new URL, and store the replacement in Ansible Vault or a secrets manager rather than the playbook source."
+    cwe: ['CWE-532', 'CWE-798']
+    owasp_appsec: ["A07:2021", "A09:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V7.1.1", "V14.1.5"]
+    mitre_attack: ['T1552.001', 'T1567']
+    cis_controls: ['CIS-3.3', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AC-6', 'AU-9', 'IA-5', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '7.2.1', '8.6.2', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(b)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3']
+
+  - id: "discord_webhook_url"
+    category: "webhook_exposure"
+    severity: "HIGH"
+    title: "Discord Webhook URL with Token"
+    description: >-
+        discord(app).com/api/webhooks/<id>/<token> is embedded in source. The token
+        gives unrestricted post-as-the-bot access until rotated via the Discord
+        server settings.
+    regex: "https://discord(?:app)?\\.com/api/webhooks/[0-9]+/[a-zA-Z0-9_-]+"
+    positive_examples:
+      - "https://discord.com/api/webhooks/0/a"
+    recommendation: "Treat the leaked Discord webhook as compromised: delete it from the channel integrations panel, issue a new one, and reference the replacement via a Vault-encrypted variable instead of inlining the URL."
+    cwe: ['CWE-532', 'CWE-798']
+    owasp_appsec: ["A07:2021", "A09:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V7.1.1", "V14.1.5"]
+    mitre_attack: ['T1552.001', 'T1567']
+    cis_controls: ['CIS-3.3', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AC-6', 'AU-9', 'IA-5', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '7.2.1', '8.6.2', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(b)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3']
+
+  - id: "teams_webhook_url"
+    category: "webhook_exposure"
+    severity: "HIGH"
+    title: "Microsoft Teams Webhook URL"
+    description: "Microsoft Teams webhook URL contains embedded authentication"
+    regex: "https://[a-zA-Z0-9]+\\.webhook\\.office\\.com/webhookb2/[a-f0-9-]+@[a-f0-9-]+/IncomingWebhook/[a-f0-9]+/[a-f0-9-]+"
+    positive_examples:
+      - "https://a.webhook.office.com/webhookb2/a@a/IncomingWebhook/a/a"
+    recommendation: "Treat the leaked Teams webhook as compromised: remove the connector from the channel, recreate it, and pass the new URL via an Ansible Vault-encrypted variable rather than committing it to source."
+    cwe: ['CWE-532', 'CWE-798']
+    owasp_appsec: ["A07:2021", "A09:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V7.1.1", "V14.1.5"]
+    mitre_attack: ['T1552.001', 'T1567']
+    cis_controls: ['CIS-3.3', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AC-6', 'AU-9', 'IA-5', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '7.2.1', '8.6.2', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(b)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3']
+
+  - id: "generic_webhook_with_token"
+    category: "webhook_exposure"
+    severity: "MEDIUM"
+    title: "Generic Webhook URL with Token"
+    description: >-
+        An arbitrary `webhook` URL carries a `?token=` / `?secret=` / `?key=` query
+        parameter with a 10+ char value. The credential is in clear text in any logs
+        that record the URL.
+    regex: "https?://[^\\s]*webhook[^\\s]*[?&](?:token|secret|key)=[a-zA-Z0-9_-]{10,}"
+    positive_examples:
+      - "http://webhook?token=aaaaaaaaaa"
+    recommendation: "Move the ?token= / ?secret= / ?key= query parameter out of the URL; rotate the token at the receiving service, and pass the new value via the module's headers: (Authorization: Bearer ...) loaded from Ansible Vault."
+    cwe: ['CWE-532', 'CWE-798']
+    owasp_appsec: ["A07:2021", "A09:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V7.1.1", "V14.1.5"]
+    mitre_attack: ['T1552.001', 'T1567']
+    cis_controls: ['CIS-3.3', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AC-6', 'AU-9', 'IA-5', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '7.2.1', '8.6.2', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(b)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3']
+
+  - id: "scim_endpoint_exposed_or_bearer_literal"
+    category: "webhook_exposure"
+    severity: "CRITICAL"
+    title: "SCIM Provisioning Endpoint Exposed Publicly Or Bearer-Token Literal"
+    description: "A task exposes a `/scim/v2/*` endpoint without an IP allowlist / mutual-TLS / WAF rule, or hard-codes the SCIM bearer token (`Authorization: Bearer ...` literal, `scim_token: eyJ...`). SCIM is the identity-sync firehose - a compromised SCIM endpoint lets an attacker provision admin accounts, disable MFA factors, and reset passwords for every user the IdP manages."
+    regex: "(?:/scim/v[12](?:\\.\\d+)?/(?:Users|Groups|Bulk|Schemas)\\b[\\s\\S]{0,400}?(?:allow_from|allow_ip|firewall_rule|client_cert)\\s*[:=]\\s*(?:null|\"\"|''|~))|(?:scim(?:_api)?_token|SCIM_TOKEN|scim_bearer)\\s*[:=]\\s*['\"]?(?:Bearer\\s+)?eyJ[A-Za-z0-9_.-]{40,}['\"]?"
+    positive_examples:
+      - "SCIM_TOKEN: eyJabcdefghijklmnopqrstuvwxyz0123456789ABCDEF"
+    multiline: true
+    window: 15
+    recommendation: "Place the SCIM endpoint behind a WAF with an IP allowlist limited to the IdP's published egress ranges (Okta, Entra publish these). Require mutual TLS if the IdP supports it. Rotate SCIM tokens quarterly via automation; store them in Vault / Key Vault and retrieve at runtime - never literal."
+    cwe: ["CWE-287", "CWE-798"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.1.1", "V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ["T1098.005", "T1190"]
+    cis_controls: ["CIS-6.1", "CIS-Secrets"]
+    nist_controls: ["AC-3", "IA-5", "SC-7"]
+    pci_dss: ["1.2.1", "8.6.2"]
+    hipaa: ["164.312(a)(2)(i)"]
+    soc2: ["CC6.1", "CC6.6"]

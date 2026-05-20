@@ -1,0 +1,443 @@
+# PCI-DSS v4.0 catalog - Payment Card Industry Data Security Standard.
+#
+# Purpose
+# -------
+# Maps every PCI-DSS v4.0 requirement identifier referenced by the scanner's
+# patterns to its requirement name and canonical URL. Consumed by
+# `link_resolver` to enrich findings.
+#
+# Authoring rules
+# ---------------
+# 1. Add only requirements actually referenced by a pattern YAML. The
+#    framework test fails the build if a pattern references an unknown ID.
+# 2. IDs are stored in the canonical form used by PCI SSC: top-level
+#    requirement 1-12, then dotted sub-requirements, e.g.
+#      "1.3.1"       - base requirement
+#      "3.5.1.2"     - sub-sub-requirement (v4 has three-level nesting)
+#    The resolver normalizes on lookup: `pci-3.5.1.2`, `PCI-DSS-3.5.1.2`,
+#    and `3.5.1.2` all match.
+# 3. `name` is the PCI SSC short requirement wording. Source:
+#    https://www.pcisecuritystandards.org/document_library/
+# 4. `url` points to the PCI SSC document library. PCI-SSC does not publish
+#    stable per-requirement URLs, so we use the document-level anchor.
+
+# -- Requirement 1 - Install and Maintain Network Security Controls --------
+"1.2.1":
+  name: "Configuration standards for NSC rulesets are defined and implemented"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "1 - Network Security Controls"
+
+"1.3.1":
+  name: "Inbound traffic to the CDE is restricted to only that which is necessary"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "1 - Network Security Controls"
+
+"1.3.2":
+  name: "Outbound traffic from the CDE is restricted to only that which is necessary"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "1 - Network Security Controls"
+
+"1.4.1":
+  name: "NSCs are implemented between trusted and untrusted networks"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "1 - Network Security Controls"
+
+# -- Requirement 2 - Apply Secure Configurations to All System Components --
+"2.2.1":
+  name: "Configuration standards are developed and maintained for all system components"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "2 - Secure Configuration"
+
+"2.2.2":
+  name: "Vendor default accounts are managed (changed or disabled)"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "2 - Secure Configuration"
+
+"2.2.4":
+  name: "Only necessary services, protocols, daemons, and functions are enabled"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "2 - Secure Configuration"
+
+"2.2.7":
+  name: "All non-console administrative access is encrypted using strong cryptography"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "2 - Secure Configuration"
+
+# -- Requirement 3 - Protect Stored Account Data --------------------------
+"3.3.1":
+  name: "SAD is not retained after authorization"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "3 - Protect Stored Account Data"
+
+"3.5.1":
+  name: "PAN is rendered unreadable wherever it is stored"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "3 - Protect Stored Account Data"
+
+"3.5.1.2":
+  name: "Disk-level / partition-level encryption is only used on removable media, or is used with one of the approved methods of PAN protection"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "3 - Protect Stored Account Data"
+
+"3.6.1":
+  name: "Procedures are defined and implemented to protect cryptographic keys"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "3 - Protect Stored Account Data"
+
+# -- Requirement 4 - Protect Cardholder Data with Strong Cryptography ------
+"4.2.1":
+  name: "Strong cryptography and security protocols safeguard PAN during transmission over open, public networks"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+
+"4.2.2":
+  name: "PAN is secured with strong cryptography whenever it is sent via end-user messaging technologies"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "4 - Protect CHD in Transit"
+
+"4.2.1.1":
+  name: "An inventory of the entity's trusted keys and certificates used to protect PAN is maintained"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "4 - Protect CHD in Transit"
+
+# -- Requirement 6 - Develop and Maintain Secure Systems and Software -----
+"6.2.4":
+  name: "Software engineering techniques are defined for bespoke and custom software"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "6 - Secure Development"
+
+"6.3.1":
+  name: "Security vulnerabilities are identified and managed"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "6 - Secure Development"
+
+"6.3.2":
+  name: "An inventory of bespoke, custom, and third-party software components is maintained"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "6 - Secure Development"
+
+"6.3.3":
+  name: "All system components are protected from known vulnerabilities by installing applicable security patches"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "6 - Secure Development"
+
+# -- Requirement 7 - Restrict Access to System Components and CHD ---------
+"7.2.1":
+  name: "An access control model is defined and includes need-to-know and least privilege"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "7 - Access Control"
+
+"7.2.2":
+  name: "Access is assigned based on job classification and function"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "7 - Access Control"
+
+"7.2.5":
+  name: "All access by application and system accounts is managed"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "7 - Access Control"
+
+# -- Requirement 8 - Identify Users and Authenticate Access ---------------
+"8.2.1":
+  name: "All users are assigned a unique ID before access to system components or CHD is allowed"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "8 - Authentication"
+
+"8.2.2":
+  name: "Group, shared, or generic IDs are managed"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "8 - Authentication"
+
+"8.3.1":
+  name: "All user access is authenticated via at least one authentication factor"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "8 - Authentication"
+
+"8.3.5":
+  name: "Passwords/passphrases are set/reset for first use and reset securely"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "8 - Authentication"
+
+"8.3.6":
+  name: "Passwords/passphrases meet minimum complexity"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "8 - Authentication"
+
+"8.4.2":
+  name: "MFA is implemented for all non-console access into the CDE"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "8 - Authentication"
+
+"8.6.1":
+  name: "Accounts used by systems or applications have interactive login disabled unless required"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "8 - Authentication"
+
+"8.6.2":
+  name: "Passwords/passphrases for accounts used by systems/applications are not hardcoded"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "8 - Authentication"
+
+# -- Requirement 10 - Log and Monitor All Access --------------------------
+"10.2.1":
+  name: "Audit logs are enabled for all system components and cardholder data"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "10 - Logging and Monitoring"
+
+"10.2.1.1":
+  name: "Audit logs capture all individual user access to CHD"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "10 - Logging and Monitoring"
+
+"10.2.1.2":
+  name: "Audit logs capture all actions taken by any individual with admin/root access"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "10 - Logging and Monitoring"
+
+"10.3.1":
+  name: "Read access to audit logs is limited to those with a job-related need"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "10 - Logging and Monitoring"
+
+"10.3.2":
+  name: "Audit log files are protected to prevent modifications by individuals"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "10 - Logging and Monitoring"
+
+"10.3.4":
+  name: "File integrity monitoring or change-detection mechanisms protect audit logs"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "10 - Logging and Monitoring"
+
+"10.4.1":
+  name: "Audit logs are reviewed daily for security events and anomalies"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "10 - Logging and Monitoring"
+
+# -- Requirement 11 - Test Security Systems and Networks Regularly --------
+"11.3.1":
+  name: "Internal vulnerability scans are performed at least once every three months"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "11 - Testing"
+
+"11.3.2":
+  name: "External vulnerability scans are performed at least once every three months and after any significant change"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "11 - Testing"
+
+"11.5.2":
+  name: "A change-detection mechanism (e.g., file integrity monitoring) is deployed to alert personnel to unauthorized modification of critical files, and perform critical file comparisons at least weekly"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "11 - Testing"
+
+# -- Requirement 12 - Support Information Security with Org Policies ------
+"12.10.1":
+  name: "An incident response plan is documented, maintained, and used when a suspected or confirmed security incident occurs"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "12 - Organizational Policies"
+
+"8.5.1":
+  name: "MFA systems are configured to prevent misuse"
+  requirement: "8 - Identify Users and Authenticate Access"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+
+"3.6.4":
+  name: "Cryptographic keys are changed at the end of their defined cryptoperiod"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "3 - Protect Stored Account Data"
+
+"10.5.1":
+  name: "Audit log history is retained and available for analysis for at least 12 months"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "10 - Log and Monitor All Access"
+
+"10.6.1":
+  name: "System clocks and time are synchronized using time-synchronization technology"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "10 - Log and Monitor All Access"
+
+"10.6.3":
+  name: "Time-synchronization settings and data are protected"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "10 - Log and Monitor All Access"
+
+"12.10.3":
+  name: "Specific personnel are designated to be available on a 24/7 basis to respond to suspected or confirmed security incidents"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "12 - Support Information Security with Organizational Policies and Programs"
+
+"8.3.2":
+  name: "Strong cryptography is used to render all authentication factors unreadable during transmission and storage on all system components"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "8 - Identify Users and Authenticate Access"
+
+"11.5.1":
+  name: "Intrusion-detection and/or intrusion-prevention techniques are used to detect and/or prevent intrusions into the network"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "11 - Test Security of Systems and Networks Regularly"
+
+"3.4.1":
+  name: "PAN is rendered unreadable anywhere it is stored"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "3 - Protect Stored Account Data"
+
+"5.2.1":
+  name: "An anti-malware solution(s) is deployed on all system components"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+
+"5.3.3":
+  name: "Periodic malware scans and real-time scans are performed on system components"
+  url: "https://www.pcisecuritystandards.org/document_library/"
+  requirement: "5 - Protect All Systems and Networks From Malicious Software"
+
+2.3.1:
+  name: "Wireless vendor defaults and other security parameters changed before install"
+  url: "https://www.pcisecuritystandards.org/"
+
+3.7.1:
+  name: "Cryptographic key management policies and procedures"
+  url: "https://www.pcisecuritystandards.org/"
+
+1.3.6:
+  name: Place system components that store sensitive data in an internal network zone, segregated from the DMZ
+  requirement: 1 - Network Security Controls
+  url: https://www.pcisecuritystandards.org/document_library/
+2.2.5:
+  name: If any insecure services, protocols, or daemons are present, business justification is documented
+  requirement: 2 - Apply Secure Configurations
+  url: https://www.pcisecuritystandards.org/document_library/
+2.2.3:
+  name: Primary functions requiring different security levels are managed
+  requirement: 2 - Apply Secure Configurations
+  url: https://www.pcisecuritystandards.org/document_library/
+10.5.2:
+  name: Audit logs are protected from unauthorized modifications
+  requirement: 10 - Log and Monitor All Access
+  url: https://www.pcisecuritystandards.org/document_library/
+10.5.3:
+  name: Audit log files are promptly backed up to a secure, central, internal log server or other media
+  requirement: 10 - Log and Monitor All Access
+  url: https://www.pcisecuritystandards.org/document_library/
+10.7.1:
+  name: Failures of critical security control systems are detected, alerted and addressed promptly
+  requirement: 10 - Log and Monitor All Access
+  url: https://www.pcisecuritystandards.org/document_library/
+9.4.1:
+  name: Procedures are developed and implemented to protect hard-copy materials with cardholder data
+  requirement: 9 - Restrict Physical Access to Cardholder Data
+  url: https://www.pcisecuritystandards.org/document_library/
+1.4.2:
+  name: Inbound traffic from untrusted networks to the trusted network is restricted
+  requirement: 1 - Install and Maintain Network Security Controls
+  url: https://www.pcisecuritystandards.org/document_library/
+6.4.1:
+  name: For public-facing web applications, new threats and vulnerabilities are addressed on an ongoing basis
+  requirement: 6 - Develop and Maintain Secure Systems and Software
+  url: https://www.pcisecuritystandards.org/document_library/
+8.2.6:
+  name: Inactive user accounts are removed or disabled within 90 days of inactivity
+  requirement: 8 - Identify Users and Authenticate Access to System Components
+  url: https://www.pcisecuritystandards.org/document_library/
+8.6.3:
+  name: Passwords/passphrases for any application and system accounts are protected against misuse
+  requirement: 8 - Identify Users and Authenticate Access to System Components
+  url: https://www.pcisecuritystandards.org/document_library/
+
+1.4.4:
+  name: System components that store cardholder data are not directly accessible from untrusted networks
+  requirement: 1 - Install and Maintain Network Security Controls
+  url: https://www.pcisecuritystandards.org/document_library/
+
+5.2.2:
+  name: An anti-malware solution(s) is deployed on all system components except those identified in periodic evaluations that conclude the components are not at risk
+  requirement: 5 - Protect All Systems and Networks from Malicious Software
+  url: https://www.pcisecuritystandards.org/document_library/
+
+5.3.1:
+  name: The anti-malware solution(s) is kept current via automatic updates
+  requirement: 5 - Protect All Systems and Networks from Malicious Software
+  url: https://www.pcisecuritystandards.org/document_library/
+
+5.4.1:
+  name: Processes and automated mechanisms are in place to detect and protect personnel against phishing attacks
+  requirement: 5 - Protect All Systems and Networks from Malicious Software
+  url: https://www.pcisecuritystandards.org/document_library/
+
+7.1.1:
+  name: All security policies and operational procedures identified in Requirement 7 are documented, kept up to date, in use, and known to all affected parties
+  requirement: 7 - Restrict Access to System Components and Cardholder Data by Business Need to Know
+  url: https://www.pcisecuritystandards.org/document_library/
+
+7.1.2:
+  name: Roles and responsibilities for performing activities in Requirement 7 are documented, assigned, and understood
+  requirement: 7 - Restrict Access to System Components and Cardholder Data by Business Need to Know
+  url: https://www.pcisecuritystandards.org/document_library/
+
+7.2.4:
+  name: All user accounts and related access privileges, including third-party/vendor accounts, are reviewed periodically
+  requirement: 7 - Restrict Access to System Components and Cardholder Data by Business Need to Know
+  url: https://www.pcisecuritystandards.org/document_library/
+
+8.3.7:
+  name: Individuals are not allowed to submit a new password/passphrase that is the same as any of the last four passwords/passphrases used
+  requirement: 8 - Identify Users and Authenticate Access to System Components
+  url: https://www.pcisecuritystandards.org/document_library/
+
+8.3.9:
+  name: If passwords/passphrases are used as the only authentication factor for user access, they are changed at least once every 90 days; or the security posture of accounts is dynamically analyzed
+  requirement: 8 - Identify Users and Authenticate Access to System Components
+  url: https://www.pcisecuritystandards.org/document_library/
+
+10.2.2:
+  name: Audit logs record sufficient detail for each auditable event to support intrusion detection and incident response
+  requirement: 10 - Log and Monitor All Access to System Components and Cardholder Data
+  url: https://www.pcisecuritystandards.org/document_library/
+
+10.5.4:
+  name: Logs for external-facing technologies are stored on an internal, log server or other media that is difficult to alter
+  requirement: 10 - Log and Monitor All Access to System Components and Cardholder Data
+  url: https://www.pcisecuritystandards.org/document_library/
+
+6.4.3:
+  name: Scripts loaded and executed in the consumer's browser are managed and inventoried
+  requirement: 6 - Develop and Maintain Secure Systems and Software
+  url: https://www.pcisecuritystandards.org/document_library/
+
+6.5.1:
+  name: Bespoke and custom software are developed based on industry standards and/or best practices for secure development
+  requirement: 6 - Develop and Maintain Secure Systems and Software
+  url: https://www.pcisecuritystandards.org/document_library/
+
+7.2.3:
+  name: Required privileges are approved by authorized personnel before access is provisioned
+  requirement: 7 - Restrict Access to System Components and Cardholder Data by Business Need to Know
+  url: https://www.pcisecuritystandards.org/document_library/
+
+1.3.4:
+  name: All other network traffic is specifically permitted; otherwise it is denied
+  requirement: 1 - Install and Maintain Network Security Controls
+  url: https://www.pcisecuritystandards.org/document_library/
+
+10.2.7:
+  name: All creation and deletion of system-level objects are logged
+  requirement: 10 - Log and Monitor All Access to System Components and Cardholder Data
+  url: https://www.pcisecuritystandards.org/document_library/
+
+'4.1':
+  name: Processes and mechanisms for protecting cardholder data with strong cryptography during transmission over open, public networks are defined and documented
+  requirement: 4 - Protect Cardholder Data with Strong Cryptography During Transmission Over Open, Public Networks
+  url: https://www.pcisecuritystandards.org/document_library/
+
+'10.7':
+  name: Failures of critical security control systems are detected, reported, and responded to promptly
+  requirement: 10 - Log and Monitor All Access to System Components and Cardholder Data
+  url: https://www.pcisecuritystandards.org/document_library/
+
+'10.5.5':
+  name: Audit log files are protected to prevent modifications by individuals
+  requirement: 10 - Log and Monitor All Access to System Components and Cardholder Data
+  url: https://www.pcisecuritystandards.org/document_library/
+
+'6.2':
+  name: Bespoke and custom software are developed securely
+  requirement: 6 - Develop and Maintain Secure Systems and Software
+  url: https://www.pcisecuritystandards.org/document_library/

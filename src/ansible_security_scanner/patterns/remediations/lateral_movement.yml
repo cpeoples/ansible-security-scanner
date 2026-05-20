@@ -1,0 +1,32 @@
+# Companion Secure Fix snippets for lateral_movement rules.
+
+remediations:
+
+  winrm_unencrypted_transport:
+    secure_fix: |
+      - name: WinRM - HTTPS listener with cert binding (TCP 5986)
+        ansible.windows.win_powershell:
+          script: |
+            Set-WSManQuickConfig -UseSSL -Force
+            $cert = Get-ChildItem Cert:\LocalMachine\My |
+              Where-Object { $_.Subject -eq "CN=$env:COMPUTERNAME" -and $_.HasPrivateKey } |
+              Select-Object -First 1
+            New-Item WSMan:\localhost\Listener -Transport HTTPS `
+              -Address * -CertificateThumbPrint $cert.Thumbprint -Force
+            # Disable the plaintext HTTP listener
+            Get-ChildItem WSMan:\localhost\Listener |
+              Where-Object Keys -match "Transport=HTTP$" |
+              Remove-Item -Recurse -Force
+            Set-Item WSMan:\localhost\Service\AllowUnencrypted $false
+            Restart-Service WinRM
+
+      - name: ansible.cfg / inventory side - require HTTPS WinRM
+        ansible.builtin.copy:
+          dest: /etc/ansible/host_vars/win-target.yml
+          content: |
+            ansible_connection: winrm
+            ansible_winrm_transport: kerberos
+            ansible_winrm_scheme: https
+            ansible_port: 5986
+            ansible_winrm_server_cert_validation: validate
+          mode: '0640'

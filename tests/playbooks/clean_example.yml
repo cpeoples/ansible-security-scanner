@@ -1,0 +1,314 @@
+---
+# clean_example.yml - A perfectly secure Ansible playbook.
+# This should produce ZERO security findings from the scanner.
+# Uses no Jinja2 templates, no secrets, no dangerous modules.
+
+- name: Deploy application securely
+  hosts: webservers
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Ensure app user exists
+      ansible.builtin.user:
+        name: apprunner
+        shell: /usr/sbin/nologin
+        system: true
+        create_home: false
+
+    - name: Create config directory
+      ansible.builtin.file:
+        path: /etc/myapp
+        state: directory
+        owner: apprunner
+        group: apprunner
+        mode: "0750"
+
+    - name: Create log directory
+      ansible.builtin.file:
+        path: /var/log/myapp
+        state: directory
+        owner: apprunner
+        group: apprunner
+        mode: "0750"
+
+    - name: Install application package
+      ansible.builtin.apt:
+        name: myapp
+        state: present
+        update_cache: true
+
+    - name: Enable and start application service
+      ansible.builtin.systemd:
+        name: myapp
+        enabled: true
+        state: started
+        daemon_reload: true
+
+  handlers:
+    - name: restart app
+      ansible.builtin.systemd:
+        name: myapp
+        state: restarted
+
+# ---------------------------------------------------------------------------
+# Extended clean-practice catalog.
+#
+# Each play below illustrates the canonical **correct** way to do something
+# the scanner otherwise flags. Taken together they exercise the false-
+# positive surface of the scanner on realistic hardening YAML: vault
+# references, proper TLS verification, pinned supply chain, least-
+# privilege containers, block/rescue error handling, credential-task
+# no_log, and structured logging forwarders. The entire playbook must
+# still produce zero findings.
+# ---------------------------------------------------------------------------
+
+
+- name: Secure HTTP + package workflows
+  hosts: api_servers
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Fetch release manifest over verified TLS
+      ansible.builtin.uri:
+        url: https://releases.example.com/manifest.json
+        method: GET
+        return_content: true
+        validate_certs: true
+        status_code: 200
+      register: release_manifest
+      no_log: true
+
+    - name: Verify SLSA provenance attestation for release manifest
+      ansible.builtin.command: >-
+        slsa-verifier verify-artifact
+        --provenance-path /opt/myapp/manifest.intoto.jsonl
+        --source-uri github.com/example/myapp
+        /opt/myapp/manifest.json
+      changed_when: false
+
+    - name: Download signed artifact with checksum pinning
+      ansible.builtin.get_url:
+        url: https://releases.example.com/myapp-1.2.3.tar.gz
+        dest: /opt/myapp/myapp-1.2.3.tar.gz
+        checksum: "sha256:a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90"
+        owner: root
+        group: root
+        mode: "0644"
+        validate_certs: true
+
+    - name: Verify SLSA provenance attestation for downloaded tarball
+      ansible.builtin.command: >-
+        cosign verify-attestation
+        --type slsaprovenance
+        --certificate-identity-regexp "^https://github.com/example/myapp/"
+        --certificate-oidc-issuer-regexp "^https://issuer\\.githubusercontent\\.example/"
+        /opt/myapp/myapp-1.2.3.tar.gz
+      changed_when: false
+
+    - name: Install pip dependencies with hash locking
+      ansible.builtin.pip:
+        name: myapp
+        virtualenv: /opt/myapp/.venv
+        virtualenv_command: /usr/bin/python3 -m venv
+        extra_args: "--require-hashes -r /opt/myapp/requirements.txt --no-deps"
+
+    - name: Apply GPG-verified apt repository
+      ansible.builtin.deb822_repository:
+        name: upstream-myapp
+        types: deb
+        uris: https://apt.example.com/myapp
+        suites: stable
+        components: main
+        signed_by: /etc/apt/keyrings/myapp-archive-keyring.gpg
+        state: present
+
+    - name: Enforce strict sudoers file permissions
+      ansible.builtin.copy:
+        src: files/sudoers.d-myapp
+        dest: /etc/sudoers.d/myapp
+        owner: root
+        group: root
+        mode: "0440"
+        validate: /usr/sbin/visudo -cf %s
+
+
+- name: Credential handling with Ansible Vault
+  hosts: db_servers
+  become: true
+  gather_facts: false
+  vars_files:
+    - vars/vault.yml
+
+  tasks:
+    - name: Write database configuration from vault-encrypted values
+      ansible.builtin.template:
+        src: templates/db.conf.j2
+        dest: /etc/myapp/db.conf
+        owner: apprunner
+        group: apprunner
+        mode: "0600"
+      no_log: true
+
+    - name: Create monitoring user with vault-encrypted password hash
+      ansible.builtin.user:
+        name: monitor
+        password: "{{ vault_monitor_password_hash }}"
+        shell: /usr/sbin/nologin
+        system: true
+        state: present
+      no_log: true
+
+    - name: Reload service after config change
+      ansible.builtin.systemd:
+        name: myapp
+        state: reloaded
+      when: release_manifest is defined
+
+
+- name: Kubernetes pod with defensive defaults
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Deploy hardened pod via k8s module
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: hardened-app
+            namespace: production
+          spec:
+            automountServiceAccountToken: false
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              runAsGroup: 1000
+              fsGroup: 1000
+              seccompProfile:
+                type: RuntimeDefault
+            containers:
+              - name: app
+                image: registry.example.com/myapp:1.2.3@sha256:abc123def456
+                imagePullPolicy: Always
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  readOnlyRootFilesystem: true
+                  capabilities:
+                    drop:
+                      - ALL
+                resources:
+                  limits:
+                    cpu: "500m"
+                    memory: "256Mi"
+                  requests:
+                    cpu: "100m"
+                    memory: "128Mi"
+
+
+- name: Maintenance with proper error handling
+  hosts: webservers
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Rotate application cache with block/rescue/always
+      block:
+        - name: Stop application before cache rotation
+          ansible.builtin.systemd:
+            name: myapp
+            state: stopped
+
+        - name: Rotate cache directory
+          ansible.builtin.command: /usr/local/bin/myapp-cache-rotate
+          changed_when: false
+
+      rescue:
+        - name: Record rotation failure for later audit
+          ansible.builtin.lineinfile:
+            path: /var/log/myapp/rotation.log
+            line: "cache rotation failed at {{ ansible_date_time.iso8601 }}"
+            create: true
+            owner: apprunner
+            group: apprunner
+            mode: "0640"
+
+      always:
+        - name: Ensure application restarts regardless of outcome
+          ansible.builtin.systemd:
+            name: myapp
+            state: started
+
+
+- name: CIS-style hardening directives
+  hosts: bastions
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Ensure SSH protocol 2 and key-only auth in sshd_config
+      ansible.builtin.blockinfile:
+        path: /etc/ssh/sshd_config.d/50-hardening.conf
+        create: true
+        owner: root
+        group: root
+        mode: "0600"
+        block: |
+          Protocol 2
+          PermitRootLogin no
+          PasswordAuthentication no
+          ChallengeResponseAuthentication no
+          UsePAM yes
+          X11Forwarding no
+          MaxAuthTries 4
+          ClientAliveInterval 300
+          ClientAliveCountMax 0
+
+    - name: Enforce password aging policy
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: "^{{ item.key }}"
+        line: "{{ item.key }} {{ item.value }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - { key: MAX_PASSWORD_LIFETIME, value: "90" }
+        - { key: MIN_PASSWORD_LIFETIME, value: "7" }
+        - { key: PASSWORD_EXPIRATION_WARNING, value: "14" }
+
+    - name: Enable and start auditd
+      ansible.builtin.systemd:
+        name: auditd
+        enabled: true
+        state: started
+
+
+- name: CI artifact publication with signed attestations
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Publish SBOM alongside release tarball
+      ansible.builtin.copy:
+        src: "build/myapp-1.2.3.tar.gz.cdx.json"
+        dest: "/srv/releases/myapp-1.2.3.tar.gz.cdx.json"
+        owner: root
+        group: root
+        mode: "0640"
+
+    - name: Verify Sigstore attestation before promoting build
+      ansible.builtin.command:
+        cmd: >-
+          /usr/local/bin/cosign verify-blob
+          --certificate-identity-regexp '^https://github\.com/example-org/myapp/'
+          --certificate-oidc-issuer https://issuer.githubusercontent.example/
+          --signature /srv/releases/myapp-1.2.3.tar.gz.sig
+          --certificate /srv/releases/myapp-1.2.3.tar.gz.cert
+          /srv/releases/myapp-1.2.3.tar.gz
+      changed_when: false
+      register: cosign_result
+      failed_when: cosign_result.rc != 0

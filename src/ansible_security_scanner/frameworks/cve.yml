@@ -1,0 +1,277 @@
+# CVE catalog - publicly disclosed vulnerabilities cited by scanner rules.
+#
+# Purpose
+# -------
+# Maps every CVE identifier referenced by a pattern's ``cve:`` field, title,
+# description, or recommendation to a concise human-readable name and the
+# canonical NVD detail URL. Consumed by ``link_resolver.resolve_cve``.
+#
+# Authoring rules
+# ---------------
+# 1. Add an entry for every CVE referenced anywhere in the patterns/ tree. The
+#    framework-catalog test fails the build if a pattern cites an unknown CVE.
+# 2. IDs are stored in the canonical ``CVE-YYYY-NNNN`` form (uppercase,
+#    hyphenated). The resolver normalizes input so authors may write
+#    ``cve-2024-3094``, ``CVE_2024_3094``, or even bare ``2024-3094`` and still
+#    match.
+# 3. ``name`` is a short identifier (vendor + product + class of vuln, or a
+#    well-known nickname). Keep under ~80 chars; full description belongs in
+#    the rule's ``description``.
+# 4. ``url`` is always the NVD detail page. The resolver synthesizes the same
+#    URL on the fly for valid-but-uncatalogued CVEs, so adding an entry here
+#    is purely for the human-readable ``name``.
+#
+# Note: this catalog is intentionally a hand-curated subset, not a mirror of
+# NVD. Entries exist iff some rule has a reason to cite the CVE.
+
+CVE-2015-2291:
+  name: "Intel iqvw64e.sys driver privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2015-2291"
+
+CVE-2015-4852:
+  name: "Oracle WebLogic T3 Java deserialization RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2015-4852"
+
+CVE-2016-2183:
+  name: "SWEET32 - 3DES/Blowfish 64-bit block cipher birthday attack"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2016-2183"
+
+CVE-2018-1000531:
+  name: "jjwt JWT alg:none signature bypass"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2018-1000531"
+
+CVE-2018-19320:
+  name: "Gigabyte gdrv.sys driver privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2018-19320"
+
+CVE-2019-16098:
+  name: "MSI Afterburner RTCore64.sys driver privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2019-16098"
+
+CVE-2019-5420:
+  name: "Rails secret_key_base default-mode RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2019-5420"
+
+CVE-2020-15228:
+  name: "GitHub Actions ACTIONS_ALLOW_UNSECURE_COMMANDS workflow command injection"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2020-15228"
+
+CVE-2020-25705:
+  name: "SADDNS - Linux kernel ICMP global rate-limit DNS cache-poisoning side channel"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2020-25705"
+
+CVE-2020-8165:
+  name: "Rails ActiveSupport MemCacheStore / RedisCacheStore deserialization RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2020-8165"
+
+CVE-2020-9771:
+  name: "macOS TCC.framework local user privacy bypass"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2020-9771"
+
+CVE-2021-1675:
+  name: "Windows Print Spooler privilege escalation (PrintNightmare precursor)"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2021-1675"
+
+CVE-2021-21551:
+  name: "Dell dbutil_2_3.sys driver privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2021-21551"
+
+CVE-2021-34527:
+  name: "PrintNightmare - Windows Print Spooler RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2021-34527"
+
+CVE-2021-4034:
+  name: "Pwnkit - polkit pkexec local privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2021-4034"
+
+CVE-2021-44228:
+  name: "Log4Shell - Apache Log4j2 JNDI lookup RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2021-44228"
+
+CVE-2021-45046:
+  name: "Apache Log4j2 incomplete Log4Shell fix RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2021-45046"
+
+CVE-2022-0847:
+  name: "Dirty Pipe - Linux kernel pipe page-cache write privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2022-0847"
+
+CVE-2022-1015:
+  name: "Linux kernel netfilter nf_tables out-of-bounds write privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2022-1015"
+
+CVE-2022-1388:
+  name: "F5 BIG-IP iControl REST authentication bypass RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2022-1388"
+
+CVE-2022-22965:
+  name: "Spring4Shell - Spring Framework DataBinder RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2022-22965"
+
+CVE-2022-23222:
+  name: "Linux kernel BPF verifier pointer-arithmetic privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2022-23222"
+
+CVE-2022-32800:
+  name: "macOS TCC.framework SQLite tampering privacy bypass"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2022-32800"
+
+CVE-2023-20198:
+  name: "Cisco IOS XE Web UI privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-20198"
+
+CVE-2023-2163:
+  name: "Linux kernel BPF verifier branch-tracking privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-2163"
+
+CVE-2023-21678:
+  name: "Windows Print Spooler privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-21678"
+
+CVE-2023-22515:
+  name: "Atlassian Confluence Data Center / Server broken access control"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-22515"
+
+CVE-2023-22527:
+  name: "Atlassian Confluence Data Center / Server template injection RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-22527"
+
+CVE-2023-34362:
+  name: "Progress MOVEit Transfer SQL injection RCE (Cl0p campaign)"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-34362"
+
+CVE-2023-40424:
+  name: "macOS TCC.framework local privacy bypass"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-40424"
+
+CVE-2023-46805:
+  name: "Ivanti Connect Secure / Policy Secure web component authentication bypass"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-46805"
+
+CVE-2023-47110:
+  name: "Argo Workflows clusterScope template-resolution privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-47110"
+
+CVE-2023-4966:
+  name: "Citrix Bleed - NetScaler ADC / Gateway session-token disclosure"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-4966"
+
+CVE-2023-6932:
+  name: "Linux kernel ipv4 igmp use-after-free privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-6932"
+
+CVE-2024-0582:
+  name: "Linux kernel io_uring use-after-free privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-0582"
+
+CVE-2024-1086:
+  name: "Linux kernel netfilter nft_verdict_init use-after-free privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-1086"
+
+CVE-2024-10976:
+  name: "PostgreSQL row-security replication RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-10976"
+
+CVE-2024-1708:
+  name: "ConnectWise ScreenConnect path traversal"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-1708"
+
+CVE-2024-1709:
+  name: "ConnectWise ScreenConnect SetupWizard authentication bypass"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-1709"
+
+CVE-2024-20253:
+  name: "Cisco Unified Communications Manager / IM&P pre-auth RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-20253"
+
+CVE-2024-20683:
+  name: "Windows Print Spooler privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-20683"
+
+CVE-2024-21626:
+  name: "Leaky Vessels - runc file-descriptor leak container escape"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-21626"
+
+CVE-2024-21762:
+  name: "Fortinet FortiOS / FortiProxy SSL-VPN out-of-bounds write RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-21762"
+
+CVE-2024-21887:
+  name: "Ivanti Connect Secure / Policy Secure command injection"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-21887"
+
+CVE-2024-23897:
+  name: "Jenkins CLI args4j arbitrary file read"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-23897"
+
+CVE-2024-24919:
+  name: "Check Point Quantum Security Gateway pre-auth arbitrary file read"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-24919"
+
+CVE-2024-26589:
+  name: "Linux kernel eBPF capability privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-26589"
+
+CVE-2024-26808:
+  name: "Linux kernel netfilter user-namespace privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-26808"
+
+CVE-2024-3094:
+  name: "xz-utils / liblzma 5.6.0/5.6.1 SSH-authentication backdoor (Jia Tan)"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-3094"
+
+CVE-2024-32002:
+  name: "git symlink-handling RCE on submodule clone"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-32002"
+
+CVE-2024-3400:
+  name: "Palo Alto PAN-OS GlobalProtect arbitrary file creation RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-3400"
+
+CVE-2024-37080:
+  name: "VMware vCenter Server DCERPC heap-overflow RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-37080"
+
+CVE-2024-38198:
+  name: "Windows Print Spooler privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-38198"
+
+CVE-2024-40967:
+  name: "Linux kernel eBPF capability privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-40967"
+
+CVE-2024-42478:
+  name: "llama.cpp / Ollama GGUF parser memory corruption"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-42478"
+
+CVE-2024-47575:
+  name: "Fortinet FortiManager FortiJndi missing authentication"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-47575"
+
+CVE-2024-53899:
+  name: "Ultralytics PyPI supply-chain compromise"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-53899"
+
+CVE-2024-6235:
+  name: "Citrix NetScaler ADC / Gateway sensitive information disclosure"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-6235"
+
+CVE-2024-6387:
+  name: "regreSSHion - OpenSSH sshd signal-handler race pre-auth RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-6387"
+
+CVE-2024-8114:
+  name: "GitLab CI_JOB_TOKEN scope leak privilege escalation"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-8114"
+
+CVE-2024-8534:
+  name: "Citrix NetScaler ADC / Gateway memory disclosure"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-8534"
+
+CVE-2025-1974:
+  name: "IngressNightmare - ingress-nginx configuration-snippet pre-auth RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2025-1974"
+
+CVE-2025-30066:
+  name: "tj-actions/changed-files retroactive tag-rewrite supply-chain compromise"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2025-30066"

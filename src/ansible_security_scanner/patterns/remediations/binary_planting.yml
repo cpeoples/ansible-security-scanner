@@ -1,0 +1,27 @@
+# Companion Secure Fix snippets for binary_planting rules.
+
+remediations:
+
+  npm_global_install_untrusted:
+    secure_fix: |
+      - name: npm - global install ONLY from internal mirror, with audit
+        community.general.npm:
+          name: typescript
+          version: 5.4.5
+          global: true
+          state: present
+          registry: https://npm.internal.example.com/
+        environment:
+          NPM_CONFIG_AUDIT: "true"
+          NPM_CONFIG_FUND:  "false"
+
+  pip_install_editable_path:
+    secure_fix: |
+      # Don't `pip install -e` from arbitrary writable paths in playbooks.
+      # Build a wheel in CI, sign+pin it, then install:
+      - name: Install pinned, hash-verified wheel
+        ansible.builtin.pip:
+          name: "myapp==1.4.2"
+          extra_args: "--require-hashes -r requirements.lock.txt"
+          virtualenv: /opt/app/venv
+          virtualenv_command: /usr/bin/python3 -m venv

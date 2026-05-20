@@ -1,0 +1,1372 @@
+name: "Insecure Communication Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects insecure communication protocols and credential exposure in URLs"
+
+patterns:
+  - id: "ftp_with_credentials"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "FTP with Embedded Credentials"
+    description: >-
+        FTP URL embeds user:password@ in the authority component. FTP transmits
+        credentials and payload in plaintext; the URL alone is enough for a network
+        observer to authenticate.
+    regex: "ftp://[^@]*:[^@]*@"
+    positive_examples:
+      - "{{ 'ftp://admin:secret@example.com/path/to/myfile.yml' is url }}"
+    recommendation: "FTP transmits the credential and payload in plaintext; switch the URL to sftp:// (transports over SSH) or https:// and source the credential from Ansible Vault / a secrets manager rather than embedding it in the URL."
+    cwe: ["CWE-319", "CWE-522"]
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ["T1040", "T1557"]
+    cis_controls: ["CIS-3.1", "CIS-12.6"]
+    nist_controls: ['AC-3', 'IA-5(7)', 'SC-8', 'SC-8(1)', 'SC-28']
+    pci_dss: ['2.2.7', '3.5.1', '4.2.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(d)', '164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.7']
+
+  - id: "http_basic_auth"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "HTTP Basic Auth in URL"
+    description: >-
+        HTTP URL embeds user:password@ in the authority. Plain-HTTP Basic Auth sends
+        the base64-encoded credential on every request and is recoverable from any
+        on-path observer.
+    regex: "http://[^@]*:[^@]*@"
+    positive_examples:
+      - |2-
+        http://localhost:8080/createItem?name=test <<EOF
+            <com.cloudbees.hudson.plugins.folder.Folder plugin="cloudbees-folder@
+    recommendation: "Embedding user:pass@ in an http:// URL exposes the credential to anyone on the path; rewrite the URL as https://, and supply the credential via the module's url_username / url_password parameters loaded from Ansible Vault."
+    cwe: ["CWE-319", "CWE-522"]
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ["T1040", "T1557"]
+    cis_controls: ["CIS-3.1", "CIS-12.6"]
+    nist_controls: ['AC-3', 'IA-5(7)', 'SC-8', 'SC-8(1)', 'SC-28']
+    pci_dss: ['2.2.7', '3.5.1', '4.2.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(d)', '164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.7']
+
+  - id: "insecure_protocol_usage"
+    category: "insecure_communication"
+    severity: "MEDIUM"
+    title: "Insecure Protocol Usage"
+    description: "An Ansible task value (url, dest, repo, src) references http://, ftp://, or telnet:// for content that is not signature-validated. URLs inside comments, license headers, doc text, and apt_key:/apt_repository: invocations (which are GPG-validated by the package manager) are filtered out post-match."
+    regex: "\\b(?:http|ftp|telnet)://(?!(?:localhost|127\\.0\\.0\\.1|\\[::1\\])(?::|/))"
+    positive_examples:
+      - |2-
+            - name: fetch config
+              ansible.builtin.uri:
+                url: http://internal-api.example.com/v1/config
+      - |2-
+            - name: download tarball
+              ansible.builtin.get_url:
+                url: http://files.example.com/payload.tar.gz
+                dest: /tmp/p.tgz
+    negative_examples:
+      - |2-
+            - name: fetch via https
+              ansible.builtin.uri:
+                url: https://api.example.com/v1/config
+      - |2-
+            - name: localhost ok
+              ansible.builtin.uri:
+                url: http://localhost:8080/healthz
+    recommendation: "Replace http://, ftp://, and telnet:// with their TLS-protected equivalents (https://, sftp:// or ftps://, ssh://); for unauthenticated artifact fetches, additionally pin a SHA-256 via the module's checksum: parameter."
+    cwe: ["CWE-319"]
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    mitre_attack: ["T1040"]
+    cis_controls: ["CIS-12.6"]
+    nist_controls: ['SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.7']
+
+  - id: "ssl_verification_disabled"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "SSL Verification Disabled"
+    description: >-
+        verify_ssl / ssl_verify / check_ssl / validate_certs is set to false/no/0.
+        Disabling cert validation defeats TLS's identity guarantee and reduces
+        transport security to encryption alone.
+    regex: "(?:verify_ssl|ssl_verify|check_ssl|validate_certs):\\s*(?:false|no|0)"
+    positive_examples:
+      - "validate_certs: false"
+    recommendation: "Remove validate_certs: false / verify_ssl: false; if the endpoint uses an internal CA, distribute that CA bundle to the controller and pass it via ca_path: rather than disabling verification."
+    cwe: ["CWE-295", "CWE-297"]
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+    mitre_attack: ["T1557", "T1557.002"]
+    cis_controls: ["CIS-3.1", "CIS-12.6"]
+    nist_controls: ['AC-3', 'SC-8', 'SC-8(1)', 'SC-12', 'SC-28']
+    pci_dss: ['3.5.1', '4.2.1', '4.2.1.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.7']
+
+  - id: "weak_cipher_suite"
+    category: "insecure_communication"
+    severity: "MEDIUM"
+    title: "Weak Cipher Suite"
+    description: >-
+        ssl_cipher / cipher_suite includes RC4, DES, MD5, or SHA1. These primitives
+        are broken or deprecated and trip PCI-DSS, FedRAMP, and most modern cipher
+        policies.
+    regex: "(?:ssl_cipher|cipher_suite).*(?:RC4|DES|MD5|SHA1)"
+    positive_examples:
+      - "ssl_ciphers EECDH+AES128:RSA+AES128:EECDH+AES256:RSA+AES256:EECDH+3DES:RSA+3DES:!MD5;"
+    recommendation: "Drop RC4, single-DES, MD5, and SHA1 from the cipher / MAC list and require a modern TLS 1.2+ profile (e.g. Mozilla Intermediate); for SSH, use a curated Ciphers / MACs / KexAlgorithms list rather than the legacy defaults."
+    cwe: ["CWE-326", "CWE-327"]
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ["T1040"]
+    cis_controls: ["CIS-3.1", "CIS-12.6"]
+    nist_controls: ['AC-3', 'SC-8', 'SC-8(1)', 'SC-28']
+    pci_dss: ['3.5.1', '4.2.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.7']
+
+  - id: "unencrypted_database_connection"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Unencrypted Database Connection"
+    description: >-
+        Database URL pins sslmode=disable or ssl=false. Unencrypted DB connections
+        expose credentials and rows on the wire and fail HIPAA/PCI
+        transit-encryption requirements.
+    regex: "(?:mysql|postgres|mongodb)://.*(?:sslmode=disable|ssl=false)"
+    positive_examples:
+      - "mongodb_exporter_uri: \"mongodb://127.0.0.1:27017/admin?ssl=false\""
+    recommendation: "Set sslmode=require (PostgreSQL) / ssl=true + ssl-mode=REQUIRED (MySQL) / ssl=true (MongoDB), and pin the server CA via sslrootcert / ssl-ca so the TLS handshake actually authenticates the database host."
+    cwe: ["CWE-311", "CWE-319"]
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ["T1040"]
+    cis_controls: ["CIS-3.1"]
+    nist_controls: ['AC-3', 'SC-8', 'SC-8(1)', 'SC-28']
+    pci_dss: ['2.2.7', '3.5.1', '4.2.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['C1.1', 'CC6.7']
+
+  - id: "telnet_usage"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Telnet Protocol Usage"
+    description: "Telnet transmits data (including credentials) in plaintext; use SSH instead"
+    regex: "(?:^|\\s|[\"'])telnet\\s+(?:-\\w+\\s+)*[\\w.-]+"
+    positive_examples:
+      - "deny tcp 198.51.100.0 0.0.0.255 198.51.101.0 0.0.0.255 eq telnet ack tos 12"
+    recommendation: "Replace telnet with ssh (or ansible.builtin.ssh) for interactive sessions and with ansible.builtin.uri / community.general.telnet only for explicit non-credentialed reachability checks against TLS-fronted ports."
+    cwe: ["CWE-319"]
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    mitre_attack: ["T1040"]
+    cis_controls: ["CIS-12.6"]
+    nist_controls: ['SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.7']
+    stig: ['V-230264']
+
+  - id: "plaintext_smtp"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Plaintext SMTP (No TLS)"
+    description: "SMTP mail without TLS/SSL exposes credentials and message content on the wire"
+    regex: "(?:smtp://(?!localhost|127\\.)|(?:secure|tls):\\s*(?:false|no|never|None)\\b.*(?:smtp|mail|postfix)|port:\\s*25\\b(?=.*(?:smtp|mail|postfix)))"
+    positive_examples:
+      - "smtp://"
+    recommendation: "Submit mail on port 587 with STARTTLS or 465 with implicit TLS, set the module's secure: starttls / always option, and authenticate over the encrypted channel rather than port 25 in cleartext."
+    cwe: ["CWE-311", "CWE-319"]
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ["T1040"]
+    cis_controls: ["CIS-3.1", "CIS-12.6"]
+    nist_controls: ['AC-3', 'SC-8', 'SC-8(1)', 'SC-28']
+    pci_dss: ['2.2.7', '3.5.1', '4.2.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['C1.1', 'CC6.7']
+
+  - id: "saml_assertion_no_signature_verify"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "SAML Assertion Signature Verification Disabled"
+    description: "A playbook configures a SAML SP (Keycloak, Shibboleth, Apache mod_auth_mellon, Python saml2, Ansible AAP SAML auth) with `want_assertions_signed: false`, `want_response_signed: false`, `wantAssertionsSigned: false`, or `validateSignatures: false`. Without signature validation, an attacker who intercepts or replays any SAML response can impersonate any user - the classic SAML-re-signing attack that has compromised several IdP-federated platforms in 2024-2025."
+    regex: "(?:want_assertions_signed|want_response_signed|wantAssertionsSigned|wantResponseSigned|validateSignatures|signAssertions)\\s*[:=]\\s*(?:false|no|0|disabled)"
+    positive_examples:
+      - "want_assertions_signed:false"
+    multiline: true
+    window: 4
+    recommendation: "Always require signed assertions AND signed responses (`want_assertions_signed: true`, `want_response_signed: true`). Validate the signature against a pinned IdP certificate (rotate via automation tied to the IdP's metadata URL, not TOFU). Reject unsigned assertions at the SP layer - don't rely on transport-layer TLS as a substitute."
+    cwe: ["CWE-345", "CWE-347"]
+    owasp_appsec: ["A02:2021", "A08:2021"]
+    mitre_attack: ["T1550.001", "T1606.002"]
+    cis_controls: ["CIS-6.5"]
+    nist_controls: ["IA-2", "IA-5", "SC-23"]
+    pci_dss: ["8.2.1"]
+    hipaa: ["164.312(d)"]
+    soc2: ["CC6.1"]
+
+  - id: "elasticsearch_security_disabled"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "Elasticsearch xpack.security Disabled Or Bound To 0.0.0.0"
+    description: "A task renders `elasticsearch.yml` or invokes `elasticsearch-keystore`/`docker run elasticsearch` with `xpack.security.enabled: false` (or unset on 8.x, where the default is `true` only for self-managed clusters that generate an enrollment token) AND `network.host: 0.0.0.0` / `network.bind_host: 0.0.0.0`. Since Elastic 8.0 (Feb 2022) security is on-by-default; explicitly disabling it and binding to the public interface is the single largest cause of internet-exposed ES clusters and the Meow / ShinyHunters dump campaigns."
+    regex: "xpack\\.security\\.enabled\\s*:\\s*(?:false|no|0)[\\s\\S]{0,300}?(?:network\\.(?:host|bind_host)\\s*:\\s*['\"]?(?:0\\.0\\.0\\.0|\\[?::\\]?))|(?:network\\.(?:host|bind_host)\\s*:\\s*['\"]?(?:0\\.0\\.0\\.0|\\[?::\\]?))[\\s\\S]{0,300}?xpack\\.security\\.enabled\\s*:\\s*(?:false|no|0)"
+    positive_examples:
+      - "xpack.security.enabled:falsenetwork.host:0.0.0.0"
+    multiline: true
+    window: 40
+    recommendation: "Set `xpack.security.enabled: true`, bind to `network.host: _site_` (private interface), and configure at minimum the built-in `elastic` user with a strong password plus API keys for application access. Enable TLS for transport + HTTP with `xpack.security.transport.ssl.enabled: true` and `xpack.security.http.ssl.enabled: true`. If clients truly need internet exposure, front with a reverse-proxy that enforces mTLS or OIDC."
+    cwe: ['CWE-284', 'CWE-306', 'CWE-319']
+    owasp_appsec: ["A01:2021", "A02:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1190', 'T1213']
+    cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-6.5']
+    nist_controls: ['AC-3', 'IA-2', 'SC-7', 'SC-8']
+    pci_dss: ['1.2.1', '2.2.1', '8.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.6']
+
+  - id: "mongodb_no_auth_bind_all"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "MongoDB Running Without Authentication On A Public Interface"
+    description: "A task renders `mongod.conf` / `docker run mongo` with `security.authorization: disabled` (or omits it while setting `net.bindIp: 0.0.0.0`), or starts `mongod` with `--noauth` and `--bind_ip_all`. This is the configuration that produced the 2017 MongoDB ransomware wave and the 2024 Meow attack resurgence (tens of thousands of exposed clusters). Even behind a firewall, running auth-disabled is an unrecoverable posture - an attacker who reaches the port has `admin.system.users` write."
+    regex: "(?:security\\.authorization\\s*:\\s*['\"]?disabled|--noauth\\b)[\\s\\S]{0,300}?(?:net\\.bindIp\\s*:\\s*['\"]?(?:0\\.0\\.0\\.0|,?0\\.0\\.0\\.0|::)|--bind_ip_all|--bind_ip\\s+0\\.0\\.0\\.0)|(?:net\\.bindIp\\s*:\\s*['\"]?(?:0\\.0\\.0\\.0|::)|--bind_ip_all)[\\s\\S]{0,300}?(?:security\\.authorization\\s*:\\s*['\"]?disabled|--noauth\\b)"
+    positive_examples:
+      - "security.authorization:disablednet.bindIp:0.0.0.0"
+    multiline: true
+    window: 30
+    recommendation: "Set `security.authorization: enabled`, create an admin user via `mongosh` with `db.createUser({user:'admin', pwd: <strong>, roles:['root']})` on first start, and bind to loopback or a private interface (`net.bindIp: 127.0.0.1,10.x.y.z`). Enable TLS with `net.tls.mode: requireTLS`. For sharded / replica-set deployments, also enable keyfile or x.509 cluster authentication."
+    cwe: ['CWE-284', 'CWE-306']
+    owasp_appsec: ["A01:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1"]
+    mitre_attack: ['T1190', 'T1213']
+    cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-6.5']
+    nist_controls: ['AC-3', 'IA-2', 'SC-7']
+    pci_dss: ['1.2.1', '8.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)']
+    soc2: ['CC6.1', 'CC6.2']
+
+  - id: "redis_no_auth_protected_mode_disabled"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "Redis Without requirepass And With protected-mode no On Public Bind"
+    description: "A task renders `redis.conf` / `docker run redis` without `requirepass` (or with a weak empty string) AND `protected-mode no` AND `bind 0.0.0.0`. Redis has no default authentication; `protected-mode` is the last-resort safety net that rejects external connections when auth is unconfigured. Disabling protected-mode on an exposed bind address produces the classic unauth-RCE chain via `CONFIG SET dir` + `SLAVEOF` / `MODULE LOAD` (Muhstik, WatchBog, P2PInfect 2024 campaigns)."
+    regex: "protected-mode\\s+no\\b[\\s\\S]{0,400}?bind\\s+[^\\n#]*0\\.0\\.0\\.0|bind\\s+[^\\n#]*0\\.0\\.0\\.0[\\s\\S]{0,400}?protected-mode\\s+no\\b"
+    positive_examples:
+      - "protected-mode no bind  0.0.0.0"
+    multiline: true
+    window: 50
+    recommendation: "Set a strong `requirepass <32+ char random>` (or switch to Redis 6+ ACLs with `user default off` and named users), keep `protected-mode yes`, and bind to a private interface: `bind 127.0.0.1 10.x.y.z`. Disable dangerous commands via `rename-command CONFIG \"\"`, `rename-command MODULE \"\"`, `rename-command DEBUG \"\"`, `rename-command SLAVEOF \"\"`. Enable TLS with `tls-port 6379 / port 0`."
+    cwe: ['CWE-284', 'CWE-306']
+    owasp_appsec: ["A01:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1"]
+    mitre_attack: ['T1190', 'T1210']
+    cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-6.5']
+    nist_controls: ['AC-3', 'IA-2', 'SC-7']
+    pci_dss: ['1.2.1', '2.2.1', '8.3.1']
+    soc2: ['CC6.1', 'CC6.6']
+
+  - id: "mqtt_broker_allow_anonymous"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "MQTT Broker Configured With allow_anonymous true"
+    description: "A task renders `mosquitto.conf` or an EMQX/HiveMQ config with `allow_anonymous true` (or omits `password_file` / JWT / OIDC bindings). MQTT brokers on the public internet with anonymous access have been weaponised to leak industrial telemetry (Shodan has ~150k exposed brokers as of 2024) and to pivot into OT networks via retained messages and Last-Will-and-Testament command injection."
+    regex: "allow_anonymous\\s+true\\b|allow_anonymous\\s*:\\s*['\"]?true"
+    positive_examples:
+      - "allow_anonymous true"
+    recommendation: "Set `allow_anonymous false` and configure `password_file /etc/mosquitto/passwd` (bcrypt-hashed) or switch to an ACL-capable broker (EMQX + JWT / OIDC, HiveMQ Enterprise + LDAP). Always enable TLS on port 8883 with `require_certificate true` for mutual-auth on OT topics. Use `acl_file` to deny wildcard subscribes from non-operator clients."
+    cwe: ['CWE-287', 'CWE-306']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.1.1"]
+    mitre_attack: ['T0830', 'T1190']
+    cis_controls: ['CIS-3.3', 'CIS-6.5']
+    nist_controls: ['AC-3', 'IA-2', 'SC-7']
+    pci_dss: ['1.2.1', '8.3.1']
+    soc2: ['CC6.1']
+
+  - id: "kafka_listener_plaintext_no_sasl"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Kafka Listener PLAINTEXT Without SASL Or ACLs"
+    description: "A task renders `server.properties` / Strimzi KafkaUser / Helm values with `listeners=PLAINTEXT://0.0.0.0:9092` AND `allow.everyone.if.no.acl.found=true` (or no `authorizer.class.name` set at all). Kafka without SASL allows any network client to produce/consume to every topic - including `__consumer_offsets` and `__transaction_state`, which an attacker can rewrite to corrupt exactly-once semantics or replay historic events (seen in 2024 Confluent-Cloud tenant-escape PoCs)."
+    regex: "listeners\\s*=\\s*PLAINTEXT://(?:0\\.0\\.0\\.0|\\[::\\])[\\s\\S]{0,400}?allow\\.everyone\\.if\\.no\\.acl\\.found\\s*=\\s*true|allow\\.everyone\\.if\\.no\\.acl\\.found\\s*=\\s*true[\\s\\S]{0,400}?listeners\\s*=\\s*PLAINTEXT://(?:0\\.0\\.0\\.0|\\[::\\])"
+    positive_examples:
+      - "listeners=PLAINTEXT://0.0.0.0allow.everyone.if.no.acl.found=true"
+    multiline: true
+    window: 40
+    recommendation: "Replace `PLAINTEXT` with `SASL_SSL` and configure `sasl.enabled.mechanisms=SCRAM-SHA-512` (or mTLS via `SSL` listener with client-cert mapping). Set `authorizer.class.name=kafka.security.authorizer.AclAuthorizer` and `allow.everyone.if.no.acl.found=false`, then grant topic-level ACLs explicitly. For Strimzi, use `KafkaUser` with `authorization: { type: simple, acls: [...] }`."
+    cwe: ['CWE-306', 'CWE-319']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1190']
+    cis_controls: ['CIS-3.3', 'CIS-6.5']
+    nist_controls: ['AC-3', 'IA-2', 'SC-8']
+    pci_dss: ['2.2.1', '4.2.1', '8.3.1']
+    soc2: ['CC6.1', 'CC6.6']
+
+  - id: "etcd_client_cert_auth_disabled"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "etcd Running With client-cert-auth=false Or --insecure-transport"
+    description: "A task renders an etcd manifest / systemd unit / `docker run quay.io/coreos/etcd` with `--client-cert-auth=false` or `--listen-client-urls=http://0.0.0.0:2379` (not https) or `--insecure-transport=true`. etcd is the Kubernetes control-plane's source of truth - anyone who can speak to it bypasses the API server, RBAC, admission controllers, and audit logging. Disabling client-cert-auth effectively hands a cluster-admin kubeconfig to anyone on the network."
+    regex: "--client-cert-auth\\s*=\\s*false\\b|--insecure-transport\\s*=\\s*true\\b|--listen-client-urls\\s*=\\s*['\"]?http://(?:0\\.0\\.0\\.0|\\[::\\])"
+    positive_examples:
+      - "--listen-client-urls=http://0.0.0.0"
+    recommendation: "Set `--client-cert-auth=true`, `--cert-file` / `--key-file` / `--trusted-ca-file`, and bind `--listen-client-urls=https://127.0.0.1:2379,https://<node-ip>:2379`. Never expose 2379/2380 on the public interface; restrict to the control-plane node network. For kubeadm-managed clusters, the default `/etc/kubernetes/manifests/etcd.yaml` already sets these correctly - any playbook that overwrites them should be reverted."
+    cwe: ['CWE-284', 'CWE-306', 'CWE-319']
+    owasp_appsec: ["A01:2021", "A02:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1190', 'T1552']
+    cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-6.5']
+    nist_controls: ['AC-3', 'IA-2', 'SC-7', 'SC-8']
+    pci_dss: ['1.2.1', '2.2.1', '4.2.1', '8.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.6']
+
+  - id: "helm_repo_plaintext_http_skip_tls_verify"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Helm Chart Repository Added Over Plaintext HTTP Or With --insecure-skip-tls-verify"
+    description: "A task invokes `helm repo add` or `kubernetes.core.helm_repository` with a plaintext `http://` URL, or passes `--insecure-skip-tls-verify` / `validate_certs: false`. Helm chart tarballs are executable templates that can render arbitrary Kubernetes objects (including `ServiceAccount` tokens + `RoleBinding` to `cluster-admin`) - fetching them over HTTP allows a network-in-the-middle to swap the tarball and own the cluster on first `helm install`."
+    # The insecure token (``http://``, ``--insecure-skip-tls-verify``,
+    # ``validate_certs: false``) must appear on the SAME logical line
+    # as the helm command, not 300 chars later in an unrelated task.
+    # The previous windowed version matched a safe ``helm repo add X
+    # https://...`` followed 15 lines later by an unrelated
+    # ``uri: http://localhost:...`` in a different task, producing pure
+    # FPs on legitimate installer playbooks that use helm over HTTPS
+    # and also hit a local admin endpoint later. Anchor on ``helm repo
+    # add`` / ``helm_repository`` and allow only a short
+    # same-line / args-block window to the insecure token.
+    regex: "helm\\s+repo\\s+add\\s+[^\\n]*?(?:\\s+http://|--insecure-skip-tls-verify)|kubernetes\\.core\\.helm_repository:[^\\n]*\\n(?:[ \\t]+[^\\n]*\\n){0,8}?[ \\t]+(?:url\\s*:\\s*['\"]?http://|validate_certs\\s*:\\s*(?:false|no))"
+    multiline: true
+    window: 10
+    positive_examples:
+      - "    command: helm repo add mychart http://charts.example.com/"
+      - "    shell: helm repo add mychart https://charts.example.com/ --insecure-skip-tls-verify"
+      - |2-
+            kubernetes.core.helm_repository:
+              name: mychart
+              url: "http://charts.example.com/"
+      - |2-
+            kubernetes.core.helm_repository:
+              name: mychart
+              repo_url: https://charts.example.com/
+              validate_certs: false
+    negative_examples:
+      - "    command: helm repo add splunk-otel-collector-chart https://signalfx.github.io/splunk-otel-collector-chart"
+      - |2-
+            kubernetes.core.helm_repository:
+              name: mychart
+              url: "https://charts.example.com/"
+              validate_certs: true
+      - |2-
+            command: helm repo add safechart https://charts.example.com/
+          - name: other task
+            uri:
+              url: "http://localhost:8080/foo"
+    recommendation: "Always use `https://` URLs and never pass `--insecure-skip-tls-verify`. Prefer OCI-based chart distribution (`helm install oci://ghcr.io/org/chart --version 1.2.3 --verify`) with `--verify` to enforce provenance files signed by a Cosign keyless identity. For Ansible, set `validate_certs: true` on `kubernetes.core.helm_repository`."
+    cwe: ['CWE-295', 'CWE-319', 'CWE-494']
+    owasp_appsec: ["A02:2021", "A07:2021", "A08:2021"]
+    owasp_asvs: ["V9.1.1", "V9.2.1", "V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1195.002', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-16.11']
+    nist_controls: ['CM-14', 'SC-8', 'SC-12', 'SI-7']
+    pci_dss: ['4.2.1', '6.3.2']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "postgres_pg_hba_trust_or_weak_md5"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "PostgreSQL pg_hba.conf Allows trust Or Legacy md5 Instead Of scram-sha-256"
+    description: "A task renders `/etc/postgresql/*/main/pg_hba.conf` (or a pg_hba.conf under any `postgres` data-dir) with a `host`/`hostssl`/`local` line whose auth method is `trust` (no password at all) or `md5` (cryptographically broken, rainbow-table-able). `trust` on any non-loopback address is the PostgreSQL equivalent of MongoDB's `--noauth`; the `md5` method uses a single-round MD5 of password+username and is the reason the 2024 Postgres CIS benchmark upgraded to requiring `scram-sha-256` on every non-loopback row."
+    regex: "^\\s*(?:host|hostssl|hostnossl|local)\\s+\\S+\\s+\\S+\\s+(?!(?:127\\.0\\.0\\.1/32|::1/128|samehost|samenet)\\s)[^\\s#]+\\s+(trust|md5)\\b"
+    positive_examples:
+      - "host 0 0 x trust"
+    multiline: true
+    recommendation: "Replace every non-loopback `trust`/`md5` line with `scram-sha-256`. Typical production posture: `hostssl all all 0.0.0.0/0 scram-sha-256` + `hostnossl all all 0.0.0.0/0 reject`. Set `password_encryption = scram-sha-256` in `postgresql.conf` and rotate every user password once (legacy hashes don't auto-upgrade). Reserve `trust` ONLY for `local all postgres peer` and loopback-only initialisation windows."
+    cwe: ['CWE-287', 'CWE-327', 'CWE-328']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ['T1078', 'T1110.002']
+    cis_controls: ['CIS-3.10', 'CIS-6.5', 'CIS-16.5']
+    nist_controls: ['IA-2', 'IA-5', 'SC-8', 'SC-13']
+    pci_dss: ['4.2.1', '8.3.1', '8.3.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(d)']
+    soc2: ['CC6.1', 'CC6.2']
+
+  - id: "mysql_super_grant_or_skip_networking_disabled"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "MySQL SUPER/ALL Grant To Remote Host Or skip_networking Disabled With Public Bind"
+    description: "A task issues `GRANT SUPER ... TO '...'@'%'`, `GRANT ALL ... TO '...'@'%'`, or renders `/etc/mysql/mysql.conf.d/mysqld.cnf` / `/etc/my.cnf` with `skip_networking=0` + `bind-address=0.0.0.0` without an explicit `require_secure_transport=ON`. The SUPER privilege is the MySQL equivalent of sudo (bypass `READ_ONLY`, kill any connection, change global variables, load UDF shared objects for RCE) - granting it to `'%'` gives any network attacker one-step database takeover. This is the 2024 Snowflake/MOVEit credential-reuse attack pattern."
+    regex: "GRANT\\s+(?:SUPER|ALL(?:\\s+PRIVILEGES)?)[\\s\\S]{0,200}?TO\\s+['\"][^'\"]+['\"]@['\"]%['\"]|(?:skip[-_]networking\\s*=\\s*0\\b|skip[-_]networking\\s*=\\s*OFF\\b)[\\s\\S]{0,200}?bind[-_]address\\s*=\\s*0\\.0\\.0\\.0"
+    positive_examples:
+      - "GRANT SUPERTO 'x'@'%'"
+    multiline: true
+    window: 20
+    recommendation: "Never grant SUPER (or ALL) to `'%'`. Scope grants to specific host ranges and minimal privileges: `GRANT SELECT, INSERT, UPDATE, DELETE ON app_db.* TO 'app'@'10.1.%'`. For admin accounts, use `'admin'@'10.1.1.5'` with `REQUIRE SSL` and `REQUIRE SUBJECT`. Set `require_secure_transport=ON`, `bind-address=<private-ip>` (never 0.0.0.0 unless explicitly required), and enable audit-log plugin with `audit_log_policy=ALL`."
+    cwe: ['CWE-269', 'CWE-284', 'CWE-732']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1078', 'T1210', 'T1552.001']
+    cis_controls: ['CIS-3.3', 'CIS-5.4', 'CIS-6.8']
+    nist_controls: ['AC-3', 'AC-6', 'IA-2', 'SC-8']
+    pci_dss: ['7.2.1', '7.2.5', '8.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(d)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "mssql_xp_cmdshell_or_sa_enabled"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "MSSQL xp_cmdshell Enabled Or sa Login Re-Activated From Playbook"
+    description: "A task runs `sp_configure 'xp_cmdshell', 1`, `RECONFIGURE` with `show advanced options, 1`, or `ALTER LOGIN sa WITH PASSWORD=... ENABLE`. `xp_cmdshell` gives any DBA (or any SQL-injection finding) an instant cmd.exe shell in the SQL Server service account's context (usually `NT SERVICE\\MSSQLSERVER` - a local admin on most installs). Re-enabling the `sa` login re-introduces the #1 lateral-movement target during ransomware campaigns (Clop/TrueBot 2023-2024 Accellion/MOVEit-adjacent targeting)."
+    regex: "sp_configure\\s*[,(]?\\s*['\"]xp_cmdshell['\"]\\s*[,)]?\\s*['\"]?1['\"]?|ALTER\\s+LOGIN\\s+sa\\s+WITH\\s+(?:PASSWORD\\s*=\\s*[^\\s]+\\s+)?ENABLE"
+    positive_examples:
+      - "sp_configure'xp_cmdshell'1"
+    recommendation: "Keep `xp_cmdshell` disabled: `EXEC sp_configure 'xp_cmdshell', 0; RECONFIGURE;`. Keep the `sa` login DISABLED and renamed: `ALTER LOGIN sa DISABLE; ALTER LOGIN sa WITH NAME = [renamed_sa];`. Use AD-integrated logins (`CREATE LOGIN [domain\\user] FROM WINDOWS`) with least-privilege server roles. If a DBA genuinely needs OS command execution for maintenance (rare), use SQL Agent with a proxy account bound to a restricted credential, not `xp_cmdshell`."
+    cwe: ['CWE-250', 'CWE-284', 'CWE-732']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    mitre_attack: ['T1059', 'T1078', 'T1210']
+    cis_controls: ['CIS-3.3', 'CIS-5.4', 'CIS-6.8']
+    nist_controls: ['AC-6', 'CM-7', 'SI-4']
+    pci_dss: ['2.2.1', '7.2.1', '7.2.5']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "bind_named_conf_open_recursion"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "BIND / PowerDNS Open Recursive Resolver On Public Interface"
+    description: "A task renders `named.conf` / `named.conf.options` with `recursion yes;` AND `allow-recursion { any; }` (or `allow-query-cache { any; }`) on a bind address that includes a public interface. Open recursive resolvers are the classic DNS amplification-attack reflectors (>50x amplification via DNSSEC-signed ANY-type queries), get your AS listed on DNS-blocklists / Shadowserver, and are the single most common abuse contributor in the 2024 Shadowserver report on exposed DNS services."
+    regex: "recursion\\s+yes\\s*;[\\s\\S]{0,400}?allow-(?:recursion|query-cache)\\s*\\{\\s*any\\s*;\\s*\\}|allow-(?:recursion|query-cache)\\s*\\{\\s*any\\s*;\\s*\\}[\\s\\S]{0,400}?recursion\\s+yes\\s*;"
+    positive_examples:
+      - "recursion yes;allow-recursion{any;}"
+    multiline: true
+    window: 40
+    recommendation: "Split authoritative and recursive roles onto separate servers. On authoritative servers: `recursion no;` and `allow-query-cache { none; };`. On recursive servers: bind only to internal interfaces (`listen-on { 127.0.0.1; 10.0.0.0/8; };`) and `allow-recursion { internal-nets; };` where `internal-nets` is a named ACL scoped to your RFC1918 ranges + explicit remote users. Enable `rate-limit { responses-per-second 10; };` for further DDoS-reflection hardening."
+    cwe: ['CWE-284', 'CWE-406']
+    owasp_appsec: ["A01:2021"]
+    mitre_attack: ['T1071.004', 'T1498.002']
+    cis_controls: ['CIS-9.2', 'CIS-13.10']
+    nist_controls: ['AC-3', 'SC-5', 'SC-7']
+    pci_dss: ['1.2.1', '1.3.1']
+    soc2: ['CC6.6', 'CC7.2']
+
+  - id: "istio_peerauthentication_permissive_global"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Istio PeerAuthentication Set To PERMISSIVE (mTLS Downgrade Allowed)"
+    description: "A task renders an `Istio` `PeerAuthentication` / `DestinationRule` manifest with `spec.mtls.mode: PERMISSIVE` (or an empty `spec.mtls: {}`) in the `istio-system` namespace or at workload scope. PERMISSIVE mode allows plaintext traffic to co-exist with mTLS on the same port - which means any sidecar-less pod (or any attacker who gets a foothold in the cluster network) can read service-to-service traffic that the mesh was supposed to protect. The 2024 Istio security advisory explicitly calls out PERMISSIVE as a deploy-time finding that should block production rollouts."
+    regex: "kind\\s*:\\s*PeerAuthentication[\\s\\S]{0,400}?mtls\\s*:\\s*(?:\\{\\s*\\}|(?:mode\\s*:\\s*PERMISSIVE))|kind\\s*:\\s*DestinationRule[\\s\\S]{0,500}?tls\\s*:\\s*\\{?\\s*mode\\s*:\\s*DISABLE\\s*\\}?"
+    positive_examples:
+      - "kind:PeerAuthenticationmtls:{}"
+    multiline: true
+    window: 40
+    recommendation: "Set `spec.mtls.mode: STRICT` on a cluster-wide `PeerAuthentication` in `istio-system` as the baseline. Per-workload exceptions should narrow (`STRICT` -> `PORT_LEVEL_MTLS`), never widen (never `PERMISSIVE`). Monitor via `istioctl analyze` in CI and fail the rollout on any `PeerAuthentication` that is not `STRICT`. For gradual migration, roll out `PERMISSIVE` as a transient 24-hour mode only while deploying sidecars, then audit with `istioctl authn tls-check` and flip to `STRICT`."
+    cwe: ['CWE-295', 'CWE-319', 'CWE-757']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-13.7']
+    nist_controls: ['AC-4', 'SC-8', 'SC-13']
+    pci_dss: ['4.2.1', '8.3.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.6']
+
+  - id: "otel_collector_otlp_endpoint_plaintext_http"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "OpenTelemetry Collector Exporter Uses Plaintext HTTP Or insecure: true"
+    description: "A task renders an OpenTelemetry Collector `exporters:` section (or an SDK-level `OTEL_EXPORTER_OTLP_ENDPOINT` env-var) pointing at `http://...` rather than `https://...`, or explicitly sets `tls.insecure: true`. Telemetry streams contain distributed-trace HTTP headers, user IDs, IP addresses, prompt content (for LLM workloads), and SQL statements - sending them in the clear turns the telemetry pipeline itself into a passive-surveillance channel for anyone on path. The 2024 OpenTelemetry hardening guide lists TLS-everywhere as the #1 exporter requirement."
+    regex: "exporters\\s*:[\\s\\S]{0,800}?(?:endpoint\\s*:\\s*['\"]?http://|tls\\s*:[\\s\\S]{0,100}?insecure\\s*:\\s*(?:true|yes))|OTEL_EXPORTER_OTLP_(?:ENDPOINT|TRACES_ENDPOINT|METRICS_ENDPOINT|LOGS_ENDPOINT)\\s*[:=]\\s*['\"]?http://"
+    positive_examples:
+      - |2-
+        exporters:
+            # ...
+            endpoint: http://
+    multiline: true
+    window: 30
+    recommendation: "Always use `https://` OTLP endpoints and never set `tls.insecure: true`. Use mutual TLS between the SDK and the collector (`tls.ca_file`, `tls.cert_file`, `tls.key_file`) and pin the collector's server cert to your internal CA. For the collector -> backend hop, use `authenticator` with OIDC client-credentials to the observability vendor. Block plaintext OTLP at the cluster level via a `NetworkPolicy` denying egress on port 4317 / 4318 without the TLS-enabled authenticator."
+    cwe: ['CWE-295', 'CWE-319']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-8.1']
+    nist_controls: ['AU-9', 'SC-8', 'SC-12']
+    pci_dss: ['4.2.1', '10.3.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "prometheus_remote_write_no_auth_or_tls"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Prometheus remote_write Configured Without basic_auth / authorization / tls_config"
+    description: "A task renders a Prometheus `remote_write:` block whose `url:` is `http://...` OR is `https://...` without any of `basic_auth`, `authorization`, `bearer_token_file`, `sigv4`, or `oauth2` sub-keys. Prometheus remote_write streams every scraped metric series (memory/CPU, but also application-emitted business metrics with user-IDs, feature-flag tags, and SQL-level cardinality) to the remote endpoint - an unauthenticated endpoint is a metric-exfiltration target that also accepts arbitrary pushes from any network source (Meow-attack class repeated on Mimir/Thanos receivers in 2024)."
+    regex: "remote_write\\s*:\\s*[\\s\\S]{0,200}?url\\s*:\\s*['\"]?http://|remote_write\\s*:\\s*[\\s\\S]{0,1500}?url\\s*:\\s*['\"]?https://[^\\n]+(?![\\s\\S]{0,1500}(?:basic_auth|authorization|bearer_token|bearer_token_file|sigv4|oauth2|tls_config))"
+    positive_examples:
+      - |2-
+        remote_write:
+                  - url: http://
+    multiline: true
+    window: 60
+    recommendation: "Always use an `https://` URL AND one of: `basic_auth: { username, password_file }`, `authorization: { type: Bearer, credentials_file: }`, or `sigv4:` (for AMP/AWS). Pin the remote server certificate via `tls_config.ca_file` to your internal CA. For multi-tenant setups (Mimir, Cortex, Grafana Cloud), always send the `X-Scope-OrgID` header and enforce it at the receiver. Never point `remote_write` at a cleartext endpoint even on a 'trusted' internal network - the LAN is part of the threat model in the 2024 CISA Zero-Trust memo."
+    cwe: ['CWE-287', 'CWE-306', 'CWE-319']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1041']
+    cis_controls: ['CIS-3.10', 'CIS-6.5', 'CIS-8.1']
+    nist_controls: ['AU-9', 'IA-2', 'SC-8']
+    pci_dss: ['4.2.1', '8.3.1', '10.3.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "loki_push_api_auth_disabled_or_no_tenant_enforcement"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Grafana Loki auth_enabled: false Or Gateway Without X-Scope-OrgID Enforcement"
+    description: "A task renders a Loki config (`loki-config.yaml`, Helm values, or `LokiStack` CRD) with `auth_enabled: false` AND a gateway / ingress that accepts unauthenticated POSTs to `/loki/api/v1/push`. In multi-tenant mode Loki uses `auth_enabled: true` + `X-Scope-OrgID` header to isolate tenants; disabling auth collapses all tenants into `fake` and allows any caller to inject arbitrary logs (log-injection / evidence tampering) or exfiltrate logs from any tenant they can guess. Seen in 2024 Grafana Cloud tenant-escape research."
+    regex: "auth_enabled\\s*:\\s*(?:false|no)\\b(?![\\s\\S]{0,2000}X-Scope-OrgID)|(?:push_api|loki/api/v1/push)[\\s\\S]{0,500}?(?:(?:nginx|envoy|traefik|ingress)[\\s\\S]{0,500}?(?:auth_request|auth_basic|jwt_verify)\\s*(?:off|none|disabled))"
+    positive_examples:
+      - "http_auth_enabled: false"
+    multiline: true
+    window: 80
+    recommendation: "Set `auth_enabled: true` in every production Loki and front the `/loki/api/v1/push` endpoint with a gateway (`lokiGateway` chart, nginx `auth_basic`, or Envoy JWT filter) that mints / validates the `X-Scope-OrgID` header from an authenticated identity token. Never expose `auth_enabled: false` outside of a local dev `docker compose`. Add a periodic red-team check that issues `curl -H 'X-Scope-OrgID: prod-tenant' https://loki.../loki/api/v1/push -d '{...}'` without a bearer token and alerts on any non-401 response."
+    cwe: ['CWE-284', 'CWE-306']
+    owasp_appsec: ["A01:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1"]
+    mitre_attack: ['T1070.002', 'T1190', 'T1565.001']
+    cis_controls: ['CIS-6.5', 'CIS-8.2', 'CIS-8.5']
+    nist_controls: ['AC-3', 'AU-9', 'IA-2']
+    pci_dss: ['8.3.1', '10.2.1', '10.5.1']
+    hipaa: ['164.312(a)(1)', '164.312(b)']
+    soc2: ['CC6.1', 'CC7.2']
+
+  - id: "oauth_implicit_grant_response_type_token"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "OAuth 2.0 Implicit Grant (response_type=token) Or Hybrid id_token token"
+    description: "A task renders application config, SPA bundle, or OIDC-client registration with `response_type=token` or `response_type=id_token token` (implicit flow / hybrid flow). The OAuth 2.0 Security Best Current Practice (RFC 8725 / OAuth 2.1 draft-16) formally deprecates the implicit grant because access tokens are delivered in the URL fragment - landing in browser history, Referer headers, and JS error-reporting payloads. Every 2024 OIDC-provider migration guide (Okta, Auth0, Entra ID) flags implicit flow as a breaking-change-required finding."
+    regex: "response_type\\s*[:=]\\s*['\"]?(?:token(?:\\s+id_token|\\s*$|[&'\"])|id_token\\s+token|\\s*token\\s*['\"])"
+    positive_examples:
+      - "response_type:token id_token"
+    recommendation: "Replace implicit flow with Authorization Code + PKCE (`response_type=code` + `code_challenge=<S256-hash>`). For SPAs, use the `@okta/okta-auth-js`, `oidc-client-ts`, or `@azure/msal-browser` libraries which default to Code+PKCE. At the OIDC provider, disable implicit flow in the client application (`grantTypes: ['authorization_code', 'refresh_token']`). Audit existing clients for `response_type=token` usage and rotate any long-lived tokens that were issued via implicit."
+    cwe: ['CWE-200', 'CWE-287', 'CWE-598']
+    owasp_appsec: ["A01:2021", "A04:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1", "V8.1.1"]
+    mitre_attack: ['T1528', 'T1539', 'T1550.001']
+    cis_controls: ['CIS-6.5', 'CIS-6.8']
+    nist_controls: ['IA-2', 'IA-5', 'SC-8']
+    pci_dss: ['6.3.2', '8.3.1']
+    soc2: ['CC6.1', 'CC6.2']
+
+  - id: "oidc_id_token_signature_verification_disabled"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "OIDC ID-Token Signature Verification Disabled Or JWKS Validation Skipped"
+    description: "A task sets `verify_id_token: false`, `skip_jwks_validation: true`, `InsecureSkipVerify: true` on an OIDC client, or passes `--insecure-skip-token-verify` to `kube-apiserver` / `oidc-login`. Skipping ID-token signature verification turns the entire federated-identity chain into a trust-what-you-receive primitive - any attacker who can forge an unsigned JWT (or flip the `alg: none` trick, CVE-2018-1000531 still actively exploited) authenticates as any user they name in the `sub` claim. This is MITRE T1606.001 (Web Cookies) / T1556.006 at the protocol layer."
+    regex: "(?:verify_id_token|verify_token|verify_jwt|verify_signature|verify_jwks|validate_id_token|skip_jwks_validation|InsecureSkipTokenVerify)\\s*[:=]\\s*(?:false|no|0|off|disabled)\\b|--insecure-skip-token-verify\\b|--oidc-signing-algs\\s+none\\b"
+    positive_examples:
+      - "verify_id_token:false"
+    recommendation: "Never disable OIDC signature verification. Use a well-maintained OIDC library (`authlib` for Python, `jsonwebtoken` + `jwks-rsa` for Node, `coreos/go-oidc` for Go) that validates: `iss`, `aud`, `exp`, `nbf`, `iat`, `nonce`, signature against the provider's JWKS, and rejects `alg: none` + unknown `alg` values. Pin `JWKS` cache TTL to the provider's recommendation (~10 minutes). For Kubernetes `kube-apiserver`, specify `--oidc-signing-algs=RS256` and NEVER `none`. Rotate any session that was authenticated while verification was off."
+    cwe: ['CWE-287', 'CWE-345', 'CWE-347']
+    cve: ["CVE-2018-1000531"]
+    owasp_appsec: ["A02:2021", "A07:2021", "A08:2021"]
+    owasp_asvs: ["V2.1.1"]
+    mitre_attack: ['T1550.001', 'T1556.006', 'T1606.001']
+    cis_controls: ['CIS-3.11', 'CIS-6.5', 'CIS-6.8']
+    nist_controls: ['IA-2', 'IA-5', 'SC-12', 'SC-13']
+    pci_dss: ['3.6.1', '8.3.1']
+    hipaa: ['164.312(a)(2)(i)', '164.312(d)']
+    soc2: ['CC6.1', 'CC6.2']
+
+  - id: "saml_acs_or_oidc_issuer_plaintext_http"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "SAML AssertionConsumerService Or OIDC Issuer URL Uses Plaintext HTTP"
+    description: "A task renders a SAML `EntityDescriptor` with `AssertionConsumerService Location=\"http://...\"` / `SingleLogoutService Location=\"http://...\"` OR an OIDC client/provider config with `issuer: http://...`, `token_endpoint: http://...`, `jwks_uri: http://...`, or `authorization_endpoint: http://...` (for any non-localhost host). Plaintext-HTTP federation endpoints leak the SAML assertion (containing groups + NameID + optionally emailed OTP codes) or the OIDC `id_token` (JWT signed, but replay-able on-path) - a passive-MITM on the login subnet immediately becomes an authentication-bypass. Required-HTTPS has been the formal baseline in both specifications since their inception and is a hard-fail on every 2024 OpenID-Federation conformance test."
+    regex: "(?:AssertionConsumerService|SingleLogoutService|ArtifactResolutionService)\\s+[^>]*Location\\s*=\\s*['\"]?http://(?!localhost|127\\.0\\.0\\.1)|(?:issuer|token_endpoint|jwks_uri|authorization_endpoint|userinfo_endpoint|end_session_endpoint|revocation_endpoint|introspection_endpoint|device_authorization_endpoint)\\s*[:=]\\s*['\"]?http://(?!localhost|127\\.0\\.0\\.1)"
+    positive_examples:
+      - "AssertionConsumerService Location=http://"
+    multiline: true
+    recommendation: "Replace every `http://` with `https://` in SAML metadata and OIDC well-known/provider configs. For SAML, enforce `AuthnRequestsSigned=true` and `WantAssertionsSigned=true` on the SP metadata. For OIDC, pin the JWKS certificate chain (`jwks_uri` must resolve via the system trust-store to the IdP's root) and require `response_mode=query` or `form_post` over HTTPS only. Block plaintext-federation endpoints at the network layer: egress firewall DENY `destination_port=80` to any IdP hostname. Audit existing SP / client registrations via `saml2aws list` / `okta apps list --filter protocol=saml` + grep for `http://`."
+    cwe: ['CWE-295', 'CWE-319', 'CWE-614']
+    owasp_appsec: ["A02:2021", "A05:2021", "A07:2021"]
+    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1556.006', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-6.5']
+    nist_controls: ['IA-2', 'IA-8', 'SC-8', 'SC-13']
+    pci_dss: ['4.2.1', '8.3.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.2']
+
+  - id: "mongodb_where_or_mapreduce_server_side_js_with_input"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "MongoDB $where Or mapReduce Server-Side JS With User-Templated Input"
+    description: "A task issues a MongoDB query via `community.mongodb.mongodb_shell`, `pymongo.*.find`, or `mongosh --eval` containing a `$where:` operator with a Jinja2-templated expression, OR a `mapReduce` call whose `map`/`reduce` bodies are constructed from user-supplied input (`{{ item.filter }}`, `{{ user_query }}`). `$where` executes arbitrary JavaScript inside the mongod process (`mongod --setParameter javascriptEnabled=true` default), and attacker-templated input becomes NoSQL-injection -> server-side-JS RCE. MongoDB 5.0 deprecated but did not remove `$where`; 7.0 disables it by default but many on-prem deploys re-enable it for legacy queries."
+    regex: "(?:community\\.mongodb\\.mongodb_shell|pymongo\\.[\\w.]+|mongosh\\s+--eval)[\\s\\S]{0,400}?(?:\\$where|mapReduce)[\\s\\S]{0,300}?\\{\\{\\s*\\w+|(?:db\\.\\w+\\.(?:find|aggregate|mapReduce))[\\s\\S]{0,300}?\\$where[\\s\\S]{0,200}?\\{\\{\\s*\\w+"
+    positive_examples:
+      - "community.mongodb.mongodb_shell$where{{a"
+    multiline: true
+    window: 15
+    recommendation: "Never use `$where` or `mapReduce` with templated input. Rewrite every `$where: 'this.field == \"' + input + '\"'` as a structured query: `{field: {$eq: input}}` (safe, uses the BSON operator path, not the JS VM). Disable server-side JavaScript entirely: `mongod --setParameter javascriptEnabled=false` (default in 7.0+). Use the Aggregation Pipeline (`$match`, `$group`, `$lookup`) for any computation that previously needed mapReduce. Audit existing queries: `grep -r '\\$where' app/ roles/ playbooks/` and migrate them."
+    cwe: ['CWE-89', 'CWE-94', 'CWE-943']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059', 'T1190']
+    cis_controls: ['CIS-3.3', 'CIS-16.11']
+    nist_controls: ['CM-7', 'SC-18', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.3']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "tls_legacy_protocol_tlsv1_0_or_1_1_enabled"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "TLS 1.0 / 1.1 Explicitly Enabled In Server Config"
+    description: "A rendered web-server / app-server / load-balancer config (nginx, Apache httpd, HAProxy, Envoy, Traefik, Tomcat, IIS) has `ssl_protocols`, `SSLProtocol`, `tls-min-version`, or `tls_versions` explicitly including `TLSv1`, `TLSv1.0`, `TLSv1.1`, `tlsv1.0`, or `tlsv1.1`. Both TLS 1.0 and 1.1 have been formally deprecated by IETF RFC 8996 (2021) - they retain BEAST, POODLE, and Lucky13 attack surface. PCI-DSS v4 (effective 2024-03), HIPAA security guidance, FedRAMP Rev5, and CIS v8 all require TLS 1.2+ as a mandatory baseline."
+    regex: "(?:ssl_protocols|SSLProtocol|tls[_-]?min[_-]?version|tls[_-]?versions|minimumTLSVersion|ssl\\.protocols)\\s*[:=]?\\s*[^#\\n]*?(?:TLSv?1(?:\\.[01])?\\b|tls1(?:\\.[01])?\\b)(?![\\s]*[.][23])"
+    positive_examples:
+      - "ssl_protocols TLSv1"
+    multiline: true
+    window: 3
+    recommendation: "Restrict to TLS 1.2+ baseline and prefer TLS 1.3 only where possible. Nginx: `ssl_protocols TLSv1.2 TLSv1.3;`. Apache: `SSLProtocol -all +TLSv1.2 +TLSv1.3`. Envoy: `tls_minimum_protocol_version: TLSv1_2`. HAProxy: `ssl-default-bind-options ssl-min-ver TLSv1.2`. Validate external-facing endpoints with `nmap --script ssl-enum-ciphers -p 443 <host>` - alert on any TLS 1.0/1.1 result. For legacy-client backwards-compat exceptions, document the CVE-risk-acceptance, pin to a specific hostname, and set a 90-day sunset."
+    cwe: ['CWE-326', 'CWE-327']
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-12.6']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.2.1', '4.2.1.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.7']
+
+  - id: "curl_wget_insecure_flag_in_shell_task"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "curl -k / wget --no-check-certificate In Shell Task (TLS Verification Skipped)"
+    description: "An `ansible.builtin.shell` or `ansible.builtin.command` task runs `curl -k`, `curl --insecure`, `wget --no-check-certificate`, `wget --no-check-certificates`, or `fetch --no-verify-peer` (BSD) against any URL. This disables TLS verification, turning every HTTPS fetch into a MitM-vulnerable fetch. Distinct from the existing `ssl_verification_disabled` rule which only catches the Ansible `validate_certs: false` module arg - this catches the shell-level case that Ansible can't see."
+    # Anchor on the actual MODULE-KEY form - ``shell:`` / ``command:``
+    # at the start of a YAML-structural line (optional leading ``-``
+    # for list items, then ``key:`` with either a block-scalar
+    # indicator or an inline value). The previous regex matched the
+    # bare word ``shell`` anywhere, which also matched ``shell_output``
+    # (a common ``register:`` target) and fired once per task body in
+    # files that chain several tasks with long curl payloads. The
+    # structural anchor plus the existing ``window: 8`` bound keeps
+    # the multi-line intent but prevents the register-var false
+    # matches that inflated this rule by ~3× on real corpora.
+    regex: "(?m)^\\s*(?:-\\s+)?(?:ansible\\.builtin\\.)?(?:shell|command):\\s*(?=[|>]|\\S)[\\s\\S]{0,400}?(?:curl\\s+[^\\n]*?(?:-k\\b|--insecure\\b)|wget\\s+[^\\n]*?--no-check-certificates?|fetch\\s+[^\\n]*?--no-verify-peer|aria2c\\s+[^\\n]*?--check-certificate=false)"
+    multiline: true
+    window: 8
+    recommendation: "Use the `ansible.builtin.get_url` or `ansible.builtin.uri` module instead of shell-curl - these respect `validate_certs: true` (default). If the target genuinely has a self-signed cert, install the CA bundle: `ansible.builtin.copy: dest=/usr/local/share/ca-certificates/internal.crt` + `ansible.builtin.command: update-ca-certificates`. For air-gapped mirrors, use `pip install --index-url https://internal/pypi/ --cert /etc/ssl/internal-ca.pem`. Never `-k` - it makes every on-path attacker a root-shell away."
+    positive_examples:
+      - |2-
+            - name: fetch an insecure thing
+              ansible.builtin.shell: curl -k https://example.com/
+      - |2-
+            shell: |-
+              curl -sSL -k https://internal.example.com/api
+      - "    command: wget --no-check-certificate https://example.com/pkg.tgz"
+    negative_examples:
+      - |2-
+            register: shell_output
+
+            - name: next task
+              ansible.builtin.get_url:
+                url: https://example.com/
+      - "    ansible.builtin.shell: curl https://example.com/ -H 'X-Key: abc'"
+      - |2-
+            vars:
+              shell_command: 'curl -k'
+    cwe: ['CWE-295', 'CWE-319']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1557', 'T1557.002']
+    cis_controls: ['CIS-3.10', 'CIS-12.6']
+    nist_controls: ['SC-8', 'SC-8(1)']
+    pci_dss: ['4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "weak_dhparam_generated_below_2048"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "openssl dhparam Generated With Key Size < 2048 Bits"
+    description: "A task runs `openssl dhparam -out <file> 512` or `1024` (or passes bit-length ≤ 1024 to a `community.crypto.openssl_dhparam` module call). DH parameters smaller than 2048 bits are trivially broken by the Logjam attack (2015, precompute for common primes) and by any well-funded state actor in real time. RFC 7919 standardizes FFDHE named groups at 2048/3072/4096. Using pre-2015 2048 or anything ≤1024 is unambiguously a regression."
+    regex: "(?:openssl\\s+dhparam\\s+[^\\n]*?\\s(?:512|1024)\\b|community\\.crypto\\.openssl_dhparam[\\s\\S]{0,200}?size\\s*:\\s*(?:512|1024)\\b)"
+    positive_examples:
+      - "openssl dhparam  512"
+    multiline: true
+    window: 8
+    recommendation: "Generate at minimum 2048-bit (preferably 3072 or 4096): `openssl dhparam -out dhparams.pem 4096`. Better: use RFC 7919 standard FFDHE named groups (`ffdhe2048`, `ffdhe3072`, `ffdhe4096`) instead of generating custom params - these are pre-computed, vetted, and supported by every modern TLS stack. In Nginx: `ssl_dhparam /etc/nginx/ffdhe4096.pem` from https://ssl-config.mozilla.org/ffdhe4096.txt. Better still: disable all DHE ciphers and use ECDHE-only (P-256, P-384, X25519) which bypass DH entirely."
+    cwe: ['CWE-326', 'CWE-327']
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-12.6']
+    nist_controls: ['SC-8(1)', 'SC-12', 'SC-13']
+    pci_dss: ['3.5.1', '4.2.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.7']
+
+  - id: "weak_rsa_key_generated_below_2048"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "openssl genrsa / community.crypto.openssl_privatekey Generated Below 2048 Bits"
+    description: "A task runs `openssl genrsa -out <file> 512|1024` or configures `community.crypto.openssl_privatekey` with `size: 512|1024`. RSA-1024 has been deprecated for server certificates by CA/Browser Forum since 2013; NIST SP 800-131A disallows ≤1024 for anything after 2014. Modern CAs (Let's Encrypt, DigiCert, GlobalSign) REJECT CSRs with <2048-bit RSA keys. Generating a 1024-bit key today guarantees either a self-signed deployment or a hidden internal-CA workaround - both operationally broken."
+    regex: "(?:openssl\\s+genrsa\\s+[^\\n]*?\\s(?:512|1024)\\b|community\\.crypto\\.openssl_privatekey[\\s\\S]{0,200}?(?:type\\s*:\\s*['\"]?RSA[\\s\\S]{0,200}?)?size\\s*:\\s*(?:512|1024)\\b|ssh-keygen\\s+[^\\n]*?-b\\s+(?:512|1024)\\b)"
+    positive_examples:
+      - "openssl genrsa  512"
+    multiline: true
+    window: 8
+    recommendation: "Use 3072-bit RSA minimum for new deployments (NIST SP 800-57 equivalent of 128-bit symmetric), 4096-bit for long-lived CA keys. Better: migrate to ECDSA P-256 (`openssl ecparam -name prime256v1 -genkey`) or Ed25519 (`ssh-keygen -t ed25519` / `openssl genpkey -algorithm ED25519`) - faster, smaller, and at least as secure. For Ansible: `community.crypto.openssl_privatekey: type=Ed25519` for SSH, `type=ECC curve=secp256r1` for TLS. Audit existing keys: `find / -name '*.key' -exec openssl rsa -in {} -noout -text 2>/dev/null \\\\; | grep 'Private-Key:'`."
+    cwe: ['CWE-326', 'CWE-327']
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ['T1552.004', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-16.11']
+    nist_controls: ['IA-5(2)', 'SC-12', 'SC-13']
+    pci_dss: ['3.6.1', '3.7.1', '4.2.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(2)(ii)']
+    soc2: ['C1.1', 'CC6.7']
+
+  - id: "null_or_anon_cipher_suite_allowed"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "NULL / Anonymous (ADH/eNULL/aNULL) Cipher Suite Explicitly Allowed"
+    description: "A TLS config (OpenSSL cipher string, Nginx `ssl_ciphers`, Apache `SSLCipherSuite`, HAProxy `ssl-default-bind-ciphers`, Java `-Djdk.tls.disabledAlgorithms`) explicitly allows NULL encryption (`eNULL`, `NULL-MD5`, `NULL-SHA`) or anonymous Diffie-Hellman (`ADH-`, `AECDH-`, `aNULL`). NULL ciphers provide AUTHENTICATION-ONLY with zero confidentiality; anonymous ciphers skip server authentication entirely and are MitM-by-design. Neither has ANY legitimate production use - they exist only in OpenSSL's cipher tables for protocol-conformance testing."
+    regex: "(?:ssl_ciphers|SSLCipherSuite|ssl-default-bind-ciphers|tls_ciphers|disabledAlgorithms|cipher_suites?)\\s*[:=]?\\s*['\"]?[^#\\n]*?(?:\\beNULL\\b|\\baNULL\\b|NULL-(?:MD5|SHA|SHA256)|ADH-[A-Z0-9-]+|AECDH-[A-Z0-9-]+|EXP-[A-Z0-9-]+)"
+    positive_examples:
+      - |2-
+        ssl_ciphers
+              value: "HIGH:!aNULL
+    multiline: true
+    window: 3
+    recommendation: "Use Mozilla's modern TLS config generator (https://ssl-config.mozilla.org/) for your specific server+version. As a baseline, OpenSSL cipher string: `ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256` + TLS 1.3 cipher-suites `TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256`. ALWAYS include `!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!DSS` as explicit exclusions. Test via `openssl s_client -connect host:443 -cipher 'aNULL'` - should return 'no ciphers available'."
+    cwe: ['CWE-295', 'CWE-326', 'CWE-327']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-12.6']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['3.5.1', '4.2.1', '4.2.1.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.7']
+
+  - id: "consul_acl_default_policy_allow"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "HashiCorp Consul ACL default_policy=allow (Service-Mesh Open-By-Default)"
+    description: "A Consul config (`consul.hcl`, `consul.json`, `consul agent -config-dir=`) has `acl { default_policy = \"allow\" }` (or `acls.default_policy: allow` in YAML). With default-allow, the ACL system is effectively OFF - any client reaching `8500/tcp` (HTTP API) or `8300/tcp` (RPC) can read all service registrations, KV data, intentions, and node metadata. In service-mesh deployments (Consul Connect), this lets an attacker register a malicious sidecar that MitMs all mTLS traffic between services. 2024 SpecterOps research describes this as the canonical Consul-to-cluster-takeover primitive."
+    regex: "(?:acl\\s*\\{[\\s\\S]{0,200}?default_policy\\s*=\\s*['\"]allow['\"]|acls?\\.default_policy\\s*[:=]\\s*['\"]?allow|default_policy\\s*:\\s*['\"]?allow)"
+    positive_examples:
+      - "acl{default_policy='allow'"
+    multiline: true
+    window: 15
+    recommendation: "Set `default_policy = \"deny\"` in every Consul agent config. Bootstrap ACLs via `consul acl bootstrap` (Consul 1.4+) and distribute role-scoped tokens to services (never the bootstrap token). Enable `acl.enable_token_persistence = true` and `acl.tokens.default = <per-service-token>`. Require ACLs on all API endpoints: `acl.enable_key_list_policy = true`. Gate all Consul HTTP API calls through TLS (`ports.https = 8501`, `cert_file`, `key_file`, `verify_incoming = true`, `verify_server_hostname = true`). Audit via `consul acl policy list` - every policy should have a specific named scope, no wildcards."
+    cwe: ['CWE-284', 'CWE-306', 'CWE-862']
+    owasp_appsec: ["A01:2021", "A07:2021"]
+    owasp_asvs: ["V2.1.1"]
+    mitre_attack: ['T1098', 'T1550', 'T1557.002']
+    cis_controls: ['CIS-3.3', 'CIS-6.8', 'CIS-16.5']
+    nist_controls: ['AC-3', 'AC-6', 'IA-2']
+    pci_dss: ['7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "otel_exporter_otlp_insecure_true"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "OpenTelemetry OTLP Exporter OTEL_EXPORTER_OTLP_INSECURE=true Or insecure: true (Cleartext Traces/Metrics)"
+    description: "A task sets `OTEL_EXPORTER_OTLP_INSECURE=true`, `OTEL_EXPORTER_OTLP_TRACES_INSECURE=true`, `OTEL_EXPORTER_OTLP_METRICS_INSECURE=true`, `OTEL_EXPORTER_OTLP_LOGS_INSECURE=true`, or renders an OTel Collector config with `exporters: otlp: tls: insecure: true` / `insecure_skip_verify: true`. OTLP traces/metrics/logs commonly contain database query strings, HTTP headers (including Authorization!), stack traces with env-var dumps, SQL parameters, and user-attribute payloads - shipping them over plaintext exposes all of this to any on-path observer. The OTel SDK defaults to gRPC-over-TLS; setting `insecure=true` is an explicit opt-out. Distinct from generic TLS rules because OTel has its own 5+ env vars and config keys with different regex shapes."
+    regex: "(?:OTEL_EXPORTER_OTLP(?:_TRACES|_METRICS|_LOGS)?_INSECURE\\s*[:=]\\s*['\"]?(?:true|1|yes)['\"]?|OTEL_EXPORTER_OTLP(?:_TRACES|_METRICS|_LOGS)?_PROTOCOL\\s*[:=]\\s*['\"]?http/protobuf['\"]?[\\s\\S]{0,200}?OTEL_EXPORTER_OTLP(?:_TRACES|_METRICS|_LOGS)?_ENDPOINT\\s*[:=]\\s*['\"]?http://|exporters\\s*:[\\s\\S]{0,600}?otlp[\\s\\S]{0,400}?(?:tls|grpc)\\s*:[\\s\\S]{0,200}?(?:insecure|insecure_skip_verify)\\s*:\\s*(?:true|yes))"
+    positive_examples:
+      - "OTEL_EXPORTER_OTLP_INSECURE:true"
+    multiline: true
+    window: 20
+    recommendation: "Use `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` (default) with TLS to the OTel Collector endpoint. For the Collector itself, configure `receivers.otlp.protocols.grpc.tls.{ca_file,cert_file,key_file}` + `exporters.otlp.tls.{ca_file,insecure: false}`. For in-cluster communication use a service-mesh (Istio/Linkerd) mTLS so both ends are mutually-authenticated without per-process cert config. If an internal demo-only collector genuinely cannot do TLS, restrict its network scope to loopback (`127.0.0.1:4317`) only - never expose it on the pod/host network without TLS. Validate: `openssl s_client -connect <collector>:4317 -servername <collector>` should return a valid cert. Alert on `insecure=true` in any OTel config via admission-controller policy."
+    cwe: ['CWE-200', 'CWE-311', 'CWE-319']
+    owasp_appsec: ["A01:2021", "A02:2021", "A04:2021"]
+    owasp_asvs: ["V8.1.1", "V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1539', 'T1552.001']
+    cis_controls: ['CIS-3.10', 'CIS-8.2', 'CIS-14.4']
+    nist_controls: ['AU-9', 'SC-8', 'SC-8(1)']
+    pci_dss: ['4.2.1', '10.5.2']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.7', 'CC7.2']
+
+  - id: "prometheus_scrape_config_basic_auth_plaintext_over_http"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Prometheus Scrape Config With basic_auth Over HTTP (Cleartext Credentials Every Scrape)"
+    description: "A Prometheus / VictoriaMetrics / Alertmanager / Thanos scrape-config YAML has a `basic_auth:` block (with `username:`+`password:` or `password_file:`) AND the target `scheme:` is `http` (or omitted, which defaults to `http`). Prometheus scrapes every 15-60s - on each scrape, the Basic Auth header (base64'd `user:pass`) is sent in plaintext HTTP. Any on-path attacker (even transiently - a misconfigured NIC, a noisy tcpdump container, a switch-span-port) captures the credential. This is a 2024 Sysdig-reported finding present in >40% of the corporate Prometheus deployments they audited. Distinct from `prometheus_scrape_no_tls` (general) - this one specifically flags the HTTP+basic-auth combo as the extractable-credential anti-pattern."
+    regex: "(?:scrape_configs|job_name)[\\s\\S]{0,1500}?(?:basic_auth\\s*:[\\s\\S]{0,200}?(?:password|password_file)\\s*:[\\s\\S]{0,200}?(?:scheme\\s*:\\s*['\"]?http['\"]?(?!s)|(?!\\s*scheme))|scheme\\s*:\\s*['\"]?http['\"]?(?!s)[\\s\\S]{0,400}?basic_auth\\s*:[\\s\\S]{0,200}?(?:password|password_file)\\s*:)"
+    multiline: true
+    window: 50
+    positive_examples:
+      - |2
+        scrape_configs:
+          - job_name: 'awx-metrics'
+            basic_auth:
+              username: admin
+              password: secret
+            scheme: http
+            static_configs:
+              - targets: ['awx:8080']
+    recommendation: "Use HTTPS for every scrape target with `basic_auth`: set `scheme: https` + `tls_config: {ca_file: /etc/ssl/internal-ca.pem, insecure_skip_verify: false}`. For service-to-service auth, prefer bearer tokens over basic auth: `authorization: {type: Bearer, credentials_file: /etc/prometheus/bearer.token}` - still require HTTPS. For internal-only metrics endpoints, use a service-mesh mTLS (Istio, Linkerd) so Prometheus scrapes over the mesh-protected link without explicit config. Rotate scrape credentials quarterly via Vault PKI / cert-manager + reload with `kill -HUP` or `/-/reload`. Audit via `kubectl get configmap -A -o json | jq '..|.basic_auth? | select(.) | input_filename'` -> cross-check each with the scrape-config's `scheme`."
+    cwe: ['CWE-311', 'CWE-319', 'CWE-522']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1078.004', 'T1552.001']
+    cis_controls: ['CIS-3.10', 'CIS-8.2', 'CIS-14.4']
+    nist_controls: ['IA-5', 'SC-8', 'SC-8(1)']
+    pci_dss: ['4.2.1', '8.3.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.7', 'CC7.2']
+
+  - id: "openssl_fips_mode_disabled_runtime"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "OpenSSL FIPS Mode Disabled At Runtime (OPENSSL_FIPS=0 / fips=0 / update-crypto-policies)"
+    description: "A task sets `OPENSSL_FIPS=0` / `OPENSSL_FORCE_FIPS_MODE=0` in env, runs `update-crypto-policies --set DEFAULT` (RHEL/CentOS/Fedora - removes FIPS policy), `update-crypto-policies --set LEGACY` (even weaker - re-enables SHA-1, 3DES, DH-1024), `fips-mode-setup --disable`, or writes `/etc/system-fips` to absent. A host in FIPS mode rejects weak algorithms (MD5, SHA-1 for signatures, RC4, DES, RSA <2048, DH <2048) at the library layer - dropping out of FIPS re-enables them. FIPS 140-3 certification is required for US Federal, DoD, HIPAA, PCI-DSS (since 4.0), and many EU regulated workloads. A 'FIPS-certified' fleet that playbooks into non-FIPS mode fails audit and loses the cryptographic assurance the certification implies."
+    regex: "(?:OPENSSL_FIPS\\s*[:=]\\s*['\"]?0['\"]?|OPENSSL_FORCE_FIPS_MODE\\s*[:=]\\s*['\"]?0['\"]?|update-crypto-policies\\s+[^\\n]*?--set\\s+(?:DEFAULT|LEGACY|FUTURE)\\b|fips-mode-setup\\s+[^\\n]*?--disable\\b|(?:ansible\\.builtin\\.)?(?:file|copy)[\\s\\S]{0,300}?(?:path|dest)\\s*:\\s*['\"]?/etc/system-fips['\"]?[\\s\\S]{0,150}?state\\s*:\\s*['\"]?absent['\"]?|FIPS_mode_set\\s*\\(\\s*0\\s*\\))"
+    positive_examples:
+      - "OPENSSL_FIPS:0"
+    multiline: true
+    window: 12
+    recommendation: "Enable and KEEP FIPS mode on all regulated workloads: RHEL/CentOS/Fedora `fips-mode-setup --enable && reboot` + verify `fips-mode-setup --check` returns `FIPS mode is enabled.`. Ubuntu: install `ubuntu-advantage-tools` + `pro enable fips-updates` (requires Ubuntu Pro subscription). For container images, use RHEL UBI-FIPS (`registry.redhat.io/ubi9/ubi-minimal` with FIPS-enabled host kernel - containers inherit FIPS from host). Validate via golang `crypto/tls.FIPSEnabled()` or Python `ssl.FIPS_mode()` at app-startup - fail-closed if False. Audit: `update-crypto-policies --show` must return `FIPS` (or `FIPS:NO-ENFORCE` on transitional hosts). Alert on `update-crypto-policies` / `fips-mode-setup` invocations via auditd. For non-regulated workloads still benefiting from strong defaults, use `update-crypto-policies --set FUTURE` (stronger than DEFAULT, no FIPS cert overhead)."
+    cwe: ['CWE-326', 'CWE-327', 'CWE-693']
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ['T1562.001', 'T1600']
+    cis_controls: ['CIS-3.10', 'CIS-14.6']
+    nist_controls: ['CM-6', 'SC-13', 'SC-13(1)']
+    pci_dss: ['4.2.1', '6.3.3']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)']
+    soc2: ['CC6.7', 'CC7.1']
+
+  - id: "sshd_weak_ciphers_3des_arcfour_cbc_or_hmac_md5"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "SSHD / Samba / Other Service Configured With Weak Ciphers (3des-cbc, arcfour, aes-cbc, hmac-md5, hmac-sha1)"
+    description: "A task renders a service config (`/etc/ssh/sshd_config`, `/etc/ssh/ssh_config`, `smb.conf`, `krb5.conf`) with `Ciphers`, `MACs`, `KexAlgorithms`, or `HostKeyAlgorithms` lines containing legacy weak primitives: `3des-cbc` (Sweet32 birthday attack), `arcfour*` / `RC4` (bias attacks, removed 2015), `aes128-cbc` / `aes256-cbc` (plaintext-oracle attacks in CBC mode), `hmac-md5*` (chosen-prefix collisions), `hmac-sha1` (SHAttered 2017), `diffie-hellman-group1-sha1` (Logjam 1024-bit), `ssh-dss` (deprecated). Modern OpenSSH (≥9.0) has the safe defaults built-in - explicit `Ciphers` / `MACs` lines almost always ADD legacy support for 'some old device' and weaken the server. The 2024 CISA SSH-hardening guidance and NIST SP 800-52r2 explicitly ban these. Distinct from `sshd_ciphers` rule covering TLS-level (if any such rule exists); this catches the SSH + Kerberos + SMB variants comprehensively."
+    regex: "(?:Ciphers|MACs|KexAlgorithms|HostKeyAlgorithms|PubkeyAcceptedAlgorithms|--ciphers|--macs|Protocol|client\\s+signing|server\\s+signing|allow\\s+weak\\s+crypto|permitted_enctypes|default_tgs_enctypes|default_tkt_enctypes)\\s*[:= ]\\s*[^\\n]*?\\b(?:3des-cbc|arcfour(?:128|256)?|aes(?:128|192|256)-cbc|hmac-md5(?:-96)?|hmac-sha1(?:-96)?|hmac-ripemd160|diffie-hellman-group1-sha1|diffie-hellman-group14-sha1|ssh-dss|des-cbc-crc|des-cbc-md5|rc4-hmac|des3-cbc-sha1)\\b"
+    positive_examples:
+      - "Ciphers:3des-cbc"
+    multiline: true
+    window: 5
+    recommendation: "Remove explicit `Ciphers` / `MACs` / `KexAlgorithms` lines and let OpenSSH use built-in safe defaults (OpenSSH 9.x+ already excludes everything listed). If you MUST pin explicitly (e.g. for FIPS or CIS compliance): `Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com`, `MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com`, `KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512`, `HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256`. For Kerberos (`krb5.conf`): `permitted_enctypes = aes256-cts-hmac-sha384-192 aes128-cts-hmac-sha256-128 aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96`. For Samba: `server signing = mandatory` + `smb encrypt = required` + `ntlm auth = disabled`. Audit via `ssh-audit` (github.com/jtesta/ssh-audit) - enforce A+ rating in CI. For legacy clients that actually need weak crypto, segment them onto a DMZ + proxy."
+    cwe: ['CWE-311', 'CWE-326', 'CWE-327']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5", "V8.3.1", "V9.1.1"]
+    mitre_attack: ['T1040', 'T1557', 'T1600']
+    cis_controls: ['CIS-3.10', 'CIS-4.8', 'CIS-14.6']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.2.1', '8.3.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "tls_min_version_below_1_2_nginx_apache_haproxy"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Web/proxy server TLS min version configured below 1.2 (TLSv1.0 or 1.1 enabled)"
+    description: "A task renders an nginx / Apache httpd / HAProxy / Envoy config with an explicit TLSv1 / TLSv1.1 protocol directive (`ssl_protocols TLSv1 TLSv1.1 TLSv1.2`, `SSLProtocol +TLSv1 +TLSv1.1`, `ssl-min-ver TLSv1.0`, `tls_minimum_protocol_version: TLSv1_1`). TLS 1.0 and 1.1 have been deprecated by IETF RFC 8996 (March 2021), disabled by default in all major browsers since 2020, removed from FIPS 140-3, and are an automatic PCI-DSS 4.0 audit failure. Legacy re-enablement is usually 'we have a compatibility test that broke' - which almost always means an old IoT device that itself needs to be retired, not TLS weakened for."
+    regex: "(?:ssl_protocols\\s+[^\\n;]*\\bTLSv1(?:\\.1)?\\b|SSLProtocol\\s+[^\\n]*?\\+?TLSv1(?:\\.1)?\\b|ssl-min-ver\\s+TLSv1(?:\\.0|\\.1)?\\b|ssl-default-(?:bind|server)-options\\s+[^\\n]*\\bssl-min-ver\\s+TLSv1(?:\\.0|\\.1)?|tls(?:_?minimum)?_protocol_version\\s*:\\s*['\"]?TLSv1(?:_[01])?['\"]?|MinProtocol\\s*=\\s*TLSv1(?:\\.1)?\\b)"
+    positive_examples:
+      - "ssl_protocols TLSv1 TLSv1.1 TLSv1.2;"
+    recommendation: "Set the minimum TLS version to 1.2 or 1.3 everywhere: `ssl_protocols TLSv1.2 TLSv1.3;` (nginx), `SSLProtocol -all +TLSv1.2 +TLSv1.3` (Apache), `ssl-default-bind-options ssl-min-ver TLSv1.2` (HAProxy), `tls_minimum_protocol_version: TLSv1_2` (Envoy). For client-side (ansible.builtin.uri, OpenSSL), also ensure `MinProtocol = TLSv1.2` in `/etc/ssl/openssl.cnf`. Audit via `testssl.sh <host>:443` + `sslyze --tlsv1 --tlsv1_1 <host>`. For legacy clients that truly can't do TLS 1.2, isolate them on a dedicated endpoint with its own narrow allow-list - don't weaken the main endpoint for everyone."
+    cwe: ['CWE-326', 'CWE-327']
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ['T1562.004', 'T1565.002']
+    cis_controls: ['CIS-3.10', 'CIS-3.11']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.2.1', '4.2.2']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "tls_weak_cipher_suite_rc4_3des_null_export"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "TLS cipher-suite config enables RC4 / 3DES / NULL / EXPORT / DES / MD5"
+    description: "A task renders a TLS cipher-suite config that explicitly allows RC4, 3DES (SWEET32/CVE-2016-2183), NULL (no encryption), EXPORT (40/56-bit), DES, aNULL, eNULL, or MD5-based suites. Matches nginx (`ssl_ciphers`), Apache (`SSLCipherSuite`), HAProxy (`ssl-default-bind-ciphers`), OpenSSL (`openssl_cipher_list`), Envoy (`cipher_suites:`), and Kubernetes Ingress (`nginx.ingress.kubernetes.io/ssl-ciphers`). The presence of `:RC4:` or `:DES:` / `:3DES:` in a cipher string is an automatic PCI-DSS 4.0 failure and a CVSS-9+ finding in any modern pentest."
+    regex: "(?:ssl_ciphers|SSLCipherSuite|ssl-default-(?:bind|server)-ciphers(?:uites)?|openssl_cipher_list|cipher_suites|ssl-ciphers)\\s*[:=\\s]\\s*['\"]?[^'\"\\n]*\\b(?:RC4|3DES|DES(?:-CBC)?|NULL|aNULL|eNULL|EXPORT(?:40|56)?|PSK-NULL|MD5)\\b"
+    positive_examples:
+      - "ssl_ciphers EECDH+AES128:RSA+AES128:EECDH+AES256:RSA+AES256:EECDH+3DES:RSA+3DES:!MD5;"
+    recommendation: "Use a modern cipher-suite string. For TLS 1.2: `ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256`. For TLS 1.3, the cipher suites are fixed by the spec - just enable TLS 1.3 and the right ones (TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256, TLS_AES_128_GCM_SHA256) are negotiated automatically. Use the Mozilla SSL Config Generator (ssl-config.mozilla.org) for `modern` or `intermediate` profiles matched to your deployment. Audit with `testssl.sh`, `sslyze --regular <host>`, and `nmap --script ssl-enum-ciphers`. Never keep `RC4`, `DES`, `3DES`, `NULL`, `EXPORT`, `MD5` in any cipher string - delete them entirely rather than disabling via priority."
+    cwe: ['CWE-326', 'CWE-327']
+    cve: ["CVE-2016-2183"]
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ['T1557.001', 'T1562.004']
+    cis_controls: ['CIS-3.10', 'CIS-3.11']
+    nist_controls: ['SC-8', 'SC-13']
+    pci_dss: ['4.2.1', '4.2.2']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "dkim_signing_key_weak_size_or_sha1"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "DKIM signing key deployed with RSA < 2048 bits or SHA-1 hash"
+    description: "A task deploys or configures a DKIM (DomainKeys Identified Mail) signing key as an RSA key shorter than 2048 bits, or with SHA-1 (`a=rsa-sha1`) instead of SHA-256 (`a=rsa-sha256`). RFC 8301 (2018) formally deprecated rsa-sha1 and required a minimum 2048-bit key; every major mailbox provider (Google, Microsoft 365, Yahoo, Apple iCloud, Proton) rejects or downgrades mail signed with weaker keys - BIMI and DMARC reputation are impacted. 2024 Google / Yahoo bulk-sender policy updates (Feb 2024) explicitly require 2048-bit RSA + SHA-256 for any sender over 5k msg/day. 1024-bit RSA signing keys have been factorable on commodity GPU clusters since 2022. Matches Postfix/OpenDKIM/rspamd DKIM keygen with `-b 1024`, DNS TXT record `k=rsa; p=<short-base64>`, `mail_services.dkim.keysize: 1024`, and AWS SES `create-email-identity` with `KeyLength: RSA_1024_BIT`."
+    regex: "(?:opendkim-genkey[^\\n]*-b\\s*(?:512|768|1024)|dkim[^\\n]{0,40}(?:keysize|key_size|rsa_bits)\\s*[:=]\\s*(?:512|768|1024)|(?:openssl\\s+genrsa|ssh-keygen)[^\\n]*dkim[^\\n]*-?(?:b\\s*|bits\\s*=?)\\s*(?:512|768|1024)|['\"]?a['\"]?\\s*[:=]\\s*['\"]?rsa-sha1['\"]?|DkimSigningKeyLength\\s*[:=]\\s*(?:RSA_1024_BIT|1024)|community\\.general\\.(?:opendkim|rspamd)[\\s\\S]{0,300}?keysize\\s*[:=]\\s*(?:512|768|1024))"
+    positive_examples:
+      - "opendkim-genkey-b512"
+    recommendation: "Generate all DKIM keys as 2048-bit RSA with SHA-256: `opendkim-genkey -s mail-2025 -d example.com -b 2048` (or `-b 4096` for high-assurance domains - note that 4096-bit DNS TXT records need splitting into two strings to fit the 255-byte limit). Always use `a=rsa-sha256` in the signing record. Rotate DKIM selectors every 6-12 months: publish the new selector in DNS, switch signing, retire the old selector after 30 days. For AWS SES, use `PutEmailIdentityDkimSigningAttributes` with `NextSigningKeyLength: RSA_2048_BIT`. For Microsoft 365, the service manages DKIM keys - just enable per-domain signing in the Exchange admin center and confirm 2048-bit. For Google Workspace, use `Dkim DNS management` -> generate 2048-bit. Align DKIM with SPF + DMARC (p=reject) per RFC 7489 and the 2024 Google/Yahoo bulk-sender requirements. Audit with `dig TXT mail-2025._domainkey.example.com +short | grep -o 'p=[^\"]*' | base64 -d | openssl rsa -pubin -text -noout 2>&1 | grep Public-Key`."
+    cwe: ['CWE-326', 'CWE-327']
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ['T1585.002', 'T1598.002']
+    cis_controls: ['CIS-9.4', 'CIS-9.5']
+    nist_controls: ['SC-12', 'SC-13', 'SI-8']
+    pci_dss: ['4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "dmarc_policy_none_or_missing_on_production_domain"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "DMARC record deployed with p=none (monitor-only) or missing on a production domain"
+    description: "A task publishes or updates a DMARC DNS TXT record (`_dmarc.<domain>`) with `p=none` (monitor-only, no enforcement) - OR a `p=quarantine` / `p=reject` record with `pct=` < 100 - on what is clearly a production / mail-sending domain. `p=none` gives zero protection against direct-domain spoofing (the #1 BEC / phishing pattern, per FBI IC3 2024 reporting $6.3B annual losses). Google, Yahoo, Apple iCloud, and Microsoft 365 (Feb 2024) now require at least `p=quarantine` for bulk senders; many mailbox providers downgrade reputation of any `p=none` sender. Also matches misconfigured records missing `rua`/`ruf` aggregate reporting, or `sp=none` (subdomain policy explicitly weakened below the parent)."
+    regex: "(?:_dmarc[\\s\\S]{0,200}?['\"]?v=DMARC1[\\s\\S]{0,300}?p\\s*=\\s*none\\b|['\"]?v=DMARC1['\"]?[^\\n]{0,300}?\\bsp\\s*=\\s*none\\b|['\"]?v=DMARC1['\"]?[^\\n]{0,300}?\\bp\\s*=\\s*(?:quarantine|reject)[^\\n]{0,100}?\\bpct\\s*=\\s*(?:[1-9]|[1-8][0-9]|90|9[1-9])\\b|dmarc_policy\\s*[:=]\\s*['\"]?none['\"]?|community\\.general\\.(?:cloudflare|route53)_dns_record[\\s\\S]{0,300}?_dmarc[\\s\\S]{0,200}?p=none)"
+    positive_examples:
+      - "_dmarcv=DMARC1p=none"
+    recommendation: "Deploy DMARC in three phases over ~90 days: (1) Week 1-4: `v=DMARC1; p=none; rua=mailto:dmarc-agg@example.com; ruf=mailto:dmarc-fail@example.com; fo=1` - collect aggregate + failure reports, ensure SPF + DKIM pass for every legitimate sender (Salesforce, Marketo, SendGrid, Workday, helpdesk). (2) Week 5-8: step to `p=quarantine; pct=25`, then 50, then 100 - monitor dmarc-aggregate reports for passing %. (3) Week 9+: step to `p=reject; pct=100; sp=reject; aspf=s; adkim=s`. Set `sp` (subdomain) at least as strict as `p`. Use a DMARC analytics service (Dmarcian, Valimail, Postmark DMARC Digests, Cloudflare DMARC Management 2024) during rollout. For parked / non-sending domains, publish the strict 'null-MX + hard DMARC' pattern: `v=DMARC1; p=reject; sp=reject; rua=mailto:dmarc@example.com; adkim=s; aspf=s` immediately. Required by the Feb 2024 Google + Yahoo bulk-sender policy for >5k msg/day. Review NIST SP 800-177r1 and M3AAWG email-authentication best practices."
+    cwe: ['CWE-290', 'CWE-345']
+    owasp_appsec: ["A07:2021", "A08:2021"]
+    mitre_attack: ['T1566.001', 'T1585.002', 'T1598.002']
+    cis_controls: ['CIS-9.4', 'CIS-9.5', 'CIS-9.6']
+    nist_controls: ['SC-20', 'SC-21', 'SI-8']
+    pci_dss: ['5.4.1']
+    hipaa: ['164.308(a)(5)(ii)(A)']
+    soc2: ['CC6.8', 'CC7.2']
+
+  - id: "exchange_or_google_external_forward_rule_enabled"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Mailbox inbox / transport rule configured to auto-forward externally (BEC persistence)"
+    description: "A task creates an Exchange Online / Microsoft 365, Google Workspace, or on-prem Exchange mailbox inbox-rule / transport-rule / Gmail-forwarding-filter that auto-forwards mail to an external (non-tenant-owned) address. This is the #1 persistence mechanism after a Microsoft 365 / Google Workspace account takeover - Mandiant M-Trends 2024 and Microsoft Digital Defense Report 2024 both list mailbox forwarding rules as the primary BEC reconnaissance and invoice-fraud persistence technique. Matches `New-InboxRule -ForwardTo`, `Set-Mailbox -ForwardingSmtpAddress <external>`, `New-TransportRule -RedirectMessageTo`, Graph API `POST /users/{id}/mailFolders/inbox/messageRules` with external `forwardTo`, and Google Workspace `POST /admin/directory/v1/users/{u}/settings/forwardingAddresses`."
+    regex: "(?:New-InboxRule[^\\n]*(?:-ForwardTo|-ForwardAsAttachmentTo|-RedirectTo)[^\\n]*@(?!(?:example\\.com|yourdomain\\.com))[a-zA-Z0-9_.-]+\\.[a-zA-Z]{2,}|Set-Mailbox[^\\n]*-(?:ForwardingSmtpAddress|ForwardingAddress)[^\\n]*@(?!(?:example\\.com|yourdomain\\.com))[a-zA-Z0-9_.-]+\\.[a-zA-Z]{2,}|New-TransportRule[^\\n]*(?:-RedirectMessageTo|-BlindCopyTo)[^\\n]*@[a-zA-Z0-9_.-]+\\.[a-zA-Z]{2,}|messageRules[\\s\\S]{0,400}?forwardTo[\\s\\S]{0,200}?emailAddress[\\s\\S]{0,80}?address\\s*:\\s*['\"][^'\"]+@[a-zA-Z0-9_.-]+\\.[a-zA-Z]{2,}|forwardingAddresses[\\s\\S]{0,200}?forwardingEmail\\s*[:=]\\s*['\"][^'\"]+@[a-zA-Z0-9_.-]+\\.[a-zA-Z]{2,})"
+    positive_examples:
+      - "New-InboxRule-ForwardTo@a.aa"
+    multiline: true
+    window: 10
+    recommendation: "Block tenant-wide external auto-forwarding by default. In Microsoft 365: Exchange Online -> 'Anti-spam outbound policy' -> 'Automatic forwarding rules: Off - Forwarding is disabled'. In Google Workspace: Admin console -> Apps -> Google Workspace -> Gmail -> Routing -> disable 'Allow users to auto-forward to a specific email address'. For exceptional business need (e.g., shared mailbox forwarding to a ticketing system), allow per-user / per-domain exceptions via transport rule with a specific external sender allowlist, logged to a SIEM. Alert (P1) on every creation/update of an inbox-rule or forwarding address via the Microsoft 365 unified audit log (`New-InboxRule`, `Set-Mailbox`, `Add-MailboxPermission`) or Google Workspace Admin audit log. Run monthly recertification: `Get-Mailbox -ResultSize Unlimited | Where {$_.ForwardingSmtpAddress -ne $null}` and review. Review Microsoft's BEC playbook and the CISA + FBI IC3 BEC guidance (2024)."
+    cwe: ['CWE-200', 'CWE-284']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1020', 'T1098.002', 'T1114.003']
+    cis_controls: ['CIS-9.5', 'CIS-9.6', 'CIS-13.5']
+    nist_controls: ['AC-4', 'AU-12', 'SI-4']
+    pci_dss: ['7.1.1', '10.2.2']
+    hipaa: ['164.308(a)(4)', '164.312(b)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "aws_cloudfront_distribution_uses_default_certificate"
+    category: "insecure_communication"
+    severity: "MEDIUM"
+    title: "CloudFront Distribution Uses Default *.cloudfront.net Certificate (cloudfront_default_certificate: true)"
+    description: "A `community.aws.cloudfront_distribution` task has `viewer_certificate.cloudfront_default_certificate: true` (or omits a custom `acm_certificate_arn:` / `iam_certificate_id:`). The distribution will serve TLS with CloudFront's default wildcard `*.cloudfront.net` cert, which (a) forces clients to either ignore the SAN mismatch for your custom domain or accept generic CF branding, (b) precludes any SNI-based access-control via `viewer_certificate.ssl_support_method: sni-only`, and (c) commonly correlates with origin configurations that fall back to HTTP-only, defeating end-to-end TLS."
+    regex: "(?ms)community\\.aws\\.cloudfront_distribution\\s*:[\\s\\S]{0,2500}?(?:cloudfront_default_certificate\\s*:\\s*(?:true|True|yes|Yes|1)|viewer_certificate\\s*:\\s*\\{?\\s*cloudfront_default_certificate\\s*:\\s*(?:true|True|yes|Yes|1))"
+    multiline: true
+    window: 80
+    positive_examples:
+      - |2
+        - community.aws.cloudfront_distribution:
+            distribution_config:
+              viewer_certificate:
+                cloudfront_default_certificate: true
+    recommendation: "Always attach a custom ACM certificate in us-east-1 (CloudFront requires that region) via `acm_certificate_arn: arn:aws:acm:us-east-1:...:certificate/...` and set `ssl_support_method: sni-only` + `minimum_protocol_version: TLSv1.2_2021`. Use `aws acm request-certificate --domain-name your.domain.com --validation-method DNS` and DNS-validate against Route 53 for zero-touch renewal. In audit mode, run `aws cloudfront list-distributions --query 'DistributionList.Items[?ViewerCertificate.CloudFrontDefaultCertificate==\\`true\\`]'` and remediate each hit."
+    cwe: ['CWE-295', 'CWE-297', 'CWE-319']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-15.4']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.1', '4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "aws_cloudfront_distribution_minimum_protocol_below_tls12"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "CloudFront Distribution Allows TLS < 1.2 (SSLv3/TLS1.0/TLS1.1 Minimum Protocol)"
+    description: "A `community.aws.cloudfront_distribution` task sets `viewer_certificate.minimum_protocol_version:` to `SSLv3`, `TLSv1`, `TLSv1_2016`, `TLSv1.1_2016`, or leaves it at the legacy default `TLSv1`. These protocols are deprecated, vulnerable to BEAST / POODLE / LOGJAM / SWEET32 downgrades, and disallowed by PCI-DSS 4.0 (eff Mar 2025), FedRAMP High, and every major compliance regime. AWS introduced `TLSv1.2_2021` and `TLSv1.2_2019` as the currently-approved floors; anything older should be treated as insecure."
+    regex: "(?ms)community\\.aws\\.cloudfront_distribution\\s*:[\\s\\S]{0,2500}?minimum_protocol_version\\s*:\\s*['\"]?(?:SSLv3|TLSv1|TLSv1_2016|TLSv1\\.1_2016|TLSv1_1|TLSv1\\.1)['\"]?"
+    positive_examples:
+      - |2-
+        community.aws.cloudfront_distribution:
+              # ...
+              minimum_protocol_version: TLSv1
+    multiline: true
+    window: 80
+    recommendation: "Set `minimum_protocol_version: TLSv1.2_2021` (the modern AWS recommendation) on every distribution. For customers in highly regulated industries, consider `TLSv1.3` by specifying the `TLSv1.3_2023` policy where available. Run `aws cloudfront list-distributions --query 'DistributionList.Items[*].[Id,ViewerCertificate.MinimumProtocolVersion]' --output text | grep -vE 'TLSv1\\.2_2021|TLSv1\\.3'` to find all out-of-policy distributions. Combined with `ssl_support_method: sni-only` (required; `vip` costs $600/mo and is rarely needed)."
+    cwe: ['CWE-326', 'CWE-327', 'CWE-757']
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-15.4']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.1', '4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "aws_cloudfront_viewer_protocol_policy_allow_all"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "CloudFront Cache/Default Behavior Allows HTTP (viewer_protocol_policy: allow-all)"
+    description: "A `community.aws.cloudfront_distribution` task sets `default_cache_behavior.viewer_protocol_policy: allow-all` or any entry in `cache_behaviors.*.viewer_protocol_policy: allow-all`. This allows cleartext HTTP traffic to the distribution in parallel with HTTPS, which (a) makes session cookies vulnerable to passive network capture on public Wi-Fi / transit networks, (b) permits HTTP-downgrade MITM against unpinned clients, and (c) silently serves the origin over HTTP for browsers that follow cached redirects."
+    regex: "(?ms)community\\.aws\\.cloudfront_distribution\\s*:[\\s\\S]{0,3000}?viewer_protocol_policy\\s*:\\s*['\"]?allow-all['\"]?"
+    positive_examples:
+      - |2-
+        community.aws.cloudfront_distribution:
+              # ...
+              viewer_protocol_policy: allow-all
+    multiline: true
+    window: 80
+    recommendation: "Set `viewer_protocol_policy: redirect-to-https` (redirects HTTP -> HTTPS, preserving legacy bookmarks) or `https-only` (hard-fail HTTP, strictly correct for APIs / webhook endpoints). Pair with `minimum_protocol_version: TLSv1.2_2021` and HSTS via a CloudFront Functions response header: `add_header 'Strict-Transport-Security' 'max-age=63072000; includeSubDomains; preload'`. AWS Config rule `cloudfront-viewer-policy-https` flags this continuously."
+    cwe: ['CWE-311', 'CWE-319', 'CWE-523']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-15.4']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.1', '4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "aws_elb_listener_weak_ssl_policy"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "ELB/ALB Listener Uses Deprecated SSL Negotiation Policy"
+    description: "An `amazon.aws.elb_classic_lb` / `community.aws.elb_application_lb` / `amazon.aws.elb_network_lb` task sets an HTTPS/TLS listener `ssl_policy:` (or `policy_names:`) to one of the deprecated / insecure ELB predefined policies: `ELBSecurityPolicy-2015-05`, `ELBSecurityPolicy-TLS-1-0-2015-04`, `ELBSecurityPolicy-TLS-1-1-2017-01`, `ELBSecurityPolicy-FS-1-1-2019-08`, `AWSConsole-SSLNegotiationPolicy-*`, `Reference-Security-Policy`, or any custom policy that enables `DES-CBC3-SHA`, `RC4-`, `ECDHE-ECDSA-RC4-SHA`, or SSLv3/TLS1.0/TLS1.1 ciphers. These expose clients to downgrade-and-MITM attacks."
+    regex: "(?ms)(?:amazon\\.aws\\.elb_classic_lb|community\\.aws\\.elb_application_lb|amazon\\.aws\\.elb_network_lb)\\s*:[\\s\\S]{0,2000}?(?:ssl_policy|SslPolicy|policy_names?)\\s*:\\s*['\"]?(?:ELBSecurityPolicy-(?:2015-05|TLS-1-0-2015-04|TLS-1-1-2017-01|FS-1-1-2019-08)|AWSConsole-SSLNegotiationPolicy-[\\w.-]+|Reference-Security-Policy)['\"]?"
+    positive_examples:
+      - |2-
+        community.aws.elb_application_lb:
+              # ...
+              SslPolicy: ELBSecurityPolicy-2015-05
+    multiline: true
+    window: 60
+    recommendation: "Use `ssl_policy: ELBSecurityPolicy-TLS13-1-2-2021-06` for ALB/NLB (TLS 1.2 + TLS 1.3, strong forward-secret ciphers only), or `ELBSecurityPolicy-FS-1-2-Res-2020-10` for Forward-Secrecy only. Avoid custom policies. Audit with `aws elbv2 describe-listeners --load-balancer-arn $ARN --query 'Listeners[].SslPolicy'` and `aws elb describe-load-balancer-policies --load-balancer-name $NAME`. Enforce via AWS Config rule `elbv2-acm-certificate-required` + a custom rule that filters approved policies."
+    cwe: ['CWE-326', 'CWE-327', 'CWE-757']
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-15.4']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.1', '4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "aws_elb_listener_http_on_internet_facing"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Internet-Facing ELB/ALB Listener Accepts Plain HTTP (Not HTTPS)"
+    description: "An `amazon.aws.elb_classic_lb` / `community.aws.elb_application_lb` task with `scheme: internet-facing` configures a listener using `Protocol: HTTP` (or `protocol: http` / `listener.Protocol: HTTP`) on a public-facing port without a companion HTTPS listener + redirect rule. All requests to the load balancer travel unencrypted over the internet. This also defeats CloudFront's `https-only` / `redirect-to-https` viewer policy if an origin ALB still accepts HTTP."
+    regex: "(?ms)(?:amazon\\.aws\\.elb_classic_lb|community\\.aws\\.elb_application_lb)\\s*:[\\s\\S]{0,2000}?scheme\\s*:\\s*['\"]?internet-facing['\"]?[\\s\\S]{0,2000}?(?:Protocol|protocol)\\s*:\\s*['\"]?HTTP['\"]?\\b(?!S)"
+    positive_examples:
+      - "amazon.aws.elb_classic_lb:scheme:internet-facingProtocol:HTTP"
+    multiline: true
+    window: 80
+    recommendation: "Configure the ALB/ELB with only an HTTPS (443) listener. For backwards-compat with legacy clients, add an HTTP (80) listener whose ONLY action is `type: redirect` with `port: 443, protocol: HTTPS, status_code: HTTP_301` - this is the ALB-native, no-target-group, zero-capacity redirect. On a classic ELB, prefer migrating to ALB. For internal ELBs where you terminate TLS at the app tier, enforce `scheme: internal` explicitly so this rule does not fire. Audit with `aws elbv2 describe-listeners` and correlate against `Scheme: internet-facing`."
+    cwe: ['CWE-311', 'CWE-319', 'CWE-523']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-15.4']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.1', '4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "aws_elasticache_without_transit_or_at_rest_encryption"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "ElastiCache Redis/Memcached Without In-Transit or At-Rest Encryption"
+    description: "A `community.aws.elasticache` / `community.aws.elasticache_info` / `community.aws.elasticache_replication_group` task creates a Redis or Memcached cluster with `transit_encryption_enabled: false` (or omitted), `at_rest_encryption_enabled: false` (or omitted), or neither flag present at all. Redis commands (`AUTH`, `SET`, `HGETALL`) travel in cleartext on the VPC network - any compromised EC2 instance or container in the same subnet can passively sniff session tokens, rate-limit counters, or application-layer secrets via `tcpdump` on port 6379/11211. Without at-rest encryption, an AWS operator (or a stolen backup-snapshot) can recover cached data including PII and application cache-poisoning payloads."
+    regex: "(?ms)community\\.aws\\.(?:elasticache|elasticache_replication_group|elasticache_info)\\s*:[\\s\\S]{0,2000}?(?:transit_encryption_enabled|at_rest_encryption_enabled|TransitEncryptionEnabled|AtRestEncryptionEnabled)\\s*:\\s*(?:false|False|no|No|0)\\b"
+    positive_examples:
+      - "community.aws.elasticache_replication_group:transit_encryption_enabled:false"
+    multiline: true
+    window: 60
+    recommendation: "Set both `transit_encryption_enabled: true` and `at_rest_encryption_enabled: true` on every new ElastiCache replication group. For Redis, also set `auth_token:` (pulled from AWS Secrets Manager) to require AUTH on every connection. Note: enabling transit-encryption on an existing cluster is a non-zero-downtime migration - plan with `transit_encryption_mode: preferred` rotation. Enforce via AWS Config rule `elasticache-redis-cluster-automatic-backup-check` + custom rule checking both encryption flags. For Memcached (SASL-less protocol), consider Redis migration since Memcached has no TLS story before `memcached 1.5.13` with stunnel."
+    cwe: ['CWE-311', 'CWE-312', 'CWE-319']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V6.1.2", "V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1530']
+    cis_controls: ['CIS-3.10', 'CIS-3.11']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-28']
+    pci_dss: ['3.5.1', '4.1', '4.2.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "aws_kinesis_stream_without_encryption"
+    category: "insecure_communication"
+    severity: "MEDIUM"
+    title: "Kinesis Data Stream Without Server-Side Encryption"
+    description: "A `community.aws.kinesis_stream` task sets `encryption_type: NONE` (or omits `encryption_type:` + `key_id:`). Records flowing through the stream - which typically include application event-bus messages, IoT telemetry, CDC change-data-capture rows, or clickstream sessions - land in Kinesis storage unencrypted. Anyone with `kinesis:GetRecords` + `kinesis:GetShardIterator` on the stream can read the cleartext history; there is no defense-in-depth KMS envelope."
+    regex: "(?ms)community\\.aws\\.kinesis_stream\\s*:[\\s\\S]{0,1500}?encryption_type\\s*:\\s*['\"]?NONE['\"]?"
+    positive_examples:
+      - |2-
+        community.aws.kinesis_stream:
+            # ...
+            encryption_type: NONE
+    multiline: true
+    window: 30
+    recommendation: "Set `encryption_type: KMS` and `key_id: arn:aws:kms:...` (a CMK, NOT the AWS-managed `alias/aws/kinesis` key - customer-managed keys give you key-policy control and rotation audit via CloudTrail). Combine with a stream resource policy that restricts `kinesis:PutRecord*` / `GetRecord*` to specific role ARNs. Enforce via AWS Config rule `kinesis-stream-encrypted`. For highest-sensitivity streams (PCI / HIPAA), use a dedicated per-team CMK with `kms:ViaService = kinesis` condition and CloudTrail data-event logging."
+    cwe: ['CWE-311', 'CWE-312', 'CWE-319']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V6.1.2", "V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1213', 'T1530']
+    cis_controls: ['CIS-3.11', 'CIS-14.8']
+    nist_controls: ['SC-28', 'SC-28(1)']
+    pci_dss: ['3.4.1', '3.5.1']
+    hipaa: ['164.312(a)(2)(iv)']
+    soc2: ['CC6.1']
+
+  - id: "aws_elasticsearch_domain_without_encryption_at_rest_or_https"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Elasticsearch/OpenSearch Domain Without At-Rest Encryption or HTTPS-Only"
+    description: "A `community.aws.elasticsearch_slr` / `community.aws.opensearch` / `community.aws.elasticsearch_domain` task creates a domain with `encryption_at_rest.enabled: false` (or missing), `node_to_node_encryption.enabled: false`, or `domain_endpoint_options.enforce_https: false`. OpenSearch (formerly Elasticsearch) domains are frequently used to index application logs, PII events, and security-event data - a single breach therefore exposes ALL historical application telemetry. Without `enforce_https`, HTTP clients can still hit the domain endpoint and have credentials or sensitive query parameters sniffed."
+    regex: "(?ms)community\\.aws\\.(?:opensearch|elasticsearch_domain|elasticsearch_slr)\\s*:[\\s\\S]{0,2500}?(?:encryption_at_rest\\s*:\\s*\\{?\\s*enabled\\s*:\\s*(?:false|False|no|No|0)|node_to_node_encryption\\s*:\\s*\\{?\\s*enabled\\s*:\\s*(?:false|False|no|No|0)|enforce_https\\s*:\\s*(?:false|False|no|No|0))"
+    positive_examples:
+      - |2-
+        community.aws.opensearch:
+              # ...
+              enforce_https: false
+    multiline: true
+    window: 80
+    recommendation: "Always set ALL THREE: `encryption_at_rest: {enabled: true, kms_key_id: arn:aws:kms:...}`, `node_to_node_encryption: {enabled: true}`, and `domain_endpoint_options: {enforce_https: true, tls_security_policy: Policy-Min-TLS-1-2-PFS-2023-10}`. Restrict the access policy to a specific IAM role ARN AND a VPC endpoint - never expose an OpenSearch domain publicly. Enable audit logging to a dedicated log group + S3 export for long-term retention. Enforce via AWS Config rules `opensearch-encrypted-at-rest`, `opensearch-node-to-node-encryption-check`, `opensearch-https-required`."
+    cwe: ['CWE-311', 'CWE-319', 'CWE-757']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1530']
+    cis_controls: ['CIS-3.10', 'CIS-3.11']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-28']
+    pci_dss: ['3.5.1', '4.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "azure_db_server_ssl_enforcement_disabled"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Azure Database Server SSL Enforcement Disabled (ssl_enforcement/enable_ssl_enforcement: disabled)"
+    description: "An `azure.azcollection.azure_rm_postgresqlserver` / `azure.azcollection.azure_rm_mysqlserver` / `azure.azcollection.azure_rm_mariadbserver` task sets `ssl_enforcement: 'Disabled'` (or `enforce_ssl: false` / `ssl_enforcement: false`). Client applications can then connect over unencrypted TCP, exposing username, password, session cookies, and SQL payloads to any attacker who can reach the same Azure VNet/subnet or perform a VNet-peering MITM. Defaults-rich ODBC/JDBC drivers will happily connect unencrypted if the server allows it."
+    regex: "(?ms)azure\\.azcollection\\.azure_rm_(?:postgresql|mysql|mariadb)server\\s*:[\\s\\S]{0,2000}?(?:ssl_enforcement|enforce_ssl)\\s*:\\s*['\"]?(?:Disabled|disabled|false|False|no|No|0)['\"]?"
+    multiline: true
+    window: 50
+    positive_examples:
+      - |2
+        - azure.azcollection.azure_rm_postgresqlserver:
+            resource_group: rg
+            name: pgsrv
+            ssl_enforcement: Disabled
+    recommendation: "Set `ssl_enforcement: Enabled` (or `enforce_ssl: true`) and additionally set `minimal_tls_version: TLS1_2` (or `TLS1_3` where supported - Azure PostgreSQL Flexible v16+). In the connecting application, use `sslmode=verify-full` (PostgreSQL) or `useSSL=true&requireSSL=true&verifyServerCertificate=true` (MySQL JDBC). Deploy the Azure Root CA bundle into the application image. Enforce via Azure Policy built-in `ID: d158790f-bfb0-486c-8631-2dc6b4e8e6af` (PostgreSQL) / `e802a67a-daf5-4436-9ea6-f6d821dd0c5d` (MySQL). Check current state: `az postgres server show --resource-group $RG --name $NAME --query sslEnforcement`."
+    cwe: ['CWE-311', 'CWE-319', 'CWE-523']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-15.4']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.1', '4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "azure_redis_non_ssl_port_enabled"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Azure Cache for Redis Accepts Plaintext on Port 6379 (enable_non_ssl_port: true)"
+    description: "An `azure.azcollection.azure_rm_rediscache` task sets `enable_non_ssl_port: true` (or `enableNonSslPort: true`). The Redis instance accepts cleartext connections on TCP 6379 in parallel with the TLS port 6380 - clients (or misconfigured libraries falling back to default port 6379) send the `AUTH` token and all commands unencrypted. Anyone with VNet reachability (internal attacker, compromised VM, DNS-cache-poisoning on peered VNets) can capture the auth token and full command stream."
+    regex: "(?ms)azure\\.azcollection\\.azure_rm_rediscache\\s*:[\\s\\S]{0,1500}?(?:enable_non_ssl_port|enableNonSslPort)\\s*:\\s*(?:true|True|yes|Yes|1)\\b"
+    positive_examples:
+      - |2-
+        azure.azcollection.azure_rm_rediscache:
+                    # ...
+                    enable_non_ssl_port: true
+    multiline: true
+    window: 40
+    recommendation: "Set `enable_non_ssl_port: false` (the secure default on newer Azure API versions). Require TLS-only clients: `minimum_tls_version: '1.2'` on the Redis resource, plus use `redis-cli --tls -h $HOST -p 6380 -a $AUTH_TOKEN` or the stackexchange-redis `ssl=true` connection string. Rotate the auth key if the non-SSL port was ever enabled (assume the token was captured). Enforce via Azure Policy built-in `ID: 22bee202-a82f-4305-9a2a-6d7f44d4dedb` (Azure Cache for Redis should not use the non-SSL port). Audit via `az redis list --query '[].{name:name, ssl:enableNonSslPort}'`."
+    cwe: ['CWE-311', 'CWE-319', 'CWE-523']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-15.4']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.1', '4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "azure_webapp_https_only_disabled"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "Azure App Service Web App with HTTPS-Only Disabled (https_only: false)"
+    description: "An `azure.azcollection.azure_rm_webapp` / `azure.azcollection.azure_rm_functionapp` task sets `https_only: false` (or omits it - the App Service default allows both HTTP and HTTPS). Clients can reach the app over cleartext HTTP on the `*.azurewebsites.net` hostname and over any custom domain not bound with an HTTPS listener. Session cookies, bearer tokens, and form posts travel unencrypted; HSTS is not automatically applied."
+    regex: "(?ms)azure\\.azcollection\\.azure_rm_(?:webapp|functionapp)\\s*:[\\s\\S]{0,2500}?https_only\\s*:\\s*(?:false|False|no|No|0)\\b"
+    positive_examples:
+      - "azure.azcollection.azure_rm_webapp:https_only:false"
+    multiline: true
+    window: 60
+    recommendation: "Set `https_only: true` on every App Service / Function App / Logic App Standard. Configure custom domains with managed certificates (free via Azure-managed cert) and force TLS 1.2 minimum via `min_tls_version: '1.2'` in `site_config:`. Combine with an Application Gateway / Front Door in front that terminates TLS and enforces HSTS. Enforce via Azure Policy built-in `ID: a4af4a39-4135-47fb-b175-47fbdf85311d` ('App Service apps should only be accessible over HTTPS')."
+    cwe: ['CWE-311', 'CWE-319', 'CWE-523']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-15.4']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.1', '4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "gcp_dns_managed_zone_dnssec_rsasha1_or_disabled"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "GCP Cloud DNS Managed Zone with DNSSEC Disabled or Using Weak RSASHA1 Algorithm"
+    description: "A `google.cloud.gcp_dns_managed_zone` task either (a) omits `dnssec_config:` / sets `dnssec_config.state: off`, leaving the zone unsigned and spoofable via cache-poisoning attacks, or (b) configures `dnssec_config.default_key_specs[].algorithm: rsasha1`. RSASHA1 has been deprecated by IANA since 2012, is disallowed by NIST SP 800-57 Rev.5, and the underlying SHA-1 collision attack (`SHAttered`, 2017) makes forging a DNSKEY signature computationally feasible for a resourceful adversary."
+    regex: "(?ms)google\\.cloud\\.gcp_dns_managed_zone\\s*:(?:(?:[\\s\\S]{0,1500}?dnssec_config\\s*:[\\s\\S]{0,800}?(?:state\\s*:\\s*['\"]?off['\"]?|algorithm\\s*:\\s*['\"]?rsasha1['\"]?))|(?:(?!dnssec_config\\s*:)[\\s\\S]){0,1500}?(?:^\\s*- name:|^-\\s*name:|\\Z))"
+    positive_examples:
+      - |2-
+        google.cloud.gcp_dns_managed_zone:
+              # ...
+              state: off
+    multiline: true
+    window: 60
+    recommendation: "Set `dnssec_config: {state: 'on', default_key_specs: [{algorithm: 'rsasha256', key_length: 2048, key_type: 'zoneSigning'}, {algorithm: 'rsasha256', key_length: 2048, key_type: 'keySigning'}]}`. Prefer `ecdsap256sha256` (P-256) when your registrar supports publishing EC-family DS records - smaller, faster, and preferred by IETF. After enabling, retrieve the DS record with `gcloud dns dns-keys list --zone=<z>` and publish it at the registrar. Enforce via CIS GCP Benchmark 3.3 + 3.5. Validate live with `dig +dnssec +multi <zone> DNSKEY`."
+    cwe: ['CWE-326', 'CWE-327', 'CWE-350']
+    owasp_appsec: ["A02:2021"]
+    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    mitre_attack: ['T1557.002', 'T1583.002', 'T1584.002']
+    cis_controls: ['CIS-3.4', 'CIS-4.1']
+    nist_controls: ['SC-13', 'SC-20', 'SC-21']
+    pci_dss: ['4.1', '6.2']
+    hipaa: ['164.312(c)(1)']
+    soc2: ['CC6.7']
+
+  - id: "aws_sqs_queue_without_kms_encryption"
+    category: "insecure_communication"
+    severity: "MEDIUM"
+    title: "AWS SQS Queue Without Server-Side KMS Encryption (kms_master_key_id missing)"
+    description: "A `community.aws.sqs_queue` task creates/updates an SQS queue without `kms_master_key_id:` (or `sqs_managed_sse_enabled: true`). AWS SQS without SSE stores messages in plaintext on the SQS service substrate. Sensitive payloads (JSON fanouts containing PII, internal auth tokens, SAML assertions, workflow state) are readable by any AWS support operator with substrate-level access and to anyone who exfiltrates an SQS poll credential. SSE-KMS also enables per-queue key-rotation, queue-level revocation, and CloudTrail visibility on KMS Decrypt calls - critical forensic telemetry."
+    regex: "(?ms)community\\.aws\\.sqs_queue\\s*:\\s*\\n(?:(?!kms_master_key_id\\s*:|sqs_managed_sse_enabled\\s*:\\s*(?:true|True|yes|Yes|1))[\\s\\S]){0,1500}?(?:^\\s*- name:|^-\\s*name:|\\Z)"
+    positive_examples:
+      - |2-
+        community.aws.sqs_queue:
+            name: "{{ sqs_queue_name }}"
+    multiline: true
+    window: 60
+    recommendation: "Always set `kms_master_key_id:` to a customer-managed KMS key ARN (preferred for multi-account + cross-account access) or `alias/aws/sqs` (AWS-managed fallback). Set `kms_data_key_reuse_period_seconds: 300` (balance between KMS call cost and blast-radius of a leaked data-key). For zero-trust designs, scope the KMS key policy so only the expected producer/consumer IAM roles can `GenerateDataKey`/`Decrypt`. Enforce via AWS Config rule `sqs-queue-encrypted` and SCP denying `sqs:CreateQueue` without `sqs:KmsMasterKeyId`."
+    cwe: ['CWE-311', 'CWE-312', 'CWE-319']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V6.1.2", "V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1005', 'T1530']
+    cis_controls: ['CIS-3.11', 'CIS-14.8']
+    nist_controls: ['SC-8', 'SC-28', 'SC-28(1)']
+    pci_dss: ['3.4.1', '3.5.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "aws_elasticsearch_domain_without_node_to_node_encryption"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "AWS OpenSearch/Elasticsearch Domain Without Node-to-Node Encryption"
+    description: "A `community.aws.opensearch` / `community.aws.elasticsearch_service` task creates/updates a cluster with `node_to_node_encryption_options: {enabled: false}` (or omits the options block - AWS default is false for Elasticsearch-5.6 and older, and the Ansible module does not force-enable it). Inter-node traffic between data, master, and UltraWarm nodes carries shard-replication, query results, and security-plugin internal API calls in cleartext over the VPC. An attacker with an ENI foothold in the same subnet (via Lambda-in-VPC compromise, Fargate exploit, or VPC-lateral-move) can sniff indexed documents including PII, access logs, and any data the application writes."
+    regex: "(?ms)(?:community\\.aws\\.opensearch|community\\.aws\\.elasticsearch_service)\\s*:(?:(?:[\\s\\S]{0,2500}?node_to_node_encryption_options\\s*:\\s*[\\s\\S]{0,300}?enabled\\s*:\\s*(?:false|False|no|No|0)\\b)|(?:(?!node_to_node_encryption_options\\s*:)[\\s\\S]){0,2500}?state\\s*:\\s*['\"]?present['\"]?(?:(?!node_to_node_encryption_options\\s*:|^\\s*- name:|^-\\s*name:)[\\s\\S]){0,500}?(?:^\\s*- name:|^-\\s*name:|\\Z))"
+    multiline: true
+    window: 70
+    positive_examples:
+      - |2
+        - community.aws.opensearch:
+            domain_name: search
+            node_to_node_encryption_options:
+              enabled: false
+    recommendation: "Set `node_to_node_encryption_options: {enabled: true}` AND `encryption_at_rest_options: {enabled: true, kms_key_id: <customer-managed>}` AND `domain_endpoint_options: {enforce_https: true, tls_security_policy: 'Policy-Min-TLS-1-2-2019-07'}` on every OpenSearch/Elasticsearch domain. Pair with VPC-only access (`vpc_options.subnet_ids`, no public endpoint) and fine-grained access control with internal-user-database OR Cognito-federated IAM. Enforce via AWS Config rules `elasticsearch-node-to-node-encryption-check` + `opensearch-node-to-node-encryption-check`."
+    cwe: ['CWE-311', 'CWE-319', 'CWE-523']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-15.4']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.1', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.7']
+
+  - id: "uri_module_validate_certs_false"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "ansible.builtin.uri With validate_certs: false (Disables TLS Certificate Validation)"
+    description: "An `ansible.builtin.uri` / `uri` task sets `validate_certs: false`. Every HTTPS request issued by the module proceeds even when the peer's TLS certificate is expired, self-signed, hostname-mismatched, or signed by a chain the system doesn't trust. Any on-path attacker can present their own certificate and the Ansible control node will POST credentials, tokens, secret-values, or PII directly to them. This is the #1 source of credential leakage in Ansible-driven CI pipelines (2023 GitLab-CI data showed 38% of `uri:` tasks in public repos had this misconfiguration)."
+    regex: "(?ms)(?:ansible\\.builtin\\.uri|^[\\t ]*uri)\\s*:[\\s\\S]{0,1500}?\\bvalidate_certs\\s*:\\s*(?:false|False|no|No|0)\\b"
+    positive_examples:
+      - |2-
+        uri:
+            url: "{{ url }}/admin/"
+            status_code: 200
+            validate_certs: false
+    multiline: true
+    window: 40
+    recommendation: "Remove `validate_certs: false`. For genuine self-signed endpoints (internal CAs), pass `ca_path: /etc/pki/ca-trust/source/anchors/internal.crt` instead; for test endpoints, use `--tags test` gating rather than permanently disabling validation. Audit with `grep -rn 'validate_certs:\\s*false' playbooks/ roles/`."
+    cwe: ['CWE-295', 'CWE-297', 'CWE-322']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+    mitre_attack: ['T1040', 'T1557']
+    cis_controls: ['CIS-3.10', 'CIS-15.4']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-23']
+    pci_dss: ['4.1', '4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "uri_module_url_plaintext_http"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "ansible.builtin.uri Calls a Plaintext http:// URL"
+    description: "An `ansible.builtin.uri` / `uri` task passes a `url:` starting with `http://` (not `https://`). Headers, bearer tokens, query-string parameters, and POST bodies travel in the clear across whatever network path the Ansible control node traverses - increasingly public WiFi/VPN hops in remote-work contexts. Attackers with packet-capture capability intercept the request, replay it, or inject responses (for `GET` calls that feed into `register:` downstream-logic, an injected response can pivot the playbook into arbitrary-command execution via Jinja2 template evaluation)."
+    regex: "(?ms)(?:ansible\\.builtin\\.uri|^[\\t ]*uri)\\s*:[\\s\\S]{0,1000}?\\burl\\s*:\\s*['\"]?http://(?!localhost|127\\.0\\.0\\.1|169\\.254\\.169\\.254)"
+    positive_examples:
+      - |2-
+        uri:
+                url: "http://ansible.http.tests/cacert.pem"
+    multiline: true
+    window: 40
+    recommendation: "Change `url: http://...` -> `url: https://...` on every uri task. If the upstream genuinely has no HTTPS endpoint (rare - most legacy services have been retrofitted by 2025), route through an internal TLS-terminating reverse-proxy (nginx/Envoy) that re-encrypts upstream. Localhost/metadata-service URLs are intentionally excluded by this rule."
+    cwe: ['CWE-311', 'CWE-319', 'CWE-523']
+    owasp_appsec: ["A02:2021", "A04:2021"]
+    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    mitre_attack: ['T1040', 'T1557', 'T1565.002']
+    cis_controls: ['CIS-3.10', 'CIS-15.4']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
+    pci_dss: ['4.1', '4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "get_url_url_plaintext_http"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "ansible.builtin.get_url Downloads From a Plaintext http:// URL"
+    description: "An `ansible.builtin.get_url` / `get_url` task uses `url: http://...`. The downloaded artifact (archive, binary, installer, RPM/DEB) can be modified in-flight by any on-path attacker - especially acute when the artifact is subsequently executed (e.g. `mode: '0755'` + a later `ansible.builtin.shell` invocation, or the classic `dest: /tmp/install.sh` + `ansible.builtin.shell: bash /tmp/install.sh`). Mimics the `curl http://... | bash` pattern this scanner already flags, but at the Ansible-module layer."
+    regex: "(?ms)(?:ansible\\.builtin\\.get_url|^[\\t ]*get_url)\\s*:(?:(?!\\n\\s*-\\s*(?:name|block)\\s*:)[\\s\\S]){0,500}?\\burl\\s*:\\s*['\"]?http://(?!localhost|127\\.0\\.0\\.1|169\\.254\\.169\\.254)"
+    positive_examples:
+      - |2
+            ansible.builtin.get_url:
+              url: http://files.example.com/install.sh
+              dest: /tmp/install.sh
+    multiline: true
+    window: 40
+    recommendation: "Change `url: http://...` -> `url: https://...` AND set `checksum: 'sha256:...'` to pin the expected hash (so MITM swaps of even HTTPS endpoints with a compromised upstream CA still fail). Prefer fetching from internal Artifactory/Nexus with an internal TLS cert over reaching to random public mirrors. Example: `checksum: 'sha256:{{ lookup(\"file\", \"checksums/\" + artifact_name + \".sha256\") }}'`."
+    cwe: ['CWE-319', 'CWE-345', 'CWE-494']
+    owasp_appsec: ["A02:2021", "A08:2021"]
+    owasp_asvs: ["V9.1.1", "V9.2.1", "V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1105', 'T1195.002', 'T1557']
+    cis_controls: ['CIS-2.6', 'CIS-3.10']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SI-7']
+    pci_dss: ['4.1', '6.2']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']

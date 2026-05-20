@@ -1,0 +1,720 @@
+# Companion Secure Fix snippets for insecure_communication rules.
+
+remediations:
+
+  # -- AWS edge / TLS --
+  aws_cloudfront_distribution_minimum_protocol_below_tls12:
+    secure_fix: |
+      - name: CloudFront viewer cert - TLS 1.2_2021 minimum
+        community.aws.cloudfront_distribution:
+          alias: app.example.com
+          enabled: true
+          viewer_certificate:
+            acm_certificate_arn: "{{ acm_arn }}"
+            ssl_support_method: sni-only
+            minimum_protocol_version: TLSv1.2_2021
+          state: present
+
+  aws_cloudfront_distribution_uses_default_certificate:
+    secure_fix: |
+      - name: CloudFront with custom ACM cert (never the default *.cloudfront.net)
+        community.aws.cloudfront_distribution:
+          alias: app.example.com
+          enabled: true
+          viewer_certificate:
+            cloudfront_default_certificate: false
+            acm_certificate_arn: "{{ acm_arn }}"
+            ssl_support_method: sni-only
+            minimum_protocol_version: TLSv1.2_2021
+          state: present
+
+  aws_cloudfront_viewer_protocol_policy_allow_all:
+    secure_fix: |
+      - name: CloudFront default behaviour - redirect-to-https only
+        community.aws.cloudfront_distribution:
+          alias: app.example.com
+          enabled: true
+          default_cache_behavior:
+            target_origin_id: app-origin
+            viewer_protocol_policy: redirect-to-https
+            allowed_methods:
+              items: [GET, HEAD]
+              cached_methods: [GET, HEAD]
+          state: present
+
+  aws_elasticache_without_transit_or_at_rest_encryption:
+    secure_fix: |
+      - name: ElastiCache replication group with TLS + at-rest + AUTH
+        community.aws.elasticache_replication_group:
+          replication_group_id: app-redis
+          engine: redis
+          engine_version: "7.1"
+          transit_encryption_enabled: true
+          at_rest_encryption_enabled: true
+          kms_key_id: "{{ redis_cmk_arn }}"
+          auth_token: "{{ vault_redis_auth_token }}"
+          state: present
+
+  aws_elasticsearch_domain_without_encryption_at_rest_or_https:
+    secure_fix: |
+      - name: OpenSearch domain - encryption + node-to-node + HTTPS-only
+        community.aws.opensearch:
+          domain_name: app
+          engine_version: "OpenSearch_2.13"
+          encryption_at_rest_options:
+            enabled: true
+            kms_key_id: "{{ os_cmk_arn }}"
+          node_to_node_encryption_options: { enabled: true }
+          domain_endpoint_options:
+            enforce_https: true
+            tls_security_policy: Policy-Min-TLS-1-2-PFS-2023-10
+          state: present
+
+  aws_elasticsearch_domain_without_node_to_node_encryption:
+    secure_fix: |
+      - name: OpenSearch with node-to-node encryption ON
+        community.aws.opensearch:
+          domain_name: app
+          node_to_node_encryption_options: { enabled: true }
+          state: present
+
+  aws_elb_listener_http_on_internet_facing:
+    secure_fix: |
+      - name: ALB listener - HTTPS-only with redirect from :80
+        community.aws.elb_application_lb:
+          name: app-alb
+          scheme: internet-facing
+          subnets: "{{ public_subnets }}"
+          security_groups: ["{{ alb_sg }}"]
+          listeners:
+            - Protocol: HTTPS
+              Port: 443
+              SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+              Certificates: [{ CertificateArn: "{{ acm_arn }}" }]
+              DefaultActions:
+                - Type: forward
+                  TargetGroupName: app-tg
+            - Protocol: HTTP
+              Port: 80
+              DefaultActions:
+                - Type: redirect
+                  RedirectConfig:
+                    Protocol: HTTPS
+                    Port: "443"
+                    StatusCode: HTTP_301
+          state: present
+
+  aws_elb_listener_weak_ssl_policy:
+    secure_fix: |
+      - name: ALB HTTPS listener with TLS 1.3 / 1.2-only policy
+        community.aws.elb_application_lb:
+          name: app-alb
+          listeners:
+            - Protocol: HTTPS
+              Port: 443
+              SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+              Certificates: [{ CertificateArn: "{{ acm_arn }}" }]
+              DefaultActions:
+                - Type: forward
+                  TargetGroupName: app-tg
+          state: present
+
+  aws_kinesis_stream_without_encryption:
+    secure_fix: |
+      - name: Kinesis stream - KMS-encrypted (CMK)
+        community.aws.kinesis_stream:
+          name: app-events
+          shards: 4
+          retention_period: 168
+          encryption_type: KMS
+          key_id: "{{ kinesis_cmk_arn }}"
+          state: present
+
+  aws_sqs_queue_without_kms_encryption:
+    secure_fix: |
+      - name: SQS queue with SSE-KMS (CMK)
+        community.aws.sqs_queue:
+          name: app-events
+          kms_master_key_id: "{{ sqs_cmk_arn }}"
+          kms_data_key_reuse_period_seconds: 300
+          state: present
+
+  # -- Azure managed-service TLS --
+  azure_db_server_ssl_enforcement_disabled:
+    secure_fix: |
+      - name: Azure DB for PostgreSQL - SSL enforcement + TLS 1.2 min
+        azure.azcollection.azure_rm_postgresqlserver:
+          resource_group: "{{ rg }}"
+          name: "{{ pg_server }}"
+          ssl_enforcement: Enabled
+          minimal_tls_version: TLS1_2
+          state: present
+
+  azure_redis_non_ssl_port_enabled:
+    secure_fix: |
+      - name: Azure Cache for Redis - TLS-only (6380), TLS 1.2 minimum
+        azure.azcollection.azure_rm_rediscache:
+          resource_group: "{{ rg }}"
+          name: "{{ redis_name }}"
+          sku:
+            name: standard
+            size: C1
+          enable_non_ssl_port: false
+          minimum_tls_version: "1.2"
+          state: present
+
+  azure_webapp_https_only_disabled:
+    secure_fix: |
+      - name: Azure Web App - HTTPS-only + TLS 1.2 min
+        azure.azcollection.azure_rm_webapp:
+          resource_group: "{{ rg }}"
+          name: "{{ app_name }}"
+          plan:
+            resource_group: "{{ rg }}"
+            name: "{{ plan_name }}"
+          https_only: true
+          site_config:
+            min_tls_version: "1.2"
+            ftps_state: Disabled
+          state: present
+
+  # -- GCP DNSSEC --
+  gcp_dns_managed_zone_dnssec_rsasha1_or_disabled:
+    secure_fix: |
+      - name: Cloud DNS managed zone with DNSSEC ON, RSASHA256/ECDSAP256
+        google.cloud.gcp_dns_managed_zone:
+          name: example-com
+          dns_name: example.com.
+          dnssec_config:
+            state: 'on'
+            non_existence: nsec3
+            default_key_specs:
+              - key_type: keySigning
+                algorithm: rsasha256
+                key_length: 2048
+              - key_type: zoneSigning
+                algorithm: rsasha256
+                key_length: 1024
+          state: present
+
+  # -- DBs / brokers / queues hardening --
+  bind_named_conf_open_recursion:
+    secure_fix: |
+      - name: BIND - recursion only for trusted internal clients
+        ansible.builtin.copy:
+          dest: /etc/named.conf
+          content: |
+            acl "trusted" { 10.0.0.0/8; 192.168.0.0/16; };
+            options {
+              recursion yes;
+              allow-recursion { trusted; };
+              allow-query-cache { trusted; };
+              allow-query { any; };
+              dnssec-validation auto;
+              version "REDACTED";
+            };
+          owner: root
+          group: named
+          mode: '0640'
+        notify: restart-named
+
+  consul_acl_default_policy_allow:
+    secure_fix: |
+      - name: Consul - ACL default_policy=deny + token enforcement
+        ansible.builtin.copy:
+          dest: /etc/consul.d/acl.hcl
+          content: |
+            acl {
+              enabled                  = true
+              default_policy           = "deny"
+              enable_token_persistence = true
+              tokens {
+                agent  = "{{ vault_consul_agent_token }}"
+                default = "{{ vault_consul_anon_readonly_token }}"
+              }
+            }
+          owner: consul
+          group: consul
+          mode: '0640'
+        notify: restart-consul
+
+  elasticsearch_security_disabled:
+    secure_fix: |
+      - name: Elasticsearch - X-Pack security ON, TLS on transport + http
+        ansible.builtin.copy:
+          dest: /etc/elasticsearch/elasticsearch.yml
+          content: |
+            cluster.name: prod
+            xpack.security.enabled: true
+            xpack.security.transport.ssl.enabled: true
+            xpack.security.transport.ssl.verification_mode: certificate
+            xpack.security.transport.ssl.keystore.path: certs/transport.p12
+            xpack.security.transport.ssl.truststore.path: certs/transport.p12
+            xpack.security.http.ssl.enabled: true
+            xpack.security.http.ssl.keystore.path: certs/http.p12
+          owner: root
+          group: elasticsearch
+          mode: '0660'
+        notify: restart-elasticsearch
+
+  etcd_client_cert_auth_disabled:
+    secure_fix: |
+      - name: etcd - require client cert auth on both peer and client URLs
+        ansible.builtin.copy:
+          dest: /etc/etcd/etcd.conf.yml
+          content: |
+            client-transport-security:
+              cert-file:        /etc/etcd/pki/server.crt
+              key-file:         /etc/etcd/pki/server.key
+              client-cert-auth: true
+              trusted-ca-file:  /etc/etcd/pki/ca.crt
+            peer-transport-security:
+              cert-file:        /etc/etcd/pki/peer.crt
+              key-file:         /etc/etcd/pki/peer.key
+              client-cert-auth: true
+              trusted-ca-file:  /etc/etcd/pki/ca.crt
+          owner: etcd
+          group: etcd
+          mode: '0640'
+        notify: restart-etcd
+
+  kafka_listener_plaintext_no_sasl:
+    secure_fix: |
+      - name: Kafka - SASL_SSL listener, no PLAINTEXT
+        ansible.builtin.lineinfile:
+          path: /etc/kafka/server.properties
+          regexp: '^listeners='
+          line: 'listeners=SASL_SSL://0.0.0.0:9093'
+        notify: restart-kafka
+      - name: Advertise the same SASL_SSL endpoint
+        ansible.builtin.lineinfile:
+          path: /etc/kafka/server.properties
+          regexp: '^advertised.listeners='
+          line: 'advertised.listeners=SASL_SSL://{{ ansible_fqdn }}:9093'
+        notify: restart-kafka
+
+  loki_push_api_auth_disabled_or_no_tenant_enforcement:
+    secure_fix: |
+      - name: Loki - require multi-tenant + auth header validation
+        ansible.builtin.copy:
+          dest: /etc/loki/config.yaml
+          content: |
+            auth_enabled: true
+            server:
+              http_tls_config:
+                cert_file: /etc/loki/tls.crt
+                key_file:  /etc/loki/tls.key
+                client_ca_file: /etc/loki/ca.crt
+                client_auth_type: RequireAndVerifyClientCert
+            limits_config:
+              enforce_metric_name: true
+              reject_old_samples: true
+          mode: '0640'
+        notify: restart-loki
+
+  mongodb_no_auth_bind_all:
+    secure_fix: |
+      - name: MongoDB - SCRAM auth + bind localhost + TLS
+        ansible.builtin.copy:
+          dest: /etc/mongod.conf
+          content: |
+            net:
+              bindIp: 127.0.0.1,10.0.5.10
+              tls:
+                mode: requireTLS
+                certificateKeyFile: /etc/mongo/tls/server.pem
+                CAFile: /etc/mongo/tls/ca.crt
+            security:
+              authorization: enabled
+              keyFile: /etc/mongo/keyfile
+          owner: mongod
+          group: mongod
+          mode: '0640'
+        notify: restart-mongod
+
+  mongodb_where_or_mapreduce_server_side_js_with_input:
+    secure_fix: |
+      - name: MongoDB - disable server-side JavaScript ($where, mapReduce)
+        ansible.builtin.lineinfile:
+          path: /etc/mongod.conf
+          line: |
+            security:
+              javascriptEnabled: false
+          create: true
+          mode: '0640'
+        notify: restart-mongod
+
+  mqtt_broker_allow_anonymous:
+    secure_fix: |
+      - name: Mosquitto - require auth, password file, TLS-only listener
+        ansible.builtin.copy:
+          dest: /etc/mosquitto/mosquitto.conf
+          content: |
+            allow_anonymous false
+            password_file /etc/mosquitto/passwd
+            listener 8883
+            cafile   /etc/mosquitto/ca.crt
+            certfile /etc/mosquitto/server.crt
+            keyfile  /etc/mosquitto/server.key
+            require_certificate true
+          owner: mosquitto
+          group: mosquitto
+          mode: '0640'
+        notify: restart-mosquitto
+
+  mssql_xp_cmdshell_or_sa_enabled:
+    secure_fix: |
+      - name: SQL Server - disable xp_cmdshell, disable sa
+        community.general.mssql_script:
+          login_user: "{{ db_admin }}"
+          login_password: "{{ vault_db_admin_password }}"
+          script: |
+            EXEC sp_configure 'show advanced options', 1; RECONFIGURE;
+            EXEC sp_configure 'xp_cmdshell',          0; RECONFIGURE;
+            ALTER LOGIN sa DISABLE;
+
+  mysql_super_grant_or_skip_networking_disabled:
+    secure_fix: |
+      - name: MySQL - per-app user with least privilege (no SUPER)
+        community.mysql.mysql_user:
+          name: app
+          host: "10.0.5.%"
+          password: "{{ vault_mysql_app_password }}"
+          priv: "appdb.*:SELECT,INSERT,UPDATE,DELETE"
+          state: present
+        # SUPER, FILE, PROCESS, SHUTDOWN, RELOAD: never granted to apps.
+
+  postgres_pg_hba_trust_or_weak_md5:
+    secure_fix: |
+      - name: pg_hba.conf - SCRAM-SHA-256 over TLS, no `trust`, no `md5`
+        ansible.builtin.copy:
+          dest: /var/lib/pgsql/data/pg_hba.conf
+          content: |
+            # TYPE    DATABASE  USER         ADDRESS          METHOD
+            local     all       postgres                      peer
+            hostssl   all       all          10.0.0.0/8       scram-sha-256
+            hostssl   all       all          ::/0             scram-sha-256
+            host      all       all          0.0.0.0/0        reject
+          owner: postgres
+          group: postgres
+          mode: '0600'
+        notify: reload-postgres
+
+  redis_no_auth_protected_mode_disabled:
+    secure_fix: |
+      - name: Redis - protected-mode + ACL + TLS-only listener
+        ansible.builtin.copy:
+          dest: /etc/redis/redis.conf
+          content: |
+            bind 127.0.0.1 ::1
+            protected-mode yes
+            port 0
+            tls-port 6379
+            tls-cert-file /etc/redis/tls/server.crt
+            tls-key-file  /etc/redis/tls/server.key
+            tls-ca-cert-file /etc/redis/tls/ca.crt
+            tls-auth-clients yes
+            requirepass "{{ vault_redis_password }}"
+          owner: redis
+          group: redis
+          mode: '0640'
+        notify: restart-redis
+
+  # -- Mail / IDP / OIDC / SAML --
+  dkim_signing_key_weak_size_or_sha1:
+    secure_fix: |
+      - name: DKIM - rotate to 2048-bit RSA, SHA-256 signing
+        ansible.builtin.command: >
+          opendkim-genkey -b 2048 -h sha256 -d {{ domain }}
+          -s {{ selector }} -D /etc/opendkim/keys/{{ domain }}/
+        args:
+          creates: /etc/opendkim/keys/{{ domain }}/{{ selector }}.private
+      - name: Publish public key in DNS as TXT (rsa-sha256, k=rsa, p=...)
+        community.general.cloudflare_dns:
+          zone: example.com
+          record: "{{ selector }}._domainkey"
+          type: TXT
+          value: "v=DKIM1; k=rsa; h=sha256; p={{ pubkey_b64 }}"
+          state: present
+
+  dmarc_policy_none_or_missing_on_production_domain:
+    secure_fix: |
+      - name: DMARC - p=reject + rua/ruf reporting + 100% application
+        community.general.cloudflare_dns:
+          zone: example.com
+          record: "_dmarc"
+          type: TXT
+          value: >
+            v=DMARC1; p=reject; sp=reject; pct=100; adkim=s; aspf=s;
+            rua=mailto:dmarc-rua@example.com;
+            ruf=mailto:dmarc-ruf@example.com; fo=1
+          state: present
+
+  exchange_or_google_external_forward_rule_enabled:
+    secure_fix: |
+      - name: M365 - block automatic external forwarding (Anti-Spam Outbound)
+        community.windows.win_powershell:
+          script: |
+            Connect-ExchangeOnline -ManagedIdentity
+            Set-HostedOutboundSpamFilterPolicy -Identity Default `
+              -AutoForwardingMode Off
+
+  oauth_implicit_grant_response_type_token:
+    secure_fix: |
+      # Keycloak - disable implicit, enable Authorization Code + PKCE
+      - name: Keycloak client - code+PKCE only
+        community.general.keycloak_client:
+          realm: master
+          client_id: app
+          standard_flow_enabled: true       # auth code
+          implicit_flow_enabled: false      # NEVER for new apps
+          public_client: true
+          attributes:
+            "pkce.code.challenge.method": "S256"
+          state: present
+
+  oidc_id_token_signature_verification_disabled:
+    secure_fix: |
+      # Keycloak adapter / oauth2-proxy - require RS256 verification
+      - name: oauth2-proxy - enforce ID token signature verification
+        ansible.builtin.copy:
+          dest: /etc/oauth2-proxy/oauth2-proxy.cfg
+          content: |
+            provider             = "oidc"
+            oidc_issuer_url      = "https://idp.example.com/realms/app"
+            oidc_jwks_url        = "https://idp.example.com/realms/app/protocol/openid-connect/certs"
+            insecure_oidc_skip_issuer_verification    = false
+            insecure_oidc_allow_unverified_email      = false
+            skip_jwt_bearer_tokens = false
+          mode: '0640'
+        notify: restart-oauth2-proxy
+
+  saml_acs_or_oidc_issuer_plaintext_http:
+    secure_fix: |
+      - name: Keycloak SAML client - ACS over HTTPS only
+        community.general.keycloak_client:
+          realm: master
+          client_id: https://app.example.com/saml/metadata
+          protocol: saml
+          base_url: https://app.example.com
+          redirect_uris:
+            - https://app.example.com/saml/acs
+          attributes:
+            "saml_assertion_consumer_url_post":     "https://app.example.com/saml/acs"
+            "saml_single_logout_service_url_redirect": "https://app.example.com/saml/slo"
+          state: present
+
+  saml_assertion_no_signature_verify:
+    secure_fix: |
+      # SP must require signed assertions, signed responses, encrypted assertions
+      - name: SimpleSAMLphp SP - require signed + encrypted assertions
+        ansible.builtin.copy:
+          dest: /etc/simplesamlphp/authsources.php
+          content: |
+            <?php
+            $config['default-sp'] = [
+              'saml:SP',
+              'WantAssertionsSigned' => true,
+              'AuthnRequestsSigned'  => true,
+              'redirect.sign'        => true,
+              'redirect.validate'    => true,
+              'assertion.encryption' => true,
+              'sign.logout'          => true,
+              'validate.logout'      => true,
+              'privatekey'           => 'sp.key',
+              'certificate'          => 'sp.crt',
+            ];
+          mode: '0640'
+
+  # -- TLS knobs (web servers + crypto libs) --
+  tls_legacy_protocol_tlsv1_0_or_1_1_enabled:
+    secure_fix: |
+      - name: NGINX - TLS 1.2+1.3 only, modern cipher suite
+        ansible.builtin.copy:
+          dest: /etc/nginx/conf.d/tls.conf
+          content: |
+            ssl_protocols TLSv1.2 TLSv1.3;
+            ssl_prefer_server_ciphers on;
+            ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
+            ssl_session_tickets off;
+            add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+          mode: '0644'
+        notify: reload-nginx
+
+  tls_min_version_below_1_2_nginx_apache_haproxy:
+    secure_fix: |
+      - name: HAProxy - TLS 1.2 minimum, no SSLv3/TLS1.0/1.1
+        ansible.builtin.lineinfile:
+          path: /etc/haproxy/haproxy.cfg
+          regexp: '^\s*ssl-default-bind-options'
+          line: '    ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11 prefer-client-ciphers'
+        notify: reload-haproxy
+
+  tls_weak_cipher_suite_rc4_3des_null_export:
+    secure_fix: |
+      - name: NGINX - explicitly disallow RC4/3DES/NULL/EXPORT
+        ansible.builtin.lineinfile:
+          path: /etc/nginx/conf.d/tls.conf
+          regexp: '^ssl_ciphers'
+          line: 'ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!RC4:!MD5:!PSK:!SRP:!DSS;'
+        notify: reload-nginx
+
+  null_or_anon_cipher_suite_allowed:
+    secure_fix: |
+      - name: OpenSSL global default - reject NULL / aNULL / eNULL
+        ansible.builtin.copy:
+          dest: /etc/crypto-policies/back-ends/opensslcnf.config
+          content: |
+            CipherString = DEFAULT@SECLEVEL=2:!NULL:!aNULL:!eNULL:!EXPORT:!RC4
+          mode: '0644'
+
+  sshd_weak_ciphers_3des_arcfour_cbc_or_hmac_md5:
+    secure_fix: |
+      - name: sshd - modern KEX/ciphers/MACs only
+        ansible.builtin.blockinfile:
+          path: /etc/ssh/sshd_config
+          marker: "# {mark} ANSIBLE TLS HARDEN"
+          block: |
+            KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp521
+            Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com
+            MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+            HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256
+        notify: restart-sshd
+
+  openssl_fips_mode_disabled_runtime:
+    secure_fix: |
+      - name: Enable system-wide FIPS mode (RHEL 9 / Fedora)
+        ansible.builtin.command: fips-mode-setup --enable
+        register: r
+        changed_when: "'FIPS mode will be enabled' in r.stdout"
+      - name: Reboot to activate FIPS kernel + crypto-policies
+        ansible.builtin.reboot:
+        when: r.changed
+
+  weak_dhparam_generated_below_2048:
+    secure_fix: |
+      - name: Generate strong DH params (≥2048; 4096 recommended)
+        community.crypto.openssl_dhparam:
+          path: /etc/nginx/dhparam.pem
+          size: 4096
+          owner: root
+          group: root
+          mode: '0644'
+
+  weak_rsa_key_generated_below_2048:
+    secure_fix: |
+      - name: RSA private key ≥ 4096 bits (or use Ed25519 / ECDSA P-384)
+        community.crypto.openssl_privatekey:
+          path: /etc/pki/tls/private/server.key
+          size: 4096
+          type: RSA
+          mode: '0600'
+
+  # -- Service mesh / observability TLS --
+  istio_peerauthentication_permissive_global:
+    secure_fix: |
+      - name: Istio - cluster-wide STRICT mTLS
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: security.istio.io/v1beta1
+            kind: PeerAuthentication
+            metadata:
+              name: default
+              namespace: istio-system
+            spec:
+              mtls:
+                mode: STRICT
+
+  prometheus_remote_write_no_auth_or_tls:
+    secure_fix: |
+      # prometheus.yml - mTLS + bearer token to remote write endpoint
+      remote_write:
+        - url: https://mimir.internal.example.com/api/v1/push
+          tls_config:
+            ca_file:   /etc/prometheus/tls/ca.crt
+            cert_file: /etc/prometheus/tls/client.crt
+            key_file:  /etc/prometheus/tls/client.key
+            insecure_skip_verify: false
+          authorization:
+            type: Bearer
+            credentials_file: /etc/prometheus/tls/token
+
+  prometheus_scrape_config_basic_auth_plaintext_over_http:
+    secure_fix: |
+      # prometheus.yml - HTTPS scheme + bearer file (no basic over http)
+      scrape_configs:
+        - job_name: app
+          scheme: https
+          tls_config:
+            ca_file: /etc/prometheus/tls/ca.crt
+            cert_file: /etc/prometheus/tls/client.crt
+            key_file:  /etc/prometheus/tls/client.key
+            server_name: app.internal.example.com
+          authorization:
+            type: Bearer
+            credentials_file: /etc/prometheus/tls/token
+          static_configs:
+            - targets: ['app.internal.example.com:9090']
+
+  otel_collector_otlp_endpoint_plaintext_http:
+    secure_fix: |
+      # /etc/otelcol/config.yaml - exporter over OTLP/HTTPS w/ TLS verify
+      exporters:
+        otlphttp:
+          endpoint: https://otel.internal.example.com:4318
+          tls:
+            ca_file: /etc/otelcol/tls/ca.crt
+            cert_file: /etc/otelcol/tls/client.crt
+            key_file:  /etc/otelcol/tls/client.key
+            insecure: false
+            insecure_skip_verify: false
+
+  otel_exporter_otlp_insecure_true:
+    secure_fix: |
+      # exporter w/ insecure=false, full mTLS verification
+      exporters:
+        otlp:
+          endpoint: otel.internal.example.com:4317
+          tls:
+            insecure: false
+            insecure_skip_verify: false
+            ca_file:   /etc/otelcol/tls/ca.crt
+            cert_file: /etc/otelcol/tls/client.crt
+            key_file:  /etc/otelcol/tls/client.key
+
+  # -- Ansible URI / get_url plaintext + cert-skip --
+  get_url_url_plaintext_http:
+    secure_fix: |
+      - name: Always download artifacts over HTTPS with checksum verify
+        ansible.builtin.get_url:
+          url: "https://artifacts.internal.example.com/app/app-1.2.3.tar.gz"
+          dest: /opt/app/app-1.2.3.tar.gz
+          checksum: "sha256:{{ app_sha256 }}"
+          mode: '0644'
+
+  uri_module_url_plaintext_http:
+    secure_fix: |
+      - name: REST call over HTTPS only, full cert validation
+        ansible.builtin.uri:
+          url: "https://api.internal.example.com/v1/health"
+          method: GET
+          validate_certs: true
+          status_code: 200
+          return_content: true
+
+  uri_module_validate_certs_false:
+    secure_fix: |
+      - name: REST call with validate_certs=true (default)
+        ansible.builtin.uri:
+          url: "https://api.internal.example.com/v1/users"
+          method: POST
+          body_format: json
+          headers:
+            Authorization: "Bearer {{ vault_api_token }}"
+          body: { name: "{{ username }}" }
+          validate_certs: true
+          status_code: 201
+        # NEVER: validate_certs: false; if cert is internal, install
+        # the internal CA into the system trust store (/etc/pki/...) or
+        # pass `client_cert`/`client_key` for mTLS.

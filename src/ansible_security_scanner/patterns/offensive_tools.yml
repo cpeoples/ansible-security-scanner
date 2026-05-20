@@ -1,0 +1,735 @@
+name: "Offensive Security Tools"
+author: "Ansible Security Scanner Team"
+description: "Detects installation or execution of known offensive security, red team, and exploitation tools"
+
+patterns:
+  - id: "mimikatz_usage"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Mimikatz Credential Dumping Tool"
+    description: "Installs or invokes Mimikatz, a tool for dumping Windows credentials from memory"
+    regex: "\\b(?:mimikatz|sekurlsa|kerberos::list|lsadump|privilege::debug)\\b"
+    positive_examples:
+      - "mimikatz"
+    recommendation: "Mimikatz is an offensive tool for credential theft; remove immediately and investigate"
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "responder_tool"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Responder LLMNR/NBT-NS Poisoning"
+    description: "Installs or runs Responder for capturing network credentials via LLMNR/NBT-NS poisoning"
+    regex: "\\bResponder\\.py\\b|\\bresponder\\b.*(?:-I\\s+eth|-i\\s+\\w+|--interface|--lm|--wpad)"
+    positive_examples:
+      - "Responder.py"
+    recommendation: "Responder is a network credential theft tool; remove immediately"
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "bloodhound_sharphound"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "BloodHound/SharpHound AD Enumeration"
+    description: "Installs or runs BloodHound or SharpHound for Active Directory attack path mapping"
+    regex: "\\b(?:BloodHound|SharpHound|bloodhound-python|aclpwn)\\b"
+    positive_examples:
+      - "BloodHound"
+    recommendation: "AD enumeration tools should not appear in production playbooks"
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "impacket_tools"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Impacket Attack Tools"
+    description: "Installs or invokes Impacket tools for network protocol attacks and lateral movement"
+    regex: "\\b(?:impacket|secretsdump|psexec\\.py|wmiexec\\.py|smbexec\\.py|atexec\\.py|dcomexec\\.py|GetNPUsers|GetUserSPNs|ntlmrelayx|smbclient\\.py)\\b"
+    positive_examples:
+      - "impacket"
+    recommendation: "Impacket tools are offensive; remove and investigate as a potential breach"
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "rubeus_kerberos"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Rubeus Kerberos Attack Tool"
+    description: "Installs or runs Rubeus for Kerberos ticket manipulation and abuse"
+    regex: "\\b(?:Rubeus|asktgt|asktgs|kerberoast|asreproast|s4u|changepw|createnetonly)\\b"
+    positive_examples:
+      - "Rubeus"
+    recommendation: "Rubeus is a Kerberos attack tool; remove immediately"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "cobalt_strike_beacon"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Cobalt Strike / C2 Framework"
+    description: "References to Cobalt Strike beacons, Meterpreter, or other Command and Control frameworks"
+    regex: "\\b(?:cobaltstrike|beacon\\.exe|meterpreter|metasploit|msfvenom|msfconsole|empire|covenant|sliver|havoc|brute\\s*ratel)\\b"
+    positive_examples:
+      - "cobaltstrike"
+    recommendation: "C2 frameworks indicate an active attack; escalate to incident response immediately"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "hashcat_john"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Password Cracking Tool"
+    description: "Installs or runs password cracking tools like hashcat or John the Ripper"
+    regex: "\\b(?:hashcat|john(?:theripper)?|hydra|medusa|ncrack|ophcrack|cewl|crunch)\\b(?!.*(?:doe|smith|user))"
+    positive_examples:
+      - "- john-the-ripper"
+    recommendation: "Password cracking tools should never appear in production playbooks"
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "exploit_framework"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Exploitation Framework"
+    description: "Installs or references exploitation frameworks or known exploit tools"
+    regex: "\\b(?:exploit-db|searchsploit|pwntools|ropper|ROPgadget|CVE-\\d{4}-\\d{4,}|0day|zeroday)\\b"
+    positive_examples:
+      - "exploit-db"
+    recommendation: "Exploit tools and references should not appear in production infrastructure code"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "wireless_attack_tools"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Wireless/Network Attack Tools"
+    description: >-
+        Installs or runs
+        aircrack-ng/airmon-ng/aireplay-ng/airodump-ng/wifite/bettercap/ettercap/mitmproxy/sslstrip.
+        These are wireless or on-path attack tools, not legitimate ops tooling.
+    regex: "\\b(?:aircrack-ng|airmon-ng|aireplay-ng|airodump-ng|wifite|bettercap|ettercap|mitmproxy|sslstrip)\\b"
+    positive_examples:
+      - "- aircrack-ng"
+    recommendation: "Network attack tools should never appear in production playbooks"
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "credential_dump_tool"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Credential Dumping Binary"
+    description: >-
+        References LaZagne, procdump, comsvcs.dll, lsass, the SAM database, or the
+        SYSTEM hive. All five are credential-dumping primitives associated with
+        active intrusion.
+    regex: "\\b(?:LaZagne|lazagne|procdump|comsvcs\\.dll|lsass|SAM\\s+database|SYSTEM\\s+hive)\\b"
+    positive_examples:
+      - "LaZagne"
+    recommendation: "Credential dumping tools indicate an active attack; escalate immediately"
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "linpeas_winpeas"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Privilege Escalation Enumeration Script"
+    description: "Downloads or executes privilege escalation enumeration scripts"
+    regex: "\\b(?:linpeas|winpeas|LinEnum|linux-exploit-suggester|pspy|PEASS|unix-privesc-check)\\b"
+    positive_examples:
+      - "my $linenum=0;"
+    recommendation: "Priv-esc enumeration scripts indicate reconnaissance; investigate immediately"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "crackmapexec_netexec"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "CrackMapExec / NetExec AD Attack Tool"
+    description: "Installs or runs CrackMapExec (or its successor NetExec/nxc) for Active Directory enumeration, credential spraying, and lateral movement"
+    regex: '\b(?:crackmapexec|nxc|netexec)\b.*(?:smb|ldap|winrm|ssh|mssql|rdp|--lsa|--sam|-u\s|-p\s|-H\s)|\b(?:crackmapexec|nxc|netexec)\s+'
+    positive_examples:
+      - "crackmapexec smb"
+    recommendation: "CrackMapExec/NetExec are offensive AD tools; remove and investigate as a potential compromise"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "evil_winrm"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Evil-WinRM Penetration Testing Shell"
+    description: "Installs or runs Evil-WinRM, a WinRM shell used for remote Windows exploitation"
+    regex: '\bevil-winrm\b'
+    positive_examples:
+      - "evil-winrm"
+    recommendation: "Evil-WinRM is an offensive remote shell tool; remove immediately and investigate"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "certipy_ad_cs"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Certipy AD Certificate Services Abuse"
+    description: "Installs or runs Certipy for exploiting Active Directory Certificate Services misconfigurations"
+    regex: '\bcertipy\b.*(?:find|auth|req|ca|cert|shadow|forge|ptt|-pfx\b|-u\s)|\bcertipy\s+'
+    positive_examples:
+      - "certipy find"
+    recommendation: "Certipy is used to abuse AD CS; remove and audit AD certificate configurations"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "kerbrute_kerberos"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Kerbrute Kerberos Brute Force Tool"
+    description: "Installs or runs Kerbrute for Kerberos username enumeration and password brute forcing"
+    regex: '\bkerbrute\b.*(?:userenum|passwordspray|bruteuser|bruteforce|--dc\s|-d\s)|\bkerbrute\s+'
+    positive_examples:
+      - "kerbrute userenum"
+    recommendation: "Kerbrute is a Kerberos brute forcing tool; remove and investigate unauthorized access attempts"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "pypykatz_credential_dump"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Pypykatz Python Mimikatz Implementation"
+    description: "Installs or runs pypykatz, a Python implementation of Mimikatz for credential extraction"
+    regex: '\bpypykatz\b.*(?:lsa|minidump|live|registry|nt|kerberos|dpapi)|\bpypykatz\s+'
+    positive_examples:
+      - "pypykatz lsa"
+    recommendation: "Pypykatz is a credential dumping tool; remove immediately and rotate affected credentials"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "ntdsutil_ad_dump"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "NTDS.dit Database Extraction via ntdsutil"
+    description: "Uses ntdsutil to create IFM snapshots of the Active Directory database for offline credential extraction"
+    regex: '\bntdsutil\b.*(?:ifm|activate\s+instance|create\s+full|ntds|snapshot)|ntds\.dit\b'
+    positive_examples:
+      - "ntdsutil ifm"
+    recommendation: "ntdsutil IFM creates full copies of the AD database; remove and investigate data exfiltration"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "powerview_powersploit"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "PowerView / PowerSploit AD Reconnaissance"
+    description: "Imports or invokes PowerView or PowerSploit for Active Directory enumeration and exploitation"
+    regex: '\b(?:PowerView|PowerSploit|Invoke-Kerberoast|Get-DomainUser|Get-DomainGroup|Get-DomainComputer|Find-LocalAdminAccess|Invoke-UserHunter|Get-NetSession|Invoke-ShareFinder|Invoke-Mimikatz|Import-Module\s+PowerView)\b'
+    positive_examples:
+      - "PowerView"
+    recommendation: "PowerView/PowerSploit are offensive AD tools; remove and investigate for domain compromise"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "seatbelt_sharpup"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Seatbelt / SharpUp Situational Awareness"
+    description: "Executes Seatbelt or SharpUp for host enumeration and privilege escalation checks on Windows"
+    regex: '\b(?:Seatbelt(?:\.exe)?|SharpUp(?:\.exe)?)\b.*(?:-group=|audit|all|checks)|\b(?:Seatbelt|SharpUp)(?:\.exe)?\s+'
+    positive_examples:
+      - "Seatbelt-group="
+    recommendation: "Seatbelt/SharpUp are offensive enumeration tools; remove and investigate host compromise"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "enum4linux_smb_enum"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Enum4linux SMB/NetBIOS Enumeration"
+    description: "Runs enum4linux or enum4linux-ng for enumerating SMB shares, users, and policies from Windows/Samba hosts"
+    regex: '\benum4linux(?:-ng)?\b'
+    positive_examples:
+      - "enum4linux"
+    recommendation: "enum4linux is a network reconnaissance tool; remove and restrict SMB exposure"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "smbclient_smbmap"
+    category: "offensive_tools"
+    severity: "HIGH"
+    title: "SMB Share Enumeration and Access Tools"
+    description: "Uses smbclient or smbmap to enumerate or access SMB shares on remote hosts"
+    regex: '\bsmbclient\b\s+//|\bsmbmap\b\s+.*-H\s'
+    positive_examples:
+      - "smbclient //"
+    recommendation: "SMB share tools can be used for lateral movement; verify legitimate need and restrict access"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "ldapsearch_enumeration"
+    category: "offensive_tools"
+    severity: "HIGH"
+    title: "LDAP Directory Enumeration"
+    description: "Uses ldapsearch to query Active Directory or LDAP directories for users, groups, and configuration"
+    regex: '\bldapsearch\b\s+.*(?:-x\s|-H\s+ldap|-b\s|objectClass|userAccountControl|servicePrincipalName)'
+    positive_examples:
+      - "ATTRIBUTE=$(ldapsearch -Z -LLL -x -y /etc/ssh/ldap_authorized_keys_bindpw -D \"${ldap_binddn}\" -o ldif-wrap=no -S sshPublicKey \"${ldap_filter}\" sshPublicKey | grep -v 'dn:')"
+    recommendation: "ldapsearch can expose directory information; verify legitimate need and use least-privilege binds"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "rpcclient_enumeration"
+    category: "offensive_tools"
+    severity: "HIGH"
+    title: "RPC Client Enumeration"
+    description: "Uses rpcclient for RPC-based enumeration of users, groups, and shares on Windows/Samba hosts"
+    regex: '\brpcclient\b\s+.*(?:-U\s|-N\s|enumdomusers|enumdomgroups|queryuser|lookupnames)'
+    positive_examples:
+      - "rpcclient -U "
+    recommendation: "rpcclient can enumerate domain objects; verify legitimate use and restrict null sessions"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "nikto_web_scanner"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Nikto Web Vulnerability Scanner"
+    description: "Runs Nikto to scan web servers for known vulnerabilities and misconfigurations"
+    regex: '\bnikto\b\s+.*-h\s'
+    positive_examples:
+      - "nikto -h "
+    recommendation: "Nikto is a web vulnerability scanner; remove from production playbooks"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "nuclei_scanner"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Nuclei Template-Based Vulnerability Scanner"
+    description: "Runs Nuclei for automated vulnerability scanning using community and custom templates"
+    regex: '\bnuclei\b\s+.*(?:-u\s|-l\s|-t\s|--target|--templates)'
+    positive_examples:
+      - "nuclei -u "
+    recommendation: "Nuclei is a vulnerability scanner; remove from production infrastructure automation"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "ffuf_web_fuzzer"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "FFUF Web Fuzzer"
+    description: >-
+        ffuf is invoked with -u/-w/FUZZ markers, the canonical web content-discovery
+        and parameter-fuzzing shape used in offensive engagements.
+    regex: '\bffuf\b\s+.*(?:-u\s|-w\s|FUZZ)'
+    positive_examples:
+      - "ffuf -u "
+    recommendation: "ffuf is an offensive web fuzzing tool; remove from production playbooks"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "feroxbuster_dirbuster"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Feroxbuster Recursive Directory Brute Forcer"
+    description: "Runs feroxbuster for recursive web directory and content discovery"
+    regex: '\bferoxbuster\b\s+.*(?:-u\s|--url)'
+    positive_examples:
+      - "feroxbuster -u "
+    recommendation: "feroxbuster is an offensive directory brute forcing tool; remove from production playbooks"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "gobuster_brute"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Gobuster Directory and DNS Brute Forcer"
+    description: >-
+        gobuster is invoked with the dir/dns/vhost/fuzz subcommand. Each enumerates
+        a different namespace and is a textbook reconnaissance tool.
+    regex: '\bgobuster\b\s+(?:dir|dns|vhost|fuzz)\s'
+    positive_examples:
+      - "gobuster dir "
+    recommendation: "gobuster is an offensive brute forcing tool; remove from production playbooks"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "rustscan_port_scanner"
+    category: "offensive_tools"
+    severity: "HIGH"
+    title: "RustScan Fast Port Scanner"
+    description: "Runs RustScan for high-speed port scanning of network targets"
+    regex: '\brustscan\b\s+.*(?:-a\s|--addresses)'
+    positive_examples:
+      - "rustscan -a "
+    recommendation: "RustScan is an offensive port scanner; remove from production playbooks"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "snmp_enumeration"
+    category: "offensive_tools"
+    severity: "HIGH"
+    title: "SNMP Enumeration Tools"
+    description: "Runs snmpwalk or onesixtyone for SNMP service enumeration and community string brute forcing"
+    regex: '\b(?:snmpwalk|onesixtyone)\b\s+.*(?:-v\s*[12c]|-c\s)'
+    positive_examples:
+      - "snmpwalk -v1"
+    recommendation: "SNMP enumeration can expose device configurations; verify legitimate need and use SNMPv3"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "ssl_scanning_tools"
+    category: "offensive_tools"
+    severity: "HIGH"
+    title: "SSL/TLS Scanning Tools"
+    description: "Runs testssl.sh or sslscan to probe SSL/TLS configurations for weaknesses"
+    regex: '\b(?:testssl(?:\.sh)?|sslscan)\b\s+'
+    positive_examples:
+      - "testssl "
+    recommendation: "SSL scanning tools can identify exploitable weaknesses; verify authorized security testing"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "nbtscan_netbios"
+    category: "offensive_tools"
+    severity: "HIGH"
+    title: "NBTScan NetBIOS Scanner"
+    description: "Runs nbtscan to enumerate NetBIOS names and MAC addresses across a network"
+    regex: '\bnbtscan\b\s+'
+    positive_examples:
+      - "nbtscan "
+    recommendation: "nbtscan is a network reconnaissance tool; remove from production playbooks"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "reg_save_credential_dump"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Registry SAM/SYSTEM Hive Credential Dump"
+    description: "Uses 'reg save' to dump SAM, SYSTEM, or SECURITY registry hives for offline credential extraction"
+    regex: '\breg\s+save\b\s+.*(?:HKLM\\SAM|HKLM\\SYSTEM|HKLM\\SECURITY)'
+    positive_examples:
+      - 'reg save HKLM\SAM'
+    recommendation: "Dumping registry hives enables offline credential cracking; remove and investigate immediately"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "firefox_decrypt_tool"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Firefox Decrypt Browser Credential Theft"
+    description: "Runs firefox_decrypt to extract saved passwords from Firefox browser profiles"
+    regex: '\bfirefox_decrypt(?:\.py)?\b'
+    positive_examples:
+      - "firefox_decrypt"
+    recommendation: "firefox_decrypt steals saved browser credentials; remove and investigate data theft"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "sharpdpapi_donpapi"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "SharpDPAPI / DonPAPI DPAPI Credential Extraction"
+    description: "Runs SharpDPAPI or DonPAPI to extract secrets protected by Windows DPAPI (credentials, certificates, browser data)"
+    regex: '\b(?:SharpDPAPI(?:\.exe)?|DonPAPI(?:\.py)?)\b.*(?:triage|certificates|credentials|backupkey|masterkey|machine|@)|\b(?:SharpDPAPI|DonPAPI)\s+'
+    positive_examples:
+      - "SharpDPAPI  triage"
+    recommendation: "DPAPI extraction tools steal protected credentials; remove immediately and rotate all secrets"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  # -- Steganography ----------------------------------------------------------
+  - id: "steganography_tool"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Steganography Tool Usage"
+    description: "Runs steganography tools to hide or extract data inside images/audio/files"
+    regex: "\\b(?:steghide|stegsnow|zsteg|stegsolve|openstego|outguess)\\s+"
+    positive_examples:
+      - "steghide "
+    recommendation: "Steganography is used for covert data exfiltration; investigate immediately"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "steganography_extract"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Steganography Data Extraction"
+    description: "Extracts hidden data from image or audio files using steganography tools"
+    regex: "(?:steghide\\s+extract|stegsnow\\s+-C|zsteg\\s+|openstego\\s+extract)"
+    positive_examples:
+      - "steghide extract"
+    recommendation: "Hidden data extraction from images is a covert data exfil technique"
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "steg_bruteforce_tool"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Steganography Brute-Force Tool"
+    description: "Runs stegseek or stegcracker to brute-force steghide passwords on image files"
+    regex: '\b(?:stegseek|stegcracker)\s+\S+'
+    positive_examples:
+      - "stegseek 0"
+    recommendation: "Steganography brute-force tools are used to extract covert payloads; investigate immediately"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "stegoveritas_analysis"
+    category: "offensive_tools"
+    severity: "HIGH"
+    title: "StegOveritas Steganography Analysis"
+    description: "Runs stegoveritas all-in-one image steganography analysis tool"
+    regex: '\bstegoveritas\s+'
+    positive_examples:
+      - "stegoveritas "
+    recommendation: "StegOveritas performs deep steganographic analysis; presence in a playbook is suspicious"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "jsteg_jpeg_steg"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "jsteg JPEG Steganography"
+    description: "Uses jsteg to hide or reveal data inside JPEG images using DCT coefficients"
+    regex: '\bjsteg\s+(?:hide|reveal)\s+'
+    positive_examples:
+      - "jsteg hide "
+    recommendation: "jsteg embeds data in JPEG files for covert exfiltration; investigate immediately"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "binwalk_firmware_extraction"
+    category: "offensive_tools"
+    severity: "HIGH"
+    title: "Binwalk Firmware/Embedded File Extraction"
+    description: "Uses binwalk to scan or extract embedded files and data from firmware or images"
+    regex: '\bbinwalk\s+(?:-e\s+|-M\s+|--extract|--matryoshka|--dd=|\S+)'
+    positive_examples:
+      - "binwalk -e "
+    recommendation: "Binwalk extracts embedded payloads from files; verify this is authorized firmware analysis"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  - id: "exiftool_data_hiding"
+    category: "offensive_tools"
+    severity: "HIGH"
+    title: "Exiftool Metadata Data Hiding"
+    description: "Uses exiftool to write arbitrary data into image metadata fields for covert storage or exfiltration"
+    regex: '\bexiftool\s+.*-(?:Comment|UserComment|ImageDescription|XPComment)='
+    positive_examples:
+      - "exiftool -Comment="
+    recommendation: "Writing data into image metadata can be used for covert data storage; verify intent"
+    no_ansible_remediation: true
+    nist_controls: ['CA-7', 'IR-4', 'SI-4']
+    pci_dss: ['10.4.1', '12.10.1']
+    soc2: ['CC7.3']
+
+  # -- Windows / Active Directory Offensive Tooling ---------------------------
+  - id: "adcs_certify_abuse"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Certify / ADCS ESC Exploitation Tool"
+    description: "Installs or runs Certify.exe (or the Certipy Python port) with ESC1-8 flags - tools that abuse Active Directory Certificate Services template misconfigurations to issue certificates impersonating high-value accounts and pivot to Domain Admin."
+    regex: '\b(?:Certify(?:\.exe)?|certipy(?:-ad)?)\b.*(?:find|request|auth|relay|shadow-credentials|template|vulnerable|-ca\s|/ca:|/template:|ESC[1-9])'
+    positive_examples:
+      - "Certify  find"
+    recommendation: "Certify/Certipy are offensive ADCS tools. Remove immediately, rotate issued certificates, and audit AD CS template permissions for ESC1-8 misconfigurations (see SpecterOps Certified Pre-Owned)."
+    cwe: ['CWE-269', 'CWE-295']
+    owasp_appsec: ["A04:2021", "A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+    mitre_attack: ['T1556', 'T1649']
+    cis_controls: ['CIS-6.8', 'CIS-12.5']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)', 'SC-8(1)', 'SC-12']
+    pci_dss: ['4.2.1', '4.2.1.1', '7.2.1', '7.2.5']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['CC6.2', 'CC6.3', 'CC6.7']
+
+  - id: "dcsync_keyword"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "DCSync / DCShadow Invocation"
+    description: "Invokes Mimikatz lsadump::dcsync, Invoke-DCSync, or lsadump::dcshadow - techniques that abuse directory replication privileges to pull password hashes for every account in the domain, including krbtgt (golden ticket), or stealthily inject replicated objects."
+    regex: '\b(?:lsadump::dcsync|Invoke-DCSync|lsadump::dcshadow|Invoke-DCShadow)\b|/dcsync\b|/dcshadow\b'
+    positive_examples:
+      - "lsadump::dcsync"
+    recommendation: "DCSync/DCShadow implies DRS replication privilege abuse. Rotate krbtgt twice, audit DS-Replication-Get-Changes grants (should only be DCs + MSOL sync), and investigate for Tier-0 compromise."
+    cwe: ['CWE-269', 'CWE-284']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    mitre_attack: ['T1003.006', 'T1207']
+    cis_controls: ['CIS-6.8', 'CIS-16.11']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1', '7.2.2', '7.2.5']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.2', 'CC6.3']
+
+  - id: "dpapi_extraction"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "DPAPI Credential Extraction Tooling"
+    description: "Installs or runs SharpDPAPI, SharpChrome, Mimikatz dpapi::* commands, or impacket dpapi.py - tools that decrypt Windows DPAPI-protected secrets (browser cookies/passwords, vault credentials, RDP credentials, WiFi keys) using extracted masterkeys."
+    regex: '\b(?:SharpDPAPI(?:\.exe)?|SharpChrome(?:\.exe)?|dpapi\.py)\b|\bdpapi::(?:cred|masterkey|vault|rdg|ssh|chrome|capi|blob|cache)\b'
+    positive_examples:
+      - "SharpDPAPI"
+    recommendation: "DPAPI extraction implies masterkey theft. Rotate user passwords (forces masterkey re-encryption), rotate browser-stored credentials, and investigate the host for lsass dumping or backup-key theft."
+    cwe: ['CWE-312', 'CWE-522']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.1.2", "V6.2.1", "V8.3.1"]
+    mitre_attack: ['T1552.001', 'T1555.003', 'T1555.004']
+    cis_controls: ['CIS-3.11', 'CIS-6.8']
+    nist_controls: ['AC-2', 'AC-3', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '7.2.5', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.2', 'CC6.3']
+
+  - id: "safetykatz_usage"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "SafetyKatz Signed-Binary Mimikatz Variant"
+    description: "Installs or runs SafetyKatz - a Mimikatz derivative that combines a minidump of lsass with a modified (and often signed) Mimikatz binary to bypass antivirus and extract credentials from memory."
+    regex: '\bSafetyKatz(?:\.exe)?\b|\bSafetyKatz\s+(?:dump|sekurlsa)'
+    positive_examples:
+      - "SafetyKatz dump"
+    recommendation: "SafetyKatz is a credential-theft tool; remove immediately, rotate local and domain credentials that logged on to the host, and investigate for lsass access (enable Credential Guard where possible)."
+    cwe: ['CWE-250', 'CWE-522']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V14.2.2"]
+    mitre_attack: ['T1003.001', 'T1555']
+    cis_controls: ['CIS-3.11', 'CIS-6.8']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '7.2.1', '7.2.5', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.2', 'CC6.3']
+
+  - id: "wmi_permanent_event_subscription_persistence"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "WMI Permanent Event Subscription Persistence (ActiveScriptEventConsumer / CommandLineEventConsumer)"
+    description: "A task creates a WMI permanent event subscription by binding an `__EventFilter` to an `ActiveScriptEventConsumer` or `CommandLineEventConsumer` via `__FilterToConsumerBinding`. Permanent WMI subscriptions survive reboots, run as SYSTEM, and are not visible in Task Scheduler / Run keys - they are the canonical fileless-persistence primitive catalogued as MITRE T1546.003 and heavily used by APT29, Turla, and modern commodity loaders (Trickbot, Qakbot). There is no legitimate Ansible configuration-management reason to create one."
+    regex: "(?:Set-WmiInstance|New-CimInstance|wmic(?:\\.exe)?\\s+/NAMESPACE)[\\s\\S]{0,400}?(?:__EventFilter|ActiveScriptEventConsumer|CommandLineEventConsumer|__FilterToConsumerBinding)"
+    positive_examples:
+      - "Set-WmiInstance__EventFilter"
+    multiline: true
+    window: 25
+    recommendation: "Remove the task. WMI persistence is never an appropriate CM primitive - use a signed Windows service or scheduled task enrolled through GPO / Intune. Enumerate and clean existing bindings with `Get-WmiObject -Namespace root\\subscription -Class __FilterToConsumerBinding | Remove-WmiObject`. Monitor with Sysmon Event IDs 19/20/21 (WmiEvent) and alert on any subscription whose consumer is ActiveScript or CommandLine."
+    no_ansible_remediation: true
+    cwe: ['CWE-506', 'CWE-653']
+    owasp_appsec: ["A04:2021"]
+    mitre_attack: ['T1047', 'T1546.003']
+    cis_controls: ['CIS-8.11', 'CIS-10.5']
+    nist_controls: ['AU-12', 'CM-7', 'SI-4', 'SI-7']
+    pci_dss: ['6.3.3', '10.4.1']
+    soc2: ['CC7.2', 'CC7.3']
+
+  - id: "golden_saml_forged_token_material"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "Golden SAML Forgery - ADFS Token-Signing Private Key Exported Or Referenced"
+    description: "A task references the ADFS token-signing certificate private key (`AdfsSigningCertificate` with `-Exportable`, `Export-PfxCertificate` of the ADFS signing cert, or a reference to `ADFS\\Token-Signing` with exportable=true). Once the token-signing private key leaves the ADFS server, an attacker can mint SAML assertions for any user in any federated relying party (Azure AD, AWS, Salesforce, Okta) indefinitely - this is the Golden SAML attack (Solorigate / SUNBURST). Even rotating the user's password does not invalidate the forged tokens until the signing cert is rolled."
+    regex: "(?:Export-PfxCertificate[\\s\\S]{0,300}?(?:ADFS|Token-?Signing)|Set-AdfsProperties[\\s\\S]{0,200}?-CertificateSharingContainer|Get-AdfsCertificate[\\s\\S]{0,200}?-CertificateType\\s+Token-Signing[\\s\\S]{0,200}?Export|New-SelfSignedCertificate[\\s\\S]{0,200}?ADFS[\\s\\S]{0,200}?-KeyExportPolicy\\s+Exportable)"
+    positive_examples:
+      - "Export-PfxCertificateADFS"
+    multiline: true
+    window: 30
+    recommendation: "Never export the ADFS token-signing private key via automation. Store it in an HSM-backed key provider (`Microsoft Platform Crypto Provider` / `Microsoft Software Key Storage Provider` with non-exportable keys) and rotate it with `Update-AdfsCertificate -CertificateType Token-Signing -Urgent` immediately if exfiltration is suspected. Monitor ADFS admin log Event IDs 307/310 for certificate operations and correlate with AD 4662 on the ADFS service account. After any Golden SAML suspicion, rotate both primary and secondary token-signing certificates twice (revoke forged tokens in caches)."
+    no_ansible_remediation: true
+    cwe: ['CWE-321', 'CWE-347', 'CWE-798']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1552.004', 'T1606.002']
+    cis_controls: ['CIS-3.11', 'CIS-6.8']
+    nist_controls: ['AC-6', 'AU-12', 'IA-5(2)', 'SC-12', 'SC-13']
+    pci_dss: ['3.6.1', '3.6.4', '8.6.2']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['CC6.1', 'CC6.2']
+
+  - id: "adcs_esc1_vulnerable_template_request"
+    category: "offensive_tools"
+    severity: "CRITICAL"
+    title: "ADCS ESC1 - Certificate Template Enabled With enrollee-supplies-subject And Any-Purpose EKU"
+    description: "A task publishes or enables an Active Directory Certificate Services template where `msPKI-Certificate-Name-Flag` has `CT_FLAG_ENROLLEE_SUPPLIES_SUBJECT` (0x1) AND the template EKU is `Any Purpose`, `Client Authentication`, or `Smartcard Logon`, AND low-privilege principals (Domain Users / Authenticated Users) have Enroll rights. This is ESC1 from SpecterOps Certified Pre-Owned - any domain user can request a cert with `subjectAltName=<Domain Admin>` and authenticate as that user forever (until the template is fixed, not the user's password)."
+    regex: "(?:certutil(?:\\.exe)?\\s+-setreg[\\s\\S]{0,200}EditFlags|Set-CATemplate|Add-CATemplate|New-ADObject[\\s\\S]{0,300}?objectClass\\s*=\\s*['\"]?pKICertificateTemplate)[\\s\\S]{0,400}?(?:CT_FLAG_ENROLLEE_SUPPLIES_SUBJECT|mspki-certificate-name-flag\\s*[:=]\\s*['\"]?(?:0x1|1)\\b)"
+    positive_examples:
+      - "certutil -setregEditFlagsCT_FLAG_ENROLLEE_SUPPLIES_SUBJECT"
+    multiline: true
+    window: 40
+    recommendation: "Disable enrollee-supplies-subject on any template that issues authentication EKUs. Audit existing templates with `Get-ADObject -SearchBase (Get-ADRootDSE).ConfigurationNamingContext -Filter {objectClass -eq 'pKICertificateTemplate'} -Properties msPKI-Certificate-Name-Flag,pKIExtendedKeyUsage` and remove the flag, or restrict Enroll/AutoEnroll rights to a specific security group (not Domain Users). Run Certify.exe or Locksmith.ps1 to enumerate ESC1-ESC8 in the environment."
+    no_ansible_remediation: true
+    cwe: ['CWE-284', 'CWE-295']
+    owasp_appsec: ["A01:2021", "A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+    mitre_attack: ['T1558.004', 'T1649']
+    cis_controls: ['CIS-5.2', 'CIS-6.8']
+    nist_controls: ['AC-6', 'AU-12', 'IA-5(2)', 'SC-12']
+    pci_dss: ['3.6.1', '7.2.1', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(d)']
+    soc2: ['CC6.1', 'CC6.3']

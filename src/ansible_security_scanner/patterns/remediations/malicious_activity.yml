@@ -1,0 +1,114 @@
+# Companion Secure Fix snippets for malicious_activity rules whose tailored
+# handlers do not emit a `✅ Secure Fix` YAML block. The dispatcher prefers
+# this companion entry over any handler output, so adding a snippet here is
+# the canonical way to satisfy the secure-fix-block contract.
+
+remediations:
+
+  # -- Kubernetes pod security --
+  kubernetes_privileged_pod:
+    secure_fix: |
+      - name: Run pod under restricted Pod Security Standard
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: v1
+            kind: Pod
+            metadata:
+              name: app
+              namespace: app
+            spec:
+              hostNetwork: false
+              hostPID: false
+              hostIPC: false
+              automountServiceAccountToken: false
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 10001
+                fsGroup: 10001
+                seccompProfile:
+                  type: RuntimeDefault
+              containers:
+                - name: app
+                  image: registry.example.com/app@sha256:REPLACE_WITH_DIGEST
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    privileged: false
+                    readOnlyRootFilesystem: true
+                    capabilities:
+                      drop: ["ALL"]
+
+  # -- Database credential exposure (CLI passwords on argv) --
+  database_credential_exposure:
+    secure_fix: |
+      - name: Run the SQL via the module (login_password from Vault, not argv)
+        community.postgresql.postgresql_query:
+          login_host: "{{ db_host }}"
+          login_user: "{{ db_user }}"
+          login_password: "{{ vault_db_password }}"
+          db: "{{ db_name }}"
+          query: "SELECT 1"
+
+  # -- Database backdoor user creation --
+  database_backdoor_user_creation:
+    secure_fix: |
+      - name: Provision the database user with scoped role-based privileges
+        community.postgresql.postgresql_user:
+          login_host: "{{ db_host }}"
+          login_user: "{{ db_admin_user }}"
+          login_password: "{{ vault_db_admin_password }}"
+          db: "{{ db_name }}"
+          name: "{{ app_db_user }}"
+          password: "{{ vault_app_db_password }}"
+          role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE,NOREPLICATION
+          state: present
+      - name: Grant only the privileges the workload needs
+        community.postgresql.postgresql_privs:
+          login_host: "{{ db_host }}"
+          login_user: "{{ db_admin_user }}"
+          login_password: "{{ vault_db_admin_password }}"
+          db: "{{ db_name }}"
+          roles: "{{ app_db_user }}"
+          type: table
+          objs: "{{ app_tables }}"
+          privs: SELECT,INSERT,UPDATE,DELETE
+          state: present
+
+  # -- Database privilege escalation (over-broad GRANT) --
+  database_privilege_escalation:
+    secure_fix: |
+      - name: Grant only the minimum privileges the workload needs
+        community.postgresql.postgresql_privs:
+          login_host: "{{ db_host }}"
+          login_user: "{{ db_admin_user }}"
+          login_password: "{{ vault_db_admin_password }}"
+          db: "{{ db_name }}"
+          roles: "{{ app_db_user }}"
+          type: table
+          objs: "{{ app_tables }}"
+          privs: SELECT,INSERT,UPDATE,DELETE
+          state: present
+
+  # -- Hardcoded password on database CLI argv --
+  hardcoded_database_password:
+    secure_fix: |
+      - name: Execute database work via the module with credentials from Vault
+        community.mysql.mysql_query:
+          login_host: "{{ db_host }}"
+          login_user: "{{ db_user }}"
+          login_password: "{{ vault_db_password }}"
+          login_db: "{{ db_name }}"
+          query: "SELECT 1"
+
+  # -- Suppressed-output DDL (auditing bypass) --
+  suspicious_database_maintenance:
+    secure_fix: |
+      - name: Run the DDL via the module so failures surface to Ansible
+        community.postgresql.postgresql_query:
+          login_host: "{{ db_host }}"
+          login_user: "{{ db_admin_user }}"
+          login_password: "{{ vault_db_admin_password }}"
+          db: "{{ db_name }}"
+          query: "{{ ddl_statement }}"
+        register: ddl_result
+        failed_when: ddl_result.rowcount is not defined

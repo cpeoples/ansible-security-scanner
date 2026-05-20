@@ -1,0 +1,13 @@
+---
+# Role orchestration - delegates to task files below. This file does
+# NOT perform any direct mutation; keeping it import-only means
+# ``import_tasks``/``include_tasks`` are the only calls visible at
+# this layer, which plays well with static analysis.
+
+- name: Install webapp with hash-pinned dependencies
+  ansible.builtin.import_tasks: install.yml
+  tags: [install]
+
+- name: Apply OS-level hardening
+  ansible.builtin.import_tasks: harden.yml
+  tags: [harden]

@@ -1,0 +1,57 @@
+---
+# Install webapp artefacts with defence-in-depth pinning. Every step
+# verifies an independent integrity signal (TLS + SHA256 + signed
+# attestation + hashed pip requirements) so a compromise of any single
+# link in the supply chain cannot push attacker code to production.
+
+- name: Create runtime group
+  ansible.builtin.group:
+    name: "{{ webapp_runtime_group }}"
+    gid: "{{ webapp_runtime_gid }}"
+    system: true
+    state: present
+
+- name: Create runtime user (no shell, no home)
+  ansible.builtin.user:
+    name: "{{ webapp_runtime_user }}"
+    uid: "{{ webapp_runtime_uid }}"
+    group: "{{ webapp_runtime_group }}"
+    shell: /usr/sbin/nologin
+    home: /nonexistent
+    create_home: false
+    system: true
+    state: present
+
+- name: Ensure install directory exists with tight permissions
+  ansible.builtin.file:
+    path: "{{ webapp_install_dir }}"
+    state: directory
+    owner: root
+    group: "{{ webapp_runtime_group }}"
+    mode: "0750"
+
+- name: Download release tarball with TLS + SHA256 pinning
+  ansible.builtin.get_url:
+    url: "{{ webapp_release_tarball_url }}"
+    dest: "{{ webapp_install_dir }}/release.tar.gz"
+    checksum: "sha256:{{ webapp_release_tarball_sha256 }}"
+    owner: root
+    group: "{{ webapp_runtime_group }}"
+    mode: "0640"
+    validate_certs: true
+
+- name: Verify SLSA provenance attestation on downloaded tarball
+  ansible.builtin.command: >-
+    cosign verify-attestation
+    --type slsaprovenance
+    --certificate-identity-regexp "^https://github.com/example/webapp/"
+    --certificate-oidc-issuer-regexp "^https://issuer\.githubusercontent\.example/"
+    {{ webapp_install_dir }}/release.tar.gz
+  changed_when: false
+
+- name: Install Python dependencies with locked hashes
+  ansible.builtin.pip:
+    name: webapp
+    virtualenv: "{{ webapp_install_dir }}/.venv"
+    virtualenv_command: /usr/bin/python3 -m venv
+    extra_args: "--require-hashes -r {{ webapp_requirements_path }} --no-deps"

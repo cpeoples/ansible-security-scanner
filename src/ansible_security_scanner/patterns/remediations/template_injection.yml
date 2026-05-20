@@ -1,0 +1,88 @@
+# Companion Secure Fix snippets for template_injection rules.
+
+remediations:
+
+  jinja2_autoescape_false:
+    secure_fix: |
+      # Always render Jinja2 with autoescape=True for HTML/XML/JS contexts
+      from jinja2 import Environment, FileSystemLoader, select_autoescape
+      env = Environment(
+          loader=FileSystemLoader("templates"),
+          autoescape=select_autoescape(
+              enabled_extensions=("html", "htm", "xml", "j2"),
+              default_for_string=True,
+          ),
+          undefined=StrictUndefined,
+      )
+      # In Ansible, `ansible.builtin.template` autoescapes by default;
+      # do NOT add `lstrip_blocks` / `block_end_string` overrides that
+      # turn it off, and never call `template` with `trim_blocks: False`
+      # AND user-controlled content in HTML output.
+
+  jinja2_comment_contains_todo_secret:
+    secure_fix: |
+      # Strip secret-bearing comments from templates. Reference Vault keys:
+      # roles/app/templates/.env.j2
+      # Production credentials are loaded at deploy-time from
+      # community.hashi_vault.vault_kv2_get('app/db'). Never paste a
+      # placeholder secret into a Jinja comment.
+      DB_HOST={{ db_host }}
+      DB_NAME={{ db_name }}
+      DB_PASSWORD={{ db_password }}
+
+  jinja2_eval_via_attr:
+    secure_fix: |
+      # Never reach __class__/__mro__/__subclasses__ in templates. If
+      # the rendered template needs computed values, compute them in
+      # Python and pass via `vars`:
+      - name: Render config from sanitised, server-side-computed vars
+        ansible.builtin.template:
+          src: app.conf.j2
+          dest: /etc/app/app.conf
+          mode: '0640'
+          owner: app
+          group: app
+        vars:
+          # Never expose obj.__class__ or {{ ''.__class__ }} to user input
+          allowed_origins: "{{ allowed_origins | difference(['*']) }}"
+          backend_url:    "{{ backend_url | regex_replace('^http://', 'https://') }}"
+
+  jinja2_render_sensitive_var:
+    secure_fix: |
+      # Don't render secrets into world-readable files. Use the
+      # `template` module + tight permissions, AND no_log:
+      - name: Render application secrets file
+        ansible.builtin.template:
+          src: secrets.env.j2
+          dest: /opt/app/secrets.env
+          owner: app
+          group: app
+          mode: '0600'
+        no_log: true
+        # Never write secrets via `copy` with a plaintext literal.
+
+  jinja2_safe_filter_on_user_input:
+    secure_fix: |
+      # Never apply `| safe` (or Markup()) to user-controlled values. If
+      # rich text really must render, run it through a sanitiser first:
+      <article>
+        {{ post.body_html | sanitize_html | safe }}
+      </article>
+      # Where sanitize_html is a server-side filter (e.g. Bleach) that
+      # strips <script>/<iframe> + dangerous attrs.
+
+  xxe_doctype_system_external_entity_in_template_or_config:
+    secure_fix: |
+      # Disable DTDs / external entities in any XML parser
+      # (Python lxml / xml.etree / Java SAXParser etc.)
+
+      # Python (defusedxml)
+      from defusedxml import ElementTree as ET
+      tree = ET.parse(path)   # rejects DTDs and external entities
+
+      # OR with stdlib lxml:
+      from lxml import etree
+      parser = etree.XMLParser(
+          resolve_entities=False, no_network=True, dtd_validation=False,
+          load_dtd=False, recover=False)
+      tree = etree.parse(path, parser)

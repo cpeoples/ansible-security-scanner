@@ -1,0 +1,232 @@
+# Companion Secure Fix snippets for unsafe_permissions rules.
+
+remediations:
+
+  # -- ansible.cfg hardening (one cfg file ships across the org) --
+  ansible_cfg_allow_world_readable_tmpfiles:
+    secure_fix: |
+      - name: ansible.cfg - never allow world-readable tmpfiles
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: allow_world_readable_tmpfiles
+          value: "False"
+          owner: root
+          group: ansible
+          mode: '0640'
+
+  ansible_cfg_any_errors_fatal_false_in_prod:
+    secure_fix: |
+      - name: ansible.cfg - fail-fast in prod (any_errors_fatal=True)
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: any_errors_fatal
+          value: "True"
+          mode: '0640'
+
+  ansible_cfg_callback_whitelist_unpinned:
+    secure_fix: |
+      - name: ansible.cfg - callbacks_enabled with explicit, vetted list
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: callbacks_enabled
+          value: "ansible.posix.profile_tasks,ansible.posix.timer"
+          mode: '0640'
+
+  ansible_cfg_display_skipped_hosts_false:
+    secure_fix: |
+      - name: ansible.cfg - keep skipped hosts visible (audit trail)
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: display_skipped_hosts
+          value: "True"
+          mode: '0640'
+
+  ansible_cfg_host_key_checking_false:
+    secure_fix: |
+      - name: ansible.cfg - host_key_checking=True (verify host fingerprints)
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: host_key_checking
+          value: "True"
+          mode: '0640'
+
+  ansible_cfg_log_path_world_readable:
+    secure_fix: |
+      - name: ansible.cfg - log_path under root-owned dir, mode 0640
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: log_path
+          value: "/var/log/ansible/ansible.log"
+          mode: '0640'
+      - name: Ensure log directory is locked down
+        ansible.builtin.file:
+          path: /var/log/ansible
+          state: directory
+          owner: root
+          group: ansible
+          mode: '0750'
+
+  ansible_cfg_nocows_disabled_in_prod:
+    secure_fix: |
+      - name: ansible.cfg - disable cowsay in prod (clean machine logs)
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: nocows
+          value: "1"
+          mode: '0640'
+
+  ansible_cfg_pipelining_without_requiretty:
+    secure_fix: |
+      # Either: enable pipelining AND ensure /etc/sudoers has no requiretty,
+      # OR: disable pipelining. Picking the safer "off" by default:
+      - name: ansible.cfg - pipelining=False (compatible with default sudoers)
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: ssh_connection
+          option: pipelining
+          value: "False"
+          mode: '0640'
+
+  ansible_cfg_private_key_file_world_readable_path:
+    secure_fix: |
+      - name: ansible.cfg - private_key_file in user-only path, mode 0600
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: private_key_file
+          value: "~/.ssh/id_ed25519_ansible"
+          mode: '0640'
+      - name: Ensure key file itself is mode 0600, owned by user
+        ansible.builtin.file:
+          path: ~/.ssh/id_ed25519_ansible
+          owner: "{{ ansible_user_id }}"
+          mode: '0600'
+
+  ansible_cfg_retry_files_enabled_true:
+    secure_fix: |
+      - name: ansible.cfg - retry_files_enabled=False (no inventory leak)
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: retry_files_enabled
+          value: "False"
+          mode: '0640'
+
+  ansible_cfg_roles_path_writable_location:
+    secure_fix: |
+      - name: ansible.cfg - roles_path in root-owned, group-readable dir
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: defaults
+          option: roles_path
+          value: "/etc/ansible/roles:/usr/share/ansible/roles"
+          mode: '0640'
+      - name: Ensure roles_path dirs are not world-writable
+        ansible.builtin.file:
+          path: "{{ item }}"
+          state: directory
+          owner: root
+          group: ansible
+          mode: '0750'
+        loop:
+          - /etc/ansible/roles
+          - /usr/share/ansible/roles
+
+  # -- Ansible runtime / SSH options --
+  ansible_host_key_checking_false:
+    secure_fix: |
+      # Don't disable host-key checking. Pre-populate known_hosts:
+      - name: Pre-seed known_hosts from a curated, signed list
+        ansible.builtin.known_hosts:
+          path: /etc/ssh/ssh_known_hosts
+          name: "{{ item.name }}"
+          key:  "{{ item.key }}"
+          state: present
+        loop: "{{ ssh_host_fingerprints }}"
+        # Then leave ANSIBLE_HOST_KEY_CHECKING=True (default).
+
+  become_flags_nopasswd_inline:
+    secure_fix: |
+      # Don't pass NOPASSWD via become_flags; configure sudoers properly:
+      - name: sudoers entry for ansible service account (validated)
+        ansible.builtin.copy:
+          dest: /etc/sudoers.d/ansible
+          content: |
+            ansible ALL=(ALL) NOPASSWD: /usr/bin/dnf, /usr/bin/systemctl
+          owner: root
+          group: root
+          mode: '0440'
+          validate: "visudo -cf %s"
+
+  become_user_root_explicit:
+    secure_fix: |
+      # If a task truly needs root, escalate explicitly + keep it scoped:
+      - name: Restart service - root scoped to a single command
+        become: true
+        become_user: root
+        ansible.builtin.systemd:
+          name: app
+          state: restarted
+
+  delegate_to_localhost_run_as_remote:
+    secure_fix: |
+      # Localhost helpers run with `connection: local`, never as remote root
+      - name: Render report on the controller, then ship it
+        delegate_to: localhost
+        connection: local
+        become: false
+        ansible.builtin.template:
+          src: report.j2
+          dest: artifacts/report.html
+          mode: '0644'
+
+  ssh_args_disable_host_key:
+    secure_fix: |
+      - name: ansible.cfg - safe ssh_args (no -o StrictHostKeyChecking=no)
+        community.general.ini_file:
+          path: /etc/ansible/ansible.cfg
+          section: ssh_connection
+          option: ssh_args
+          value: "-o ControlMaster=auto -o ControlPersist=60s -o PreferredAuthentications=publickey"
+          mode: '0640'
+
+  ssh_keyscan_auto_accept:
+    secure_fix: |
+      - name: Pre-seed known_hosts from a CURATED list (no ssh-keyscan)
+        ansible.builtin.known_hosts:
+          path: /etc/ssh/ssh_known_hosts
+          name: "{{ item.name }}"
+          key:  "{{ item.key }}"
+          state: present
+        loop: "{{ trusted_host_fingerprints }}"
+
+  ssh_proxycommand_skips_verification:
+    secure_fix: |
+      # ProxyCommand ssh -W must keep host-key verification ON
+      Host bastion
+        HostName bastion.internal.example.com
+        User      ansible
+        IdentityFile ~/.ssh/id_ed25519_ansible
+        StrictHostKeyChecking yes
+        UserKnownHostsFile ~/.ssh/known_hosts
+
+      Host *.internal.example.com
+        ProxyCommand ssh -W %h:%p bastion
+        StrictHostKeyChecking yes
+        UserKnownHostsFile ~/.ssh/known_hosts
+
+  ssh_stricthostkey_disabled:
+    secure_fix: |
+      # ~/.ssh/config (or /etc/ssh/ssh_config) - StrictHostKeyChecking yes
+      Host *
+        StrictHostKeyChecking yes
+        UserKnownHostsFile ~/.ssh/known_hosts
+        VerifyHostKeyDNS yes
+        UpdateHostKeys ask

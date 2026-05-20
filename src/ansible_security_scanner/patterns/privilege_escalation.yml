@@ -1,0 +1,322 @@
+name: "Privilege Escalation Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects privilege escalation attempts and dangerous elevation methods"
+
+patterns:
+  - id: "sudo_nopasswd"
+    category: "privilege_escalation"
+    severity: "HIGH"
+    title: "SUDO NOPASSWD Configuration"
+    description: "Configuring SUDO to not require password for privilege escalation"
+    regex: "NOPASSWD:\\s*ALL|sudoers.*NOPASSWD"
+    positive_examples:
+      - "lineinfile: dest=/etc/sudoers state=present regexp='^%bitcoin' line='%bitcoin ALL=(ALL) NOPASSWD:ALL' validate='visudo -cf %s'"
+    recommendation: "Avoid blanket NOPASSWD: ALL; instead grant NOPASSWD only on the specific commands the automation needs (e.g. /usr/sbin/systemctl restart nginx) via a drop-in under /etc/sudoers.d/, validated with visudo -cf."
+    cwe: ['CWE-250', 'CWE-269']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1548.003']
+    cis_controls: ['CIS-5.4', 'CIS-6.8']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1', '7.2.5']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.2', 'CC6.3']
+    stig: ['V-230503']
+
+  - id: "setuid_binary_creation"
+    category: "privilege_escalation"
+    severity: "CRITICAL"
+    title: "SetUID Binary Creation"
+    description: "Creating or modifying setuid binaries for privilege escalation"
+    regex: "chmod.*[0-7]*4[0-7]*|chmod.*u\\+s"
+    positive_examples:
+      - "chmod 0640 /etc/ldap/localhost.key"
+    recommendation: "Setuid binaries are an enduring privilege-escalation surface; prefer filesystem capabilities (setcap cap_net_bind_service+ep) or a systemd unit with the appropriate User= / AmbientCapabilities= directives instead of setting the suid bit."
+    cwe: ['CWE-250', 'CWE-732']
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    mitre_attack: ['T1548.001']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'CM-6', 'CM-7', 'SI-3']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "become_method_unsafe"
+    category: "privilege_escalation"
+    severity: "MEDIUM"
+    title: "Unsafe Become Method"
+    description: "Using potentially unsafe become methods for privilege escalation"
+    regex: "become_method:\\s*(?:su|doas|dzdo|ksu|machinectl)"
+    positive_examples:
+      - "become_method: sudo"
+    recommendation: "Default to become_method: sudo, which is auditable, has the broadest hardening guidance, and integrates with become_user / become_flags; use su / doas / dzdo / ksu / machinectl only when the target platform genuinely lacks sudo."
+    cwe: ['CWE-269']
+    owasp_appsec: ["A04:2021"]
+    mitre_attack: ['T1548.003']
+    cis_controls: ['CIS-5.4']
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+
+  - id: "sudo_with_shell"
+    category: "privilege_escalation"
+    severity: "HIGH"
+    title: "Sudo with Shell Access"
+    description: "Granting sudo access to shell commands which can be dangerous"
+    regex: "sudo.*(?:/bin/sh|/bin/bash|/bin/zsh|/bin/csh)"
+    positive_examples:
+      - "user: name=bitcoin groups=sudo,shadow shell=/bin/bash append=yes generate_ssh_key=yes ssh_key_file=.ssh/id_rsa"
+    recommendation: "Granting sudo on /bin/sh or /bin/bash is equivalent to granting full root; scope the sudoers entry to the specific binary and arguments the automation actually invokes, or run the workload via a systemd unit with a dedicated user."
+    cwe: ['CWE-78', 'CWE-269']
+    owasp_appsec: ["A03:2021", "A04:2021"]
+    mitre_attack: ['T1059.004', 'T1548.003']
+    cis_controls: ['CIS-5.4', 'CIS-6.8']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)', 'SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1', '7.2.1', '7.2.5']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.2', 'CC6.3', 'CC7.1']
+
+  - id: "wheel_group_addition"
+    category: "privilege_escalation"
+    severity: "MEDIUM"
+    title: "Addition to Wheel Group"
+    description: >-
+        usermod -aG wheel or gpasswd -a <user> wheel adds a user to the wheel group,
+        which on most distros confers passwordless or sudo-without-restriction
+        administrative access.
+    regex: "usermod.*-a.*-G.*wheel|gpasswd.*-a.*wheel"
+    positive_examples:
+      - "usermod-a-Gwheel"
+    recommendation: "Membership in wheel / sudo grants persistent administrative rights; provision the user only for the duration of the change and remove them on completion, or front the workflow with a just-in-time access broker (e.g. Vault SSH OTP)."
+    cwe: ['CWE-269']
+    owasp_appsec: ["A04:2021"]
+    mitre_attack: ['T1078', 'T1098']
+    cis_controls: ['CIS-5.1', 'CIS-6.8']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1', '7.2.5']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.2', 'CC6.3']
+
+  - id: "cron_privilege_abuse"
+    category: "privilege_escalation"
+    severity: "HIGH"
+    title: "Cron Entry With Elevated Command"
+    description: "Installing cron entries that execute shells or arbitrary scripts as root"
+    regex: "(?:^|\\n)\\s*(?:\\*\\s+){4,5}\\*?\\s*(?:root\\s+)?(?:/bin/(?:ba)?sh|/usr/bin/curl|wget|python[23]?\\s+-c)"
+    positive_examples:
+      - |-
+        
+        * * * * /bin/sh
+    recommendation: "Replace the inline curl | bash / python -c cron entry with an ansible-managed script under /usr/local/sbin (root-owned, mode 0750) and reference it from a systemd timer or a versioned crontab, so the executed code is reviewable and diff-able."
+    cwe: ['CWE-78', 'CWE-250']
+    owasp_appsec: ["A03:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1053.003']
+    cis_controls: ['CIS-4.1', 'CIS-8.2']
+    nist_controls: ['AC-6', 'AC-6(1)', 'AU-2', 'AU-12', 'CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '7.2.1', '10.2.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC6.3', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "service_privilege_abuse"
+    category: "privilege_escalation"
+    severity: "HIGH"
+    title: "Service ExecStart Runs Arbitrary Shell"
+    description: "Systemd or init service executing a shell / interpreter with attacker-controlled content"
+    regex: "ExecStart=.*(?:/bin/(?:ba)?sh\\s+-c|/usr/bin/(?:curl|wget)\\s+|python[23]?\\s+-c)"
+    positive_examples:
+      - "ExecStart=/bin/bash -c 'curl -fsSL https://claude.ai/install.sh | bash'"
+    recommendation: "Move the inline shell payload into a packaged binary or vetted script with fixed ownership / mode; in the unit file set ExecStart= to the absolute path and add NoNewPrivileges=, ProtectSystem=strict, and a least-privileged User=."
+    cwe: ['CWE-78', 'CWE-250']
+    owasp_appsec: ["A03:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1543.002']
+    cis_controls: ['CIS-4.1', 'CIS-8.2']
+    nist_controls: ['AC-6', 'AC-6(1)', 'AU-2', 'AU-12', 'CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1', '7.2.1', '10.2.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC6.3', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "dangerous_world_writable"
+    category: "privilege_escalation"
+    severity: "HIGH"
+    title: "World-Writable Permissions on Sensitive Path"
+    description: "Setting 777/666 or o+w on system paths enables privilege escalation"
+    regex: "(?:mode:\\s*[\"']?0?(?:777|666)[\"']?|chmod\\s+(?:-R\\s+)?(?:777|666|o\\+w))"
+    positive_examples:
+      - "mode: \"0777\""
+    recommendation: "Replace 0777 / 0666 / o+w with the least-permissive mode that still satisfies the workload (typically 0640 for files and 0750 for directories), and use group ownership rather than world-write to share access between services."
+    cwe: ['CWE-732']
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1222.002']
+    cis_controls: ['CIS-3.3', 'CIS-4.1']
+    nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '2.2.4', '7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3', 'CC7.1', 'CC8.1']
+
+  # -- Windows / Active Directory Privilege Escalation ------------------------
+  - id: "windows_token_impersonation_privs"
+    category: "privilege_escalation"
+    severity: "HIGH"
+    title: "Grant of Sensitive Windows Token Privileges"
+    description: "Grants SeDebugPrivilege, SeImpersonatePrivilege, SeAssignPrimaryTokenPrivilege, SeTcbPrivilege, or SeBackupPrivilege to a service or user account. These privileges allow lsass access (credential theft), token impersonation (Potato-family attacks), or acting as SYSTEM - any of which is a domain-compromise primitive if granted to a low-trust account."
+    regex: "(?:win_user_right|ansible\\.windows\\.win_user_right|carbon\\.privilege)\\s*:[\\s\\S]{0,300}(?:Se(?:Debug|Impersonate|AssignPrimaryToken|Tcb|Backup|Restore|TakeOwnership|LoadDriver|CreateToken)Privilege)"
+    positive_examples:
+      - "win_user_right:SeDebugPrivilege"
+    recommendation: "Grant these privileges only to system-owned accounts (LOCAL SYSTEM, LOCAL SERVICE) or tightly scoped break-glass accounts. Review via 'secpol.msc > User Rights Assignment' and baseline against CIS Microsoft Windows Server benchmark."
+    cwe: ['CWE-250', 'CWE-269']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1134.001', 'T1134.002']
+    cis_controls: ['CIS-5.4', 'CIS-6.8']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1', '7.2.5']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.2', 'CC6.3']
+
+  - id: "win_add_user_to_admin_group"
+    category: "privilege_escalation"
+    severity: "HIGH"
+    title: "Windows/AD User Added to Administrators or Domain Admins"
+    description: "ansible.windows.win_group / win_domain_group_membership / community.windows.win_domain_user adds a principal to a highly privileged local or domain group (Administrators, Domain Admins, Enterprise Admins, Schema Admins, Account Operators, Backup Operators). Direct membership grants Tier-0 authority in AD."
+    regex: "(?:ansible\\.windows\\.win_group|win_domain_group_membership|community\\.windows\\.win_domain_user)\\s*:[\\s\\S]{0,400}(?:name|groups?|members)\\s*:\\s*[\"']?(?:Administrators|Domain Admins|Enterprise Admins|Schema Admins|Account Operators|Backup Operators|DnsAdmins)[\"']?"
+    positive_examples:
+      - "ansible.windows.win_group:name:Administrators"
+    recommendation: "Use Role-Based Access Control via AD groups scoped to specific services. Avoid adding individual users to Domain Admins; use Privileged Access Workstations + time-bound membership (PAM / JIT elevation) instead."
+    cwe: ['CWE-250', 'CWE-269']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1078.002', 'T1098.007']
+    cis_controls: ['CIS-5.1', 'CIS-6.8']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1', '7.2.5']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.2', 'CC6.3']
+
+  - id: "ad_shadow_credentials_attack"
+    category: "privilege_escalation"
+    severity: "CRITICAL"
+    title: "AD Shadow Credentials (msDS-KeyCredentialLink Write)"
+    description: "Writes the msDS-KeyCredentialLink attribute on a user or computer object - the Shadow Credentials technique (Whisker/pyWhisker). An attacker who can write this attribute on a victim account can enroll a certificate and authenticate as the victim via PKINIT, obtaining a TGT without knowing the password."
+    regex: "(?:ldap_attr|community\\.general\\.ldap_attrs|microsoft\\.ad\\.user|win_ad_object|ansible\\.windows\\.win_dsc)\\s*:[\\s\\S]{0,400}msDS-KeyCredentialLink"
+    positive_examples:
+      - "ldap_attr:msDS-KeyCredentialLink"
+    recommendation: "Writing msDS-KeyCredentialLink is almost never legitimate in automation. Audit who has write access to this attribute on user/computer objects (should be self-only via Windows Hello enrollment). Investigate for Shadow Credentials attack if seen in unexpected playbooks."
+    cwe: ['CWE-269', 'CWE-284']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    mitre_attack: ['T1550.003', 'T1556']
+    cis_controls: ['CIS-6.8', 'CIS-16.11']
+    nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1', '7.2.2', '7.2.5']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.2', 'CC6.3']
+
+  - id: "windows_alwaysinstallelevated_registry_enabled"
+    category: "privilege_escalation"
+    severity: "CRITICAL"
+    title: "Windows Registry Enables AlwaysInstallElevated (MSI LPE Via Standard-User Install)"
+    description: "A task sets the Windows registry values `HKLM\\Software\\Policies\\Microsoft\\Windows\\Installer\\AlwaysInstallElevated = 1` AND/OR `HKCU\\Software\\Policies\\Microsoft\\Windows\\Installer\\AlwaysInstallElevated = 1` via `win_regedit`, `reg add`, Group Policy import, or `ansible.windows.win_regedit`. When BOTH keys are `1`, Windows Installer runs every `.msi` invoked by any standard user with SYSTEM privileges - so a standard user runs `msiexec /i payload.msi` with a reverse-shell in a custom action and gets NT AUTHORITY\\SYSTEM. This is the #1 Windows LPE technique in every OSCP / CTF writeup because it requires zero exploit code - just a poorly-crafted GPO. Microsoft has never changed the behavior (documented, 'by design') - the only fix is never enabling it. Detected by every commercial EDR as 'T1548.002', yet still present in 4-6% of enterprise GPO inventories per 2024 PingCastle reports."
+    regex: "(?:HKLM|HKCU|HKEY_LOCAL_MACHINE|HKEY_CURRENT_USER)[\\\\\\/](?:Software|SOFTWARE)[\\\\\\/]Policies[\\\\\\/]Microsoft[\\\\\\/]Windows[\\\\\\/]Installer[\\s\\S]{0,300}?AlwaysInstallElevated[\\s\\S]{0,100}?(?:['\"]?(?:1|0x1|dword:00000001)['\"]?|value\\s*:\\s*['\"]?1['\"]?|data\\s*:\\s*['\"]?1['\"]?)|AlwaysInstallElevated[\\s\\S]{0,200}?(?:type\\s*:\\s*['\"]?(?:dword|REG_DWORD)['\"]?[\\s\\S]{0,100}?(?:value|data)\\s*:\\s*['\"]?1['\"]?|value\\s*:\\s*['\"]?1['\"]?)|(?:win_regedit|ansible\\.windows\\.win_regedit|reg\\s+add)[\\s\\S]{0,600}?AlwaysInstallElevated[\\s\\S]{0,200}?1"
+    positive_examples:
+      - 'HKLM\Software\Policies\Microsoft\Windows\InstallerAlwaysInstallElevated1'
+    multiline: true
+    window: 10
+    recommendation: "NEVER enable `AlwaysInstallElevated`. If the registry values currently exist on ANY host, remove them immediately: `- ansible.windows.win_regedit: path: 'HKLM:\\Software\\Policies\\Microsoft\\Windows\\Installer', name: 'AlwaysInstallElevated', state: absent` (repeat for HKCU). Audit every GPO via `gpresult /H report.html` or `Get-GPOReport -All -ReportType HTML` and grep for `AlwaysInstallElevated`. For legitimate admin-privileged install needs, use **Intune** / SCCM Software Center with the deployment running as SYSTEM (never grant the USER the elevation). For DevOps self-service installs, use **winget** configuration files with admin-signed package sources. Detect exploitation attempts via Sysmon Event ID 1 (process creation) for `msiexec` invocations from non-admin users combined with child process spawn - high-confidence compromise indicator."
+    cwe: ['CWE-250', 'CWE-269', 'CWE-732']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    mitre_attack: ['T1068', 'T1112', 'T1548.002']
+    cis_controls: ['CIS-3.3', 'CIS-4.7', 'CIS-5.2']
+    nist_controls: ['AC-6', 'AC-6(1)', 'CM-7']
+    pci_dss: ['7.2.1', '7.2.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "windows_unquoted_service_path_with_spaces"
+    category: "privilege_escalation"
+    severity: "HIGH"
+    title: "Windows Service Created With Unquoted BinaryPath Containing Spaces (LPE Primitive)"
+    description: "A task creates a Windows service (`win_service`, `sc create`, `New-Service`, `CreateService` API call) with a `BinaryPathName` / `binPath` / `start_mode` value that contains a space AND is NOT wrapped in quotes. Example: `C:\\Program Files\\Acme\\App Helper\\service.exe` (unquoted) - Windows parses this left-to-right, attempting `C:\\Program.exe`, then `C:\\Program Files\\Acme\\App.exe`, then the real path. An attacker who can write to `C:\\` (most restrictive NTFS default still lets Authenticated-Users write) or `C:\\Program Files\\Acme\\` (common on shared dev workstations) drops `App.exe` and Windows runs IT with the service's (typically SYSTEM or LocalService) privileges on next boot. Detection tool: `wmic service get name,pathname,startmode | findstr /i /v \"C:\\Windows\\\\\" | findstr /i /v '\"'`. Still prevalent in 2024: a single-digit percentage of third-party installers ship with this defect (notably: some VPN clients, a few vendor 'agent' services, several bundled OEM utilities)."
+    regex: "(?:win_service|ansible\\.windows\\.win_service|sc(?:\\.exe)?\\s+create|New-Service|CreateService)[\\s\\S]{0,600}?(?:path|binary_path_name|binPath|BinaryPathName|ImagePath)\\s*[:= ]\\s*(?!['\"])(?:[A-Za-z]:\\\\[^\\n'\"]*\\s[^\\n'\"]*\\.exe)(?!['\"])|(?:sc(?:\\.exe)?\\s+create\\s+\\S+\\s+binPath=|ImagePath\\s*=\\s*|BinaryPathName\\s*=\\s*)(?!['\"])(?:[A-Za-z]:\\\\[^\\n,'\"]*\\s[^\\n,'\"]*\\.exe)"
+    positive_examples:
+      - 'win_servicepath:A:\ .exe'
+    multiline: true
+    window: 8
+    recommendation: "Always quote `BinaryPathName` / `binPath` when the path contains a space: `sc create MySvc binPath= \"\\\"C:\\Program Files\\Acme\\App Helper\\service.exe\\\" --arg\"` (note the escaped double-quotes AROUND the exe path AND the `binPath=` itself). For Ansible: `- win_service: name: MySvc, path: '\"C:\\Program Files\\Acme\\App Helper\\service.exe\"', start_mode: auto` (outer single-quote, inner double-quote). Audit every service on every host: `Get-WmiObject Win32_Service | Where-Object {$_.PathName -notmatch '^\"' -and $_.PathName -match ' '} | Select Name, PathName` must return zero. For services you control, install into a space-free path under `C:\\ProgramData\\<vendor>\\` and set NTFS deny-write for Authenticated-Users on every parent directory. Monitor via Sysmon Event ID 11 (file create) for `.exe` drops into `C:\\`, `C:\\Program*`, `C:\\Program Files*` from non-admin processes - immediate alert."
+    cwe: ['CWE-20', 'CWE-428', 'CWE-732']
+    owasp_appsec: ["A03:2021"]
+    owasp_asvs: ["V12.4.1"]
+    mitre_attack: ['T1068', 'T1543.003', 'T1574.009']
+    cis_controls: ['CIS-3.3', 'CIS-4.7', 'CIS-5.2']
+    nist_controls: ['AC-6', 'CM-5', 'CM-6']
+    pci_dss: ['2.2.1', '7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "windows_wdigest_uselogoncredential_enabled"
+    category: "privilege_escalation"
+    severity: "CRITICAL"
+    title: "WDigest UseLogonCredential enabled (plaintext passwords in LSASS memory)"
+    description: "A task sets `HKLM\\\\SYSTEM\\\\CurrentControlSet\\\\Control\\\\SecurityProviders\\\\WDigest\\\\UseLogonCredential = 1` (DWORD). This re-enables the pre-Windows 8.1 behavior where WDigest caches plaintext passwords in LSASS memory, enabling Mimikatz `sekurlsa::wdigest` to dump cleartext credentials of every interactively logged-on user. Microsoft disabled this by default in KB2871997 (May 2014); attackers flip it back on as their #1 credential-harvesting preparation step - documented in every major APT report (APT29, FIN6, Lazarus, UNC2452). Matches `win_regedit`, `ansible.windows.win_regedit`, `reg add`, `Set-ItemProperty`, and registry POL XML."
+    regex: "(?:HKLM:?\\\\+SYSTEM\\\\+CurrentControlSet\\\\+Control\\\\+SecurityProviders\\\\+WDigest|SYSTEM\\\\\\\\CurrentControlSet\\\\\\\\Control\\\\\\\\SecurityProviders\\\\\\\\WDigest|HKLM\\\\\\\\SYSTEM\\\\\\\\CurrentControlSet\\\\\\\\Control\\\\\\\\SecurityProviders\\\\\\\\WDigest)[\\s\\S]{0,300}?UseLogonCredential[\\s\\S]{0,120}?(?:data(?:_value|_type)?|value|dword|REG_DWORD|type)?\\s*[:=]?\\s*['\"]?0*1['\"]?|UseLogonCredential\\s*[:=]\\s*['\"]?(?:1|0x0+1|0x1)['\"]?"
+    positive_examples:
+      - 'HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigestUseLogonCredential1'
+    multiline: true
+    window: 12
+    recommendation: "NEVER enable WDigest UseLogonCredential. Explicitly set it to 0 (disabled) via GPO 'Computer Configuration -> Preferences -> Windows Settings -> Registry -> HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest\\UseLogonCredential = 0 (DWORD)' on every domain-joined host. Protect LSASS with: (1) **RunAsPPL (LSA Protection)** - `HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\RunAsPPL=1`, (2) **Credential Guard** (VBS-based isolation of LSASS secrets) on Win 10/11 Enterprise via Intune 'Device Guard -> Turn On Credential Guard -> Enabled with UEFI lock', (3) Defender ASR rule `9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2` block credential stealing from LSASS. Detect re-enablement with Sysmon Event ID 13 (registry-value set) on the WDigest key, plus Windows Security Event 4657 (registry modified). Hunt for historic credential theft: Sysmon Event ID 10 (ProcessAccess) for handle opens to lsass.exe with GrantedAccess `0x1010` / `0x1410` / `0x143a` from non-Windows processes."
+    cwe: ['CWE-312', 'CWE-316', 'CWE-522']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.1.2", "V6.2.1", "V8.3.1"]
+    mitre_attack: ['T1003.001', 'T1112', 'T1552.002']
+    cis_controls: ['CIS-3.10', 'CIS-4.1', 'CIS-10.5']
+    nist_controls: ['AC-6', 'IA-5(1)', 'SC-28']
+    pci_dss: ['3.5.1', '8.3.1', '8.3.2']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['CC6.1', 'CC6.7']
+    stig: ['V-205775', 'V-253265']
+
+  - id: "windows_lsa_runasppl_disabled_or_unset"
+    category: "privilege_escalation"
+    severity: "HIGH"
+    title: "LSA Protection (RunAsPPL) disabled or explicitly removed"
+    description: "A task sets `HKLM\\\\SYSTEM\\\\CurrentControlSet\\\\Control\\\\Lsa\\\\RunAsPPL = 0` (disabling LSA Protection) or deletes the value entirely. RunAsPPL=1 runs lsass.exe as a Protected Process Light, preventing non-PPL processes from opening a full-access handle to LSASS memory - this blocks Mimikatz `sekurlsa::logonpasswords`, `procdump -ma lsass.exe`, and comsvcs.dll MiniDump without a kernel-mode vulnerable-driver (BYOVD) bypass. Microsoft began enabling RunAsPPL by default on Windows 11 22H2+ and Server 2022; explicitly disabling or removing it is a clear privilege-escalation enabler and is the precursor to 80%+ of successful credential-dumping operations per 2024 Secureworks IR reports."
+    regex: "(?:HKLM:?\\\\+SYSTEM\\\\+CurrentControlSet\\\\+Control\\\\+Lsa|SYSTEM\\\\\\\\CurrentControlSet\\\\\\\\Control\\\\\\\\Lsa|HKLM\\\\\\\\SYSTEM\\\\\\\\CurrentControlSet\\\\\\\\Control\\\\\\\\Lsa)[\\s\\S]{0,300}?RunAsPPL[\\s\\S]{0,200}?(?:data(?:_value|_type)?|value|dword|REG_DWORD|type)?\\s*[:=]?\\s*['\"]?0+['\"]?|RunAsPPL\\s*[:=]\\s*['\"]?(?:0|0x0+)['\"]?|(?:win_regedit|Remove-ItemProperty)[\\s\\S]{0,300}?(?:name|Name)\\s*[:=]\\s*['\"]?RunAsPPL['\"]?[\\s\\S]{0,300}?state\\s*[:=]\\s*['\"]?absent['\"]?"
+    positive_examples:
+      - 'HKLM\SYSTEM\CurrentControlSet\Control\LsaRunAsPPL0'
+    multiline: true
+    window: 12
+    recommendation: "Enable RunAsPPL on every domain-joined Windows 10/11 and Server 2016+ host via GPO: Computer Configuration -> Preferences -> Registry -> `HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\RunAsPPL = 1 (DWORD)` - add `RunAsPPLBoot = 2` on Windows 11 22H2+ for UEFI-locked protection (cannot be disabled by local admin without a reboot to recovery). Pair with Credential Guard (VBS LSASS isolation), Defender ASR `9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2` (block credential stealing from LSASS), and Microsoft Vulnerable Driver Blocklist (enabled by default Win 11 22H2+) to defeat BYOVD Mimikatz variants. Verify state with `Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa' -Name RunAsPPL` and `Get-CimInstance Win32_Service -Filter 'Name=\"lsass\"'` -> ProcessId should show PPL-signed process (check via `ProcessMitigations -Name lsass.exe`). Audit-detect disablement with Sysmon Event ID 13 (registry set) on the RunAsPPL value and Windows Security Event 4657."
+    cwe: ['CWE-250', 'CWE-316', 'CWE-693']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1003.001', 'T1112', 'T1562.001']
+    cis_controls: ['CIS-3.10', 'CIS-4.1', 'CIS-10.5']
+    nist_controls: ['AC-6', 'SC-7(21)', 'SC-39']
+    pci_dss: ['8.3.1', '8.3.2']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['CC6.1', 'CC6.7']
+    stig: ['V-253265']
+
+  - id: "windows_print_spooler_service_enabled_on_domain_controller"
+    category: "privilege_escalation"
+    severity: "CRITICAL"
+    title: "Print Spooler service enabled on a domain controller (PrintNightmare / SpoolSample)"
+    description: "A task enables or starts the Print Spooler service (`Spooler` / `spoolsv.exe`) on a host that is a Domain Controller, typically via `win_service: name=Spooler state=started enabled=yes`, `Set-Service -Name Spooler -StartupType Automatic`, or `sc config Spooler start= auto`. Microsoft's own hardening guidance (ADV200005, KB5005010, and the 2021 PrintNightmare / SpoolSample / SpoolSampleSSL bulletins) requires Print Spooler to be **disabled on all DCs** - the combination of unconstrained delegation + Print Spooler RPC enables T1187 Forced Authentication / SMB relay attacks that yield Domain Admin within minutes (the 2021-2024 `SpoolSample`, `PrintNightmare` CVE-2021-1675 / CVE-2021-34527, and the 2024 CVE-2024-38198 / 38226 Spooler chains). Matches Ansible `win_service`, PowerShell DSC `Service`, and registry `Start` under `HKLM\\\\SYSTEM\\\\CurrentControlSet\\\\Services\\\\Spooler`."
+    regex: "(?:win_service|ansible\\.windows\\.win_service|Set-Service|sc(?:\\.exe)?\\s+config|Start-Service|PowerShellGet)[\\s\\S]{0,300}?(?:name|Name)\\s*[:=]\\s*['\"]?Spooler['\"]?[\\s\\S]{0,200}?(?:state\\s*[:=]\\s*['\"]?(?:started|running)['\"]?|(?:start(?:up)?_mode|StartupType|start)\\s*[:=]\\s*['\"]?(?:auto|Automatic|2)['\"]?|enabled\\s*[:=]\\s*(?:yes|true))|HKLM:?\\\\+SYSTEM\\\\+CurrentControlSet\\\\+Services\\\\+Spooler[\\s\\S]{0,200}?Start[\\s\\S]{0,60}?(?:data(?:_value|_type)?|value)?\\s*[:=]\\s*['\"]?(?:2|0x0?2)['\"]?"
+    positive_examples:
+      - "win_servicename:Spoolerstate:started"
+    multiline: true
+    window: 12
+    recommendation: "Print Spooler MUST be disabled on every Domain Controller and Tier-0 asset. `Stop-Service Spooler -Force; Set-Service Spooler -StartupType Disabled` - deploy via a DC-specific GPO targeting the `Domain Controllers` OU. For member servers that don't print, disable the service there too (attack surface minimization). Where printing IS required (print servers only, never DCs): apply the Sep 2024 + Oct 2024 + later cumulative updates, set `HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\\PointAndPrint\\RestrictDriverInstallationToAdministrators=1`, and block inbound RPC to DCs via Windows Firewall rule 'Block RPC on Spooler' scoped to the DC's network profile. Detection: Sysmon Event ID 1 (ProcessCreate) for `spoolsv.exe` on any `*DC*` host triggers an alert; Windows Security 7036 (service start) for `Spooler` on DCs is incident-response grade. Also disable Print Spooler in the Active Directory Hardening CIS v2.0 benchmark (§18.9.27), DISA STIG V-220939, and Microsoft's Windows Security baseline for Domain Controllers."
+    cwe: ['CWE-269', 'CWE-284', 'CWE-862']
+    cve: ["CVE-2021-1675", "CVE-2021-34527", "CVE-2024-38198"]
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    mitre_attack: ['T1068', 'T1187', 'T1558.003']
+    cis_controls: ['CIS-4.1', 'CIS-4.8', 'CIS-5.1']
+    nist_controls: ['AC-6', 'CM-6', 'CM-7']
+    pci_dss: ['2.2.1', '2.2.2', '7.2.1']
+    hipaa: ['164.308(a)(4)(ii)(B)']
+    soc2: ['CC6.1', 'CC6.3']
+    stig: ['V-220939']

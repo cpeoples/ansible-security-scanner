@@ -1,0 +1,51 @@
+---
+# Test fixture: contract for set_fact_injection.
+#
+# The real CWE-94 threat in set_fact is templating the variable KEY
+# (not the value). e.g. `set_fact: "{{ user_key }}": "static"` -
+# the KEY becomes attacker-controlled and subsequent tasks that
+# reference it can be redirected.
+#
+# The AST-based emitter in file_scanner.py (`"{{" in str(k)`) catches
+# this precisely. The regex rule that previously backed this rule ID
+# fired on EVERY `set_fact` whose VALUE contained `{{ ... }}` - i.e.
+# every legitimate use of set_fact - producing 597 false positives
+# across the corpus. That regex rule has been removed; this fixture
+# pins the contract so it can't be re-introduced naively.
+#
+# All values are SYNTHETIC.
+
+- name: fixture play for set_fact_injection
+  hosts: localhost
+  gather_facts: false
+  vars:
+    user_supplied_key: "example_key"
+
+  tasks:
+    # -- Legitimate set_fact usage - MUST NOT fire ----------------------
+    # Each of these is a routine set_fact: static key, templated value.
+    # The rule used to FP on every one of these.
+
+    - name: record the hostname
+      ansible.builtin.set_fact:
+        current_host: "{{ ansible_hostname }}"                            # scanner-test: reject set_fact_injection
+
+    - name: derive a flag from a register result
+      ansible.builtin.set_fact:
+        is_ready: "{{ ready_check.status == 200 }}"                       # scanner-test: reject set_fact_injection
+
+    - name: extract an id from a json response
+      ansible.builtin.set_fact:
+        container_id: "{{ created_container.json.id }}"                   # scanner-test: reject set_fact_injection
+
+    - name: clean a token with regex_replace
+      ansible.builtin.set_fact:
+        cleaned: "{{ raw_input | regex_replace('\\n', '') }}"              # scanner-test: reject set_fact_injection
+
+    # -- Dynamic KEY - MUST fire (AST-based emitter) --------------------
+    # Templating the key itself IS the CWE-94 case the rule targets.
+    # The AST-based detector anchors on the task-name line, not the
+    # templated-key line, so the `expect` lives on the name.
+    - name: dynamic fact name from a template (actual threat)             # scanner-test: expect set_fact_injection
+      ansible.builtin.set_fact:
+        "{{ user_supplied_key }}": "some_value"

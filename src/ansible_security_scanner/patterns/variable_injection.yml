@@ -1,0 +1,115 @@
+name: "Variable Injection Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects variable injection risks and unsafe variable usage"
+
+patterns:
+  - id: "hostvars_injection"
+    category: "variable_injection"
+    severity: "HIGH"
+    title: "Hostvars Injection Risk"
+    description: "Using hostvars with user-controlled input can lead to variable injection"
+    regex: "hostvars\\[\\s*\\{\\{.*\\}\\}\\s*\\]"
+    positive_examples:
+      - "hostvars[{{}}]"
+    recommendation: "Resolve the hostvars[...] target from controller-trusted facts (groups['x'][0], ansible_play_hosts) rather than {{ user_input }}; if dynamic lookup is required, validate the hostname against the inventory's known set with ansible.builtin.assert before indexing."
+    cwe: ['CWE-20', 'CWE-94']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059']
+    cis_controls: ['CIS-16.10']
+    nist_controls: ['SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']
+
+  - id: "groupvars_injection"
+    category: "variable_injection"
+    severity: "HIGH"
+    title: "Group Variables Injection Risk"
+    description: >-
+        group_vars[{{ ... }}] indexes the group_vars dict by a user-controlled
+        expression. The pattern lets attackers pivot into any group's variable
+        namespace at runtime.
+    regex: "group_vars\\[\\s*\\{\\{.*\\}\\}\\s*\\]"
+    positive_examples:
+      - "group_vars[{{}}]"
+    recommendation: "Do not index group_vars by an attacker-influenced key; resolve the group name in code (group_names | first) and assert it is in inventory_dir's known groups before reading."
+    cwe: ['CWE-20', 'CWE-94']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059']
+    cis_controls: ['CIS-16.10']
+    nist_controls: ['SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']
+
+  - id: "vars_lookup_injection"
+    category: "variable_injection"
+    severity: "HIGH"
+    title: "Variables Lookup Injection"
+    description: >-
+        lookup('vars', {{ ... }}) reads a variable named by a user-controlled
+        expression. Attackers can pull vault-resident values whose names they would
+        not otherwise know.
+    regex: "lookup\\(\\s*['\"]vars['\"]\\s*,\\s*\\{\\{.*\\}\\}\\s*\\)"
+    positive_examples:
+      - "lookup('vars',{{}})"
+    recommendation: "Replace lookup('vars', '{{ var }}') with a direct reference to the named variable, or validate the variable name against an explicit allow-list (ansible.builtin.assert) before the lookup so attacker-controlled names cannot redirect the read."
+    cwe: ['CWE-20', 'CWE-94']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059']
+    cis_controls: ['CIS-16.10']
+    nist_controls: ['SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']
+
+  - id: "dynamic_include_injection"
+    category: "variable_injection"
+    severity: "HIGH"
+    title: "Dynamic Include Injection"
+    description: >-
+        include_vars / include_tasks targets a {{ ... }} expression. A
+        user-controlled include path executes whatever YAML the attacker can stage,
+        with the playbook's privileges.
+    # Matches both inline form (`include_vars: "{{ x }}"`) and block form
+    # (`include_vars:` followed by `file: "{{ x }}"` on the next line) so
+    # authors can't evade the rule by splitting the key/value.
+    regex: "include(?:_vars|_tasks)?:(?:\\s*\\{\\{[^}]+\\}\\}|[\\s\\S]{0,100}?(?:file|name):\\s*['\"]?\\{\\{[^}]+\\}\\})"
+    positive_examples:
+      - |2-
+        include_tasks: create_device.yml
+          vars:
+            image_file: '{{ remote_tmp_dir }}
+    multiline: true
+    window: 6
+    recommendation: "Drive ansible.builtin.include_tasks / include_vars from a controller-defined variable resolved against an allow-list (loop with when: var in known_set), and place the included files in a controller-owned directory to prevent path traversal."
+    cwe: ['CWE-94', 'CWE-829']
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: ["V10.3.1"]
+    mitre_attack: ['T1059', 'T1105']
+    cis_controls: ['CIS-16.10']
+    nist_controls: ['CM-11', 'SA-10', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1', '6.3.2']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "register_variable_injection"
+    category: "variable_injection"
+    severity: "MEDIUM"
+    title: "Register Variable Injection"
+    description: >-
+        register: '{{ ... }}' uses a Jinja expression as the variable name.
+        Attacker-controlled register names overwrite vault-loaded values mid-play.
+    # `register:` with a templated var name means the fact name itself comes
+    # from user input - both inline and split-across-lines are caught.
+    regex: "register:\\s*['\"]?\\{\\{[^}]+\\}\\}"
+    multiline: true
+    window: 4
+    positive_examples:
+      - |2
+            - ansible.builtin.shell: echo hi
+              register: "{{ item.varname }}"
+    recommendation: "register: takes a variable NAME, not a value; use a literal identifier (register: result_name) and reference the registered fact downstream rather than templating the name itself."
+    cwe: ['CWE-20', 'CWE-94']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059']
+    cis_controls: ['CIS-16.10']
+    nist_controls: ['SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']

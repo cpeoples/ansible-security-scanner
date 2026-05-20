@@ -1,0 +1,60 @@
+# Companion Secure Fix snippets for anti_forensics rules.
+
+remediations:
+
+  azure_keyvault_soft_delete_or_purge_protection_disabled:
+    secure_fix: |
+      - name: Azure Key Vault - soft-delete + purge protection ON
+        azure.azcollection.azure_rm_keyvault:
+          resource_group: "{{ rg }}"
+          vault_name: "{{ kv_name }}"
+          location: "{{ location }}"
+          enabled_for_deployment: false
+          enabled_for_disk_encryption: true
+          enabled_for_template_deployment: false
+          enable_soft_delete: true
+          soft_delete_retention_in_days: 90
+          enable_purge_protection: true
+          enable_rbac_authorization: true
+          state: present
+
+  windows_defender_asr_rule_disabled_or_audit_only:
+    secure_fix: |
+      - name: ASR rules - all critical rules in BLOCK mode (1)
+        ansible.windows.win_powershell:
+          script: |
+            $blockRules = @(
+              "BE9BA2D9-53EA-4CDC-84E5-9B1EEEE46550",  # Block executable content from email/webmail
+              "D4F940AB-401B-4EFC-AADC-AD5F3C50688A",  # Block all Office apps from creating child procs
+              "3B576869-A4EC-4529-8536-B80A7769E899",  # Block Office apps from creating exec content
+              "75668C1F-73B5-4CF0-BB93-3ECF5CB7CC84",  # Block Office apps from injecting into others
+              "D3E037E1-3EB8-44C8-A917-57927947596D",  # Block JS/VBScript from launching downloaded exe
+              "5BEB7EFE-FD9A-4556-801D-275E5FFC04CC",  # Block obfuscated scripts
+              "92E97FA1-2EDF-4476-BDD6-9DD0B4DDDC7B",  # Block Win32 API calls from Office macros
+              "9E6C4E1F-7D60-472F-BA1A-A39EF669E4B2",  # Block Adobe Reader child procs
+              "26190899-1602-49E8-8B27-EB1D0A1CE869",  # Block Office comm app child procs
+              "01443614-CD74-433A-B99E-2ECDC07BFC25",  # Block exec from USB
+              "C1DB55AB-C21A-4637-BB3F-A12568109D35",  # Block ransomware
+              "D1E49AAC-8F56-4280-B9BA-993A6D77406C",  # Block process creations from PSExec/WMI
+              "B2B3F03D-6A65-4F7B-A9C7-1C7EF74A9BA4",  # Block untrusted/unsigned procs from USB
+              "56A863A9-875E-4185-98A7-B882C64B5CE5"   # Block abuse of vulnerable signed drivers
+            )
+            foreach ($rule in $blockRules) {
+              Set-MpPreference -AttackSurfaceReductionRules_Ids $rule `
+                -AttackSurfaceReductionRules_Actions Enabled
+            }
+
+  windows_defender_exclusion_path_overbroad_or_writable:
+    secure_fix: |
+      - name: Defender exclusions - narrow, vendor-specific only
+        ansible.windows.win_powershell:
+          script: |
+            # Remove broad/world-writable exclusions
+            (Get-MpPreference).ExclusionPath | ForEach-Object {
+              if ($_ -match '^(C:\\|C:\\\\Users\\\\Public|C:\\\\Temp|C:\\\\ProgramData$)$') {
+                Remove-MpPreference -ExclusionPath $_
+              }
+            }
+            # Add tightly-scoped, vendor-recommended paths only
+            Add-MpPreference -ExclusionPath 'C:\Program Files\App\db\datafiles'
+            Add-MpPreference -ExclusionProcess 'C:\Program Files\App\bin\app.exe'

@@ -1,0 +1,198 @@
+# HIPAA §164.312 catalog - HIPAA Security Rule, Technical Safeguards.
+#
+# Purpose
+# -------
+# Maps every HIPAA Security Rule technical-safeguard citation referenced by
+# the scanner's patterns to its official title and canonical URL. Consumed
+# by `link_resolver` to enrich findings.
+#
+# Authoring rules
+# ---------------
+# 1. Add only safeguards actually referenced by a pattern YAML. The framework
+#    test fails the build if a pattern references an unknown ID.
+# 2. IDs are stored in the canonical form used by CFR:
+#      164.312(a)(1)          - safeguard
+#      164.312(a)(2)(i)       - implementation specification (required)
+#      164.312(a)(2)(iv)      - implementation specification (addressable)
+#    The resolver normalizes on lookup so patterns may write `hipaa-164.312(a)(1)`,
+#    `164.312(a)(1)`, or `HIPAA-164.312(a)(1)` interchangeably.
+# 3. `name` is the 45 CFR §164.312 verbatim heading / specification text.
+# 4. `url` is the eCFR permalink to §164.312.
+#
+# We limit this catalog to §164.312 (Technical Safeguards) because those are
+# the ones realistically detectable in Ansible code. §164.308 (Administrative)
+# and §164.310 (Physical) are org-process / facility controls that a static
+# code scanner cannot verify.
+
+# -- (a) Access Control ----------------------------------------------------
+"164.312(a)(1)":
+  name: "Access control (standard) - implement technical policies and procedures for electronic information systems"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312"
+  safeguard: "Access Control"
+  type: "standard"
+
+"164.312(a)(2)(i)":
+  name: "Unique user identification (required) - assign a unique name and/or number for identifying and tracking user identity"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312"
+  safeguard: "Access Control"
+  type: "required"
+
+"164.312(a)(2)(ii)":
+  name: "Emergency access procedure (required) - procedures for obtaining necessary ePHI during an emergency"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312"
+  safeguard: "Access Control"
+  type: "required"
+
+"164.312(a)(2)(iii)":
+  name: "Automatic logoff (addressable) - terminate an electronic session after a predetermined time of inactivity"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312"
+  safeguard: "Access Control"
+  type: "addressable"
+
+"164.312(a)(2)(iv)":
+  name: "Encryption and decryption (addressable) - mechanism to encrypt and decrypt ePHI"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312"
+  safeguard: "Access Control"
+  type: "addressable"
+
+# -- (b) Audit Controls ----------------------------------------------------
+"164.312(b)":
+  name: "Audit controls (standard) - implement hardware, software, and/or procedural mechanisms that record and examine activity"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312"
+  safeguard: "Audit Controls"
+  type: "standard"
+
+# -- (c) Integrity ---------------------------------------------------------
+"164.312(c)(1)":
+  name: "Integrity (standard) - policies and procedures to protect ePHI from improper alteration or destruction"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312"
+  safeguard: "Integrity"
+  type: "standard"
+
+"164.312(c)(2)":
+  name: "Mechanism to authenticate ePHI (addressable) - electronic mechanism to corroborate ePHI has not been altered or destroyed"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312"
+  safeguard: "Integrity"
+  type: "addressable"
+
+# -- (d) Person or Entity Authentication ----------------------------------
+"164.312(d)":
+  name: "Person or entity authentication (standard) - verify that a person or entity seeking access to ePHI is the one claimed"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312"
+  safeguard: "Authentication"
+  type: "standard"
+
+# -- (e) Transmission Security --------------------------------------------
+"164.312(e)(1)":
+  name: "Transmission security (standard) - technical measures to guard against unauthorized access to ePHI being transmitted over a network"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312"
+  safeguard: "Transmission Security"
+  type: "standard"
+
+"164.312(e)(2)(i)":
+  name: "Integrity controls (addressable) - ensure that electronically transmitted ePHI is not improperly modified without detection"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312"
+  safeguard: "Transmission Security"
+  type: "addressable"
+
+"164.312(e)(2)(ii)":
+  name: "Encryption (addressable) - mechanism to encrypt ePHI whenever deemed appropriate"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312"
+  safeguard: "Transmission Security"
+  type: "addressable"
+
+"164.308(a)(6)(ii)":
+  name: "Response and reporting (required) - identify and respond to suspected or known security incidents; mitigate to the extent practicable; document incidents and outcomes"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308"
+  safeguard: "Administrative Safeguards - Security Incident Procedures"
+  type: "required"
+
+"164.310(c)":
+  name: "Workstation security - implement physical safeguards for all workstations that access ePHI, to restrict access to authorized users"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.310"
+  safeguard: "Physical Safeguards"
+  type: "standard"
+
+"164.308(a)(1)(ii)(B)":
+  name: "Risk management (required) - implement security measures sufficient to reduce risks and vulnerabilities to a reasonable and appropriate level"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308"
+  safeguard: "Administrative Safeguards - Security Management Process"
+  type: "required"
+
+"164.308(a)(3)(i)":
+  name: "Workforce security (standard) - implement policies and procedures to ensure all members of its workforce have appropriate access to ePHI, and to prevent unauthorized access"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308"
+  safeguard: "Administrative Safeguards"
+  type: "standard"
+
+"164.308(a)(5)(ii)(B)":
+  name: "Protection from malicious software (addressable) - procedures for guarding against, detecting, and reporting malicious software"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308"
+  safeguard: "Administrative Safeguards - Security Awareness and Training"
+  type: "addressable"
+
+"164.514(b)":
+  name: "De-identification of protected health information - safe harbor and expert determination methods"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-E/part-164/subpart-E/section-164.514"
+  safeguard: "Privacy Rule - Uses and Disclosures"
+  type: "standard"
+
+164.308(a)(1)(ii)(D):
+  name: "Information System Activity Review"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308"
+
+164.308(a)(4):
+  name: "Information Access Management"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308"
+
+164.308(a)(7)(ii)(A):
+  name: "Data Backup Plan"
+  url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308"
+
+164.308(a)(1)(ii)(A):
+  name: Risk analysis - Conduct an accurate and thorough assessment of the potential risks and vulnerabilities
+  safeguard: Administrative Safeguards
+  type: required
+  url: https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308
+164.308(a)(3)(ii)(A):
+  name: Authorization and/or supervision - Implement procedures for the authorization and/or supervision of workforce members
+  safeguard: Administrative Safeguards
+  type: addressable
+  url: https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308
+164.308(a)(5)(ii)(D):
+  name: Password management - Procedures for creating, changing, and safeguarding passwords
+  safeguard: Administrative Safeguards
+  type: addressable
+  url: https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308
+164.308(a)(7)(i):
+  name: Contingency plan - Establish and implement policies and procedures for responding to emergencies
+  safeguard: Administrative Safeguards
+  type: required
+  url: https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308
+164.308(a)(7)(ii)(B):
+  name: Disaster recovery plan - Establish procedures to restore any loss of data
+  safeguard: Administrative Safeguards
+  type: required
+  url: https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308
+164.308(a)(4)(ii)(B):
+  name: Access authorization - Policies for granting access to ePHI
+  safeguard: Administrative Safeguards
+  type: addressable
+  url: https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308
+164.308(a)(5)(ii)(A):
+  name: Security reminders - Periodic security updates
+  safeguard: Administrative Safeguards
+  type: addressable
+  url: https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308
+
+164.308(a)(4)(ii)(C):
+  name: Access Establishment and Modification
+  safeguard: Administrative Safeguards
+  type: addressable
+  url: https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308
+
+164.308(a)(4)(i):
+  name: Information Access Management
+  safeguard: Administrative Safeguards
+  type: standard
+  url: https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.308

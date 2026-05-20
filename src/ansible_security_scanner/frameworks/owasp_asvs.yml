@@ -1,0 +1,1481 @@
+---
+# OWASP Application Security Verification Standard (ASVS) v4.0.3
+#
+# The full catalog of verification requirements across chapters V1-V14.
+# Many ASVS items are code-level (output encoding, session-cookie flags,
+# XSS sanitisation) and do NOT map to an Ansible-playbook-level detector.
+# We still list them all so:
+#
+# 1. `link_resolver` can render a clickable reference for any ASVS id a
+#    third-party pattern / external tool might cite.
+# 2. The backfill step can tag rules with *only* the ASVS ids that
+#    genuinely apply (see the rule-level `owasp_asvs` field). Rules with
+#    no applicable ASVS item simply carry `[]` - identical to how STIG
+#    and other compliance frameworks are handled.
+#
+# ID format: Vx.y.z  (chapter . section . item), zero-decimals NOT padded.
+# Level: 1 | 2 | 3  (the ASVS assurance level where this requirement
+#   first appears). Informational for consumers; we do NOT currently use
+#   it to partition the catalog.
+#
+# Source: https://owasp.org/www-project-application-security-verification-standard/
+#         https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md
+#         ... (one file per chapter upstream)
+
+# -- V1 Architecture, Design and Threat Modeling -----------------------------
+"V1.1.1":
+  name: "Secure software development lifecycle"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v11-secure-software-development-lifecycle-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.1.2":
+  name: "Threat modeling for every design change / sprint planning"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v11-secure-software-development-lifecycle-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.1.3":
+  name: "User stories include security and privacy limitations"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v11-secure-software-development-lifecycle-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.1.4":
+  name: "Trust boundaries, components and data flows documented"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v11-secure-software-development-lifecycle-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.1.5":
+  name: "High-level architecture defines all components with security requirements"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v11-secure-software-development-lifecycle-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.1.6":
+  name: "Centralized, vetted, secure and reusable security controls"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v11-secure-software-development-lifecycle-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.1.7":
+  name: "Threat model covers deployment, build, supply chain, authn, session, access control"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v11-secure-software-development-lifecycle-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.2.1":
+  name: "Unique low-privilege OS account for every application component"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v12-authentication-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.2.2":
+  name: "Authenticated mutual comms between application components"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v12-authentication-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.2.3":
+  name: "Single vetted authentication mechanism with strong identity and MFA support"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v12-authentication-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.2.4":
+  name: "All authentication pathways use equivalent strength"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v12-authentication-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.4.1":
+  name: "Trusted enforcement points enforce access controls"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v14-access-control-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.4.2":
+  name: "Access controls use attribute- or feature-based permissions (not static roles alone)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v14-access-control-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.4.3":
+  name: "No hardcoded static roles in the code"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v14-access-control-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.4.4":
+  name: "Single consistent access-control mechanism used throughout"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v14-access-control-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.4.5":
+  name: "Attribute- or feature-based access control evaluated at enforcement points"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v14-access-control-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.5.1":
+  name: "Input and output requirements clearly define how to handle data based on type/content/laws"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v15-input-and-output-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.5.2":
+  name: "Serialization not used with untrusted clients; integrity controls / encryption otherwise"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v15-input-and-output-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.5.3":
+  name: "Input validation enforced on trusted service layer"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v15-input-and-output-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.5.4":
+  name: "Output encoding occurs close to / by interpreter it is intended for"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v15-input-and-output-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.6.1":
+  name: "Explicit policy for cryptographic key management / NIST SP 800-57 lifecycle"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v16-cryptographic-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.6.2":
+  name: "Consumers of cryptographic services protect key material and use key vaults / APIs"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v16-cryptographic-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.6.3":
+  name: "All keys and passwords are replaceable and are generated/replaced at installation"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v16-cryptographic-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.6.4":
+  name: "Symmetric keys, passwords, API tokens use a secrets-vault"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v16-cryptographic-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.7.1":
+  name: "Common logging format and approach is used across the system"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v17-errors-logging-and-auditing-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.7.2":
+  name: "Logs transmitted to a remote system for analysis, detection, alerting, escalation"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v17-errors-logging-and-auditing-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.8.1":
+  name: "Sensitive data is identified into processing levels"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v18-data-protection-and-privacy-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.8.2":
+  name: "All sensitive data is protected in accordance with its data-protection level"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v18-data-protection-and-privacy-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.9.1":
+  name: "Application encrypts component communications using TLS or stronger"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v19-communications-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.9.2":
+  name: "Application components verify authenticity of each side using TLS certificates / chain"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v19-communications-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.10.1":
+  name: "Source code control system with enforced change tracking / peer review"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v110-malicious-software-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.11.1":
+  name: "Definition and documentation of all application components"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v111-business-logic-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.11.2":
+  name: "High-value business logic flows protected against race conditions"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v111-business-logic-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.11.3":
+  name: "Shared state race conditions thread-safe for concurrent users"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v111-business-logic-architectural-requirements"
+  level: "3"
+  chapter: "V1"
+"V1.12.1":
+  name: "User-uploaded files stored outside the web root with limited permissions"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v112-secure-file-upload-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.12.2":
+  name: "User-uploaded files served by octet stream downloads / unrelated domain"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v112-secure-file-upload-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.14.1":
+  name: "Segregation of components of differing trust levels through well-defined controls"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v114-configuration-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.14.2":
+  name: "Binary signatures, trusted connections, verified endpoints for deploying code"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v114-configuration-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.14.3":
+  name: "Build pipeline warns of out-of-date or insecure components / takes action"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v114-configuration-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.14.4":
+  name: "Build pipeline performs automated build-security checks / software composition analysis"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v114-configuration-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.14.5":
+  name: "Application deployments isolated from each other (containers / serverless / cloud VMs)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v114-configuration-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+"V1.14.6":
+  name: "Do not use unsupported, insecure, or deprecated client-side technologies"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x10-V1-Architecture.md#v114-configuration-architectural-requirements"
+  level: "2"
+  chapter: "V1"
+
+# -- V2 Authentication -------------------------------------------------------
+"V2.1.1":
+  name: "Passwords 12+ characters; 8-char minimum for upgrades"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v21-password-security-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.1.2":
+  name: "64-char or longer passwords permitted"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v21-password-security-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.1.3":
+  name: "Passwords not truncated; leading/trailing whitespace tolerated; in-middle preserved"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v21-password-security-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.1.4":
+  name: "Any printable Unicode character including spaces permitted in passwords"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v21-password-security-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.1.5":
+  name: "User can change password"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v21-password-security-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.1.6":
+  name: "Password change requires current and new password"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v21-password-security-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.1.7":
+  name: "Passwords checked against breached-password set (top 1000 minimum)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v21-password-security-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.1.8":
+  name: "Password-strength meter provided to aid users"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v21-password-security-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.1.9":
+  name: "No composition rules limiting password types"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v21-password-security-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.1.10":
+  name: "No periodic credential rotation / password history enforcement"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v21-password-security-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.1.11":
+  name: "Browser password-paste allowed"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v21-password-security-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.1.12":
+  name: "User can view or use a copy/temporary viewer of typed password"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v21-password-security-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.2.1":
+  name: "Anti-automation controls effective against breached credential testing, brute force, lockout"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v22-general-authenticator-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.2.2":
+  name: "Weak authenticators (SMS) are not used except secondary fallback for hardware tokens"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v22-general-authenticator-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.2.3":
+  name: "Secure notifications sent to users upon updates to authentication details"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v22-general-authenticator-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.2.4":
+  name: "Impersonation resistance against phishing"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v22-general-authenticator-requirements"
+  level: "3"
+  chapter: "V2"
+"V2.2.5":
+  name: "Authenticator cryptographic operations contain verifier impersonation resistance"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v22-general-authenticator-requirements"
+  level: "3"
+  chapter: "V2"
+"V2.2.6":
+  name: "Verifier is replay resistant"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v22-general-authenticator-requirements"
+  level: "3"
+  chapter: "V2"
+"V2.2.7":
+  name: "Intent to authenticate intentional by user / not relay attack"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v22-general-authenticator-requirements"
+  level: "3"
+  chapter: "V2"
+"V2.3.1":
+  name: "System-generated initial passwords / activation codes are random, 6 characters minimum, time-limited"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v23-authenticator-lifecycle-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.3.2":
+  name: "Enrollment and use of user-provided authentication devices supported"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v23-authenticator-lifecycle-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.3.3":
+  name: "Renewal instructions for time-bound authenticators are time-limited"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v23-authenticator-lifecycle-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.4.1":
+  name: "Credential-store uses PBKDF2 or equivalent with random salt"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v24-credential-storage-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.4.2":
+  name: "Salt is 32 bits minimum and of unique value per credential"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v24-credential-storage-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.4.3":
+  name: "PBKDF2 iteration count is set as per NIST SP 800-132"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v24-credential-storage-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.4.4":
+  name: "Passwords hashed using bcrypt (work factor >= 10) / Argon2 / scrypt"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v24-credential-storage-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.4.5":
+  name: "Additional iteration using a secret value (key or pepper) / FIPS-140 validated HSM"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v24-credential-storage-requirements"
+  level: "3"
+  chapter: "V2"
+"V2.5.1":
+  name: "System-generated initial / temporary / recovery secret not sent in cleartext"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v25-credential-recovery-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.5.2":
+  name: "Password hints / knowledge-based authentication not present"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v25-credential-recovery-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.5.3":
+  name: "Password credential recovery does not reveal the current password"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v25-credential-recovery-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.5.4":
+  name: "No shared or default accounts (root, admin, sa)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v25-credential-recovery-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.5.5":
+  name: "Authentication factor change notifies the user"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v25-credential-recovery-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.5.6":
+  name: "Forgotten-password flows use a secure recovery mechanism such as TOTP or soft token"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v25-credential-recovery-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.5.7":
+  name: "OTP or multi-factor authenticators lost / stolen / damaged replaced securely"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v25-credential-recovery-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.6.1":
+  name: "Look-up secrets can only be used once"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v26-look-up-secret-verifier-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.6.2":
+  name: "Lookup secrets have enough entropy to resist guessing attempts"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v26-look-up-secret-verifier-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.6.3":
+  name: "Lookup secrets are resistant to offline attacks, e.g. stored using hash"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v26-look-up-secret-verifier-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.7.1":
+  name: "Plain SMS and PSTN not used as out-of-band OOB authenticator"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v27-out-of-band-verifier-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.7.2":
+  name: "OOB authenticator expires within 10 minutes"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v27-out-of-band-verifier-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.7.3":
+  name: "OOB authenticator and verifier communicate over secure independent channel"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v27-out-of-band-verifier-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.7.4":
+  name: "OOB verifier retains only a hashed version of the authentication code"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v27-out-of-band-verifier-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.7.5":
+  name: "Initial authentication code generated by a secure random number generator 20 bits+"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v27-out-of-band-verifier-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.7.6":
+  name: "OTP mechanisms are resistant to replay / use TOTP rolling window or HOTP rolling counter"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v27-out-of-band-verifier-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.8.1":
+  name: "Time-based OTPs have a defined lifetime before expiring"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v28-one-time-verifier-requirements"
+  level: "1"
+  chapter: "V2"
+"V2.8.2":
+  name: "Symmetric keys used in TOTP / HOTP verifiers are strongly protected"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v28-one-time-verifier-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.8.3":
+  name: "Approved cryptographic algorithms used for OTP generation"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v28-one-time-verifier-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.8.4":
+  name: "Time-based OTP algorithm verifies the previous and next time-frame"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v28-one-time-verifier-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.8.5":
+  name: "TOTP secrets retained only for limited time; reused by attacker in later time-frame avoided"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v28-one-time-verifier-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.8.6":
+  name: "Physical OTP generators revoked if lost or stolen"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v28-one-time-verifier-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.8.7":
+  name: "Biometric authenticators limit use as secondary factor after primary"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v28-one-time-verifier-requirements"
+  level: "3"
+  chapter: "V2"
+"V2.9.1":
+  name: "Cryptographic keys in hardware or software devices are accessed via a secure manner"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v29-cryptographic-software-and-devices-verifier-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.9.2":
+  name: "Challenge nonce at least 64 bits length / statistically unique for connection life"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v29-cryptographic-software-and-devices-verifier-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.9.3":
+  name: "Approved cryptographic algorithms used for authentication messages"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v29-cryptographic-software-and-devices-verifier-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.10.1":
+  name: "Inter-service secrets not rely on unchanging credentials such as passwords/api keys/shared accounts"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v210-service-authentication-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.10.2":
+  name: "If a password is required for service authentication it does not reuse default credentials"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v210-service-authentication-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.10.3":
+  name: "Passwords are stored with sufficient protection (V2.4) from offline attacks"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v210-service-authentication-requirements"
+  level: "2"
+  chapter: "V2"
+"V2.10.4":
+  name: "Passwords, integrations and cryptographic keys stored in a secrets-vault, not source code"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md#v210-service-authentication-requirements"
+  level: "2"
+  chapter: "V2"
+
+# -- V3 Session Management ---------------------------------------------------
+"V3.1.1":
+  name: "Application never reveals session tokens in URL parameters"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v31-fundamental-session-management-requirements"
+  level: "1"
+  chapter: "V3"
+"V3.2.1":
+  name: "Application generates a new session token on user authentication"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v32-session-binding-requirements"
+  level: "1"
+  chapter: "V3"
+"V3.2.2":
+  name: "Session tokens have at least 64 bits of entropy"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v32-session-binding-requirements"
+  level: "1"
+  chapter: "V3"
+"V3.2.3":
+  name: "Application only stores session tokens in the browser using secure methods"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v32-session-binding-requirements"
+  level: "1"
+  chapter: "V3"
+"V3.2.4":
+  name: "Session tokens generated using approved cryptographic algorithms"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v32-session-binding-requirements"
+  level: "2"
+  chapter: "V3"
+"V3.3.1":
+  name: "Logout and expiration invalidate the session token"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v33-session-logout-and-timeout-requirements"
+  level: "1"
+  chapter: "V3"
+"V3.3.2":
+  name: "Re-authentication after idle period configurable by risk category"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v33-session-logout-and-timeout-requirements"
+  level: "1"
+  chapter: "V3"
+"V3.3.3":
+  name: "User notified of active sessions / log out any or all copies of self if needed"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v33-session-logout-and-timeout-requirements"
+  level: "2"
+  chapter: "V3"
+"V3.3.4":
+  name: "Users re-authenticate for sensitive features"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v33-session-logout-and-timeout-requirements"
+  level: "2"
+  chapter: "V3"
+"V3.4.1":
+  name: "Cookie-based session tokens have 'Secure' attribute set"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v34-cookie-based-session-management"
+  level: "1"
+  chapter: "V3"
+"V3.4.2":
+  name: "Cookie-based session tokens have 'HttpOnly' attribute set"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v34-cookie-based-session-management"
+  level: "1"
+  chapter: "V3"
+"V3.4.3":
+  name: "Cookie-based session tokens use 'SameSite' attribute to limit cross-site exposure"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v34-cookie-based-session-management"
+  level: "1"
+  chapter: "V3"
+"V3.4.4":
+  name: "Cookie-based session tokens use '__Host-' prefix to provide session-cookie confidentiality"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v34-cookie-based-session-management"
+  level: "1"
+  chapter: "V3"
+"V3.4.5":
+  name: "If app published under a domain name with other applications, sessions scoped to app path"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v34-cookie-based-session-management"
+  level: "1"
+  chapter: "V3"
+"V3.5.1":
+  name: "Application uses user sessions rather than static API keys / permanent tokens"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v35-token-based-session-management"
+  level: "2"
+  chapter: "V3"
+"V3.5.2":
+  name: "Stateless session tokens use digital signatures, encryption, and other countermeasures"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v35-token-based-session-management"
+  level: "2"
+  chapter: "V3"
+"V3.5.3":
+  name: "Stateless session tokens use the JSON Web Token (JWT) format / strong signature"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v35-token-based-session-management"
+  level: "2"
+  chapter: "V3"
+"V3.6.1":
+  name: "Re-authentication from federation / assertion validates assertion expiration"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v36-federated-re-authentication"
+  level: "3"
+  chapter: "V3"
+"V3.6.2":
+  name: "Verifiers maintain time-of-last-auth (not exceeding 30 days)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v36-federated-re-authentication"
+  level: "3"
+  chapter: "V3"
+"V3.7.1":
+  name: "Application ensures full valid login session before anti-CSRF tokens allowed"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md#v37-defenses-against-session-management-exploits"
+  level: "1"
+  chapter: "V3"
+
+# -- V4 Access Control -------------------------------------------------------
+"V4.1.1":
+  name: "Application enforces access control rules on a trusted service layer"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V4-Access-Control.md#v41-general-access-control-design"
+  level: "1"
+  chapter: "V4"
+"V4.1.2":
+  name: "All user/data attributes and policy information used by access controls cannot be manipulated by end users"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V4-Access-Control.md#v41-general-access-control-design"
+  level: "1"
+  chapter: "V4"
+"V4.1.3":
+  name: "Principle of least privilege: users only have access to functions, data files needed for their roles"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V4-Access-Control.md#v41-general-access-control-design"
+  level: "1"
+  chapter: "V4"
+"V4.1.4":
+  name: "Principle of deny by default: access denied to functionality without authorisation"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V4-Access-Control.md#v41-general-access-control-design"
+  level: "1"
+  chapter: "V4"
+"V4.1.5":
+  name: "Access controls fail securely including when an exception occurs"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V4-Access-Control.md#v41-general-access-control-design"
+  level: "1"
+  chapter: "V4"
+"V4.2.1":
+  name: "Sensitive data and APIs are protected against IDOR attacks"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V4-Access-Control.md#v42-operation-level-access-control"
+  level: "1"
+  chapter: "V4"
+"V4.2.2":
+  name: "Application or framework enforces a strong anti-CSRF mechanism"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V4-Access-Control.md#v42-operation-level-access-control"
+  level: "1"
+  chapter: "V4"
+"V4.3.1":
+  name: "Administrative interfaces use multi-factor authentication for all users"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V4-Access-Control.md#v43-other-access-control-considerations"
+  level: "1"
+  chapter: "V4"
+"V4.3.2":
+  name: "Directory browsing disabled unless deliberately desired"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V4-Access-Control.md#v43-other-access-control-considerations"
+  level: "1"
+  chapter: "V4"
+"V4.3.3":
+  name: "Application has additional authorisation (step-up or adaptive auth) for low-assurance high-impact actions"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V4-Access-Control.md#v43-other-access-control-considerations"
+  level: "2"
+  chapter: "V4"
+
+# -- V5 Validation, Sanitization and Encoding --------------------------------
+"V5.1.1":
+  name: "Application has defenses against HTTP parameter pollution attacks"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v51-input-validation-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.1.2":
+  name: "Frameworks protect against mass parameter assignment attacks"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v51-input-validation-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.1.3":
+  name: "All input is validated using positive validation (allow lists)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v51-input-validation-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.1.4":
+  name: "Structured data is strongly typed and validated"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v51-input-validation-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.1.5":
+  name: "URL redirects / forwards only to trusted destinations"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v51-input-validation-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.2.1":
+  name: "Untrusted HTML input is sanitized using a well-known and secure HTML sanitization library or framework feature"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v52-sanitization-and-sandboxing-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.2.2":
+  name: "Unstructured data is sanitized to enforce safety measures such as allowed characters and length"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v52-sanitization-and-sandboxing-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.2.3":
+  name: "Application sanitizes user input before passing to mail systems to prevent SMTP header injection"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v52-sanitization-and-sandboxing-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.2.4":
+  name: "Application avoids the use of eval() or other dynamic code execution features"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v52-sanitization-and-sandboxing-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.2.5":
+  name: "Application protects against template injection attacks"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v52-sanitization-and-sandboxing-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.2.6":
+  name: "Application protects against SSRF attacks by validating / sanitizing untrusted data / HTTP file metadata"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v52-sanitization-and-sandboxing-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.2.7":
+  name: "Application sanitizes, disables, or sandboxes user-supplied SVG scriptable content"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v52-sanitization-and-sandboxing-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.2.8":
+  name: "Application sanitizes, disables, or sandboxes user-supplied scriptable or expression-template-language content"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v52-sanitization-and-sandboxing-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.3.1":
+  name: "Output encoding relevant for the interpreter and context required"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.3.2":
+  name: "Output encoding preserves the user's chosen character set / locale"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.3.3":
+  name: "Context-aware, preferably automated, output encoding protects against reflected / stored / DOM-based XSS"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.3.4":
+  name: "Data selection or database queries use parameterized queries / ORM / JSON escape"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.3.5":
+  name: "Where parameterized / safer mechanisms not present, context-specific output encoding protects against injection"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.3.6":
+  name: "Application protects against JSON injection attacks, JSON eval, JavaScript expression evaluation"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.3.7":
+  name: "Application protects against LDAP injection attacks / safe parameterized queries"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.3.8":
+  name: "Application protects against OS command injection and OS command escaping"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.3.9":
+  name: "Application protects against Local File Inclusion (LFI) or Remote File Inclusion (RFI)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.3.10":
+  name: "Application protects against XPath injection / XML injection attacks"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.4.1":
+  name: "Application uses memory-safe strings, safer memory copy, pointer arithmetic"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v54-memory-string-and-unmanaged-code-requirements"
+  level: "2"
+  chapter: "V5"
+"V5.4.2":
+  name: "Format strings do not take potentially hostile input / have constant dimensions"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v54-memory-string-and-unmanaged-code-requirements"
+  level: "2"
+  chapter: "V5"
+"V5.4.3":
+  name: "Sign, range and input validation techniques used to prevent integer overflows"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v54-memory-string-and-unmanaged-code-requirements"
+  level: "2"
+  chapter: "V5"
+"V5.5.1":
+  name: "Serialized objects use integrity checks / encryption to prevent hostile object creation / data tampering"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v55-deserialization-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.5.2":
+  name: "Application restricts XML parsers to use the most restrictive config possible and disable dangerous features"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v55-deserialization-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.5.3":
+  name: "Deserialization of untrusted data avoided / protected in both custom code and third-party libraries"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v55-deserialization-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+"V5.5.4":
+  name: "When parsing JSON in browsers / JavaScript backends, JSON.parse used (not eval)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v55-deserialization-prevention-requirements"
+  level: "1"
+  chapter: "V5"
+
+# -- V6 Stored Cryptography --------------------------------------------------
+"V6.1.1":
+  name: "Regulated private data encrypted at rest / NIST SP 800-57 compliant"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v61-data-classification"
+  level: "2"
+  chapter: "V6"
+"V6.1.2":
+  name: "Regulated health data encrypted at rest (personal health / medical / insurance)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v61-data-classification"
+  level: "2"
+  chapter: "V6"
+"V6.1.3":
+  name: "Regulated financial data encrypted at rest (such as financial accounts, bankruptcies, fund transfers)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v61-data-classification"
+  level: "2"
+  chapter: "V6"
+"V6.2.1":
+  name: "All cryptographic modules fail securely / errors are handled in a way that does not enable Padding Oracle attacks"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v62-algorithms"
+  level: "1"
+  chapter: "V6"
+"V6.2.2":
+  name: "Industry-proven or government-approved cryptographic algorithms / modes / libraries used"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v62-algorithms"
+  level: "2"
+  chapter: "V6"
+"V6.2.3":
+  name: "Encryption IVs, cipher configuration, and block modes configured securely using current advice"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v62-algorithms"
+  level: "2"
+  chapter: "V6"
+"V6.2.4":
+  name: "Random-number, encryption, hashing algorithms, key lengths, rounds, ciphers, block modes selected per best practice"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v62-algorithms"
+  level: "2"
+  chapter: "V6"
+"V6.2.5":
+  name: "Known insecure block modes (e.g. ECB) / padding modes (e.g. PKCS#1 v1.5) / weak cipher suites / hashes (e.g. MD5, SHA1) avoided"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v62-algorithms"
+  level: "2"
+  chapter: "V6"
+"V6.2.6":
+  name: "Nonces, initialization vectors, and other single-use numbers never used twice with a given encryption key"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v62-algorithms"
+  level: "2"
+  chapter: "V6"
+"V6.2.7":
+  name: "Encrypted data authenticated via signatures / authenticated cipher modes / HMAC against unauthorized change"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v62-algorithms"
+  level: "3"
+  chapter: "V6"
+"V6.2.8":
+  name: "All cryptographic operations are constant-time, with no 'short-circuit' operations, branch or lookup tables on secrets"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v62-algorithms"
+  level: "3"
+  chapter: "V6"
+"V6.3.1":
+  name: "All random numbers / random file names / random GUIDs / random strings generated using approved CSPRNG"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v63-random-values"
+  level: "2"
+  chapter: "V6"
+"V6.3.2":
+  name: "Random GUIDs created using GUID v4 algorithm and CSPRNG; not depend on version or v3 algorithms"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v63-random-values"
+  level: "2"
+  chapter: "V6"
+"V6.3.3":
+  name: "Random numbers created with proper entropy even when application is under heavy load"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v63-random-values"
+  level: "3"
+  chapter: "V6"
+"V6.4.1":
+  name: "Secrets (passwords, API keys, private keys, tokens) stored in a secrets-vault (not source code) / keyring"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v64-secret-management"
+  level: "2"
+  chapter: "V6"
+"V6.4.2":
+  name: "Key material not exposed to the application but uses an isolated security module such as vault/HSM"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x14-V6-Cryptography.md#v64-secret-management"
+  level: "2"
+  chapter: "V6"
+
+# -- V7 Error Handling and Logging -------------------------------------------
+"V7.1.1":
+  name: "Application does not log credentials / payment details / session tokens / sensitive personal data"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v71-log-content-requirements"
+  level: "1"
+  chapter: "V7"
+"V7.1.2":
+  name: "Application does not log other sensitive data as defined by privacy laws / security policy"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v71-log-content-requirements"
+  level: "1"
+  chapter: "V7"
+"V7.1.3":
+  name: "Application logs security-relevant events including successful / failed logins, access-control failures, cross-site injection"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v71-log-content-requirements"
+  level: "2"
+  chapter: "V7"
+"V7.1.4":
+  name: "Log entries include necessary information for a detailed investigation of time-line when an event happens"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v71-log-content-requirements"
+  level: "2"
+  chapter: "V7"
+"V7.2.1":
+  name: "All authentication decisions logged with sufficient detail to allow forensic teams to investigate"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v72-log-processing-requirements"
+  level: "2"
+  chapter: "V7"
+"V7.2.2":
+  name: "All access-control decisions (success and fail) can be logged"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v72-log-processing-requirements"
+  level: "2"
+  chapter: "V7"
+"V7.3.1":
+  name: "Log records encoded correctly / prevent log injection"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v73-log-protection-requirements"
+  level: "2"
+  chapter: "V7"
+"V7.3.2":
+  name: "All events protected from injection via encoding / preventing display of log content / carriage-return injection"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v73-log-protection-requirements"
+  level: "2"
+  chapter: "V7"
+"V7.3.3":
+  name: "Security logs protected from unauthorized access and modification"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v73-log-protection-requirements"
+  level: "2"
+  chapter: "V7"
+"V7.3.4":
+  name: "Time sources synchronized to the correct time and time zone; logs include the strongly authenticated time source"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v73-log-protection-requirements"
+  level: "2"
+  chapter: "V7"
+"V7.4.1":
+  name: "Generic message shown when an unexpected or security-sensitive error occurs / potentially with unique ID"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v74-error-handling"
+  level: "1"
+  chapter: "V7"
+"V7.4.2":
+  name: "Exception handling used across the codebase to account for expected / unexpected error conditions"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v74-error-handling"
+  level: "2"
+  chapter: "V7"
+"V7.4.3":
+  name: "Last-resort error handler in place traps all unhandled exceptions"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x15-V7-Error-Logging.md#v74-error-handling"
+  level: "2"
+  chapter: "V7"
+
+# -- V8 Data Protection ------------------------------------------------------
+"V8.1.1":
+  name: "Application protects sensitive data from being cached in server components like load balancers and caches"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v81-general-data-protection"
+  level: "2"
+  chapter: "V8"
+"V8.1.2":
+  name: "All cached / temporary copies of sensitive data stored on the server protected / purged after user access"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v81-general-data-protection"
+  level: "2"
+  chapter: "V8"
+"V8.1.3":
+  name: "Application minimizes the number of parameters in a request including hidden fields / cookies / HTTP headers"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v81-general-data-protection"
+  level: "2"
+  chapter: "V8"
+"V8.1.4":
+  name: "Application detects and alerts on abnormal numbers of requests, such as by IP / user / session / from anomalous region"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v81-general-data-protection"
+  level: "2"
+  chapter: "V8"
+"V8.1.5":
+  name: "Regular backups of important data performed and restoration tested"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v81-general-data-protection"
+  level: "3"
+  chapter: "V8"
+"V8.1.6":
+  name: "Backups stored securely to prevent data from being stolen or corrupted"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v81-general-data-protection"
+  level: "3"
+  chapter: "V8"
+"V8.2.1":
+  name: "Application sets sufficient anti-caching headers so that sensitive data not cached in modern browsers"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v82-client-side-data-protection"
+  level: "1"
+  chapter: "V8"
+"V8.2.2":
+  name: "Data stored in client-side storage (localStorage, sessionStorage, IndexedDB, cookies) does not contain sensitive data"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v82-client-side-data-protection"
+  level: "1"
+  chapter: "V8"
+"V8.2.3":
+  name: "Authenticated data cleared from client storage such as the browser DOM after the client or session is terminated"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v82-client-side-data-protection"
+  level: "1"
+  chapter: "V8"
+"V8.3.1":
+  name: "Sensitive data sent to the server in the HTTP message body / headers, and query string parameters do not contain sensitive data"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v83-sensitive-private-data"
+  level: "1"
+  chapter: "V8"
+"V8.3.2":
+  name: "Users have a method to remove or export their data on demand"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v83-sensitive-private-data"
+  level: "1"
+  chapter: "V8"
+"V8.3.3":
+  name: "Users provided clear language regarding collection / use of supplied personal information; consent given"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v83-sensitive-private-data"
+  level: "1"
+  chapter: "V8"
+"V8.3.4":
+  name: "All sensitive data created / processed identified by the application / policy for handling sensitive data in place"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v83-sensitive-private-data"
+  level: "1"
+  chapter: "V8"
+"V8.3.5":
+  name: "Accessing sensitive data is audited (without logging sensitive data itself)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v83-sensitive-private-data"
+  level: "2"
+  chapter: "V8"
+"V8.3.6":
+  name: "Sensitive information contained in memory overwritten as soon as no longer required to mitigate memory dumping attacks"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v83-sensitive-private-data"
+  level: "2"
+  chapter: "V8"
+"V8.3.7":
+  name: "Sensitive / private information required to be encrypted / encrypted with keys not stored with the app itself"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v83-sensitive-private-data"
+  level: "2"
+  chapter: "V8"
+"V8.3.8":
+  name: "Sensitive personal information subject to data retention classification; enforce consumption request and deletion"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x16-V8-Data-Protection.md#v83-sensitive-private-data"
+  level: "2"
+  chapter: "V8"
+
+# -- V9 Communication --------------------------------------------------------
+"V9.1.1":
+  name: "Secured TLS used for all client connectivity / does not fall back to insecure / unencrypted protocols"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x17-V9-Communications.md#v91-client-communications-security-requirements"
+  level: "1"
+  chapter: "V9"
+"V9.1.2":
+  name: "Online tool verification used to confirm adequacy / current best-practice TLS configuration"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x17-V9-Communications.md#v91-client-communications-security-requirements"
+  level: "1"
+  chapter: "V9"
+"V9.1.3":
+  name: "Only the latest recommended versions of TLS enabled, such as TLS 1.2, TLS 1.3; latest version preferred"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x17-V9-Communications.md#v91-client-communications-security-requirements"
+  level: "1"
+  chapter: "V9"
+"V9.2.1":
+  name: "Connections to/from the server use trusted TLS certificates / self-signed only used for local testing"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x17-V9-Communications.md#v92-server-communications-security-requirements"
+  level: "2"
+  chapter: "V9"
+"V9.2.2":
+  name: "Encrypted communications such as TLS used for all inbound and outbound connections"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x17-V9-Communications.md#v92-server-communications-security-requirements"
+  level: "2"
+  chapter: "V9"
+"V9.2.3":
+  name: "All encrypted connections to external systems involve sensitive information or functions authenticated"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x17-V9-Communications.md#v92-server-communications-security-requirements"
+  level: "2"
+  chapter: "V9"
+"V9.2.4":
+  name: "Proper certification revocation, such as Online Certificate Status Protocol (OCSP) Stapling, enabled and configured"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x17-V9-Communications.md#v92-server-communications-security-requirements"
+  level: "2"
+  chapter: "V9"
+"V9.2.5":
+  name: "Backend TLS connection failures logged"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x17-V9-Communications.md#v92-server-communications-security-requirements"
+  level: "3"
+  chapter: "V9"
+
+# -- V10 Malicious Code ------------------------------------------------------
+"V10.1.1":
+  name: "Code analysis tool is in use that can detect potentially malicious code, such as time functions / unsafe file ops / DB queries"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x18-V10-Malicious.md#v101-code-integrity-controls"
+  level: "3"
+  chapter: "V10"
+"V10.2.1":
+  name: "Application source code and third-party libraries do not contain unauthorized phone home or data collection capabilities"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x18-V10-Malicious.md#v102-malicious-code-search"
+  level: "2"
+  chapter: "V10"
+"V10.2.2":
+  name: "Application does not ask for unnecessary or excessive permissions to privacy-related features / sensors"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x18-V10-Malicious.md#v102-malicious-code-search"
+  level: "2"
+  chapter: "V10"
+"V10.2.3":
+  name: "Application source code and third-party libraries do not contain back doors / undocumented features / insecure debug code"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x18-V10-Malicious.md#v102-malicious-code-search"
+  level: "3"
+  chapter: "V10"
+"V10.2.4":
+  name: "Application source code / third-party libraries do not contain time bombs that test date / time for malicious activity"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x18-V10-Malicious.md#v102-malicious-code-search"
+  level: "3"
+  chapter: "V10"
+"V10.2.5":
+  name: "Application source code and third-party libraries do not contain malicious code / Easter eggs / salami attacks / logic bypass"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x18-V10-Malicious.md#v102-malicious-code-search"
+  level: "3"
+  chapter: "V10"
+"V10.2.6":
+  name: "Application source code and third-party libraries do not contain unauthorized code / functionality / back doors"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x18-V10-Malicious.md#v102-malicious-code-search"
+  level: "3"
+  chapter: "V10"
+"V10.3.1":
+  name: "Application has mechanism to notify users / check and apply / obtain signed and verified updates"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x18-V10-Malicious.md#v103-deployed-application-integrity-controls"
+  level: "1"
+  chapter: "V10"
+"V10.3.2":
+  name: "Application uses code signing integrity / validates digital signatures of deployed code libraries / manifests"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x18-V10-Malicious.md#v103-deployed-application-integrity-controls"
+  level: "1"
+  chapter: "V10"
+"V10.3.3":
+  name: "Application has protection from subdomain takeovers if relying upon DNS entries / subdomains that could expire"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x18-V10-Malicious.md#v103-deployed-application-integrity-controls"
+  level: "1"
+  chapter: "V10"
+
+# -- V11 Business Logic ------------------------------------------------------
+"V11.1.1":
+  name: "Application only processes business logic flows for the same user in sequential step order and without skipping steps"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x19-V11-BusLogic.md#v111-business-logic-security-requirements"
+  level: "1"
+  chapter: "V11"
+"V11.1.2":
+  name: "Application only processes business logic flows with all steps being processed in realistic human time"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x19-V11-BusLogic.md#v111-business-logic-security-requirements"
+  level: "1"
+  chapter: "V11"
+"V11.1.3":
+  name: "Application has appropriate limits for specific business actions or transactions; correctly enforced on a per-user basis"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x19-V11-BusLogic.md#v111-business-logic-security-requirements"
+  level: "1"
+  chapter: "V11"
+"V11.1.4":
+  name: "Application has anti-automation controls to protect against excessive calls such as mass data exfiltration, business-logic requests, file uploads / denial of service attacks"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x19-V11-BusLogic.md#v111-business-logic-security-requirements"
+  level: "1"
+  chapter: "V11"
+"V11.1.5":
+  name: "Application has business logic limits / validation to protect against likely business risks / threats identified in threat modeling / similar exercises"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x19-V11-BusLogic.md#v111-business-logic-security-requirements"
+  level: "1"
+  chapter: "V11"
+"V11.1.6":
+  name: "Application does not suffer from TOCTOU issues or other race conditions for sensitive operations"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x19-V11-BusLogic.md#v111-business-logic-security-requirements"
+  level: "2"
+  chapter: "V11"
+"V11.1.7":
+  name: "Application monitors unusual events / activity from a business logic perspective"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x19-V11-BusLogic.md#v111-business-logic-security-requirements"
+  level: "2"
+  chapter: "V11"
+"V11.1.8":
+  name: "Application has a configurable alerting when automated attacks or unusual activity is detected"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x19-V11-BusLogic.md#v111-business-logic-security-requirements"
+  level: "2"
+  chapter: "V11"
+
+# -- V12 Files and Resources -------------------------------------------------
+"V12.1.1":
+  name: "Application will not accept large files that could fill up storage or cause a denial of service"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v121-file-upload-requirements"
+  level: "1"
+  chapter: "V12"
+"V12.1.2":
+  name: "Application checks compressed files (zip, gz, tar, bz2, 7z) against maximum allowed uncompressed size / number of files"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v121-file-upload-requirements"
+  level: "2"
+  chapter: "V12"
+"V12.1.3":
+  name: "File size quota and max number of files per user is enforced to ensure that a single user cannot fill up storage with many files"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v121-file-upload-requirements"
+  level: "2"
+  chapter: "V12"
+"V12.2.1":
+  name: "Files obtained from untrusted sources validated to be of expected type based on file content"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v122-file-integrity-requirements"
+  level: "2"
+  chapter: "V12"
+"V12.3.1":
+  name: "User-submitted filename metadata not used directly by the system / OS / storage API; resource API guards against dir traversal"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v123-file-execution-requirements"
+  level: "1"
+  chapter: "V12"
+"V12.3.2":
+  name: "User-submitted filename metadata validated / ignored to prevent disclosure / modification / execution of server-side file resources"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v123-file-execution-requirements"
+  level: "1"
+  chapter: "V12"
+"V12.3.3":
+  name: "User-submitted filename metadata validated / ignored to prevent disclosure / modification of server-side content / API"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v123-file-execution-requirements"
+  level: "1"
+  chapter: "V12"
+"V12.3.4":
+  name: "Application protects against Reflective File Download (RFD) by validating / ignoring user-submitted filenames for JSON / JSONP / API"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v123-file-execution-requirements"
+  level: "1"
+  chapter: "V12"
+"V12.3.5":
+  name: "Untrusted file metadata not used directly with system API / libraries to protect against OS command injection"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v123-file-execution-requirements"
+  level: "1"
+  chapter: "V12"
+"V12.3.6":
+  name: "Application does not include / execute functionality from untrusted sources such as unverified CDN / JavaScript, CSS, plugins"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v123-file-execution-requirements"
+  level: "2"
+  chapter: "V12"
+"V12.4.1":
+  name: "Files obtained from untrusted sources stored outside the web root with limited permissions"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v124-file-storage-requirements"
+  level: "1"
+  chapter: "V12"
+"V12.4.2":
+  name: "Files from untrusted sources scanned by antivirus scanners to prevent malicious upload content"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v124-file-storage-requirements"
+  level: "1"
+  chapter: "V12"
+"V12.5.1":
+  name: "Web tier configured to serve only files with specific extensions to prevent unintentional information / source code leakage"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v125-file-download-requirements"
+  level: "1"
+  chapter: "V12"
+"V12.5.2":
+  name: "Direct requests to uploaded files will never be executed as HTML / HTML content"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v125-file-download-requirements"
+  level: "1"
+  chapter: "V12"
+"V12.6.1":
+  name: "Server-side includes (SSI) / Expression Language (EL) SSRF calls / URL redirection verified against allow list of permitted hosts"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x20-V12-Files-Resources.md#v126-ssrf-protection-requirements"
+  level: "1"
+  chapter: "V12"
+
+# -- V13 API and Web Service -------------------------------------------------
+"V13.1.1":
+  name: "All application components use the same encodings / parsers to avoid parsing attacks / HTTP-request smuggling / XXE / shellshock"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v131-generic-web-service-security-verification-requirements"
+  level: "1"
+  chapter: "V13"
+"V13.1.2":
+  name: "Access to administration / management functionality restricted to authorized administrators"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v131-generic-web-service-security-verification-requirements"
+  level: "1"
+  chapter: "V13"
+"V13.1.3":
+  name: "API URLs do not expose sensitive information, such as the API key, session tokens etc"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v131-generic-web-service-security-verification-requirements"
+  level: "1"
+  chapter: "V13"
+"V13.1.4":
+  name: "Authorization decisions made at both the URI (business function / data layer) and at the resource (object) level"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v131-generic-web-service-security-verification-requirements"
+  level: "2"
+  chapter: "V13"
+"V13.1.5":
+  name: "Requests containing unexpected / missing content types are rejected with appropriate headers (HTTP 406 / 415)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v131-generic-web-service-security-verification-requirements"
+  level: "2"
+  chapter: "V13"
+"V13.2.1":
+  name: "Enabled RESTful HTTP methods are a valid choice for the user or action (no DELETE from an anonymous user)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v132-restful-web-service-verification-requirements"
+  level: "1"
+  chapter: "V13"
+"V13.2.2":
+  name: "JSON schema validation in place / verified before accepting input"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v132-restful-web-service-verification-requirements"
+  level: "1"
+  chapter: "V13"
+"V13.2.3":
+  name: "RESTful web services using cookies are protected from Cross-Site Request Forgery via use of at least one or more of: double submit cookie pattern, CSRF nonces, or Origin request header checks"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v132-restful-web-service-verification-requirements"
+  level: "1"
+  chapter: "V13"
+"V13.2.4":
+  name: "REST services have anti-automation controls to protect against excessive calls, especially if the API is unauthenticated"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v132-restful-web-service-verification-requirements"
+  level: "2"
+  chapter: "V13"
+"V13.2.5":
+  name: "REST services explicitly check the incoming Content-Type to be the expected one, such as application/xml or application/json"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v132-restful-web-service-verification-requirements"
+  level: "2"
+  chapter: "V13"
+"V13.2.6":
+  name: "Message headers / payload trustworthy; do not rely on insecure assumptions when using signatures, encryption, message expiry / token issuance time"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v132-restful-web-service-verification-requirements"
+  level: "2"
+  chapter: "V13"
+"V13.3.1":
+  name: "XSD schema validation to ensure proper / properly-formed XML document followed by validation of field / content / form"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v133-soap-web-service-verification-requirements"
+  level: "1"
+  chapter: "V13"
+"V13.3.2":
+  name: "Message payload signed using WS-Security to ensure reliable transport between client / service"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v133-soap-web-service-verification-requirements"
+  level: "2"
+  chapter: "V13"
+"V13.4.1":
+  name: "Query whitelisting / combination of depth-limiting, amount-limiting used to allow the GraphQL expensive queries overuse"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v134-graphql-and-other-web-service-data-layer-security-requirements"
+  level: "2"
+  chapter: "V13"
+"V13.4.2":
+  name: "GraphQL or other data-layer authorization logic should be implemented at the business-logic layer"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x21-V13-API.md#v134-graphql-and-other-web-service-data-layer-security-requirements"
+  level: "2"
+  chapter: "V13"
+
+# -- V14 Configuration -------------------------------------------------------
+"V14.1.1":
+  name: "Build / deploy processes performed securely / repeatedly to produce a secure / repeatable configuration"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v141-build"
+  level: "2"
+  chapter: "V14"
+"V14.1.2":
+  name: "Compiler flags configured to enable all available buffer overflow protections / warnings as errors"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v141-build"
+  level: "2"
+  chapter: "V14"
+"V14.1.3":
+  name: "Server configuration hardened per the recommendations of the application server / frameworks in use"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v141-build"
+  level: "2"
+  chapter: "V14"
+"V14.1.4":
+  name: "Application, configuration, and all dependencies can be re-deployed using automated deployment scripts / built from documented instructions"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v141-build"
+  level: "2"
+  chapter: "V14"
+"V14.1.5":
+  name: "Authorized administrators can verify the integrity of all security-relevant configurations to detect tampering"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v141-build"
+  level: "3"
+  chapter: "V14"
+"V14.2.1":
+  name: "All components kept up-to-date (libraries / frameworks / system components that could contribute to exploitation)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v142-dependency"
+  level: "1"
+  chapter: "V14"
+"V14.2.2":
+  name: "All unneeded features / documentation / sample apps / configurations are removed"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v142-dependency"
+  level: "1"
+  chapter: "V14"
+"V14.2.3":
+  name: "Application assets, such as JavaScript libraries / CSS / web fonts, hosted externally on content delivery network (CDN) / external provider, are integrity-verified"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v142-dependency"
+  level: "1"
+  chapter: "V14"
+"V14.2.4":
+  name: "Third-party components come from pre-defined, trusted / continually-maintained repositories"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v142-dependency"
+  level: "2"
+  chapter: "V14"
+"V14.2.5":
+  name: "Software Bill of Materials (SBOM) maintained of all third-party libraries in use"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v142-dependency"
+  level: "2"
+  chapter: "V14"
+"V14.2.6":
+  name: "Attack surface reduced by sandboxing / encapsulating third-party libraries to expose only required behaviour"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v142-dependency"
+  level: "2"
+  chapter: "V14"
+"V14.3.1":
+  name: "Web / application server / application framework debug modes are disabled in production / limit exception information / stack trace details"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v143-unintended-security-disclosure-requirements"
+  level: "1"
+  chapter: "V14"
+"V14.3.2":
+  name: "HTTP headers / any part of the HTTP response do not expose detailed version information of system components"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v143-unintended-security-disclosure-requirements"
+  level: "1"
+  chapter: "V14"
+"V14.3.3":
+  name: "HTTP headers / any part of the HTTP response do not expose detailed version information of system component"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v143-unintended-security-disclosure-requirements"
+  level: "2"
+  chapter: "V14"
+"V14.4.1":
+  name: "Every HTTP response contains a Content-Type header; text/*, */*+xml, and application/xml content types also specify a safe character set (e.g. UTF-8, ISO-8859-1)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v144-http-security-headers-requirements"
+  level: "1"
+  chapter: "V14"
+"V14.4.2":
+  name: "All API responses contain a Content-Disposition: attachment; filename=\"api.json\" header (or other appropriate for the content type)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v144-http-security-headers-requirements"
+  level: "1"
+  chapter: "V14"
+"V14.4.3":
+  name: "Content Security Policy (CSP) response header in place that helps mitigate impact for XSS attacks like HTML / DOM / JSON / JavaScript injection"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v144-http-security-headers-requirements"
+  level: "1"
+  chapter: "V14"
+"V14.4.4":
+  name: "All responses contain an X-Content-Type-Options: nosniff header"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v144-http-security-headers-requirements"
+  level: "1"
+  chapter: "V14"
+"V14.4.5":
+  name: "Strict-Transport-Security header included on all responses and for all subdomains (e.g. Strict-Transport-Security: max-age=15724800; includeSubdomains)"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v144-http-security-headers-requirements"
+  level: "1"
+  chapter: "V14"
+"V14.4.6":
+  name: "Referrer-Policy header included, such as Referrer-Policy: no-referrer or Referrer-Policy: same-origin"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v144-http-security-headers-requirements"
+  level: "1"
+  chapter: "V14"
+"V14.4.7":
+  name: "Content of a web application cannot be embedded in a third-party site by default; use of the X-Frame-Options / frame-ancestors directive allows embedding by specific sites"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v144-http-security-headers-requirements"
+  level: "1"
+  chapter: "V14"
+"V14.5.1":
+  name: "Application server only accepts the HTTP methods in use by the application / logic, including pre-flight OPTIONS / TRACE / CONNECT blocked"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v145-validate-http-request-header-requirements"
+  level: "1"
+  chapter: "V14"
+"V14.5.2":
+  name: "Supplied Origin header not used for authentication / access-control decisions, as the Origin header can be easily changed"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v145-validate-http-request-header-requirements"
+  level: "1"
+  chapter: "V14"
+"V14.5.3":
+  name: "Cross-Origin Resource Sharing (CORS) Access-Control-Allow-Origin header uses a strict allow-list of trusted domains / sub-domains; does not use 'null' origin"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v145-validate-http-request-header-requirements"
+  level: "1"
+  chapter: "V14"
+"V14.5.4":
+  name: "HTTP headers in both requests / responses only contain printable ASCII characters"
+  url: "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x22-V14-Config.md#v145-validate-http-request-header-requirements"
+  level: "2"
+  chapter: "V14"

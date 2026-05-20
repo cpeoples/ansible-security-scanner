@@ -1,0 +1,641 @@
+# CIS Controls catalog - CIS Critical Security Controls v8, CIS Kubernetes
+# Benchmark v1.9, and informal category tokens in use today.
+#
+# Purpose
+# -------
+# Maps every CIS identifier referenced by the scanner's patterns to a
+# human-readable name and a link target. Consumed by `link_resolver`.
+#
+# Why this file has three kinds of entries
+# ----------------------------------------
+# 1. Numeric v8 safeguards (CIS-N.M[.O])
+#    These are the formal v8 safeguards. CIS publishes the full framework
+#    on a gated page; we deep-link to the v8 landing page rather than
+#    pretending we have per-safeguard anchors.
+# 2. CIS Kubernetes Benchmark safeguards (CIS-K8s-N.M.O)
+#    The K8s Benchmark uses the same section numbers as the CIS document
+#    (v1.9 at time of writing). We link to the benchmark landing page.
+# 3. Informal category tokens (CIS-Docker, CIS-Network, CIS-Secrets, CIS-Supply-Chain)
+#    These predate the formal mapping and stay here for backward compat.
+#    They aren't real CIS safeguard IDs, but patterns reference them today
+#    and we don't want to churn behaviour. If a future contributor wants to
+#    migrate them to the numeric form, that's a pattern-file edit, not a
+#    catalog edit.
+#
+# Authoring rules
+# ---------------
+# - Keep ID strings verbatim as they appear in pattern YAML. The test
+#   enforces catalog coverage for every ID used by a pattern.
+# - `name` is the short description CIS publishes for that safeguard, or
+#   a descriptive label for the informal tokens.
+# - `url` points at a real, free, no-auth landing page. We do not pretend
+#   to deep-link to paywalled content.
+
+CIS_DOCKER_URL: &cis_docker_url "https://www.cisecurity.org/benchmark/docker"
+CIS_K8S_URL: &cis_k8s_url "https://www.cisecurity.org/benchmark/kubernetes"
+CIS_V8_URL: &cis_v8_url "https://www.cisecurity.org/controls/v8"
+
+# -- CIS Controls v8 - numeric safeguards ------------------------------------
+CIS-1.1:
+  name: "Establish and Maintain Detailed Enterprise Asset Inventory"
+  control: "CIS Control 1: Inventory and Control of Enterprise Assets"
+  url: *cis_v8_url
+
+CIS-1.3.1:
+  name: "Utilize an Active Discovery Tool"
+  control: "CIS Control 1: Inventory and Control of Enterprise Assets"
+  url: *cis_v8_url
+
+CIS-1.3.2:
+  name: "Use DHCP Logging to Update Enterprise Asset Inventory"
+  control: "CIS Control 1: Inventory and Control of Enterprise Assets"
+  url: *cis_v8_url
+
+CIS-2.2:
+  name: "Ensure Authorized Software is Currently Supported"
+  control: "CIS Control 2: Inventory and Control of Software Assets"
+  url: *cis_v8_url
+
+CIS-2.3:
+  name: "Address Unauthorized Software"
+  control: "CIS Control 2: Inventory and Control of Software Assets"
+  url: *cis_v8_url
+
+CIS-2.7:
+  name: "Allowlist Authorized Scripts"
+  control: "CIS Control 2: Inventory and Control of Software Assets"
+  url: *cis_v8_url
+
+CIS-3.1:
+  name: "Establish and Maintain a Data Management Process"
+  control: "CIS Control 3: Data Protection"
+  url: *cis_v8_url
+
+CIS-3.3:
+  name: "Configure Data Access Control Lists"
+  control: "CIS Control 3: Data Protection"
+  url: *cis_v8_url
+
+CIS-3.4:
+  name: "Enforce Data Retention"
+  control: "CIS Control 3: Data Protection"
+  url: *cis_v8_url
+
+CIS-3.4.1:
+  name: "Dispose of Sensitive Data Securely"
+  control: "CIS Control 3: Data Protection"
+  url: *cis_v8_url
+
+CIS-3.10:
+  name: "Encrypt Sensitive Data in Transit"
+  control: "CIS Control 3: Data Protection"
+  url: *cis_v8_url
+
+CIS-3.11:
+  name: "Encrypt Sensitive Data at Rest"
+  control: "CIS Control 3: Data Protection"
+  url: *cis_v8_url
+
+CIS-3.14:
+  name: "Log Sensitive Data Access"
+  control: "CIS Control 3: Data Protection"
+  url: *cis_v8_url
+
+CIS-4.1:
+  name: "Establish and Maintain a Secure Configuration Process"
+  control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
+  url: *cis_v8_url
+
+CIS-4.2:
+  name: "Establish and Maintain a Secure Configuration Process for Network Infrastructure"
+  control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
+  url: *cis_v8_url
+
+CIS-4.2.1:
+  name: "Configure Automatic Session Locking on Enterprise Assets"
+  control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
+  url: *cis_v8_url
+
+CIS-4.3:
+  name: "Configure Automatic Session Locking on Enterprise Assets"
+  control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
+  url: *cis_v8_url
+
+CIS-4.6:
+  name: "Securely Manage Enterprise Assets and Software"
+  control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
+  url: *cis_v8_url
+
+CIS-5.1:
+  name: "Establish and Maintain an Inventory of Accounts"
+  control: "CIS Control 5: Account Management"
+  url: *cis_v8_url
+
+CIS-5.1.2:
+  name: "Use Unique Passwords"
+  control: "CIS Control 5: Account Management"
+  url: *cis_v8_url
+
+CIS-5.2:
+  name: "Use Unique Passwords"
+  control: "CIS Control 5: Account Management"
+  url: *cis_v8_url
+
+CIS-5.2.1:
+  name: "Establish an Access Granting Process"
+  control: "CIS Control 5: Account Management"
+  url: *cis_v8_url
+
+CIS-5.2.10:
+  name: "Ensure Only Strong, Unique Credentials Are Used"
+  control: "CIS Control 5: Account Management"
+  url: *cis_v8_url
+
+CIS-5.2.11:
+  name: "Implement MFA for Administrative Access"
+  control: "CIS Control 5: Account Management"
+  url: *cis_v8_url
+
+CIS-5.3:
+  name: "Disable Dormant Accounts"
+  control: "CIS Control 5: Account Management"
+  url: *cis_v8_url
+
+CIS-5.3.4:
+  name: "Restrict Administrator Privileges to Dedicated Accounts"
+  control: "CIS Control 5: Account Management"
+  url: *cis_v8_url
+
+CIS-5.4:
+  name: "Restrict Administrator Privileges to Dedicated Administrator Accounts"
+  control: "CIS Control 5: Account Management"
+  url: *cis_v8_url
+
+CIS-5.4.1:
+  name: "Restrict Administrator Privileges to Dedicated Accounts"
+  control: "CIS Control 5: Account Management"
+  url: *cis_v8_url
+
+CIS-6.1:
+  name: "Establish an Access Granting Process"
+  control: "CIS Control 6: Access Control Management"
+  url: *cis_v8_url
+
+CIS-6.2.1:
+  name: "Establish an Access Revoking Process"
+  control: "CIS Control 6: Access Control Management"
+  url: *cis_v8_url
+
+CIS-6.8:
+  name: "Define and Maintain Role-Based Access Control"
+  control: "CIS Control 6: Access Control Management"
+  url: *cis_v8_url
+
+# -- CIS Kubernetes Benchmark - v1.9 -----------------------------------------
+CIS-K8s-5.1.1:
+  name: "Ensure that the cluster-admin role is only used where required"
+  control: "CIS Kubernetes Benchmark: 5.1 RBAC and Service Accounts"
+  url: *cis_k8s_url
+
+CIS-K8s-5.1.3:
+  name: "Minimize wildcard use in Roles and ClusterRoles"
+  control: "CIS Kubernetes Benchmark: 5.1 RBAC and Service Accounts"
+  url: *cis_k8s_url
+
+CIS-K8s-5.1.4:
+  name: "Minimize access to create pods"
+  control: "CIS Kubernetes Benchmark: 5.1 RBAC and Service Accounts"
+  url: *cis_k8s_url
+
+CIS-K8s-5.1.5:
+  name: "Ensure that default service accounts are not actively used"
+  control: "CIS Kubernetes Benchmark: 5.1 RBAC and Service Accounts"
+  url: *cis_k8s_url
+
+CIS-K8s-5.1.6:
+  name: "Ensure that Service Account Tokens are only mounted where necessary"
+  control: "CIS Kubernetes Benchmark: 5.1 RBAC and Service Accounts"
+  url: *cis_k8s_url
+
+CIS-K8s-5.2.1:
+  name: "Minimize the admission of privileged containers"
+  control: "CIS Kubernetes Benchmark: 5.2 Pod Security Standards"
+  url: *cis_k8s_url
+
+CIS-K8s-5.2.2:
+  name: "Minimize the admission of containers wishing to share the host process ID namespace"
+  control: "CIS Kubernetes Benchmark: 5.2 Pod Security Standards"
+  url: *cis_k8s_url
+
+CIS-K8s-5.2.3:
+  name: "Minimize the admission of containers wishing to share the host IPC namespace"
+  control: "CIS Kubernetes Benchmark: 5.2 Pod Security Standards"
+  url: *cis_k8s_url
+
+CIS-K8s-5.2.4:
+  name: "Minimize the admission of containers wishing to share the host network namespace"
+  control: "CIS Kubernetes Benchmark: 5.2 Pod Security Standards"
+  url: *cis_k8s_url
+
+CIS-K8s-5.2.5:
+  name: "Minimize the admission of containers with allowPrivilegeEscalation"
+  control: "CIS Kubernetes Benchmark: 5.2 Pod Security Standards"
+  url: *cis_k8s_url
+
+CIS-K8s-5.2.6:
+  name: "Minimize the admission of root containers"
+  control: "CIS Kubernetes Benchmark: 5.2 Pod Security Standards"
+  url: *cis_k8s_url
+
+CIS-K8s-5.2.8:
+  name: "Minimize the admission of containers with added capabilities"
+  control: "CIS Kubernetes Benchmark: 5.2 Pod Security Standards"
+  url: *cis_k8s_url
+
+CIS-K8s-5.2.9:
+  name: "Minimize the admission of containers with capabilities assigned"
+  control: "CIS Kubernetes Benchmark: 5.2 Pod Security Standards"
+  url: *cis_k8s_url
+
+CIS-K8s-5.2.10:
+  name: "Minimize access to create pods"
+  control: "CIS Kubernetes Benchmark: 5.2 Pod Security Standards"
+  url: *cis_k8s_url
+
+CIS-K8s-5.2.12:
+  name: "Minimize the admission of HostPath volumes"
+  control: "CIS Kubernetes Benchmark: 5.2 Pod Security Standards"
+  url: *cis_k8s_url
+
+CIS-K8s-5.3.2:
+  name: "Ensure that all Namespaces have Network Policies defined"
+  control: "CIS Kubernetes Benchmark: 5.3 Network Policies and CNI"
+  url: *cis_k8s_url
+
+CIS-K8s-5.7.2:
+  name: "Ensure that the seccomp profile is set to docker/default or RuntimeDefault in pod definitions"
+  control: "CIS Kubernetes Benchmark: 5.7 General Policies"
+  url: *cis_k8s_url
+
+CIS-K8s-5.7.3:
+  name: "Apply Security Context to Pods and Containers"
+  control: "CIS Kubernetes Benchmark: 5.7 General Policies"
+  url: *cis_k8s_url
+
+# -- Additional numeric safeguards (Controls 8-16) --------------------------
+CIS-8.2:
+  name: "Collect Audit Logs"
+  control: "CIS Control 8: Audit Log Management"
+  url: *cis_v8_url
+
+CIS-8.4:
+  name: "Standardize Time Synchronization"
+  control: "CIS Control 8: Audit Log Management"
+  url: *cis_v8_url
+
+CIS-8.5:
+  name: "Collect Detailed Audit Logs"
+  control: "CIS Control 8: Audit Log Management"
+  url: *cis_v8_url
+
+CIS-8.9:
+  name: "Centralize Audit Logs"
+  control: "CIS Control 8: Audit Log Management"
+  url: *cis_v8_url
+
+CIS-8.10:
+  name: "Retain Audit Logs"
+  control: "CIS Control 8: Audit Log Management"
+  url: *cis_v8_url
+
+CIS-8.11:
+  name: "Conduct Audit Log Reviews"
+  control: "CIS Control 8: Audit Log Management"
+  url: *cis_v8_url
+
+CIS-10.1:
+  name: "Deploy and Maintain Anti-Malware Software"
+  control: "CIS Control 10: Malware Defenses"
+  url: *cis_v8_url
+
+CIS-10.7:
+  name: "Use Behavior-Based Anti-Malware Software"
+  control: "CIS Control 10: Malware Defenses"
+  url: *cis_v8_url
+
+CIS-11.1:
+  name: "Establish and Maintain a Data Recovery Process"
+  control: "CIS Control 11: Data Recovery"
+  url: *cis_v8_url
+
+CIS-11.2:
+  name: "Perform Automated Backups"
+  control: "CIS Control 11: Data Recovery"
+  url: *cis_v8_url
+
+CIS-11.3:
+  name: "Protect Recovery Data"
+  control: "CIS Control 11: Data Recovery"
+  url: *cis_v8_url
+
+CIS-11.4:
+  name: "Establish and Maintain an Isolated Instance of Recovery Data"
+  control: "CIS Control 11: Data Recovery"
+  url: *cis_v8_url
+
+CIS-12.2:
+  name: "Establish and Maintain a Secure Network Architecture"
+  control: "CIS Control 12: Network Infrastructure Management"
+  url: *cis_v8_url
+
+CIS-12.3:
+  name: "Securely Manage Network Infrastructure"
+  control: "CIS Control 12: Network Infrastructure Management"
+  url: *cis_v8_url
+
+CIS-12.5:
+  name: "Centralize Network Authentication, Authorization, and Auditing (AAA)"
+  control: "CIS Control 12: Network Infrastructure Management"
+  url: *cis_v8_url
+
+CIS-12.6:
+  name: "Use of Secure Network Management and Communication Protocols"
+  control: "CIS Control 12: Network Infrastructure Management"
+  url: *cis_v8_url
+
+CIS-12.7:
+  name: "Ensure Remote Devices Utilize a VPN and are Connecting to an Enterprise's AAA Infrastructure"
+  control: "CIS Control 12: Network Infrastructure Management"
+  url: *cis_v8_url
+
+CIS-13.1:
+  name: "Centralize Security Event Alerting"
+  control: "CIS Control 13: Network Monitoring and Defense"
+  url: *cis_v8_url
+
+CIS-13.10:
+  name: "Perform Application Layer Filtering"
+  control: "CIS Control 13: Network Monitoring and Defense"
+  url: *cis_v8_url
+
+CIS-14.6:
+  name: "Train Workforce on Recognizing and Reporting Security Incidents"
+  control: "CIS Control 14: Security Awareness and Skills Training"
+  url: *cis_v8_url
+
+CIS-16.1:
+  name: "Establish and Maintain a Secure Application Development Process"
+  control: "CIS Control 16: Application Software Security"
+  url: *cis_v8_url
+
+CIS-16.4:
+  name: "Establish and Manage an Inventory of Third-Party Software Components"
+  control: "CIS Control 16: Application Software Security"
+  url: *cis_v8_url
+
+CIS-16.7:
+  name: "Use Standard Hardening Configuration Templates for Application Infrastructure"
+  control: "CIS Control 16: Application Software Security"
+  url: *cis_v8_url
+
+CIS-16.10:
+  name: "Apply Secure Design Principles in Application Architectures"
+  control: "CIS Control 16: Application Software Security"
+  url: *cis_v8_url
+
+CIS-16.11:
+  name: "Leverage Vetted Modules or Services for Application Security Components"
+  control: "CIS Control 16: Application Software Security"
+  url: *cis_v8_url
+
+CIS-16.12:
+  name: "Implement Code-Level Security Checks"
+  control: "CIS Control 16: Application Software Security"
+  url: *cis_v8_url
+
+# -- Informal category tokens (pre-numeric; kept for backward compat) --------
+# These were authored before the team settled on numeric safeguard IDs. They
+# still flow through the scanner exactly as before; the catalog just gives
+# them a display name and a plausible reference link so reports don't show
+# a bare string.
+CIS-2.1:
+  name: "Establish and Maintain a Software Inventory"
+  control: "CIS Control 2: Inventory and Control of Software Assets"
+  url: *cis_v8_url
+
+CIS-2.4:
+  name: "Utilize Automated Software Inventory Tools"
+  control: "CIS Control 2: Inventory and Control of Software Assets"
+  url: *cis_v8_url
+
+CIS-2.5:
+  name: Allowlist Authorized Software
+  url: https://www.cisecurity.org/controls/v8#2.5
+
+CIS-2.6:
+  name: Allowlist Authorized Software Libraries
+  url: https://www.cisecurity.org/controls/v8#2.6
+
+CIS-3.6:
+  name: "Encrypt Data on End-User Devices"
+  control: "CIS Control 3: Data Protection"
+  url: *cis_v8_url
+
+CIS-3.7:
+  name: Establish and Maintain a Data Classification Scheme
+  url: https://www.cisecurity.org/controls/v8#3.7
+CIS-3.12:
+  name: "Segment Data Processing and Storage Based on Sensitivity"
+  url: "https://www.cisecurity.org/controls/data-protection"
+
+CIS-4.4:
+  name: "Implement and Manage a Firewall on Servers"
+  control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
+  url: "https://www.cisecurity.org/controls/v8"
+
+CIS-4.5:
+  name: "Implement and Manage a Firewall on End-User Devices"
+  control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
+  url: "https://www.cisecurity.org/controls/v8"
+
+CIS-4.7:
+  name: Manage Default Accounts on Enterprise Assets and Software
+  url: https://www.cisecurity.org/controls/v8#4.7
+CIS-4.8:
+  name: "Uninstall or Disable Unnecessary Services on Enterprise Assets and Software"
+  control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
+  url: "https://www.cisecurity.org/controls/v8"
+
+CIS-4.11:
+  name: "Enforce Remote Wipe Capability on Portable End-User Devices"
+  control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
+  url: "https://www.cisecurity.org/controls/cis-controls-list"
+
+CIS-5.7:
+  name: "Centralize Access Control"
+  control: "CIS Control 5: Account Management"
+  url: *cis_v8_url
+
+CIS-6.3:
+  name: Require MFA for Externally-Exposed Applications
+  url: https://www.cisecurity.org/controls/v8#6.3
+
+CIS-6.5:
+  name: "Require MFA for Administrative Access"
+  control: "CIS Control 6: Access Control Management"
+  url: "https://www.cisecurity.org/controls/v8"
+
+CIS-6.7:
+  name: Centralize Access Control
+  url: https://www.cisecurity.org/controls/v8#6.7
+CIS-7.1:
+  name: "Establish and Maintain a Vulnerability Management Process"
+  control: "CIS Control 7: Continuous Vulnerability Management"
+  url: "https://www.cisecurity.org/controls/v8"
+
+CIS-7.3:
+  name: "Perform Automated Operating System Patch Management"
+  control: "CIS Control 7: Continuous Vulnerability Management"
+  url: *cis_v8_url
+
+CIS-7.7:
+  name: "Remediate Detected Vulnerabilities"
+  control: "CIS Control 7: Continuous Vulnerability Management"
+  url: *cis_v8_url
+
+CIS-8.1:
+  name: "Establish and Maintain an Audit Log Management Process"
+  control: "CIS Control 8: Audit Log Management"
+  url: *cis_v8_url
+
+CIS-8.3:
+  name: Ensure Adequate Audit Log Storage
+  url: https://www.cisecurity.org/controls/v8#8.3
+CIS-8.8:
+  name: Collect Command-Line Audit Logs
+  url: https://www.cisecurity.org/controls/v8#8.8
+
+CIS-9.1:
+  name: Ensure Use of Only Fully Supported Browsers and Email Clients
+  url: https://www.cisecurity.org/controls/v8#9.1
+
+CIS-9.2:
+  name: "Use DNS Filtering Services"
+  control: "CIS Control 9: Email and Web Browser Protections"
+  url: *cis_v8_url
+
+CIS-9.4:
+  name: Restrict Unnecessary or Unauthorized Browser and Email Client Extensions
+  url: https://www.cisecurity.org/controls/v8#9.4
+CIS-9.5:
+  name: Implement DMARC
+  url: https://www.cisecurity.org/controls/v8#9.5
+
+CIS-9.6:
+  name: Block Unnecessary File Types
+  url: https://www.cisecurity.org/controls/v8#9.6
+CIS-10.2:
+  name: Configure Automatic Anti-Malware Signature Updates
+  url: https://www.cisecurity.org/controls/v8#10.2
+CIS-10.5:
+  name: "Enable Anti-Exploitation Features"
+  control: "CIS Control 10: Malware Defenses"
+  url: *cis_v8_url
+
+CIS-11.5:
+  name: Test Data Recovery
+  url: https://www.cisecurity.org/controls/v8#11.5
+CIS-12.1:
+  name: Ensure Network Infrastructure is Up-to-Date
+  url: https://www.cisecurity.org/controls/v8#12.1
+
+CIS-13.3:
+  name: Deploy a Network Intrusion Detection Solution
+  url: https://www.cisecurity.org/controls/v8#13.3
+
+CIS-13.4:
+  name: "Perform Traffic Filtering Between Network Segments"
+  control: "CIS Control 13: Network Monitoring and Defense"
+  url: "https://www.cisecurity.org/controls/v8"
+
+CIS-13.5:
+  name: Manage Access Control for Remote Assets
+  url: https://www.cisecurity.org/controls/v8#13.5
+
+CIS-13.6:
+  name: Collect Network Traffic Flow Logs
+  url: https://www.cisecurity.org/controls/v8#13.6
+CIS-13.7:
+  name: "Deploy a Host-Based Intrusion Prevention Solution"
+  control: "CIS Control 13: Network Monitoring and Defense"
+  url: *cis_v8_url
+
+CIS-13.11:
+  name: "Tune Security Event Alerting Thresholds"
+  control: "CIS Control 13: Network Monitoring and Defense"
+  url: "https://www.cisecurity.org/controls/cis-controls-list"
+
+CIS-14.4:
+  name: Train Workforce on Data Handling Best Practices
+  url: https://www.cisecurity.org/controls/v8#14.4
+CIS-14.8:
+  name: Train Workforce on Causes of Unintentional Data Exposure
+  url: https://www.cisecurity.org/controls/v8#14.8
+
+CIS-15.4:
+  name: Ensure Service Providers Support Secure Disposal of Enterprise Data
+  url: https://www.cisecurity.org/controls/v8#15.4
+
+CIS-16.2:
+  name: Establish and Maintain a Process to Accept and Address Software Vulnerabilities
+  url: https://www.cisecurity.org/controls/v8#16.2
+CIS-16.5:
+  name: "Use Up-to-Date and Trusted Third-Party Software Components"
+  control: "CIS Control 16: Application Software Security"
+  url: *cis_v8_url
+
+CIS-16.6:
+  name: Establish and Maintain a Severity Rating System and Process for Application Vulnerabilities
+  url: https://www.cisecurity.org/controls/v8#16.6
+
+CIS-16.9:
+  name: "Train Developers in Application Security Concepts and Secure Coding"
+  control: "CIS Control 16: Application Software Security"
+  url: *cis_v8_url
+
+CIS-17.3:
+  name: "Establish and Maintain an Enterprise Process for Reporting Incidents"
+  control: "CIS Control 17: Incident Response Management"
+  url: *cis_v8_url
+
+CIS-18.3:
+  name: Remediate Penetration Test Findings
+  url: https://www.cisecurity.org/controls/v8#18.3
+CIS-18.5:
+  name: Perform Periodic Internal Penetration Tests
+  url: https://www.cisecurity.org/controls/v8#18.5
+
+CIS-Change-Management:
+  name: "Change management processes for infrastructure code"
+  control: "Informal category token"
+  url: "https://www.cisecurity.org/controls/v8"
+
+CIS-Docker:
+  name: "Docker Benchmark (general)"
+  control: "CIS Docker Benchmark"
+  url: *cis_docker_url
+
+CIS-Network:
+  name: "Network Infrastructure Hardening (general)"
+  control: "CIS Control 12: Network Infrastructure Management"
+  url: *cis_v8_url
+
+CIS-Secrets:
+  name: "Secrets Management (general)"
+  control: "CIS Control 3: Data Protection & CIS Control 5: Account Management"
+  url: *cis_v8_url
+
+CIS-Supply-Chain:
+  name: "Software Supply Chain (general)"
+  control: "CIS Control 16: Application Software Security"
+  url: *cis_v8_url

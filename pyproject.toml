@@ -1,0 +1,150 @@
+[build-system]
+requires = ["hatchling>=1.24", "hatch-vcs>=0.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ansible-security-scanner"
+description = "Security scanner for Ansible playbooks - detects malicious code, credential exposure, offensive tooling, data exfiltration, and 500+ other security anti-patterns."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.9"
+authors = [
+    { name = "Chris Peoples" },
+]
+keywords = [
+    "ansible",
+    "security",
+    "scanner",
+    "static-analysis",
+    "devsecops",
+    "sast",
+    "sarif",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = [
+    "PyYAML>=6.0",
+    "Jinja2>=3.0",
+    # httpx is imported behind --github-comment / --gitlab-comment but
+    # kept as a runtime dep so CI doesn't need a second install step.
+    "httpx>=0.27",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2",
+    "pre-commit>=3.7",
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "twine>=5.0",
+    "types-PyYAML>=6.0",
+    "yamllint>=1.35",
+]
+
+[project.urls]
+Homepage = "https://github.com/cpeoples/ansible-security-scanner"
+Documentation = "https://cpeoples.github.io/ansible-security-scanner/"
+Repository = "https://github.com/cpeoples/ansible-security-scanner"
+Issues = "https://github.com/cpeoples/ansible-security-scanner/issues"
+Changelog = "https://github.com/cpeoples/ansible-security-scanner/releases"
+
+[project.scripts]
+ansible-security-scanner = "ansible_security_scanner.cli:main"
+
+# --- Hatchling build backend configuration -----------------------------------
+
+# Version comes from the git tag via hatch-vcs. Tag releases as `vX.Y.Z`.
+[tool.hatch.version]
+source = "vcs"
+raw-options = { tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?:[.\-][a-zA-Z0-9]+)*)$' }
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/ansible_security_scanner/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ansible_security_scanner"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src/ansible_security_scanner",
+    "/README.md",
+    "/CONTRIBUTING.md",
+    "/LICENSE",
+    "/NOTICE",
+    "/pyproject.toml",
+]
+exclude = [
+    "**/__pycache__",
+    "**/*.pyc",
+    "**/.pytest_cache",
+]
+
+# --- Pytest ------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+pythonpath = ["src"]
+# Skip vendored playbook corpora; some upstream repos ship their own
+# test_*.py files that pytest would otherwise try to collect.
+norecursedirs = [".*", "build", "dist", "*.egg", "multifile", "playbooks"]
+
+# --- Pyright / basedpyright --------------------------------------------------
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+
+# --- Ruff --------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+extend-exclude = [
+    ".hugo/themes",
+    "src/ansible_security_scanner/_version.py",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes (undefined names, unused imports, ...)
+    "I",    # isort (import ordering)
+    "UP",   # pyupgrade (keep syntax current with target-version)
+    "B",    # flake8-bugbear (common bug patterns)
+    "C4",   # flake8-comprehensions (idiomatic list/dict/set comps)
+    "SIM",  # flake8-simplify (obvious simplifications)
+]
+ignore = [
+    "E501",   # line-length is enforced by the formatter, don't double-report
+    "SIM102", # nested `if` is often clearer than boolean-and when conditions have distinct meaning
+    "SIM108", # ternary-vs-if/else: often less readable, let authors choose
+    "B008",   # function calls in default args - common Ansible/config pattern
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests deliberately exercise weird patterns and long multi-line fixture strings.
+"tests/**/*.py" = ["B", "SIM", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ansible_security_scanner"]
+
+[tool.ruff.format]

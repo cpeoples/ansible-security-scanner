@@ -1,0 +1,25 @@
+---
+# Role defaults with multiple intentional credential anti-patterns.
+# Every value below is fake/synthetic but is shaped exactly like a
+# real secret so the scanner's high-fidelity token detectors fire.
+
+# Hardcoded API key (Stripe-style live key format). Triggers
+# ``hardcoded_credentials`` and any vendor-specific Stripe rules.
+webapp_api_key: "sk_live_4eC39HqLyjWDarjtT1zdp7dcAAAAAAAAAA"
+
+# Hardcoded database password. Triggers ``hardcoded_credentials``.
+webapp_db_password: "SuperSecretProdPassword2024!"
+
+# Hardcoded AWS access-key pair (fake values in real AKIA-prefixed
+# shape). Triggers ``aws_access_key_hardcoded`` / ``hardcoded_credentials``.
+webapp_aws_access_key_id: "AKIAIOSFODNN7EXAMPLE"
+webapp_aws_secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+
+# Runtime user/group (benign values - used elsewhere in the role).
+webapp_runtime_user: webapp
+webapp_runtime_group: webapp
+
+# Release artefact URL but no SHA256 digest - downstream task fetches
+# this over HTTPS without any integrity check, which is the exact
+# shape of the 2024 xz-utils supply-chain incident.
+webapp_release_tarball_url: "http://releases.example.com/webapp/latest.tar.gz"

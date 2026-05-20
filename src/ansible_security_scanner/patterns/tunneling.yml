@@ -1,0 +1,337 @@
+name: "Tunneling, Proxying & Network Exposure"
+author: "Ansible Security Scanner Team"
+description: "Detects reverse tunnels, SOCKS proxies, and tools that expose internal services to the internet"
+
+patterns:
+  - id: "ssh_socks_proxy"
+    category: "tunneling"
+    severity: "HIGH"
+    title: "SSH SOCKS Proxy"
+    description: "Creates a SOCKS proxy via SSH dynamic port forwarding for traffic tunneling"
+    regex: "ssh\\s+.*-D\\s+\\d+|ssh\\s+.*-R\\s+\\d+:"
+    positive_examples:
+      - "ssh -D 0"
+    recommendation: "SSH tunneling should only be used with explicit approval; consider VPN alternatives"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1090.001', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "chisel_tunnel"
+    category: "tunneling"
+    severity: "CRITICAL"
+    title: "Chisel Tunnel Tool"
+    description: "Installs or runs chisel, a tool for creating encrypted TCP/UDP tunnels through firewalls"
+    regex: "\\bchisel\\b.*(?:server|client|--reverse|--socks5|--proxy)"
+    positive_examples:
+      - "chisel server"
+    recommendation: "Chisel is a common pentesting tool; should not appear in production playbooks"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1090.002', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "ligolo_tunnel"
+    category: "tunneling"
+    severity: "CRITICAL"
+    title: "Ligolo Tunneling Agent"
+    description: "Installs or runs ligolo-ng, a tunneling tool for pivoting through networks"
+    regex: "\\b(?:ligolo|ligolo-ng)\\b|agent\\s+.*-connect.*:\\d{4,5}.*-ignore-cert"
+    positive_examples:
+      - "ligolo-ng"
+    recommendation: "Ligolo is a pentesting pivot tool; should not appear in production playbooks"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1090.002', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "ngrok_exposure"
+    category: "tunneling"
+    severity: "CRITICAL"
+    title: "ngrok Service Exposure"
+    description: "Installs or runs ngrok to expose internal services to the internet"
+    regex: "\\bngrok\\b.*(?:http|tcp|tls|start)|ngrok\\.com/download"
+    positive_examples:
+      - "ngrok http"
+    recommendation: "ngrok exposes internal services publicly; never use in production environments"
+    no_ansible_remediation: true
+    cwe: ['CWE-200', 'CWE-693']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1090.002', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['AC-3', 'CM-6', 'CM-7', 'SC-8', 'SC-8(1)', 'SC-28']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '3.3.1', '3.5.1', '4.2.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['C1.1', 'CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "cloudflared_tunnel"
+    category: "tunneling"
+    severity: "HIGH"
+    title: "Cloudflare Tunnel Exposure"
+    description: >-
+        cloudflared tunnel/access is invoked with --url or --hostname. Cloudflare
+        Tunnels punch through outbound-only firewalls and expose internal services
+        without ingress rules.
+    regex: "cloudflared\\s+(?:tunnel|access)|cloudflare.*(?:--url|--hostname)"
+    positive_examples:
+      - "cloudflared tunnel"
+    recommendation: "Cloudflare tunnels must be approved; they bypass network security controls"
+    no_ansible_remediation: true
+    cwe: ['CWE-200', 'CWE-693']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1090.002', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['AC-3', 'CM-6', 'CM-7', 'SC-8', 'SC-8(1)', 'SC-28']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '3.3.1', '3.5.1', '4.2.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['C1.1', 'CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "frp_tunnel"
+    category: "tunneling"
+    severity: "CRITICAL"
+    title: "FRP Reverse Proxy"
+    description: "Installs or configures frp (fast reverse proxy) for tunneling through firewalls"
+    regex: "\\b(?:frpc|frps)\\b|frp.*(?:server_addr|server_port|token)"
+    positive_examples:
+      - "frpc"
+    recommendation: "FRP is commonly used for unauthorized tunneling; remove immediately"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1090.002', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "revsocks_tunnel"
+    category: "tunneling"
+    severity: "CRITICAL"
+    title: "Reverse SOCKS Proxy Tool"
+    description: "Installs or runs a reverse SOCKS proxy (revsocks, gost, or similar)"
+    regex: "\\b(?:revsocks|gost|plink|proxychains)\\b.*(?:-l\\s+|listen|socks|forward)"
+    positive_examples:
+      - "revsocks-l "
+    recommendation: "Reverse proxy tools should not appear in production playbooks"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1090.001', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "ssh_remote_forward"
+    category: "tunneling"
+    severity: "HIGH"
+    title: "SSH Remote Port Forwarding"
+    description: "Creates a remote port forward to expose internal services via an external SSH server"
+    regex: "ssh\\s+.*-R\\s+(?:0\\.0\\.0\\.0:)?\\d+:(?:localhost|127\\.0\\.0\\.1):\\d+"
+    positive_examples:
+      - "ssh -R 0:localhost:0"
+    recommendation: "Remote port forwarding exposes internal services; requires explicit security approval"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1021.004', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "vpn_setup_unauthorized"
+    category: "tunneling"
+    severity: "HIGH"
+    title: "Unauthorized VPN Setup"
+    description: "Installs or configures WireGuard, OpenVPN, or other VPN software for unauthorized network access"
+    regex: "(?:apt|yum|dnf)\\s+install.*(?:wireguard|openvpn)|wg\\s+(?:set|genkey|pubkey)|(?:openvpn|wg-quick)\\s+(?:up|--config)"
+    positive_examples:
+      - "apt installwireguard"
+    recommendation: "VPN installations must be approved by network security; unauthorized VPNs bypass controls"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1133', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.7']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "iodine_dns_tunnel"
+    category: "tunneling"
+    severity: "CRITICAL"
+    title: "Iodine DNS Tunnel"
+    description: "Installs or runs iodine/iodined to tunnel IP traffic over DNS"
+    regex: '\biodine(?:d)?\b\s+(?:-f|-r|-P|[a-zA-Z0-9])'
+    positive_examples:
+      - "iodine -f"
+    recommendation: "Iodine tunnels IPv4 over DNS to bypass firewalls; remove immediately"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1071.004', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)', 'SI-4']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1', '11.3.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "dnscat2_tunnel"
+    category: "tunneling"
+    severity: "CRITICAL"
+    title: "dnscat2 DNS Tunnel"
+    description: "Installs or runs dnscat2, a tool for establishing C2 channels over DNS"
+    regex: '\bdnscat2?\b.*(?:--dns|--secret|server=)'
+    positive_examples:
+      - "dnscat--dns"
+    recommendation: "dnscat2 is a DNS-based C2 tool; should not appear in production playbooks"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1071.004', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)', 'SI-4']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1', '11.3.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "icmptunnel_tunnel"
+    category: "tunneling"
+    severity: "CRITICAL"
+    title: "ICMP Tunnel"
+    description: "Installs or runs icmptunnel to tunnel IP traffic over ICMP echo requests"
+    regex: '\bicmptunnel\b\s+(?:-s|-c|\d{1,3}\.)'
+    positive_examples:
+      - "icmptunnel -s"
+    recommendation: "ICMP tunneling bypasses firewall rules; remove immediately"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1095', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)', 'SI-4']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1', '11.3.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "rathole_tunnel"
+    category: "tunneling"
+    severity: "HIGH"
+    title: "Rathole NAT Traversal Tunnel"
+    description: "Installs or runs rathole, a Rust-based reverse proxy for NAT traversal"
+    regex: '\brathole\b\s+(?:--client|--server|client\.toml|server\.toml|\S+\.toml)'
+    positive_examples:
+      - "rathole --client"
+    recommendation: "Rathole enables NAT traversal tunnels; requires explicit security approval"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1090.002', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "bore_tunnel"
+    category: "tunneling"
+    severity: "HIGH"
+    title: "Bore Tunnel Exposure"
+    description: "Installs or runs bore to expose local ports through a public relay"
+    regex: '\bbore\b\s+(?:local|server)\s+\d+|bore\.pub'
+    positive_examples:
+      - "bore local 0"
+    recommendation: "Bore exposes local services through a public relay; requires security approval"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1090.002', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "localtunnel_exposure"
+    category: "tunneling"
+    severity: "HIGH"
+    title: "LocalTunnel Exposure"
+    description: "Installs or runs localtunnel (lt) to expose local services to the internet"
+    regex: '\blt\b\s+--port\s+\d+|npx\s+localtunnel|localtunnel\.me'
+    positive_examples:
+      - "lt --port 0"
+    recommendation: "LocalTunnel exposes internal services publicly; should not be used in production"
+    no_ansible_remediation: true
+    cwe: ['CWE-200', 'CWE-693']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1090.002', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['AC-3', 'CM-6', 'CM-7', 'SC-8', 'SC-8(1)', 'SC-28']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '3.3.1', '3.5.1', '4.2.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['C1.1', 'CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "serveo_tunnel"
+    category: "tunneling"
+    severity: "HIGH"
+    title: "Serveo SSH Tunnel"
+    description: "Uses SSH to expose local services via serveo.net public relay"
+    regex: 'ssh\s+.*-R\s+\d+:.*\s+serveo\.net'
+    positive_examples:
+      - "ssh -R 0: serveo.net"
+    recommendation: "Serveo exposes internal services publicly via SSH; requires security approval"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1021.004', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "socat_port_forward"
+    category: "tunneling"
+    severity: "HIGH"
+    title: "Socat TCP Port Forwarding"
+    description: "Uses socat to relay TCP traffic between hosts, potentially forwarding internal services"
+    regex: 'socat\s+TCP-LISTEN:\d+.*(?:fork|reuseaddr).*TCP:\S+:\d+'
+    positive_examples:
+      - "socat TCP-LISTEN:0forkTCP:0:0"
+    recommendation: "Socat port forwarding can expose internal services; ensure this is authorized"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1090.001', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.6']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
+
+  - id: "tailscale_unauthorized"
+    category: "tunneling"
+    severity: "HIGH"
+    title: "Unauthorized Tailscale Setup"
+    description: "Installs or activates Tailscale which could bypass network security controls"
+    regex: '\btailscale\b\s+(?:up|login|serve|funnel)\b|--authkey\s+tskey-'
+    positive_examples:
+      - "tailscale up"
+    recommendation: "Tailscale mesh VPN can bypass network controls; requires explicit security approval"
+    no_ansible_remediation: true
+    cwe: ['CWE-693']
+    mitre_attack: ['T1133', 'T1572']
+    cis_controls: ['CIS-4.1', 'CIS-12.7']
+    nist_controls: ['CM-6', 'CM-7', 'SC-8', 'SC-8(1)']
+    pci_dss: ['2.2.1', '2.2.4', '2.2.7', '4.2.1']
+    hipaa: ['164.312(e)(1)', '164.312(e)(2)(ii)']
+    soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']

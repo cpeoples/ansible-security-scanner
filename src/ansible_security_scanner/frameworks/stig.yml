@@ -1,0 +1,225 @@
+# OpenSCAP STIG catalog - DISA Security Technical Implementation Guide
+# identifiers for the operating systems and platforms that this scanner
+# most commonly audits (RHEL 8/9, Ubuntu 20.04/22.04, Kubernetes).
+#
+# Purpose
+# -------
+# Maps every STIG Vulnerability ID (V-XXXXXX) referenced by the scanner's
+# patterns to its rule title and canonical URL. Consumed by `link_resolver`
+# to enrich findings.
+#
+# Authoring rules
+# ---------------
+# 1. Add only STIG IDs actually referenced by a pattern YAML. The framework
+#    test fails the build if a pattern references an unknown ID.
+# 2. IDs are stored in the canonical form used by DISA: `V-NNNNNN`.
+#    The alternate `SV-NNNNNNrNNNNNN_rule` form is NOT accepted here;
+#    map to the V-prefixed short form.
+#    The resolver normalizes on lookup so patterns may write `stig-V-230221`,
+#    `V-230221`, or `STIG-V-230221` interchangeably.
+# 3. `name` is the STIG rule title verbatim.
+# 4. `url` points to DISA's STIG Viewer catalog for the most recent release.
+# 5. `platform` field records the target OS/platform for filtering.
+#
+# These are representative / commonly-cited STIG IDs from the RHEL-8, RHEL-9,
+# Ubuntu 22.04, and Kubernetes STIGs. Coverage is intentionally narrow -
+# STIG catalogs contain thousands of rules; we include only those that map
+# cleanly to Ansible-detectable findings.
+
+# -- RHEL 8 / 9 STIG -------------------------------------------------------
+V-230221:
+  name: "RHEL 8 must be a vendor-supported release"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230234:
+  name: "RHEL 8 must prevent the loading of a new kernel for later execution"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230237:
+  name: "RHEL 8 must restrict access to the kernel message buffer"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230250:
+  name: "RHEL 8 must implement DoD-approved encryption in the OpenSSL package"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230252:
+  name: "RHEL 8 must implement DoD-approved SSH encryption using FIPS-validated algorithms"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230264:
+  name: "RHEL 8 must not have the telnet-server package installed"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230265:
+  name: "RHEL 8 must not have the rsh-server package installed"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230286:
+  name: "RHEL 8 system commands must be owned by root"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230310:
+  name: "RHEL 8 must not allow blank or null passwords"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230330:
+  name: "RHEL 8 must automatically lock an account when three unsuccessful logon attempts occur"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230332:
+  name: "RHEL 8 must use FIPS 140-2/140-3 validated cryptographic modules"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230386:
+  name: "RHEL 8 SSH server must be configured to use only FIPS-approved ciphers"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230388:
+  name: "RHEL 8 SSH server must be configured to use only FIPS-approved MACs"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230396:
+  name: "RHEL 8 must be configured so that all system audit records are offloaded to a different system or storage media"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230468:
+  name: "RHEL 8 audit system must be configured to audit the execution of privileged functions"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230471:
+  name: "RHEL 8 audit system must take appropriate action when there is an error sending audit records to a remote system"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230503:
+  name: "RHEL 8 must prevent non-privileged users from executing privileged functions"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230555:
+  name: "RHEL 8 SSH server must be configured to not permit empty passwords"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230556:
+  name: "RHEL 8 SSH server must be configured to not permit root login"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+V-230559:
+  name: "RHEL 8 SSH server must limit the number of concurrent sessions"
+  url: "https://stigviewer.com/stigs/red_hat_enterprise_linux_8"
+  platform: "RHEL 8"
+
+# -- Ubuntu 22.04 STIG -----------------------------------------------------
+V-260468:
+  name: "Ubuntu 22.04 LTS must not allow unattended or automatic login via SSH"
+  url: "https://stigviewer.com/stigs/canonical_ubuntu_22.04_lts"
+  platform: "Ubuntu 22.04"
+
+V-260469:
+  name: "Ubuntu 22.04 LTS SSH daemon must not allow authentication using empty passwords"
+  url: "https://stigviewer.com/stigs/canonical_ubuntu_22.04_lts"
+  platform: "Ubuntu 22.04"
+
+V-260541:
+  name: "Ubuntu 22.04 LTS must disable all wireless network adapters"
+  url: "https://stigviewer.com/stigs/canonical_ubuntu_22.04_lts"
+  platform: "Ubuntu 22.04"
+
+# -- Kubernetes STIG -------------------------------------------------------
+V-242390:
+  name: "Kubernetes API server must have anonymous authentication disabled"
+  url: "https://stigviewer.com/stigs/kubernetes"
+  platform: "Kubernetes"
+
+V-242391:
+  name: "Kubernetes Kubelet must have anonymous authentication disabled"
+  url: "https://stigviewer.com/stigs/kubernetes"
+  platform: "Kubernetes"
+
+V-242398:
+  name: "Kubernetes DynamicAuditing must not be enabled"
+  url: "https://stigviewer.com/stigs/kubernetes"
+  platform: "Kubernetes"
+
+V-242403:
+  name: "Kubernetes API server must generate audit records"
+  url: "https://stigviewer.com/stigs/kubernetes"
+  platform: "Kubernetes"
+
+V-242434:
+  name: "Kubernetes Kubelet must enable tlsPrivateKeyFile for client authentication"
+  url: "https://stigviewer.com/stigs/kubernetes"
+  platform: "Kubernetes"
+
+V-242436:
+  name: "Kubernetes API server must have the ValidatingAdmissionWebhook enabled"
+  url: "https://stigviewer.com/stigs/kubernetes"
+  platform: "Kubernetes"
+
+V-242442:
+  name: "Kubernetes must remove all previous versions of decommissioned Pods after updating"
+  url: "https://stigviewer.com/stigs/kubernetes"
+  platform: "Kubernetes"
+
+V-242461:
+  name: "Kubernetes API server audit logs must be enabled"
+  url: "https://stigviewer.com/stigs/kubernetes"
+  platform: "Kubernetes"
+
+V-254800:
+  name: "Kubernetes must have a Pod Security Admission controller enabled"
+  url: "https://stigviewer.com/stigs/kubernetes"
+  platform: "Kubernetes"
+
+V-254801:
+  name: "Kubernetes must be configured with a default deny NetworkPolicy in every namespace"
+  url: "https://stigviewer.com/stigs/kubernetes"
+  platform: "Kubernetes"
+
+V-205775:
+  name: "Windows 10/11 must be configured to disable Windows Credential Blob storage in unsecured memory (WDigest)"
+  url: "https://stigviewer.com/stigs/microsoft_windows_10"
+  platform: "Windows 10"
+
+V-206684:
+  name: "Network device perimeter must be configured to deny-by-default all inbound and outbound traffic"
+  url: "https://stigviewer.com/stigs/network_device_management_srg"
+  platform: "Network Device"
+
+V-213450:
+  name: "Microsoft Defender ASR rules must be configured in Block mode for recommended rule set"
+  url: "https://stigviewer.com/stigs/microsoft_defender_antivirus"
+  platform: "Microsoft Defender"
+
+V-213519:
+  name: "The system must be configured to prevent local removal or disabling of volume shadow copies"
+  url: "https://stigviewer.com/stigs/microsoft_windows_server_2019"
+  platform: "Windows Server"
+
+V-220939:
+  name: "The Print Spooler service must be disabled on Domain Controllers"
+  url: "https://stigviewer.com/stigs/microsoft_windows_server_2019"
+  platform: "Windows Server"
+
+V-253265:
+  name: "Windows must be configured to enable LSA Protection (RunAsPPL) for the LSASS process"
+  url: "https://stigviewer.com/stigs/microsoft_windows_11"
+  platform: "Windows 11"

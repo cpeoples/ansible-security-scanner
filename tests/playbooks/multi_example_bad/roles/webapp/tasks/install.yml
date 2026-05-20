@@ -1,0 +1,42 @@
+---
+# Install tasks - every step here is intentionally vulnerable.
+
+- name: Download release tarball over plaintext HTTP without digest check
+  ansible.builtin.get_url:
+    url: "{{ webapp_release_tarball_url }}"
+    dest: /opt/webapp/release.tar.gz
+    validate_certs: false
+    mode: "0777"
+
+- name: Deploy unpinned container image
+  community.docker.docker_container:
+    name: webapp
+    image: "nginx:latest"
+    state: started
+
+- name: Install Python dependencies without hash pinning
+  ansible.builtin.pip:
+    name:
+      - requests
+      - pyyaml
+      - webapp
+
+- name: Register an external artifact for later use
+  ansible.builtin.uri:
+    url: "http://releases.example.com/webapp/manifest.json"
+    return_content: true
+    validate_certs: false
+  register: release_manifest
+
+- name: Render tainted token into a shell command (cross-file sink)
+  ansible.builtin.shell: "/usr/local/bin/webapp-register --token {{ untrusted_token }}"
+  changed_when: false
+
+- name: POST the hardcoded API key to a webhook without no_log
+  ansible.builtin.uri:
+    url: "https://hooks.example.com/ingest"
+    method: POST
+    body_format: json
+    body:
+      api_key: "{{ webapp_api_key }}"
+      db_password: "{{ webapp_db_password }}"

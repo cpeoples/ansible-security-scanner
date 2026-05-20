@@ -1,0 +1,58 @@
+# pre-commit install && pre-commit run --all-files
+# Ruff config: pyproject.toml.
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.12
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        # positive_examples block scalars use trailing whitespace as
+        # significant indentation; let yamllint police those instead.
+        exclude: ^src/ansible_security_scanner/patterns/.*\.yml$
+      - id: check-yaml
+        exclude: ^\.hugo/themes/
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [-c, .yamllint.yaml, --strict]
+        files: ^(src/|\.github/|tests/|\.security-scanner-allowlist\.yml$|\.pre-commit-config\.yaml$|\.yamllint\.yaml$)
+
+  - repo: local
+    hooks:
+      - id: readme-rule-counts
+        name: Regenerate README rule/category counts
+        language: system
+        entry: >-
+          python -c "import re,sys,pathlib,yaml;
+          pats=[p for f in sorted(pathlib.Path('src/ansible_security_scanner/patterns').glob('*.yml'))
+          for p in (yaml.safe_load(f.read_text()).get('patterns') or [])];
+          r=len(pats); c=len({p['category'] for p in pats});
+          t=pathlib.Path('README.md').read_text();
+          n=re.sub(r'<!--RULES-->\d+<!--/RULES-->', f'<!--RULES-->{r}<!--/RULES-->', t);
+          n=re.sub(r'<!--CATS-->\d+<!--/CATS-->', f'<!--CATS-->{c}<!--/CATS-->', n);
+          n=re.sub(r'(#security-checks-)\d+(-categories-)\d+(-rules)', rf'\g<1>{c}\g<2>{r}\g<3>', n);
+          pathlib.Path('README.md').write_text(n);
+          sys.exit(0 if n==t else 1)"
+        files: ^(README\.md|src/ansible_security_scanner/patterns/.*\.yml)$
+        pass_filenames: false
+
+      - id: dashboard-counts
+        name: Regenerate dashboard rule/severity counts
+        language: system
+        entry: python .hugo/scripts/regen_dashboard_counts.py
+        files: ^(\.hugo/content/dashboard\.md|src/ansible_security_scanner/patterns/.*\.yml)$
+        pass_filenames: false

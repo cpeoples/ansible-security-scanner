@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  role_name: webapp
+  author: example-security-team
+  description: Hardened webapp role - deploy + OS defensive tuning.
+  license: Apache-2.0
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: EL
+      versions:
+        - "9"
+
+dependencies: []

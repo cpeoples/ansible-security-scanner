@@ -1,0 +1,147 @@
+# MITRE ATLAS technique catalog - Adversarial Threat Landscape for AI Systems
+# (v5.4.0, Feb 2026 release / v5.1.0 Nov 2025 expansion).
+#
+# Purpose
+# -------
+# Maps every MITRE ATLAS technique ID referenced by the scanner's AI/ML patterns
+# to its official name, parent technique (for sub-techniques), tactic(s), and
+# canonical URL. ATLAS is the AI/ML counterpart of MITRE ATT&CK; its IDs are
+# namespaced with the `AML.` prefix (Adversarial Machine Learning). Consumed by
+# `link_resolver` to enrich findings in Markdown / HTML / SARIF / CycloneDX
+# reports.
+#
+# Authoring rules
+# ---------------
+# 1. Add only techniques actually referenced by a pattern YAML. An automated
+#    test in `tests/test_framework_catalog.py` fails the build if a pattern
+#    references an ID not listed here, so "curated by need" is enforced.
+# 2. Use MITRE's canonical names verbatim - don't paraphrase. Source:
+#    https://atlas.mitre.org/matrices/ATLAS
+# 3. `parent` is set for sub-techniques (IDs of the form AML.TNNNN.NNN). For
+#    top-level techniques it's omitted.
+# 4. `url` must be the deep-link shape: /techniques/AML.TNNNN or
+#    /techniques/AML.TNNNN.NNN (ATLAS uses `.` separators, not `/`).
+# 5. `tactics` is a list (a few techniques span more than one tactic).
+
+AML.T0010:
+  name: "ML Supply Chain Compromise"
+  tactics: ["Initial Access"]
+  url: "https://atlas.mitre.org/techniques/AML.T0010"
+
+AML.T0011:
+  name: "User Execution"
+  tactics: ["Execution"]
+  url: "https://atlas.mitre.org/techniques/AML.T0011"
+
+AML.T0011.000:
+  name: "Unsafe ML Artifacts"
+  parent: "User Execution"
+  parent_id: "AML.T0011"
+  tactics: ["Execution"]
+  url: "https://atlas.mitre.org/techniques/AML.T0011.000"
+
+AML.T0012:
+  name: "Valid Accounts"
+  tactics: ["Initial Access", "Persistence"]
+  url: "https://atlas.mitre.org/techniques/AML.T0012"
+
+AML.T0018:
+  name: "Backdoor ML Model"
+  tactics: ["Persistence", "ML Attack Staging"]
+  url: "https://atlas.mitre.org/techniques/AML.T0018"
+
+AML.T0019:
+  name: "Publish Poisoned Datasets"
+  tactics: ["Resource Development"]
+  url: "https://atlas.mitre.org/techniques/AML.T0019"
+
+AML.T0024:
+  name: "Exfiltration via ML Inference API"
+  tactics: ["Exfiltration"]
+  url: "https://atlas.mitre.org/techniques/AML.T0024"
+
+AML.T0024.000:
+  name: "Infer Training Data Membership"
+  parent: "Exfiltration via ML Inference API"
+  parent_id: "AML.T0024"
+  tactics: ["Exfiltration"]
+  url: "https://atlas.mitre.org/techniques/AML.T0024.000"
+
+AML.T0025:
+  name: "Exfiltration via Cyber Means"
+  tactics: ["Exfiltration"]
+  url: "https://atlas.mitre.org/techniques/AML.T0025"
+
+AML.T0034:
+  name: "Cost Harvesting"
+  tactics: ["Impact"]
+  url: "https://atlas.mitre.org/techniques/AML.T0034"
+
+AML.T0037:
+  name: "Data from Local System"
+  tactics: ["Collection"]
+  url: "https://atlas.mitre.org/techniques/AML.T0037"
+
+AML.T0040:
+  name: "ML Model Inference API Access"
+  tactics: ["ML Model Access"]
+  url: "https://atlas.mitre.org/techniques/AML.T0040"
+
+AML.T0049:
+  name: "Exploit Public-Facing Application"
+  tactics: ["Initial Access"]
+  url: "https://atlas.mitre.org/techniques/AML.T0049"
+
+AML.T0050:
+  name: "Command and Scripting Interpreter"
+  tactics: ["Execution"]
+  url: "https://atlas.mitre.org/techniques/AML.T0050"
+
+AML.T0051:
+  name: "LLM Prompt Injection"
+  tactics: ["Initial Access", "Execution"]
+  url: "https://atlas.mitre.org/techniques/AML.T0051"
+
+AML.T0051.000:
+  name: "Direct"
+  parent: "LLM Prompt Injection"
+  parent_id: "AML.T0051"
+  tactics: ["Execution"]
+  url: "https://atlas.mitre.org/techniques/AML.T0051.000"
+
+AML.T0051.001:
+  name: "Indirect"
+  parent: "LLM Prompt Injection"
+  parent_id: "AML.T0051"
+  tactics: ["Execution"]
+  url: "https://atlas.mitre.org/techniques/AML.T0051.001"
+
+AML.T0053:
+  name: "LLM Plugin Compromise"
+  tactics: ["Execution"]
+  url: "https://atlas.mitre.org/techniques/AML.T0053"
+
+AML.T0055:
+  name: "Unsecured Credentials"
+  tactics: ["Credential Access"]
+  url: "https://atlas.mitre.org/techniques/AML.T0055"
+
+AML.T0057:
+  name: "LLM Data Leakage"
+  tactics: ["Exfiltration"]
+  url: "https://atlas.mitre.org/techniques/AML.T0057"
+
+AML.T0020:
+  name: "Poison Training Data"
+  tactics: ["ML Attack Staging"]
+  url: "https://atlas.mitre.org/techniques/AML.T0020"
+
+AML.T0048:
+  name: "External Harms"
+  tactics: ["Impact"]
+  url: "https://atlas.mitre.org/techniques/AML.T0048"
+
+AML.T0054:
+  name: "LLM Jailbreak"
+  tactics: ["Initial Access", "ML Attack Staging"]
+  url: "https://atlas.mitre.org/techniques/AML.T0054"

@@ -1,0 +1,649 @@
+name: "Ansible-Specific Security Patterns"
+author: "Ansible Security Scanner Team"
+description: >
+  Detects Ansible-specific secret exposure: hardcoded connection credentials
+  (become_pass, ssh_pass, winrm_password), vault password files, SNMP
+  community strings, Terraform state access, kubeconfig manipulation, and
+  CI/CD token leakage.
+
+patterns:
+  # -- Ansible Connection Secrets ---------------------------------------------
+  - id: "ansible_become_pass"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "ansible_become_pass in Playbook"
+    description: "Hardcodes the sudo/become password in the playbook, exposing it in version control"
+    regex: "ansible_become_pass(?:word)?\\s*[:=]\\s*['\"]?(?!\\{\\{)[^\\s'\"]{3,}"
+    positive_examples:
+      - "ansible_become_password: BOGUSPASS"
+    recommendation: "Use --ask-become-pass, Vault-encrypted variables, or an external credential store"
+    cwe: ['CWE-259', 'CWE-798']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.3.6', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  - id: "ansible_ssh_pass"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "ansible_ssh_pass in Playbook"
+    description: "Hardcodes the SSH password in the playbook instead of using key-based auth"
+    regex: "ansible_ssh_pass(?:word)?\\s*[:=]\\s*['\"]?(?!\\{\\{)[^\\s'\"]{3,}"
+    positive_examples:
+      - "ansible_ssh_pass: \"foobar\""
+    recommendation: "Use SSH key-based authentication or Vault-encrypted ansible_ssh_pass"
+    cwe: ['CWE-259', 'CWE-798']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.3.6', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+    stig: ['V-230555', 'V-260469']
+
+  - id: "ansible_winrm_password"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "WinRM Password in Playbook"
+    description: >-
+        Hardcodes ansible_winrm_password (or ansible_winrm_cert_key_pem) for Windows
+        hosts in plaintext. WinRM credentials should live in ansible-vault or a
+        secret manager, never in inventory or vars.
+    regex: "ansible_winrm_password\\s*[:=]\\s*['\"]?(?!\\{\\{)[^\\s'\"]{3,}|ansible_winrm_cert_key_pem\\s*[:=]"
+    positive_examples:
+      - "ansible_winrm_password:xxx"
+    recommendation: "Use Vault-encrypted variables or Kerberos authentication for WinRM"
+    cwe: ['CWE-259', 'CWE-798']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.3.6', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  - id: "ansible_connection_password"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "Ansible Connection Password Exposed"
+    description: "Hardcodes connection-level passwords in inventory or playbook variables"
+    regex: "ansible_password\\s*[:=]\\s*['\"]?(?!\\{\\{)[^\\s'\"]{3,}|ansible_httpapi_pass\\s*[:=]\\s*['\"]?(?!\\{\\{)"
+    positive_examples:
+      - "ansible_password: other_password"
+    recommendation: "Store connection passwords in Vault or use credential plugins"
+    cwe: ['CWE-259', 'CWE-798']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.3.6', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  - id: "vault_password_file"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "Vault Password File Referenced"
+    description: "References a vault password file, which may contain plaintext master secret"
+    regex: "vault_password_file\\s*[:=]|--vault-password-file\\s+|--vault-pass"
+    positive_examples:
+      - |2-
+        DEFAULT_VAULT_PASSWORD_FILE:
+          # ...
+          env: [{name: ANSIBLE_VAULT_PASSWORD_FILE}]
+    recommendation: "Use vault-id with script-based lookups or external secret backends instead of plaintext files"
+    cwe: ['CWE-522', 'CWE-532']
+    owasp_appsec: ["A04:2021", "A09:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V7.1.1"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AU-9', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(b)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  # -- SNMP Community Strings --------------------------------------------------
+  - id: "snmp_community_string"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "SNMP Community String Exposed"
+    description: "Hardcodes SNMP community strings which grant read/write access to network devices"
+    regex: "(?:community|snmp_community)\\s*[:=]\\s*['\"]?(?:public|private|(?!\\{\\{)[A-Za-z0-9!@#$%^&*_]{4,})|snmpwalk\\s+.*-c\\s+|snmpget\\s+.*-c\\s+"
+    positive_examples:
+      - "community: public"
+    recommendation: "Use SNMPv3 with authentication; store community strings in Vault"
+    no_ansible_remediation: true
+    cwe: ['CWE-259', 'CWE-798']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-4.1', 'CIS-Secrets']
+    nist_controls: ['CM-6', 'CM-7', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
+    pci_dss: ['2.2.1', '2.2.4', '3.5.1', '8.3.6', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(d)']
+    soc2: ['CC6.1', 'CC7.1', 'CC8.1']
+
+  # -- Terraform State Access -------------------------------------------------
+  - id: "terraform_state_access"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "Terraform State File Access"
+    description: "Accesses terraform.tfstate which contains all resource attributes including secrets"
+    regex: "terraform\\.tfstate|terraform\\s+state\\s+(?:pull|show|list)|terraform\\s+output\\s+-json"
+    positive_examples:
+      - "terraform.tfstate"
+    recommendation: "Use remote state backends (S3, Consul) with encryption; never access tfstate directly from playbooks"
+    no_ansible_remediation: true
+    cwe: ['CWE-200', 'CWE-522']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    mitre_attack: ['T1005', 'T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.7']
+
+  # -- Kubeconfig Manipulation ------------------------------------------------
+  - id: "kubeconfig_access"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "Kubeconfig File Exfiltration or Distribution"
+    description: "A task EXFILTRATES a kubeconfig file (via ``ansible.builtin.slurp`` / ``ansible.builtin.fetch`` - read the controller's or remote's ``~/.kube/config`` back to the playbook) OR DISTRIBUTES one (via ``ansible.builtin.copy`` / ``ansible.builtin.template`` with ``src:`` pointing at a kubeconfig). Both shapes leak cluster-admin-equivalent credentials. Merely setting ``KUBECONFIG=/path/to/config`` as an environment variable for a local kubectl call is NOT flagged - that's the normal operator pattern. The real risk is the credentials LEAVING their trust boundary."
+    # Anchor on the leak-vectors, not the operator-env-var pattern:
+    #   * ``slurp:`` / ``fetch:`` of a kubeconfig -> exfiltrates back
+    #     to the controller
+    #   * ``copy: src: .../.kube/config`` / ``template: src: ...`` -> 
+    #     distributes a kubeconfig to a managed host
+    # The previous regex fired on every ``KUBECONFIG=`` env-var and
+    # every local ``.kube/config`` path reference - 18/33 findings
+    # were legitimate ``environment: { KUBECONFIG: /home/x/.kube/
+    # config }`` usage that is NOT a credential leak.
+    regex: "(?:(?:ansible\\.builtin\\.)?(?:slurp|fetch):[\\s\\S]{0,200}?\\.kube/config|(?:ansible\\.builtin\\.)?(?:copy|template):[\\s\\S]{0,200}?src:\\s*[\"']?[^\"'\\n]*?\\.kube/config)"
+    multiline: true
+    window: 8
+    recommendation: "Do not distribute kubeconfig files via playbooks. Use short-lived tokens from OIDC / IAM-integrated service accounts (e.g., ``aws eks get-token``, ``gcloud container clusters get-credentials --internal-ip``) that generate a kubeconfig on the local host from ambient cloud identity. For service accounts, use ``kubernetes.core.k8s`` with a token fetched at runtime from Vault / AWS Secrets Manager - never from a file that follows the playbook."
+    no_ansible_remediation: true
+    positive_examples:
+      - |2-
+            ansible.builtin.slurp:
+              src: /root/.kube/config
+      - |2-
+            ansible.builtin.fetch:
+              src: /home/operator/.kube/config
+              dest: /tmp/cluster-admin
+      - |2-
+            ansible.builtin.copy:
+              src: /controller/secrets/.kube/config
+              dest: /home/app/.kube/config
+      - |2-
+            ansible.builtin.template:
+              src: templates/.kube/config.j2
+              dest: /etc/kubernetes/kubeconfig
+    negative_examples:
+      - |2-
+            environment:
+              KUBECONFIG: /home/splunk/.kube/config
+      - |2-
+            ansible.builtin.file:
+              path: /home/splunk/.kube/config
+              owner: splunk
+      - |2-
+            ansible.builtin.lineinfile:
+              path: ~/.bashrc
+              line: export KUBECONFIG=/home/splunk/.kube/config
+    cwe: ['CWE-200', 'CWE-522']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.7']
+
+  # -- CI/CD Token Exposure ---------------------------------------------------
+  - id: "cicd_token_exposure"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "CI/CD Pipeline Token Exposed"
+    description: "References CI/CD pipeline tokens which could be used to compromise the build system"
+    regex: "(?:CI_JOB_TOKEN|GITLAB_TOKEN|GITLAB_PRIVATE_TOKEN|ACTIONS_RUNTIME_TOKEN|JENKINS_SECRET|BUILDKITE_AGENT_TOKEN|CIRCLECI_TOKEN|TRAVIS_TOKEN)\\s*[:=]\\s*['\"]?(?!\\{\\{)[^\\s'\"]{3,}"
+    positive_examples:
+      - "CI_JOB_TOKEN:xxx"
+    recommendation: "CI/CD tokens should only be used via masked environment variables, never hardcoded"
+    no_ansible_remediation: true
+    cwe: ['CWE-522', 'CWE-532']
+    owasp_appsec: ["A04:2021", "A09:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V7.1.1"]
+    mitre_attack: ['T1552.004']
+    cis_controls: ['CIS-16.1', 'CIS-Secrets']
+    nist_controls: ['AU-9', 'IA-5(7)', 'SA-11', 'SA-15', 'SC-28']
+    pci_dss: ['3.5.1', '6.2.4', '8.6.2', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(b)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1', 'CC8.1']
+
+  - id: "cicd_token_echo"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "CI/CD Token Logged or Echoed"
+    description: >-
+        Echoes or prints a CI/CD token (CI_JOB_TOKEN, GITHUB_TOKEN,
+        ACTIONS_RUNTIME_TOKEN, etc.) inside a shell task. The token is captured in
+        the build log and visible to anyone with log access.
+    regex: "echo.*\\$(?:CI_JOB_TOKEN|GITLAB_TOKEN|GITHUB_TOKEN|ACTIONS_RUNTIME_TOKEN|JENKINS_SECRET)|\\bprint\\b.*(?:CI_JOB_TOKEN|GITLAB_TOKEN|GITHUB_TOKEN)"
+    positive_examples:
+      - "echo$CI_JOB_TOKEN"
+    recommendation: "Never echo CI/CD tokens; use no_log: true and masked variables"
+    no_ansible_remediation: true
+    cwe: ['CWE-200', 'CWE-532']
+    owasp_appsec: ["A01:2021", "A09:2021"]
+    owasp_asvs: ["V7.1.1", "V8.1.1"]
+    mitre_attack: ['T1552.004']
+    cis_controls: ['CIS-8.2', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AU-2', 'AU-9', 'AU-12', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '8.6.2', '10.2.1', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(b)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.7', 'CC7.2']
+
+  # -- Unauthenticated Service Access -----------------------------------------
+  - id: "redis_unauthenticated"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "Unauthenticated Redis Access"
+    description: "Connects to Redis without authentication, which defaults to no password"
+    regex: "redis-cli(?!.*-a\\s)(?!.*--pass)\\s+(?:-h\\s|PING|SET\\s|GET\\s|KEYS|FLUSHALL|CONFIG|SLAVEOF|DEBUG)"
+    positive_examples:
+      - "redis-cli -h "
+    recommendation: "Always use Redis AUTH and TLS; never connect without credentials"
+    no_ansible_remediation: true
+    cwe: ['CWE-306']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.1.1"]
+    mitre_attack: ['T1078']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-4']
+    pci_dss: ['2.2.1', '2.2.4', '11.3.1']
+    soc2: ['CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "elasticsearch_unauthenticated"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "Unauthenticated Elasticsearch Access"
+    description: "Accesses Elasticsearch API without authentication, exposing data to unauthorized reads"
+    regex: "(?:curl|uri|url).*(?:localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0):(?:9200|9300)|elasticsearch.*(?:http://|:9200)"
+    positive_examples:
+      - "shell: curl -XPUT localhost:9200/_all/_settings -d '{\"index.routing.allocation.disable_allocation\":\"false\" }'"
+    recommendation: "Enable Elasticsearch security features (X-Pack) with authentication and TLS"
+    no_ansible_remediation: true
+    cwe: ['CWE-306']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.1.1"]
+    mitre_attack: ['T1078']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-4']
+    pci_dss: ['2.2.1', '2.2.4', '11.3.1']
+    soc2: ['CC7.1', 'CC7.2', 'CC8.1']
+
+  - id: "mongodb_unauthenticated"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "Unauthenticated MongoDB Access"
+    description: >-
+        Connects to MongoDB without --password or --authenticationDatabase.
+        Unauthenticated MongoDB access is the shape exploited by the historical
+        'MongoDB ransom' campaigns.
+    regex: "\\bmongo\\s+(?!.*--password)(?!.*--authenticationDatabase)(?:--host|mongodb://(?!.*:.*@))"
+    positive_examples:
+      - "mongo --host"
+    recommendation: "Enable MongoDB authentication and use SCRAM-SHA-256; never connect without auth"
+    no_ansible_remediation: true
+    cwe: ['CWE-306']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.1.1"]
+    mitre_attack: ['T1078']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-4']
+    pci_dss: ['2.2.1', '2.2.4', '11.3.1']
+    soc2: ['CC7.1', 'CC7.2', 'CC8.1']
+
+  # -- Windows Attack Vectors -------------------------------------------------
+  - id: "powershell_download_cradle"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "PowerShell Download Cradle"
+    description: "Uses PowerShell to download and execute code from a remote URL (living off the land)"
+    regex: "(?:New-Object\\s+(?:Net\\.WebClient|System\\.Net\\.WebClient)).*Download(?:String|File|Data)|Invoke-WebRequest.*\\|.*(?:iex|Invoke-Expression)|IEX\\s*\\(.*(?:Net\\.WebClient|WebRequest|curl|wget)"
+    positive_examples:
+      - "New-Object Net.WebClientDownloadString"
+    recommendation: "Download files to disk with checksum verification instead of executing from memory"
+    no_ansible_remediation: true
+    cwe: ['CWE-494', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1059.001', 'T1105']
+    cis_controls: ['CIS-Supply-Chain']
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
+    pci_dss: ['6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "powershell_invoke_expression"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "PowerShell Invoke-Expression Usage"
+    description: "Uses Invoke-Expression (IEX) to execute dynamically constructed commands"
+    regex: "(?:Invoke-Expression|\\biex\\b)\\s+[^#]|\\|\\s*(?:iex|Invoke-Expression)\\b"
+    positive_examples:
+      - "Invoke-Expression x"
+    recommendation: "Avoid Invoke-Expression; use explicit cmdlets with validated parameters"
+    no_ansible_remediation: true
+    cwe: ['CWE-94', 'CWE-95']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.001']
+    cis_controls: ['CIS-4.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "windows_registry_persistence"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "Windows Registry Persistence"
+    description: "Modifies Windows registry Run/RunOnce keys to establish persistence across reboots"
+    regex: "(?:HKLM|HKCU).*\\\\(?:Run|RunOnce)\\\\|win_regedit.*(?:Run|RunOnce)|CurrentVersion\\\\Run"
+    positive_examples:
+      - 'HKLM\RunOnce\'
+    recommendation: "Registry persistence should only be configured through approved GPO or SCCM"
+    no_ansible_remediation: true
+    cwe: ['CWE-506']
+    mitre_attack: ['T1547.001']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7']
+    pci_dss: ['2.2.1', '2.2.4']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  # -- AAP / AWX / Tower Runtime Risks ----------------------------------------
+  - id: "awx_job_launch_user_extra_vars"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "AWX/AAP Job Launch Accepts User-Supplied extra_vars"
+    description: "awx.awx.job_launch / tower_job_launch called with extra_vars that appear to come from an untrusted source (survey, webhook, API). If the corresponding Job Template has ask_variables_on_launch=true without a Survey Spec restricting allowed keys, attackers can inject variables that override playbook defaults or pass dangerous values to tasks."
+    regex: "(?:awx\\.awx\\.job_launch|tower_job_launch)\\s*:[\\s\\S]{0,600}extra_vars\\s*:\\s*[\"']?\\{\\{"
+    positive_examples:
+      - "awx.awx.job_launch:extra_vars:{{"
+    recommendation: "Set ask_variables_on_launch=false on the Job Template or define a Survey Spec that enumerates allowed variables. Validate webhook/API payloads before forwarding them as extra_vars."
+    cwe: ['CWE-20', 'CWE-915']
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    mitre_attack: ['T1059', 'T1190']
+    cis_controls: ['CIS-16.11']
+    nist_controls: ['SI-10']
+    pci_dss: ['6.2.4']
+    soc2: ['CC7.1']
+
+  - id: "awx_survey_password_literal_default"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "AWX/AAP Survey Password Field With Literal Default"
+    description: "A Survey Spec declares a password-type question but supplies a plaintext literal as its default, leaking the value into the Job Template export, audit log, and anyone with read access to the Survey."
+    regex: "type\\s*:\\s*[\"']?password[\"']?[\\s\\S]{0,200}default\\s*:\\s*[\"'](?!\\{\\{)[^\"'\\s]{3,}[\"']"
+    positive_examples:
+      - 'type:passworddefault:"xxx"'
+    recommendation: "Leave the default empty for password-type questions, or reference a Vault-encrypted variable with {{ lookup('env', ...) }}. Never inline a plaintext password into a survey_spec."
+    cwe: ['CWE-256', 'CWE-798']
+    owasp_appsec: ["A04:2021", "A07:2021"]
+    owasp_asvs: ["V2.10.1", "V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  - id: "awx_oauth_token_literal"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "AWX/AAP OAuth Token Hardcoded"
+    description: "An AWX/AAP OAuth2 personal access token (oauth_token / tower_oauthtoken) is committed as a plaintext literal rather than resolved from Vault or an environment lookup."
+    regex: "(?:oauth_token|tower_oauthtoken|awx_token)\\s*:\\s*[\"'](?!\\{\\{)[A-Za-z0-9_\\-]{20,}[\"']"
+    positive_examples:
+      - 'oauth_token:"AAAAAAAAAAAAAAAAAAAA"'
+    recommendation: "Issue OAuth tokens per-user, store them in Vault, and reference via {{ lookup('env', 'TOWER_OAUTHTOKEN') }}. Rotate any committed token immediately."
+    cwe: ['CWE-259', 'CWE-798']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.3.6', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  - id: "awx_controller_host_literal_admin"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "AWX/AAP Controller Credentials Hardcoded"
+    description: "awx.awx.* modules configured with a plaintext controller_password / tower_password, or a controller_host pointing at a preview/staging instance with a committed admin credential."
+    regex: "(?:controller_password|tower_password)\\s*:\\s*[\"'](?!\\{\\{)[^\"'\\s]{3,}[\"']|(?:controller_username|tower_username)\\s*:\\s*[\"']admin[\"'][\\s\\S]{0,200}(?:controller_password|tower_password)\\s*:\\s*[\"'](?!\\{\\{)"
+    positive_examples:
+      - 'controller_password:"xxx"'
+    recommendation: "Store controller credentials in Vault and read them via lookup('env', ...). Prefer OAuth tokens over username/password for automation."
+    cwe: ['CWE-259', 'CWE-798']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1078.004', 'T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.3.6', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  - id: "awx_credential_inputs_literal"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "AWX/AAP Credential Object With Inline Secret"
+    description: "awx.awx.credential created with inputs.password / inputs.ssh_key_data containing a plaintext literal. The credential object is meant to protect the value but an inline literal defeats that and exposes it in source control."
+    regex: "awx\\.awx\\.credential\\s*:[\\s\\S]{0,800}inputs\\s*:[\\s\\S]{0,400}(?:password|ssh_key_data|token|secret)\\s*:\\s*[\"'](?!\\{\\{)[^\"'\\s]{6,}"
+    positive_examples:
+      - 'awx.awx.credential:inputs:password:"xxxxxx'
+    recommendation: "Reference the secret via {{ lookup('community.hashi_vault.hashi_vault', ...) }} or an encrypted Vault variable; never inline the secret value in the inputs block."
+    cwe: ['CWE-522', 'CWE-798']
+    owasp_appsec: ["A04:2021", "A07:2021"]
+    owasp_asvs: ["V2.10.1", "V2.10.2", "V2.10.4", "V6.2.1", "V14.1.5"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  - id: "awx_execution_environment_privileged"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "AWX/AAP Execution Environment Configured Privileged"
+    description: "awx.awx.execution_environment or the Controller API configures an EE with --privileged, --network=host, or a hostPath mount, giving the automation container kernel-level access to the controller node."
+    regex: "awx\\.awx\\.execution_environment\\s*:[\\s\\S]{0,400}(?:privileged\\s*:\\s*(?:true|yes)|--privileged|--network[=\\s]+host|pull\\s*:\\s*[\"']?always[\"']?[\\s\\S]{0,200}image\\s*:\\s*[\"']?[^:\\s\"']+:latest)"
+    positive_examples:
+      - "awx.awx.execution_environment:privileged:true"
+    recommendation: "Run EEs with the default rootless runtime. If kernel features are needed, scope capabilities explicitly (CAP_NET_ADMIN etc.) rather than --privileged."
+    cwe: ['CWE-250', 'CWE-269']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1611']
+    cis_controls: ['CIS-4.6']
+    nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
+    pci_dss: ['7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.3']
+
+  - id: "awx_webhook_secret_literal"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "AWX/AAP Webhook Signing Secret Hardcoded"
+    description: "A Job Template webhook_credential / webhook_key is committed as a literal. Anyone with read access can forge signed webhook events and launch jobs."
+    regex: "(?:webhook_key|webhook_credential)\\s*:\\s*[\"'](?!\\{\\{)[A-Za-z0-9+/=_\\-]{16,}[\"']"
+    positive_examples:
+      - 'webhook_key:"AAAAAAAAAAAAAAAA"'
+    recommendation: "Generate a random webhook signing key, store it in Vault, and reference via {{ lookup('env', ...) }}. Rotate if committed."
+    cwe: ['CWE-345', 'CWE-798']
+    owasp_appsec: ["A07:2021", "A08:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  - id: "awx_inventory_source_untrusted_scm"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "AWX/AAP Inventory Source Pulls From Untrusted SCM"
+    description: "awx.awx.inventory_source configured with source=scm pointing at an unauthenticated HTTP URL, a raw gist, or a wildcard branch reference - an attacker who takes over the source controls inventory (and therefore which hosts run what)."
+    regex: "awx\\.awx\\.inventory_source\\s*:[\\s\\S]{0,400}(?:source_project[\\s\\S]{0,100}(?:http://|gist\\.github|raw\\.githubusercontent|branch\\s*:\\s*[\"']?(?:master|main|HEAD|\\*)[\"']?))"
+    positive_examples:
+      - "awx.awx.inventory_source:source_projecthttp://"
+    recommendation: "Point inventory sources at private, authenticated repositories pinned to a signed tag. Require signed commits on the inventory branch."
+    cwe: ['CWE-494', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1195.002']
+    cis_controls: ['CIS-16.11', 'CIS-Supply-Chain']
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
+    pci_dss: ['6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "awx_notification_template_token"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "AWX/AAP Notification Template With Embedded Token"
+    description: "awx.awx.notification_template with a Slack/Teams/PagerDuty webhook URL that embeds a bot token or signing secret in the URL - leaks the credential to anyone with read on the notification configuration."
+    regex: "awx\\.awx\\.notification_template\\s*:[\\s\\S]{0,600}(?:url|token|webhook_url)\\s*:\\s*[\"']?https?://[^\"'\\s]{0,200}(?:xox[baprs]-[A-Za-z0-9\\-]{10,}|[A-Za-z0-9]{24}/B[A-Za-z0-9]{8,}/[A-Za-z0-9]{24})"
+    positive_examples:
+      - "awx.awx.notification_template:url:http://xoxb-AAAAAAAAAA"
+    recommendation: "Create the webhook via an integration OAuth flow that keeps the token out of the URL, or use a short-lived token rotated out of Vault."
+    cwe: ['CWE-200', 'CWE-598']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.7']
+
+  - id: "awx_ask_credential_on_launch"
+    category: "ansible_specific"
+    severity: "MEDIUM"
+    title: "AWX/AAP Job Template With ask_credential_on_launch"
+    description: "A Job Template that allows ask_credential_on_launch=true together with become_enabled=true lets launchers substitute their own credential at run time - useful for ad-hoc ops but dangerous for privileged automation because it removes the deterministic credential/audit trail."
+    regex: "awx\\.awx\\.job_template\\s*:[\\s\\S]{0,600}ask_credential_on_launch\\s*:\\s*(?:true|yes)[\\s\\S]{0,200}become_enabled\\s*:\\s*(?:true|yes)"
+    positive_examples:
+      - "awx.awx.job_template:ask_credential_on_launch:truebecome_enabled:true"
+    recommendation: "Pin a specific credential on privileged Job Templates. If on-demand credential selection is required, restrict launch permissions and require MFA."
+    cwe: ['CWE-862']
+    owasp_appsec: ["A01:2021"]
+    mitre_attack: ['T1078.004']
+    cis_controls: ['CIS-6.8', 'CIS-16.11']
+    nist_controls: ['AC-2', 'AC-3']
+    pci_dss: ['7.2.5']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.2', 'CC6.3']
+
+  # -- 2024-2026 container-runtime hygiene ----------------------------------
+  - id: "docker_socket_mounted_into_task"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "Docker / Podman / containerd Socket Mounted Into a Container"
+    description: "A `community.docker.docker_container`, `containers.podman.podman_container`, or raw `docker run` / `podman run` task bind-mounts `/var/run/docker.sock`, `/run/docker.sock`, `/var/run/containerd/containerd.sock`, `/run/containerd/containerd.sock`, `/var/run/crio/crio.sock`, or `/run/podman/podman.sock` into the container. Any process inside that container can then create new privileged containers, mount host paths, and escape to root on the host - the canonical 'docker.sock = root' escape documented by every container-escape CTF and actively abused by Kinsing, TeamTNT, and Docker-Hub cryptomining campaigns."
+    regex: "(?:volumes?|mounts?|-v|--volume|--mount)\\s*[:=][\\s\\S]{0,200}?(?:/(?:var/)?run/(?:docker|containerd/containerd|crio/crio|podman/podman)\\.sock|/var/lib/(?:docker|containerd))"
+    positive_examples:
+      - |2-
+        volumes:
+                - /var/run/docker.sock
+    multiline: true
+    window: 5
+    recommendation: "Never mount the container runtime socket into a container. If you need Docker-in-Docker for CI, use a sibling pattern (a separate rootless Docker daemon in its own network namespace) or switch to BuildKit / Buildah with userns remapping. For Kubernetes job execution, use a proper controller (Tekton, Argo Workflows) that talks to the kubelet API with a scoped ServiceAccount, not to the node's CRI socket."
+    cwe: ['CWE-250', 'CWE-269', 'CWE-732']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    mitre_attack: ['T1068', 'T1610', 'T1611']
+    cis_controls: ['CIS-5.2', 'CIS-K8s-5.2.3']
+    nist_controls: ['AC-3', 'AC-6', 'SC-7', 'SI-4']
+    pci_dss: ['2.2.1', '7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "podman_container_privileged"
+    category: "ansible_specific"
+    severity: "CRITICAL"
+    title: "Podman Container Run With --privileged or Equivalent Cap-Add"
+    description: "A `containers.podman.podman_container` task sets `privileged: true`, or a raw `podman run` / `podman create` includes `--privileged`, `--cap-add=SYS_ADMIN` (or `ALL`), or `--security-opt label=disable` together with `--security-opt seccomp=unconfined`. Podman was adopted by RHEL as the rootless alternative to Docker specifically to contain this blast radius - `--privileged` re-enables every capability plus device pass-through, negating rootless mode entirely."
+    regex: "containers\\.podman\\.podman_container\\s*:[\\s\\S]{0,400}?privileged\\s*:\\s*(?:true|yes)|podman\\s+(?:run|create)\\s[^\\n]*(?:--privileged\\b|--cap-add[= ](?:SYS_ADMIN|ALL)\\b|--security-opt[= ]label=disable[\\s\\S]{0,80}--security-opt[= ]seccomp=unconfined)"
+    positive_examples:
+      - "command: \"podman run --rm --privileged -v /etc/ceph:/etc/ceph -v /dev:/dev --net=host --entrypoint=rbd {{ ceph_docker_registry }}/{{ ceph_docker_image }}:{{ ceph_docker_image_tag }} map test/rbd_test\""
+    multiline: true
+    window: 8
+    recommendation: "Drop `--privileged` entirely. If the workload needs a specific capability, add only that one (`--cap-add=NET_ADMIN` for a VPN container, `--cap-add=SYS_PTRACE` for a debugger) and combine with `--cap-drop=ALL` first. Keep the default seccomp profile; if a syscall is blocked, tighten the profile rather than disabling it (`podman run --security-opt seccomp=/etc/containers/seccomp.json`). Use rootless mode (`podman run --userns=auto`) as the outer boundary."
+    cwe: ['CWE-250', 'CWE-269']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1068', 'T1611']
+    cis_controls: ['CIS-5.2', 'CIS-K8s-5.2.5']
+    nist_controls: ['AC-6', 'AC-6(1)', 'CM-7', 'SI-4']
+    pci_dss: ['2.2.1', '7.2.1']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC6.1', 'CC6.3']
+
+  - id: "buildah_unshare_as_root"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "Buildah Unshare / Build Running as Root"
+    description: "A task invokes `buildah unshare`, `buildah bud`, or `buildah build` from within a playbook running as root (implied by `become: true` at task level and no explicit `--isolation=rootless`). Running Buildah as root defeats its primary security guarantee - it uses the host's user and mount namespaces directly, which means a malicious `Containerfile` `RUN` step can escape to the host filesystem via a symlink race or crafted `/etc` write."
+    regex: "(?:buildah\\s+(?:unshare|bud|build(?:-using-dockerfile)?)\\s(?:(?!--isolation=rootless)[\\s\\S]){0,200}|containers\\.podman\\.podman_image\\s*:[\\s\\S]{0,400}?build\\s*:[\\s\\S]{0,200}?(?:format|isolation)\\s*:\\s*[\"']?(?:docker|chroot)[\"']?)"
+    positive_examples:
+      - |2-
+        containers.podman.podman_image:
+            executable: "{{ test_executable | default('podman') }}"
+            name: "{{ idem_image }}"
+            path: /tmp/usr_img
+            build:
+              format: docker
+    multiline: true
+    window: 6
+    recommendation: "Run `buildah` as an unprivileged user with `--isolation=rootless` (the default when not root). For CI, run the entire build job under a `UID/GID != 0` user via the runner's user-spec - don't `become: root` just to call buildah. If you need to cross-compile or access privileged syscalls, run the build inside a gVisor or Kata-containers sandbox rather than giving buildah real root."
+    no_ansible_remediation: true
+    cwe: ['CWE-250', 'CWE-269']
+    owasp_appsec: ["A04:2021"]
+    owasp_asvs: ["V14.2.2"]
+    mitre_attack: ['T1611']
+    cis_controls: ['CIS-K8s-5.2.5']
+    nist_controls: ['AC-6', 'CM-7']
+    pci_dss: ['2.2.1', '7.2.1']
+    soc2: ['CC6.1']
+
+  - id: "terraform_apply_auto_approve_from_ansible"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "Ansible Invokes terraform apply -auto-approve"
+    description: "A task runs `terraform apply -auto-approve` (or the `community.general.terraform: state: present` module with `force_init: true` and no plan-then-apply sequence). This bypasses the human review step that Terraform's two-phase plan/apply was designed for - destructive changes (destroy/recreate of a database, security-group rewrite, IAM-role deletion) happen at playbook speed with no diff shown to an operator."
+    regex: "(?:terraform\\s+apply\\s+[^\\n]*-auto-approve\\b|community\\.general\\.terraform\\s*:[\\s\\S]{0,300}?state\\s*:\\s*present[\\s\\S]{0,200}?force_init\\s*:\\s*(?:yes|true))"
+    positive_examples:
+      - "terraform apply -auto-approve"
+    multiline: true
+    window: 10
+    recommendation: "Split into two tasks: `terraform plan -out=tfplan` (with register + assert on expected changes), then `terraform apply tfplan` only after a human-gated confirmation (pause + vars_prompt, or an AAP job-template survey). For unattended runs, use Terraform Cloud / Atlantis so apply requires a PR approval with codified guardrails (Sentinel / OPA)."
+    cwe: ['CWE-284', 'CWE-710']
+    owasp_appsec: ["A01:2021"]
+    mitre_attack: ['T1098', 'T1098.003']
+    cis_controls: ['CIS-3.3']
+    nist_controls: ['CM-3', 'CM-5']
+    pci_dss: ['6.3.2']
+    soc2: ['CC8.1']

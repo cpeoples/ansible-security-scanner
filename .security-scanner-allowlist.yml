@@ -1,0 +1,15 @@
+# Ansible Security Scanner - Allowlist Configuration
+#
+# This file controls which findings are suppressed for specific files.
+# Allowlisted entries produce an INFO-level log instead of a finding,
+# so they still appear in verbose output but do not fail the build.
+#
+# Structure:
+#   allowlist:
+#     - file: <relative path to the ansible file>
+#       rules:
+#         - <rule_id>          # suppress a specific rule
+#         - "*"                # suppress ALL rules for this file
+#       reason: <why this is allowed>
+
+allowlist: []

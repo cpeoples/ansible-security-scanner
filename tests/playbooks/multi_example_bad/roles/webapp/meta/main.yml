@@ -1,0 +1,17 @@
+---
+# Role metadata with deliberately missing ``license:`` - triggers
+# ``role_meta_galaxy_info_missing_license``. Supply-chain hygiene
+# rules flag this as a low-severity legal risk for downstream
+# consumers (a role with no license can't be safely re-shipped in
+# commercial pipelines).
+galaxy_info:
+  role_name: webapp-bad
+  author: unknown
+  description: Intentionally-vulnerable webapp role - regression fixture only.
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+
+dependencies: []

@@ -1,0 +1,10 @@
+---
+# Role orchestration - imports the install and harden task files.
+# Kept import-only so findings in sub-files are reported against
+# those files rather than this one (mirrors realistic role layouts).
+
+- name: Install webapp (vulnerable path)
+  ansible.builtin.import_tasks: install.yml
+
+- name: Pretend-harden webapp (actually weakens it - regression fixture)
+  ansible.builtin.import_tasks: harden.yml

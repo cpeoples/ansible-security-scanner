@@ -1,0 +1,64 @@
+---
+# Test fixture: contract for cross_file_taint skipping local-file shells.
+#
+# The taint tracker conservatively treats every ``register`` that sits
+# under a ``shell``/``command``/``raw`` module as tainted (the output of
+# an arbitrary shell could in principle carry attacker input). In
+# practice, tasks like ``base64 -i /tmp/pkg.spl``, ``cat /etc/app.conf``,
+# ``gunzip /opt/bundle.gz`` process LOCAL trusted files only and import
+# no external data. Flagging those as taint sources drowns out the real
+# signal from ``curl``/``wget``/``ssh``/``http://`` shells.
+#
+# All values are SYNTHETIC.
+
+- name: fixture play for cross_file_taint local-file-shell exemption
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    # -- Local-file-only shells - MUST NOT taint their register ---------
+    - name: base64 a local credential bundle
+      ansible.builtin.shell: base64 -i /tmp/bundle.spl
+      register: bundle_b64
+
+    - name: strip the newline from the local encoding
+      ansible.builtin.set_fact:
+        bundle_payload: "{{ bundle_b64.stdout | regex_replace('\\n', '') }}"
+
+    - name: push the LOCAL-derived payload back to our own API             # scanner-test: reject cross_file_taint
+      ansible.builtin.uri:
+        url: "https://api.example.com/config"
+        method: POST
+        body: '{"payload":"{{ bundle_payload }}"}'
+
+    # Same chain but with jq reading a local JSON file.
+    - name: extract a field from a local JSON config
+      ansible.builtin.shell: jq -r '.api_key' /etc/app/config.json
+      register: api_key_local
+
+    - name: use the locally-extracted value in a uri body                  # scanner-test: reject cross_file_taint
+      ansible.builtin.uri:
+        url: "https://api.example.com/ping"
+        body: "{{ api_key_local.stdout }}"
+
+    # -- Network-facing shell - MUST taint -------------------------------
+    - name: pull an artefact over HTTPS with curl
+      ansible.builtin.shell: curl -sSL https://example.com/artifact.json
+      register: remote_artifact
+
+    # Body is NOT an injection sink - the remote server re-parses it in
+    # its own trust context. Forwarding attacker bytes into another
+    # server's request body is a downstream concern, not an Ansible
+    # RCE/SSRF primitive.
+    - name: body-forward is NOT a sink                                     # scanner-test: reject cross_file_taint
+      ansible.builtin.uri:
+        url: "https://api.example.com/ingest"
+        method: POST
+        body: "{{ remote_artifact.stdout }}"
+
+    # URL IS a sink - if ``remote_artifact.stdout`` rendered into the
+    # request URL, the attacker controls the destination host (SSRF).
+    - name: tainted URL IS a sink                                          # scanner-test: expect cross_file_taint
+      ansible.builtin.uri:
+        url: "https://api.example.com/{{ remote_artifact.stdout }}"
+        method: GET

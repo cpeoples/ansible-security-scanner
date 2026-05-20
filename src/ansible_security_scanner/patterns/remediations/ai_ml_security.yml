@@ -1,0 +1,237 @@
+# Companion Secure Fix snippets for ai_ml_security rules.
+
+remediations:
+
+  # -- LLM / SaaS API key secrets --
+  anthropic_api_key:
+    secure_fix: |
+      - name: Anthropic API key sourced from vault, never committed
+        ansible.builtin.template:
+          src: env.j2
+          dest: /opt/app/.env
+          owner: app
+          group: app
+          mode: '0600'
+        vars:
+          anthropic_api_key: "{{ lookup('community.hashi_vault.vault_kv2_get', 'llm/anthropic', engine_mount_point='secret').data.data.api_key }}"
+        # env.j2:  ANTHROPIC_API_KEY={{ anthropic_api_key }}
+
+  openai_api_key:
+    secure_fix: |
+      - name: OpenAI key from vault, mode 0600 only
+        ansible.builtin.copy:
+          dest: /opt/app/.env
+          content: |
+            OPENAI_API_KEY={{ lookup('community.hashi_vault.vault_kv2_get', 'llm/openai', engine_mount_point='secret').data.data.api_key }}
+            OPENAI_ORG_ID={{ lookup('community.hashi_vault.vault_kv2_get', 'llm/openai', engine_mount_point='secret').data.data.org_id }}
+          owner: app
+          group: app
+          mode: '0600'
+
+  azure_openai_key:
+    secure_fix: |
+      # Prefer Entra ID (managed identity) over key-based auth
+      - name: Azure OpenAI - assign role to MI, no key in playbook
+        azure.azcollection.azure_rm_roleassignment:
+          scope: "/subscriptions/{{ sub }}/resourceGroups/{{ rg }}/providers/Microsoft.CognitiveServices/accounts/{{ aoai_name }}"
+          role_definition_id: "/providers/Microsoft.Authorization/roleDefinitions/5e0bd9bd-7b93-4f28-af87-19fc36ad61bd"   # Cognitive Services OpenAI User
+          assignee_object_id: "{{ app_managed_identity_object_id }}"
+          state: present
+
+  cohere_api_key:
+    secure_fix: |
+      - name: Cohere key from vault, env-only
+        ansible.builtin.copy:
+          dest: /opt/app/.env
+          content: |
+            COHERE_API_KEY={{ lookup('community.hashi_vault.vault_kv2_get', 'llm/cohere').data.data.api_key }}
+          mode: '0600'
+
+  generic_llm_api_key:
+    secure_fix: |
+      - name: LLM provider key from vault, never inline
+        ansible.builtin.copy:
+          dest: /opt/app/.env
+          content: |
+            LLM_PROVIDER_API_KEY={{ lookup('community.hashi_vault.vault_kv2_get', 'llm/{{ llm_provider }}').data.data.api_key }}
+          owner: app
+          group: app
+          mode: '0600'
+
+  google_ai_api_key:
+    secure_fix: |
+      # Prefer Workload Identity Federation; fall back to vaulted key
+      - name: Google AI key from vault, mode 0600
+        ansible.builtin.copy:
+          dest: /opt/app/.env
+          content: |
+            GOOGLE_API_KEY={{ lookup('community.hashi_vault.vault_kv2_get', 'llm/google').data.data.api_key }}
+          mode: '0600'
+
+  huggingface_token:
+    secure_fix: |
+      - name: HF token from vault, scoped read-only
+        ansible.builtin.copy:
+          dest: /opt/app/.env
+          content: |
+            HF_TOKEN={{ lookup('community.hashi_vault.vault_kv2_get', 'llm/huggingface').data.data.token }}
+          mode: '0600'
+
+  replicate_api_token:
+    secure_fix: |
+      - name: Replicate token from vault
+        ansible.builtin.copy:
+          dest: /opt/app/.env
+          content: |
+            REPLICATE_API_TOKEN={{ lookup('community.hashi_vault.vault_kv2_get', 'llm/replicate').data.data.token }}
+          mode: '0600'
+
+  wandb_api_key:
+    secure_fix: |
+      - name: W&B key from vault, project-scoped service account
+        ansible.builtin.copy:
+          dest: /opt/app/.env
+          content: |
+            WANDB_API_KEY={{ lookup('community.hashi_vault.vault_kv2_get', 'llm/wandb').data.data.api_key }}
+          mode: '0600'
+
+  promptfoo_eval_secrets_in_config:
+    secure_fix: |
+      # promptfoo.yaml - secrets via env interpolation, never literals
+      providers:
+        - id: openai:gpt-4o
+          config:
+            apiKey: ${OPENAI_API_KEY}    # env, populated from vault
+        - id: anthropic:claude-3-5-sonnet
+          config:
+            apiKey: ${ANTHROPIC_API_KEY}
+
+  # -- HuggingFace pinning --
+  huggingface_model_download:
+    secure_fix: |
+      - name: HF model pulled to a checked-in snapshot, pinned by revision
+        ansible.builtin.command: >
+          huggingface-cli download
+          mistralai/Mistral-7B-Instruct-v0.3
+          --revision e0bc86c23ce5aae1db576c8cca6f06f1f73af2db
+          --local-dir /opt/models/mistral-7b-v0.3
+          --local-dir-use-symlinks False
+        environment:
+          HF_HUB_OFFLINE: "0"
+          HF_TOKEN: "{{ vault_hf_token }}"
+
+  huggingface_model_unpinned_revision:
+    secure_fix: |
+      - name: HF download pinned to immutable commit (never `main`)
+        ansible.builtin.command: >
+          huggingface-cli download
+          {{ model_repo }}
+          --revision {{ model_commit_sha }}
+          --local-dir /opt/models/{{ model_dir }}
+
+  ollama_registry_pull_insecure_true_or_http:
+    secure_fix: |
+      - name: Ollama - pull from internal HTTPS mirror, validated TLS
+        ansible.builtin.command: ollama pull mirror.internal.example.com/llama3.1:8b-instruct
+        environment:
+          OLLAMA_INSECURE: "false"
+          # NEVER set OLLAMA_INSECURE=true or use http:// in registry URL.
+
+  # -- Jupyter hardening --
+  jupyter_no_auth:
+    secure_fix: |
+      - name: Jupyter Server - require token + bound to loopback
+        ansible.builtin.copy:
+          dest: /opt/jupyter/jupyter_server_config.py
+          content: |
+            c.ServerApp.ip = '127.0.0.1'
+            c.ServerApp.port = 8888
+            c.ServerApp.token = '{{ vault_jupyter_token }}'
+            c.ServerApp.password = ''   # token-based, no UI password
+            c.ServerApp.disable_check_xsrf = False
+            c.ServerApp.allow_origin = ''
+            c.ServerApp.open_browser = False
+          owner: jupyter
+          group: jupyter
+          mode: '0600'
+        notify: restart-jupyter
+
+  jupyter_serverapp_token_disabled:
+    secure_fix: |
+      - name: Jupyter Server - token authentication ON
+        ansible.builtin.lineinfile:
+          path: /opt/jupyter/jupyter_server_config.py
+          regexp: "^c\\.ServerApp\\.token"
+          line: "c.ServerApp.token = '{{ vault_jupyter_token }}'"
+        notify: restart-jupyter
+
+  # -- LangChain / Agent guardrails --
+  langchain_sql_database_chain_return_direct_true:
+    secure_fix: |
+      # Always run with return_direct=False AND read-only DB user
+      - name: SQL agent uses a SELECT-only DB role
+        community.postgresql.postgresql_user:
+          db: appdb
+          name: agent_readonly
+          password: "{{ vault_agent_db_password }}"
+          priv: "ALL_IN_SCHEMA:SELECT"
+          role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE,NOINHERIT
+          state: present
+        # In Python: SQLDatabaseChain(..., return_direct=False,
+        # use_query_checker=True, top_k=10).
+
+  llm_agent_network_egress_unrestricted:
+    secure_fix: |
+      - name: LLM agent egress restricted via NetworkPolicy (allowlist)
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata: { name: agent-egress, namespace: agents }
+            spec:
+              podSelector: { matchLabels: { app: agent } }
+              policyTypes: [Egress]
+              egress:
+                - to:
+                    - namespaceSelector:
+                        matchLabels: { kubernetes.io/metadata.name: kube-system }
+                  ports: [{ protocol: UDP, port: 53 }]
+                - to:
+                    - ipBlock: { cidr: 10.50.0.0/16 }   # internal APIs only
+                  ports: [{ protocol: TCP, port: 443 }]
+
+  # -- MCP / RAG infra --
+  mcp_server_deployed_without_auth:
+    secure_fix: |
+      - name: MCP server - mTLS + bearer token, bound to loopback
+        ansible.builtin.copy:
+          dest: /etc/mcp-server/config.yaml
+          content: |
+            listen: 127.0.0.1:7000
+            tls:
+              cert_file: /etc/mcp-server/tls/server.crt
+              key_file:  /etc/mcp-server/tls/server.key
+              client_ca: /etc/mcp-server/tls/clients-ca.crt
+              require_client_cert: true
+            auth:
+              type: bearer
+              token_file: /etc/mcp-server/secrets/token   # mode 0400
+          owner: mcp
+          group: mcp
+          mode: '0640'
+
+  rag_vector_db_world_readable:
+    secure_fix: |
+      - name: Vector DB index files - app-only access (not world-readable)
+        ansible.builtin.file:
+          path: /opt/app/vectorstore
+          state: directory
+          owner: app
+          group: app
+          mode: '0700'
+          recurse: true
+
+  # -- Cloud GPU --
+  # Most GPU-launch detections are operational signals (use IaC/quota)
+  # and are stamped no_ansible_remediation upstream.

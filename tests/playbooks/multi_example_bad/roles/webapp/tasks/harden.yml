@@ -1,0 +1,37 @@
+---
+# "Harden" tasks - every directive here is a documented anti-pattern.
+# The name is intentionally misleading for the regression fixture;
+# do not copy these rules into real inventory.
+
+- name: Weaken sshd_config - permit root login with passwords
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?PermitRootLogin"
+    line: "PermitRootLogin yes"
+
+- name: Disable kernel dmesg restriction (leaks KASLR pointers)
+  ansible.posix.sysctl:
+    name: kernel.dmesg_restrict
+    value: "0"
+    sysctl_file: /etc/sysctl.d/99-bad.conf
+    state: present
+    reload: true
+
+- name: Write a world-writable config with embedded DB password
+  ansible.builtin.copy:
+    content: |
+      [db]
+      password={{ webapp_db_password }}
+      user={{ webapp_runtime_user }}
+    dest: /etc/webapp/config.ini
+    mode: "0777"
+
+- name: Run a block without rescue/always
+  block:
+    - name: Download a setup script and pipe it straight to bash
+      ansible.builtin.shell: "curl -sSL http://install.example.com/setup.sh | bash"
+      args:
+        warn: false
+
+    - name: Execute a tainted command with registered response body
+      ansible.builtin.command: "/usr/local/bin/apply-config {{ release_manifest.content }}"

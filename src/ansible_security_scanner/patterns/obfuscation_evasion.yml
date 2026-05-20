@@ -1,0 +1,163 @@
+name: "Encoding, Obfuscation & Evasion"
+author: "Ansible Security Scanner Team"
+description: "Detects obfuscated payloads, encoded commands, and evasion techniques designed to bypass security scanners"
+
+patterns:
+  - id: "hex_encoded_payload"
+    category: "obfuscation_evasion"
+    severity: "HIGH"
+    title: "Hex-Encoded Payload Execution"
+    description: "Decodes and executes hex-encoded payloads to evade pattern detection"
+    regex: "(?:printf\\s+['\"]?(?:\\\\x[0-9a-fA-F]{2}){4,}|xxd\\s+-r(?:evert)?\\s*(?:\\||>)|echo.*\\\\x[0-9a-fA-F]{2}.*\\|.*(?:sh|bash))"
+    positive_examples:
+      - 'printf \x00\x00\x00\x00'
+    recommendation: "Hex-encoded payloads are an evasion technique; decode and audit the actual content"
+    cwe: ['CWE-94', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1027', 'T1140']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "gzip_compressed_payload"
+    category: "obfuscation_evasion"
+    severity: "HIGH"
+    title: "Compressed Payload Execution"
+    description: "Decompresses and executes a payload to evade pattern detection"
+    regex: "(?:gunzip|zcat|bzcat|xzcat|lzcat|unxz)\\s*(?:\\||>).*(?:sh|bash|python|perl)|(?:gzip|bzip2|xz)\\s+-d.*\\|.*(?:sh|bash)"
+    positive_examples:
+      - "gunzip|sh"
+    recommendation: "Compressed payloads piped to shells are an evasion technique; inspect the contents"
+    cwe: ['CWE-94', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1027.002', 'T1140']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "python_obfuscated_exec"
+    category: "obfuscation_evasion"
+    severity: "HIGH"
+    title: "Obfuscated Python Code Execution"
+    description: "Executes obfuscated Python code using exec(), compile(), or __import__ tricks"
+    regex: "python[23]?\\s+-c\\s+['\"].*(?:exec\\s*\\(|compile\\s*\\(|__import__\\s*\\(|eval\\s*\\(.*(?:chr|ord|bytes|decode))"
+    positive_examples:
+      - "python -c 'exec("
+    recommendation: "Obfuscated Python one-liners are used to hide malicious intent; decode and audit"
+    cwe: ['CWE-94', 'CWE-95']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1027', 'T1059.006']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "perl_obfuscated_exec"
+    category: "obfuscation_evasion"
+    severity: "HIGH"
+    title: "Obfuscated Perl Code Execution"
+    description: >-
+        perl -e expression mixes eval with pack/unpack/chr or
+        MIME::Base64::decode_base64. The shape decodes a hidden payload at runtime -
+        a textbook AV evasion idiom.
+    regex: "perl\\s+-e\\s+['\"].*(?:eval\\s*(?:pack|unpack|chr)|MIME::Base64|decode_base64)"
+    positive_examples:
+      - "perl -e 'evalpack"
+    recommendation: "Obfuscated Perl one-liners are used to hide malicious intent; decode and audit"
+    cwe: ['CWE-94', 'CWE-95']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1027', 'T1059']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "variable_indirection_evasion"
+    category: "obfuscation_evasion"
+    severity: "HIGH"
+    title: "Variable Indirection for Command Evasion"
+    description: "Uses shell variable concatenation or indirection to construct commands at runtime, evading static detection"
+    regex: "(?:cmd|command|payload)\\s*=.*(?:\\$\\{.*\\}.*\\$\\{|\\+.*\\+).*(?:exec|system|popen|eval)"
+    positive_examples:
+      - "cmd=${}${exec"
+    recommendation: "Variable indirection to build commands is an evasion technique; review the full command"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1027']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "env_var_constructed_command"
+    category: "obfuscation_evasion"
+    severity: "HIGH"
+    title: "Environment Variable Constructed Command"
+    description: "Constructs a command from multiple environment variables to evade detection"
+    regex: "\\$\\{?[A-Z_]+\\}?\\$\\{?[A-Z_]+\\}?\\$\\{?[A-Z_]+\\}?.*(?:\\||>|;|&&)\\s*(?:sh|bash|python|perl)"
+    positive_examples:
+      - "$A$A$A|sh"
+    recommendation: "Commands assembled from env vars may hide malicious payloads"
+    cwe: ['CWE-78', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1027', 'T1059.004']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "base32_encoded_payload"
+    category: "obfuscation_evasion"
+    severity: "HIGH"
+    title: "Base32/Base16 Encoded Payload"
+    description: >-
+        base32 / base16 -d output is piped into sh/bash/python/perl. Encoding hides
+        the payload from string-based detection until it reaches the interpreter.
+    regex: "base(?:32|16)\\s+(?:-d|--decode).*\\|.*(?:sh|bash|python|perl)"
+    positive_examples:
+      - "base32 -d|sh"
+    recommendation: "Encoded payloads are an evasion technique; decode and audit the actual content"
+    cwe: ['CWE-94', 'CWE-506']
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1027', 'T1140']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7', 'SI-10']
+    pci_dss: ['2.2.1', '2.2.4', '6.2.4', '6.3.1']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "rev_string_evasion"
+    category: "obfuscation_evasion"
+    severity: "MEDIUM"
+    title: "Reversed String Evasion"
+    description: "Uses the rev command to reverse obfuscated strings at runtime"
+    regex: "echo\\s+['\"].*['\"]\\s*\\|\\s*rev\\s*\\|\\s*(?:sh|bash|python)"
+    positive_examples:
+      - "echo ''|rev|sh"
+    recommendation: "String reversal piped to a shell is an evasion technique"
+    no_ansible_remediation: true
+    cwe: ['CWE-506']
+    mitre_attack: ['T1027', 'T1140']
+    cis_controls: ['CIS-4.1', 'CIS-10.1']
+    nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7']
+    pci_dss: ['2.2.1', '2.2.4']
+    soc2: ['CC6.8', 'CC7.1', 'CC8.1']
+
+  - id: "curl_output_execution"
+    category: "obfuscation_evasion"
+    severity: "HIGH"
+    title: "Downloaded File Execution"
+    description: "Downloads a file and immediately executes it, bypassing inspection"
+    regex: "(?:curl|wget).*-[oO]\\s+(?:/tmp|/var/tmp|/dev/shm)/\\S+.*(?:&&|;)\\s*(?:chmod|bash|sh|python|perl)\\s+(?:/tmp|/var/tmp|/dev/shm)"
+    positive_examples:
+      - "curl-o /tmp/0&&chmod /tmp"
+    recommendation: "Downloaded files should be verified (checksum) before execution"
+    cwe: ['CWE-494', 'CWE-829']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    mitre_attack: ['T1059.004', 'T1105']
+    cis_controls: ['CIS-Supply-Chain']
+    nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
+    pci_dss: ['6.3.2', '6.3.3']
+    soc2: ['CC7.1', 'CC8.1']

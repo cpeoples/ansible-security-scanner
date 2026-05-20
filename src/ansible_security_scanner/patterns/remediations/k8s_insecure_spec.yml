@@ -1,0 +1,313 @@
+# Companion Secure Fix snippets for k8s_insecure_spec rules.
+
+remediations:
+
+  crio_privileged_runtime_default:
+    secure_fix: |
+      # /etc/crio/crio.conf - never set privileged_without_host_devices
+      # to true; default runtime must NOT be `runc-privileged`.
+      [crio.runtime]
+      default_runtime = "runc"
+      [crio.runtime.runtimes.runc]
+      runtime_path = ""
+      runtime_type = "oci"
+      allowed_annotations = []
+      privileged_without_host_devices = false
+
+  ephemeral_container_debug_image_latest_tag:
+    secure_fix: |
+      - name: kubectl debug - immutable image digest only, never :latest
+        kubernetes.core.k8s_exec:
+          namespace: app
+          pod: app-7c9d
+          container: debugger
+          command: /bin/sh
+        # The debug image is set in your shell wrapper:
+        #   kubectl debug app-7c9d -n app --copy-to=app-debug \
+        #     --image=registry.internal.example.com/debug@sha256:<digest> \
+        #     --share-processes -- /bin/sh
+
+  ingress_nginx_snippet_annotation_enabled:
+    secure_fix: |
+      - name: ingress-nginx - disable snippet annotations cluster-wide
+        kubernetes.core.helm:
+          name: ingress-nginx
+          chart_ref: ingress-nginx/ingress-nginx
+          chart_version: 4.11.3   # patched
+          release_namespace: ingress-nginx
+          values:
+            controller:
+              allowSnippetAnnotations: false
+              config:
+                annotations-risk-level: Critical
+          state: present
+
+  k8s_audit_policy_level_none_or_metadata_only:
+    secure_fix: |
+      # /etc/kubernetes/audit-policy.yaml - RequestResponse for sensitive verbs
+      apiVersion: audit.k8s.io/v1
+      kind: Policy
+      omitStages: ["RequestReceived"]
+      rules:
+        - level: RequestResponse
+          verbs: ["create","update","patch","delete"]
+          resources:
+            - group: "rbac.authorization.k8s.io"
+              resources: ["clusterroles","clusterrolebindings","roles","rolebindings"]
+            - group: ""
+              resources: ["secrets","serviceaccounts/token"]
+        - level: Request
+          resources: [{ group: "", resources: ["*"] }]
+
+  k8s_mutating_webhook_failure_policy_ignore_on_security_resources:
+    secure_fix: |
+      - name: Mutating webhook for security-critical CRs - failurePolicy=Fail
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: admissionregistration.k8s.io/v1
+            kind: MutatingWebhookConfiguration
+            metadata: { name: pod-security-mutator }
+            webhooks:
+              - name: psm.example.com
+                failurePolicy: Fail
+                sideEffects: None
+                admissionReviewVersions: ["v1"]
+                rules:
+                  - operations: ["CREATE","UPDATE"]
+                    apiGroups: [""]
+                    apiVersions: ["v1"]
+                    resources: ["pods","serviceaccounts"]
+
+  k8s_no_new_privileges_false:
+    secure_fix: |
+      - name: Pod with allowPrivilegeEscalation=false (NoNewPrivs ON)
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: v1
+            kind: Pod
+            metadata: { name: app, namespace: app }
+            spec:
+              containers:
+                - name: app
+                  image: registry.internal.example.com/app@sha256:<digest>
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    privileged: false
+                    runAsNonRoot: true
+                    runAsUser: 1001
+                    capabilities: { drop: ["ALL"] }
+
+  k8s_pod_shares_host_namespace:
+    secure_fix: |
+      - name: Pod NEVER shares host namespaces
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: v1
+            kind: Pod
+            metadata: { name: app, namespace: app }
+            spec:
+              hostNetwork: false
+              hostPID: false
+              hostIPC: false
+              automountServiceAccountToken: false
+              containers:
+                - name: app
+                  image: app@sha256:<digest>
+
+  k8s_poddisruptionbudget_blocks_all_evictions:
+    secure_fix: |
+      - name: "PDB - allow at least one disruption (maxUnavailable: 1)"
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: policy/v1
+            kind: PodDisruptionBudget
+            metadata: { name: app, namespace: app }
+            spec:
+              maxUnavailable: 1
+              selector: { matchLabels: { app: app } }
+
+  k8s_tokenrequest_expirationseconds_long_lived:
+    secure_fix: |
+      - name: Projected SA token, short TTL (≤ 3600s) and audience-bound
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: v1
+            kind: Pod
+            metadata: { name: app, namespace: app }
+            spec:
+              serviceAccountName: app
+              containers:
+                - name: app
+                  image: app@sha256:<digest>
+                  volumeMounts:
+                    - name: vault-token
+                      mountPath: /var/run/secrets/vault.example.com
+                      readOnly: true
+              volumes:
+                - name: vault-token
+                  projected:
+                    sources:
+                      - serviceAccountToken:
+                          audience: vault
+                          expirationSeconds: 3600
+                          path: token
+
+  kubelet_anonymous_auth_enabled:
+    secure_fix: |
+      - name: kubelet - anonymous-auth=false, webhook auth, x509 only
+        ansible.builtin.copy:
+          dest: /var/lib/kubelet/config.yaml
+          content: |
+            kind: KubeletConfiguration
+            apiVersion: kubelet.config.k8s.io/v1beta1
+            authentication:
+              anonymous: { enabled: false }
+              webhook: { enabled: true, cacheTTL: 2m0s }
+              x509: { clientCAFile: /etc/kubernetes/pki/ca.crt }
+            authorization: { mode: Webhook }
+            readOnlyPort: 0
+            tlsCipherSuites: [TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384]
+          owner: root
+          group: root
+          mode: '0644'
+        notify: restart-kubelet
+
+  kubelet_read_only_port_10255_enabled:
+    secure_fix: |
+      - name: kubelet - readOnlyPort=0 (disabled)
+        ansible.builtin.lineinfile:
+          path: /var/lib/kubelet/config.yaml
+          regexp: '^readOnlyPort:'
+          line: 'readOnlyPort: 0'
+        notify: restart-kubelet
+
+  kubernetes_pod_security_admission_disabled:
+    secure_fix: |
+      - name: Namespace with PSA `restricted` enforce + audit + warn
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+              name: app
+              labels:
+                pod-security.kubernetes.io/enforce: restricted
+                pod-security.kubernetes.io/enforce-version: latest
+                pod-security.kubernetes.io/audit:   restricted
+                pod-security.kubernetes.io/warn:    restricted
+
+  kubernetes_sa_token_automount_not_disabled:
+    secure_fix: |
+      - name: ServiceAccount + Pod with automountServiceAccountToken=false
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: v1
+            kind: ServiceAccount
+            metadata: { name: app, namespace: app }
+            automountServiceAccountToken: false
+
+      - name: Pod also disables automount (defence in depth)
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: v1
+            kind: Pod
+            metadata: { name: app, namespace: app }
+            spec:
+              serviceAccountName: app
+              automountServiceAccountToken: false
+              containers: [{ name: app, image: app@sha256:<digest> }]
+
+  opa_gatekeeper_kyverno_dryrun_on_critical_policy:
+    secure_fix: |
+      - name: Kyverno cluster policy - validationFailureAction=Enforce
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: kyverno.io/v1
+            kind: ClusterPolicy
+            metadata: { name: require-runasnonroot }
+            spec:
+              validationFailureAction: Enforce
+              background: true
+              rules:
+                - name: runasnonroot
+                  match: { any: [{ resources: { kinds: [Pod] } }] }
+                  validate:
+                    message: "runAsNonRoot is required"
+                    pattern:
+                      spec:
+                        securityContext:
+                          runAsNonRoot: true
+
+  pod_hostaliases_metadata_ip_ssrf_bait:
+    secure_fix: |
+      - name: Pod without hostAliases entries pointing at metadata IPs
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: v1
+            kind: Pod
+            metadata: { name: app, namespace: app }
+            spec:
+              hostAliases: []   # never alias 169.254.169.254 / metadata.google.internal
+              containers: [{ name: app, image: app@sha256:<digest> }]
+
+  pod_security_admission_privileged_namespace:
+    secure_fix: |
+      - name: Privileged namespace promoted to baseline/restricted
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+              name: kube-public
+              labels:
+                pod-security.kubernetes.io/enforce: baseline
+                pod-security.kubernetes.io/audit:   restricted
+                pod-security.kubernetes.io/warn:    restricted
+
+  rbac_binds_cluster_admin_or_system_masters:
+    secure_fix: |
+      - name: Replace cluster-admin binding with a namespaced, least-priv role
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: RoleBinding
+            metadata: { name: app-rolebinding, namespace: app }
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: Role
+              name: app-edit-only
+            subjects:
+              - kind: ServiceAccount
+                name: app
+                namespace: app
+
+  validating_admission_policy_audit_only_on_pods:
+    secure_fix: |
+      - name: ValidatingAdmissionPolicyBinding - validationActions=[Deny,Audit]
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: admissionregistration.k8s.io/v1
+            kind: ValidatingAdmissionPolicyBinding
+            metadata: { name: pod-security }
+            spec:
+              policyName: pod-security
+              validationActions: ["Deny", "Audit"]
+              matchResources:
+                resourceRules:
+                  - apiGroups: [""]
+                    apiVersions: ["v1"]
+                    operations: ["CREATE","UPDATE"]
+                    resources: ["pods"]

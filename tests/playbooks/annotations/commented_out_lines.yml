@@ -1,0 +1,34 @@
+---
+# Test fixture: contract for commented-out-line suppression.
+#
+# A YAML line whose first non-whitespace character is `#` is disabled
+# code. Line-based regex rules historically fire on it as if it were
+# real code - e.g. `# shell: curl -k ...` looks identical to a real
+# `curl -k` task body to the regex. The scanner now suppresses any
+# match anchored on a line that starts with `#`.
+#
+# This is a UNIVERSAL guard - it applies to every rule, not just
+# `curl_wget_insecure_flag_in_shell_task`. The contract below uses
+# that rule as the representative but the guard catches any line-
+# anchored rule firing in a comment.
+#
+# All values are SYNTHETIC.
+
+- name: fixture play for commented-out-line suppression
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    # -- Commented-out review artefact - MUST NOT fire ------------------
+    # The following is prose-embedded example code the author disabled.
+    # It looks like a real `curl -k` task to a line-based regex.
+
+    # - name: old approach (do not use)
+    #   ansible.builtin.shell: curl -k -u admin:hunter2 https://api.example.com/  # scanner-test: reject curl_wget_insecure_flag_in_shell_task
+
+    # - name: another disabled example
+    #   ansible.builtin.shell: wget --no-check-certificate https://api.example.com/file.tar.gz  # scanner-test: reject curl_wget_insecure_flag_in_shell_task
+
+    # -- Real (uncommented) task - MUST fire ----------------------------
+    - name: real curl -k that should trigger the rule
+      ansible.builtin.shell: curl -k -u admin:hunter2 https://api.example.com/       # scanner-test: expect curl_wget_insecure_flag_in_shell_task
