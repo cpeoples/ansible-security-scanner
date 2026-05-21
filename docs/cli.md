@@ -102,6 +102,12 @@ MR / PR commenting (CI/CD):
                                   Disable the default "scan only the MR's
                                   changed YAML files" behaviour - scan the full
                                   --directory even inside an MR pipeline.
+  --inline-comments               Also post per-finding inline review threads
+                                  on each offending diff line (GitLab
+                                  Discussions API / GitHub GraphQL). Off-diff
+                                  findings fall back to file-level threads.
+                                  Idempotent on re-runs.
+  --no-inline-comments            Disable inline review threads (default).
 ```
 
 ## Exit codes

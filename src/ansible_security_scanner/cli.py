@@ -505,6 +505,22 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help="Disable the auto-scope-to-changed-files behaviour (scan "
         "the full --directory even inside an MR pipeline).",
     )
+    mr_group.add_argument(
+        "--inline-comments",
+        dest="inline_comments",
+        action="store_true",
+        default=False,
+        help="Also post per-finding inline review threads (GitLab "
+        "Discussions / GitHub GraphQL) on each offending diff line. "
+        "Off-diff findings post as file-level threads. Idempotent: "
+        "stale threads are resolved on re-runs.",
+    )
+    mr_group.add_argument(
+        "--no-inline-comments",
+        dest="inline_comments",
+        action="store_false",
+        help="Disable inline review threads (default).",
+    )
 
     return parser
 
@@ -884,6 +900,7 @@ def _post_mr_comment(args, ctx, report, scanner) -> None:
         full_report_link=full_report_link,
         previous=comment.fetch_existing_marker(ctx),
         scan_root=Path(scanner.directory) if getattr(scanner, "directory", None) else None,
+        inline_mode=getattr(args, "inline_comments", False),
     )
     result = comment.post_or_update_comment(ctx, body)
 
@@ -914,6 +931,38 @@ def _post_mr_comment(args, ctx, report, scanner) -> None:
             result.findings_count,
             result.bytes_written,
         )
+
+    if getattr(args, "inline_comments", False):
+        _post_inline_comments(args, ctx, report)
+
+
+def _post_inline_comments(args, ctx, report) -> None:
+    """Post per-finding inline review comments alongside the summary."""
+    from . import comment
+
+    changed = comment.fetch_changed_files(ctx) or []
+    inline_result = comment.post_inline_comments(
+        report.findings,
+        ctx,
+        changed_files=set(changed) if changed else None,
+        diff_lines=comment.fetch_diff_lines(ctx),
+    )
+    if inline_result.error:
+        logger.warning(
+            "Inline comments: %s post failed (%s). Scanner exit code is unaffected.",
+            ctx.platform,
+            inline_result.error,
+        )
+        return
+    logger.info(
+        "Inline comments on %s: posted=%d skipped=%d resolved=%d failed=%d capped=%d.",
+        ctx.platform,
+        inline_result.posted,
+        inline_result.skipped,
+        inline_result.resolved,
+        inline_result.failed,
+        inline_result.capped,
+    )
 
 
 def main():

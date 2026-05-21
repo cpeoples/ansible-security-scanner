@@ -123,3 +123,38 @@ findings, the comment flips to a resolved banner:
 | `--mr-comment-full-report PATH` | `security-reports/report.md` | Where to write the full-report artifact the comment links to. |
 | `--mr-comment-scope-changed-files` | on | Auto-scope the scan to the MR's changed YAML files. |
 | `--no-mr-comment-scope-changed-files` | - | Opt out of scoping; scan the full `--directory`. |
+| `--inline-comments` | off | Also post per-finding inline review threads (file-level for off-diff findings). |
+| `--no-inline-comments` | - | Disable inline review threads (default). |
+
+## Inline review threads (optional)
+
+When `--inline-comments` is passed alongside `--gitlab-comment` /
+`--github-comment`, the scanner posts a per-finding inline review
+thread on each offending diff line, in addition to the summary
+comment. Findings on lines the MR didn't touch post as file-level
+threads instead.
+
+The summary comment in inline mode skips the per-finding code
+snippets and the "Show recommended fix" expander (those live in the
+inline threads). Locations, counts, severity dots, and the fix hint
+remain.
+
+On re-runs:
+
+- threads whose finding still exists are skipped,
+- threads whose finding has disappeared are resolved,
+- new findings post new threads.
+
+APIs used:
+
+- **GitLab** [Discussions API][gl-discussions]:
+  `POST /merge_requests/:iid/discussions` (with a `position` payload
+  for line anchors), `PUT .../discussions/:id` to resolve.
+- **GitHub** GraphQL `addPullRequestReviewThread` /
+  `resolveReviewThread`. The v3 REST review-comment endpoint can't
+  anchor file-level threads, so GraphQL is used for both shapes.
+
+Capped at 50 threads per run. HTTP failures are non-fatal and don't
+affect the scanner's exit code.
+
+[gl-discussions]: https://docs.gitlab.com/ee/api/discussions.html
