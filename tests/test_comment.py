@@ -1652,8 +1652,9 @@ class TestSnippetRedaction:
         assert "password" in out and "***" in out
 
     def test_redacts_token_kv_with_equals(self):
-        out = comment._redact_snippet("api_key=ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+        out = comment._redact_snippet("api_key=ghp_PLACEHOLDER_NOT_A_REAL_TOKEN")
         assert "ghp_" not in out
+        assert "PLACEHOLDER_NOT_A_REAL_TOKEN" not in out
         assert "api_key" in out and "***" in out
 
     def test_redacts_url_embedded_credentials(self):

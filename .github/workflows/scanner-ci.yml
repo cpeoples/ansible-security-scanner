@@ -77,7 +77,7 @@ jobs:
         run: twine check --strict dist/*
 
       - name: Upload dist artifacts (for inspection)
-        uses: actions/upload-artifact@v8
+        uses: actions/upload-artifact@v4
         with:
           name: scanner-dist-preview
           path: dist/*
