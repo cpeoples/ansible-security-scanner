@@ -72,7 +72,7 @@ def _github_changed_files(client: Any, ctx: PlatformContext) -> list[str]:
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    for page in range(1, 11):
+    for page in range(1, 51):
         url = (
             f"{ctx.api_url}/repos/{ctx.project_ref}/pulls/{ctx.mr_number}"
             f"/files?per_page=100&page={page}"
@@ -147,7 +147,7 @@ def _github_diff_lines(client: Any, ctx: PlatformContext) -> dict[str, set[int]]
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    for page in range(1, 11):
+    for page in range(1, 51):
         url = (
             f"{ctx.api_url}/repos/{ctx.project_ref}/pulls/{ctx.mr_number}"
             f"/files?per_page=100&page={page}"
@@ -169,16 +169,39 @@ def _github_diff_lines(client: Any, ctx: PlatformContext) -> dict[str, set[int]]
 
 
 def _gitlab_diff_lines(client: Any, ctx: PlatformContext) -> dict[str, set[int]]:
-    out: dict[str, set[int]] = {}
+    """Build ``{file: {line numbers in MR diff}}`` from GitLab.
+
+    Prefers the ``/versions`` endpoint (canonical, untruncated diffs)
+    and falls back to ``/changes`` (which can be truncated on large
+    MRs) only if ``/versions`` returns nothing usable.
+    """
     headers = {"PRIVATE-TOKEN": ctx.token}
-    url = f"{ctx.api_url}/projects/{ctx.project_ref}/merge_requests/{ctx.mr_number}/changes"
-    resp = client.get(url, headers=headers)
-    resp.raise_for_status()
-    for change in (resp.json() or {}).get("changes", []) or []:
-        if change.get("deleted_file"):
+    base = f"{ctx.api_url}/projects/{ctx.project_ref}/merge_requests/{ctx.mr_number}"
+
+    versions_resp = client.get(f"{base}/versions", headers=headers)
+    versions_resp.raise_for_status()
+    versions = versions_resp.json() or []
+    if versions:
+        version_id = versions[0].get("id")
+        if version_id:
+            detail = client.get(f"{base}/versions/{version_id}", headers=headers)
+            detail.raise_for_status()
+            out = _parse_gitlab_diffs((detail.json() or {}).get("diffs") or [])
+            if out:
+                return out
+
+    changes_resp = client.get(f"{base}/changes", headers=headers)
+    changes_resp.raise_for_status()
+    return _parse_gitlab_diffs((changes_resp.json() or {}).get("changes") or [])
+
+
+def _parse_gitlab_diffs(entries: list[dict[str, Any]]) -> dict[str, set[int]]:
+    out: dict[str, set[int]] = {}
+    for entry in entries:
+        if entry.get("deleted_file"):
             continue
-        fp = change.get("new_path") or change.get("old_path")
-        diff = change.get("diff") or ""
+        fp = entry.get("new_path") or entry.get("old_path")
+        diff = entry.get("diff") or ""
         if not fp or not diff:
             continue
         out.setdefault(fp, set()).update(_added_lines_from_patch(diff))

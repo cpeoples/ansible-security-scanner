@@ -131,30 +131,71 @@ findings, the comment flips to a resolved banner:
 When `--inline-comments` is passed alongside `--gitlab-comment` /
 `--github-comment`, the scanner posts a per-finding inline review
 thread on each offending diff line, in addition to the summary
-comment. Findings on lines the MR didn't touch post as file-level
-threads instead.
+comment.
+
+### Body shape
+
+Two body shapes are emitted, depending on whether the thread is
+anchored to a diff line:
+
+- **Anchored threads** show only the rule, severity, one-line
+  description, and fix hint. The platform renders the diff hunk
+  itself above the comment (green/red line markers, surrounding
+  context), so we do not duplicate it as a fenced YAML block.
+- **File-level threads** (off-diff findings, or anchored posts the
+  platform rejected) include a fenced YAML snippet of the
+  offending code, since there's no rendered diff above to provide
+  context.
+
+### Anchor-first with file-level fallback
+
+For every finding the scanner asks the platform to anchor the
+thread on `(file_path, line_number)`. If the platform rejects the
+anchor (line not actually in the MR's diff per the platform's view,
+file renamed in a way the position payload can't express, etc.) the
+thread is automatically retried as a file-level comment.
+
+`fetch_diff_lines()` is treated as a hint for round-trip avoidance,
+not as the source of truth. On GitLab the hint comes from the
+`/merge_requests/:iid/versions/:id` endpoint (canonical, untruncated
+diffs), falling back to `/changes` if `/versions` returns nothing.
+On GitHub the hint comes from `/pulls/:number/files`.
+
+### Summary-comment changes
 
 The summary comment in inline mode skips the per-finding code
 snippets and the "Show recommended fix" expander (those live in the
 inline threads). Locations, counts, severity dots, and the fix hint
 remain.
 
-On re-runs:
+### On re-runs
 
 - threads whose finding still exists are skipped,
 - threads whose finding has disappeared are resolved,
 - new findings post new threads.
 
-APIs used:
+### APIs used
 
 - **GitLab** [Discussions API][gl-discussions]:
   `POST /merge_requests/:iid/discussions` (with a `position` payload
   for line anchors), `PUT .../discussions/:id` to resolve.
+  Diff lines come from `GET /merge_requests/:iid/versions` →
+  `GET /merge_requests/:iid/versions/:id`.
 - **GitHub** GraphQL `addPullRequestReviewThread` /
   `resolveReviewThread`. The v3 REST review-comment endpoint can't
   anchor file-level threads, so GraphQL is used for both shapes.
+  Diff lines come from `GET /repos/:owner/:repo/pulls/:n/files`.
 
-Capped at 50 threads per run. HTTP failures are non-fatal and don't
-affect the scanner's exit code.
+### Operational notes
+
+- Capped at 50 threads per run. HTTP failures are non-fatal and
+  don't affect the scanner's exit code.
+- The summary log line reports `posted=N (anchored=A file_level=F
+  fallback=R) skipped=S resolved=X failed=Y capped=C`. A non-zero
+  `fallback` count is normal and indicates the platform rejected
+  some anchor positions; a non-zero `failed` count is worth
+  investigating (5xx, network errors, or fallback also failed).
+- 4xx responses on anchored posts trigger the file-level retry; 5xx
+  / transport errors do not (those are usually transient).
 
 [gl-discussions]: https://docs.gitlab.com/ee/api/discussions.html

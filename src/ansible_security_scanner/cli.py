@@ -944,7 +944,7 @@ def _post_inline_comments(args, ctx, report) -> None:
     inline_result = comment.post_inline_comments(
         report.findings,
         ctx,
-        changed_files=set(changed) if changed else None,
+        changed_files=set(changed) or None,
         diff_lines=comment.fetch_diff_lines(ctx),
     )
     if inline_result.error:
@@ -953,16 +953,6 @@ def _post_inline_comments(args, ctx, report) -> None:
             ctx.platform,
             inline_result.error,
         )
-        return
-    logger.info(
-        "Inline comments on %s: posted=%d skipped=%d resolved=%d failed=%d capped=%d.",
-        ctx.platform,
-        inline_result.posted,
-        inline_result.skipped,
-        inline_result.resolved,
-        inline_result.failed,
-        inline_result.capped,
-    )
 
 
 def main():

@@ -70,10 +70,35 @@ def _resp(payload: Any, *, status: int = 200) -> MagicMock:
     return r
 
 
+def _routed_client(*, get=None, post=None, put=None) -> MagicMock:
+    """Build a mocked ``httpx.Client`` context-manager whose ``get``/``post``/``put``
+    are routed through the supplied callables.
+    """
+    client = MagicMock()
+    if get is not None:
+        client.get.side_effect = get
+    if post is not None:
+        client.post.side_effect = post
+    if put is not None:
+        client.put.side_effect = put
+    cm = MagicMock()
+    cm.__enter__.return_value = client
+    cm.__exit__.return_value = None
+    return cm
+
+
+def _http_error(status: int) -> Any:
+    return comment.httpx.HTTPStatusError(
+        f"{status}",
+        request=MagicMock(),
+        response=MagicMock(status_code=status),
+    )
+
+
 class TestRenderInlineBody:
     def test_includes_severity_rule_title_and_marker(self):
         finding = _Finding("rule_a", "HIGH", "f.yml", 10)
-        body = comment.inline._render_inline_body(finding)
+        body = comment.inline._render_inline_body(finding, anchored=False)
         assert "HIGH" in body
         assert "`rule_a`" in body
         assert "title" in body
@@ -81,9 +106,21 @@ class TestRenderInlineBody:
 
     def test_marker_round_trips(self):
         finding = _Finding("rule_a", "HIGH", "f.yml", 10)
-        body = comment.inline._render_inline_body(finding)
+        body = comment.inline._render_inline_body(finding, anchored=False)
         fp = comment.inline._decode_inline_marker(body)
         assert fp == comment.inline._finding_fingerprint(finding)
+
+    def test_anchored_body_omits_yaml_fence(self):
+        finding = _Finding("rule_a", "HIGH", "f.yml", 10)
+        body = comment.inline._render_inline_body(finding, anchored=True)
+        assert "```yaml" not in body
+        assert "validate_certs" not in body
+        assert "**Fix:**" in body
+
+    def test_file_level_body_keeps_yaml_fence(self):
+        finding = _Finding("rule_a", "HIGH", "f.yml", 10)
+        body = comment.inline._render_inline_body(finding, anchored=False)
+        assert "```yaml" in body
 
     def test_redacts_credentials_in_snippet(self):
         finding = _Finding(
@@ -94,7 +131,7 @@ class TestRenderInlineBody:
             code_snippet='- name: x\n  uri:\n    password: "hunter2"',
             match_line='password: "hunter2"',
         )
-        body = comment.inline._render_inline_body(finding)
+        body = comment.inline._render_inline_body(finding, anchored=False)
         assert "hunter2" not in body
         assert "***" in body
 
@@ -280,13 +317,7 @@ class TestGitHubInline:
                 {"data": {"addPullRequestReviewThread": {"thread": {"id": "T_1", "url": "u"}}}}
             )
 
-        client = MagicMock()
-        client.post.side_effect = _post
-        cm = MagicMock()
-        cm.__enter__.return_value = client
-        cm.__exit__.return_value = None
-
-        with patch.object(comment.httpx, "Client", return_value=cm):
+        with patch.object(comment.httpx, "Client", return_value=_routed_client(post=_post)):
             r = comment.post_inline_comments(
                 [finding],
                 ctx,
@@ -318,6 +349,192 @@ class TestDiffLineParsing:
 
     def test_handles_no_hunks(self):
         assert comment.posting._added_lines_from_patch("") == set()
+
+    def test_parse_gitlab_diffs_skips_deleted_files(self):
+        entries = [
+            {"deleted_file": True, "old_path": "x.yml", "diff": "@@ -1 +0 @@\n-old\n"},
+            {
+                "new_path": "a.yml",
+                "old_path": "a.yml",
+                "diff": "@@ -1,1 +1,2 @@\n a\n+b\n",
+            },
+        ]
+        out = comment.posting._parse_gitlab_diffs(entries)
+        assert "x.yml" not in out
+        assert out["a.yml"] == {1, 2}
+
+    def test_gitlab_diff_lines_prefers_versions_endpoint(self):
+        ctx = _ctx("gitlab")
+        urls: list[str] = []
+
+        def _get(url, *, headers=None):
+            urls.append(url)
+            if url.endswith("/versions"):
+                return _resp([{"id": 99, "head_commit_sha": "H"}])
+            if url.endswith("/versions/99"):
+                return _resp(
+                    {
+                        "diffs": [
+                            {
+                                "new_path": "a.yml",
+                                "old_path": "a.yml",
+                                "diff": "@@ -1,1 +1,2 @@\n a\n+b\n",
+                            }
+                        ]
+                    }
+                )
+            return _resp({"changes": []})
+
+        with patch.object(comment.httpx, "Client", return_value=_routed_client(get=_get)):
+            out = comment.fetch_diff_lines(ctx)
+
+        assert out == {"a.yml": {1, 2}}
+        assert any(u.endswith("/versions") for u in urls)
+        assert any(u.endswith("/versions/99") for u in urls)
+        assert not any(u.endswith("/changes") for u in urls)
+
+    def test_gitlab_diff_lines_falls_back_to_changes_when_versions_empty(self):
+        ctx = _ctx("gitlab")
+
+        def _get(url, *, headers=None):
+            if url.endswith("/versions"):
+                return _resp([])
+            if url.endswith("/changes"):
+                return _resp(
+                    {
+                        "changes": [
+                            {
+                                "new_path": "a.yml",
+                                "old_path": "a.yml",
+                                "diff": "@@ -1,1 +1,2 @@\n a\n+b\n",
+                            }
+                        ]
+                    }
+                )
+            return _resp({})
+
+        with patch.object(comment.httpx, "Client", return_value=_routed_client(get=_get)):
+            out = comment.fetch_diff_lines(ctx)
+
+        assert out == {"a.yml": {1, 2}}
+
+
+class TestGitLabAnchorFallback:
+    def test_anchored_post_400_falls_back_to_file_level(self):
+        ctx = _ctx("gitlab")
+        finding = _Finding("r", "HIGH", "a.yml", 5)
+
+        rejected = MagicMock()
+        rejected.raise_for_status.side_effect = _http_error(400)
+        accepted = _resp({"id": "disc-1"})
+
+        cm = _mock_client(
+            [
+                _resp([]),
+                _resp({"diff_refs": {"base_sha": "B", "start_sha": "S", "head_sha": "H"}}),
+                rejected,
+                accepted,
+            ]
+        )
+        with patch.object(comment.httpx, "Client", return_value=cm):
+            r = comment.post_inline_comments(
+                [finding],
+                ctx,
+                changed_files={"a.yml"},
+                diff_lines={"a.yml": {5}},
+            )
+        assert r.posted == 1
+        assert r.anchored == 0
+        assert r.file_level == 1
+        assert r.fallback == 1
+
+    def test_anchored_post_500_does_not_fall_back(self):
+        ctx = _ctx("gitlab")
+        finding = _Finding("r", "HIGH", "a.yml", 5)
+
+        broken = MagicMock()
+        broken.raise_for_status.side_effect = _http_error(503)
+        cm = _mock_client(
+            [
+                _resp([]),
+                _resp({"diff_refs": {"base_sha": "B", "start_sha": "S", "head_sha": "H"}}),
+                broken,
+            ]
+        )
+        with patch.object(comment.httpx, "Client", return_value=cm):
+            r = comment.post_inline_comments(
+                [finding],
+                ctx,
+                changed_files={"a.yml"},
+                diff_lines={"a.yml": {5}},
+            )
+        assert r.posted == 0
+        assert r.failed == 1
+        assert r.fallback == 0
+
+
+class TestGitHubAnchorFallback:
+    def test_graphql_error_on_anchored_falls_back_to_file_level(self):
+        ctx = _ctx("github")
+        finding = _Finding("r", "HIGH", "a.yml", 5)
+
+        captured: list[dict[str, Any]] = []
+
+        def _post(url, *, headers=None, json=None):
+            captured.append(json or {})
+            q = (json or {}).get("query") or ""
+            if "PRId" in q:
+                return _resp({"data": {"repository": {"pullRequest": {"id": "PR_1"}}}})
+            if "Threads" in q:
+                return _resp(
+                    {
+                        "data": {
+                            "repository": {
+                                "pullRequest": {
+                                    "reviewThreads": {
+                                        "nodes": [],
+                                        "pageInfo": {
+                                            "hasNextPage": False,
+                                            "endCursor": None,
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    }
+                )
+            inp = (json or {}).get("variables", {}).get("input", {})
+            if inp.get("subjectType") == "FILE":
+                return _resp(
+                    {"data": {"addPullRequestReviewThread": {"thread": {"id": "T_1", "url": "u"}}}}
+                )
+            return _resp({"errors": [{"message": "pull_request_review_thread.line is invalid"}]})
+
+        with patch.object(comment.httpx, "Client", return_value=_routed_client(post=_post)):
+            r = comment.post_inline_comments(
+                [finding],
+                ctx,
+                changed_files={"a.yml"},
+                diff_lines={"a.yml": {5}},
+            )
+        assert r.posted == 1
+        assert r.fallback == 1
+        assert r.file_level == 1
+        assert r.anchored == 0
+        anchored_attempts = [
+            c
+            for c in captured
+            if "addPullRequestReviewThread" in (c.get("query") or "")
+            and (c.get("variables", {}).get("input", {}).get("subjectType") != "FILE")
+        ]
+        file_level_attempts = [
+            c
+            for c in captured
+            if "addPullRequestReviewThread" in (c.get("query") or "")
+            and c.get("variables", {}).get("input", {}).get("subjectType") == "FILE"
+        ]
+        assert len(anchored_attempts) == 1
+        assert len(file_level_attempts) == 1
 
 
 class TestSummaryInlineMode:

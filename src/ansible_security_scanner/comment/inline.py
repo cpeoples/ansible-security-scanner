@@ -31,7 +31,7 @@ _INLINE_MARKER_PREFIX = "<!-- ansible-security-scanner:inline:v1:"
 _INLINE_MARKER_SUFFIX = " -->"
 _INLINE_MARKER_RE = re.compile(r"<!--\s*ansible-security-scanner:inline:v1:([0-9a-f]{16})\s*-->")
 
-# Beyond this many threads the summary comment is the saner read.
+# Beyond this cap, the summary comment is a saner read than 50+ threads.
 _MAX_INLINE_COMMENTS = 50
 
 
@@ -42,8 +42,23 @@ class InlinePostResult:
     resolved: int = 0
     failed: int = 0
     capped: int = 0
+    anchored: int = 0
+    file_level: int = 0
+    fallback: int = 0
     error: str | None = None
     thread_urls: list[str] = field(default_factory=list)
+
+    def _record(self, *, posted: bool, anchored: bool, attempted_anchor: bool) -> None:
+        if not posted:
+            self.failed += 1
+            return
+        self.posted += 1
+        if anchored:
+            self.anchored += 1
+        else:
+            self.file_level += 1
+            if attempted_anchor:
+                self.fallback += 1
 
 
 def _httpx() -> Any:
@@ -63,7 +78,39 @@ def _decode_inline_marker(body: str) -> str | None:
     return m.group(1) if m else None
 
 
-def _render_inline_body(finding: Any) -> str:
+def _is_4xx(exc: Any) -> bool:
+    """True if ``exc`` is an httpx HTTPStatusError with a 4xx status."""
+    resp = getattr(exc, "response", None)
+    code = getattr(resp, "status_code", None)
+    return isinstance(code, int) and 400 <= code < 500
+
+
+def _log_summary(ctx: PlatformContext, result: InlinePostResult) -> None:
+    logger.info(
+        "Inline comments on %s: posted=%d (anchored=%d file_level=%d "
+        "fallback=%d) skipped=%d resolved=%d failed=%d capped=%d.",
+        ctx.platform,
+        result.posted,
+        result.anchored,
+        result.file_level,
+        result.fallback,
+        result.skipped,
+        result.resolved,
+        result.failed,
+        result.capped,
+    )
+
+
+def _render_inline_body(finding: Any, *, anchored: bool) -> str:
+    """Render an inline-thread body for ``finding``.
+
+    ``anchored=True`` skips the YAML code fence: the platform renders
+    the diff hunk above the comment, so the snippet would duplicate it.
+
+    ``anchored=False`` keeps the fenced snippet: file-level threads
+    aren't attached to a hunk, so the snippet is the only context the
+    reviewer gets.
+    """
     severity = (getattr(finding, "severity", "") or "LOW").upper()
     emoji = _SEVERITY_EMOJI.get(severity, "\u26aa")
     rule_id = getattr(finding, "rule_id", "") or "unknown"
@@ -77,12 +124,13 @@ def _render_inline_body(finding: Any) -> str:
     if description:
         parts.append(description)
 
-    snippet = _redact_snippet(
-        getattr(finding, "code_snippet", "") or "",
-        pin=getattr(finding, "match_line", "") or "",
-    )
-    if snippet:
-        parts.append(f"```yaml\n{snippet}\n```")
+    if not anchored:
+        snippet = _redact_snippet(
+            getattr(finding, "code_snippet", "") or "",
+            pin=getattr(finding, "match_line", "") or "",
+        )
+        if snippet:
+            parts.append(f"```yaml\n{snippet}\n```")
 
     if fix:
         parts.append(f"\U0001f4a1 **Fix:** {fix}")
@@ -96,8 +144,15 @@ def _split_findings(
     changed_files: set[str] | None,
     diff_lines: dict[str, set[int]] | None,
 ) -> tuple[list[Any], list[Any]]:
-    line_anchored: list[Any] = []
-    file_level: list[Any] = []
+    """Hint-split findings into ``(anchor_candidates, file_level_only)``.
+
+    Findings whose ``(file, line)`` looks on-diff per ``changed_files`` /
+    ``diff_lines`` go in the first bucket; the rest in the second. The
+    split is advisory: callers still let the platform reject anchors and
+    fall back at request time.
+    """
+    anchor_candidates: list[Any] = []
+    file_level_only: list[Any] = []
     have_diff = changed_files is not None or diff_lines is not None
     for f in findings:
         fp = getattr(f, "file_path", "") or ""
@@ -105,10 +160,10 @@ def _split_findings(
         in_changed = changed_files is None or fp in changed_files
         in_lines = diff_lines is None or ln in diff_lines.get(fp, set())
         if not have_diff or (in_changed and in_lines):
-            line_anchored.append(f)
+            anchor_candidates.append(f)
         else:
-            file_level.append(f)
-    return line_anchored, file_level
+            file_level_only.append(f)
+    return anchor_candidates, file_level_only
 
 
 def post_inline_comments(
@@ -121,8 +176,12 @@ def post_inline_comments(
 ) -> InlinePostResult:
     """Post, skip, or resolve per-finding inline threads on ``ctx``'s MR/PR.
 
-    Findings whose ``file_path``/``line_number`` are not in the diff
-    metadata fall back to file-level threads.
+    For each finding the platform is asked to anchor the thread on its
+    ``(file, line)``. If the platform rejects the anchor (line not
+    actually in the MR's diff, file renamed in a way the position
+    payload can't express, etc.) the thread is retried as a file-level
+    comment. ``diff_lines`` is a hint that lets us skip the round-trip
+    for findings we already know are off-diff; it is not authoritative.
     """
     findings = list(findings)
     try:
@@ -161,12 +220,12 @@ def _gitlab_post_inline(
         existing_index = _gitlab_existing_discussions(client, headers, base)
         diff_refs = _gitlab_diff_refs(client, headers, base)
 
-        line_anchored, file_level = _split_findings(findings, changed_files, diff_lines)
-        file_level_ids = {id(f) for f in file_level}
+        anchor_candidates, file_level_only = _split_findings(findings, changed_files, diff_lines)
+        anchor_ids = {id(f) for f in anchor_candidates}
         wanted_fps: set[str] = set()
         posted = 0
 
-        for finding in line_anchored + file_level:
+        for finding in anchor_candidates + file_level_only:
             if posted >= _MAX_INLINE_COMMENTS:
                 result.capped += 1
                 continue
@@ -175,22 +234,14 @@ def _gitlab_post_inline(
             if fp in existing_index:
                 result.skipped += 1
                 continue
-            payload: dict[str, Any] = {"body": _render_inline_body(finding)}
-            if id(finding) not in file_level_ids and diff_refs is not None:
-                payload["position"] = _gitlab_position(finding, diff_refs)
-            try:
-                resp = client.post(f"{base}/discussions", headers=headers, json=payload)
-                resp.raise_for_status()
+
+            try_anchor = id(finding) in anchor_ids and diff_refs is not None
+            posted_one, anchored = _gitlab_post_one(
+                client, headers, base, finding, ctx.token, diff_refs, try_anchor=try_anchor
+            )
+            result._record(posted=posted_one, anchored=anchored, attempted_anchor=try_anchor)
+            if posted_one:
                 posted += 1
-                result.posted += 1
-            except httpx.HTTPError as exc:
-                result.failed += 1
-                logger.warning(
-                    "Inline comments: GitLab POST failed for %s:%s (%s).",
-                    getattr(finding, "file_path", "?"),
-                    getattr(finding, "line_number", "?"),
-                    _redact(str(exc), ctx.token),
-                )
 
         for fp, disc_id in existing_index.items():
             if fp in wanted_fps:
@@ -209,7 +260,69 @@ def _gitlab_post_inline(
                     _redact(str(exc), ctx.token),
                 )
 
+    _log_summary(ctx, result)
     return result
+
+
+def _gitlab_post_one(
+    client: Any,
+    headers: dict[str, str],
+    base: str,
+    finding: Any,
+    token: str,
+    diff_refs: dict[str, str] | None,
+    *,
+    try_anchor: bool,
+) -> tuple[bool, bool]:
+    """Post a single GitLab discussion. Returns ``(posted, anchored)``.
+
+    Tries an anchored post first when ``try_anchor`` is set; on a 4xx
+    response (typically "Note position is invalid"), retries with a
+    file-level body. 5xx and network errors are not retried.
+    """
+    httpx = _httpx()
+    file_path = getattr(finding, "file_path", "?")
+    line_number = getattr(finding, "line_number", "?")
+
+    if try_anchor and diff_refs is not None:
+        payload = {
+            "body": _render_inline_body(finding, anchored=True),
+            "position": _gitlab_position(finding, diff_refs),
+        }
+        try:
+            resp = client.post(f"{base}/discussions", headers=headers, json=payload)
+            resp.raise_for_status()
+            return True, True
+        except httpx.HTTPError as exc:
+            if not _is_4xx(exc):
+                logger.warning(
+                    "Inline comments: GitLab POST failed for %s:%s (%s).",
+                    file_path,
+                    line_number,
+                    _redact(str(exc), token),
+                )
+                return False, False
+            logger.info(
+                "Inline comments: GitLab rejected anchored post for %s:%s, "
+                "retrying as file-level (%s).",
+                file_path,
+                line_number,
+                _redact(str(exc), token),
+            )
+
+    payload = {"body": _render_inline_body(finding, anchored=False)}
+    try:
+        resp = client.post(f"{base}/discussions", headers=headers, json=payload)
+        resp.raise_for_status()
+        return True, False
+    except httpx.HTTPError as exc:
+        logger.warning(
+            "Inline comments: GitLab file-level POST failed for %s:%s (%s).",
+            file_path,
+            line_number,
+            _redact(str(exc), token),
+        )
+        return False, False
 
 
 def _gitlab_existing_discussions(client: Any, headers: dict[str, str], base: str) -> dict[str, str]:
@@ -342,12 +455,12 @@ def _github_post_inline(
         existing_index = _github_existing_threads(
             client, headers, graphql_url, owner, name, ctx.mr_number
         )
-        line_anchored, file_level = _split_findings(findings, changed_files, diff_lines)
-        file_level_ids = {id(f) for f in file_level}
+        anchor_candidates, file_level_only = _split_findings(findings, changed_files, diff_lines)
+        anchor_ids = {id(f) for f in anchor_candidates}
         wanted_fps: set[str] = set()
         posted = 0
 
-        for finding in line_anchored + file_level:
+        for finding in anchor_candidates + file_level_only:
             if posted >= _MAX_INLINE_COMMENTS:
                 result.capped += 1
                 continue
@@ -357,54 +470,15 @@ def _github_post_inline(
                 result.skipped += 1
                 continue
 
-            inp: dict[str, Any] = {
-                "pullRequestId": pr_id,
-                "body": _render_inline_body(finding),
-                "path": getattr(finding, "file_path", "") or "",
-            }
-            if id(finding) in file_level_ids:
-                inp["subjectType"] = "FILE"
-            else:
-                inp["line"] = int(getattr(finding, "line_number", 0) or 0)
-                inp["side"] = "RIGHT"
-
-            try:
-                resp = client.post(
-                    graphql_url,
-                    headers=headers,
-                    json={
-                        "query": _GH_GRAPHQL_MUTATION_ADD_THREAD,
-                        "variables": {"input": inp},
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json() or {}
-                errors = data.get("errors")
-            except httpx.HTTPError as exc:
-                result.failed += 1
-                logger.warning(
-                    "Inline comments: GitHub addReviewThread failed for %s:%s (%s).",
-                    getattr(finding, "file_path", "?"),
-                    getattr(finding, "line_number", "?"),
-                    _redact(str(exc), ctx.token),
-                )
-                continue
-            if errors:
-                result.failed += 1
-                logger.warning(
-                    "Inline comments: GitHub addReviewThread errors for %s:%s (%s).",
-                    getattr(finding, "file_path", "?"),
-                    getattr(finding, "line_number", "?"),
-                    _redact(str(errors), ctx.token),
-                )
-                continue
-            thread = ((data.get("data") or {}).get("addPullRequestReviewThread") or {}).get(
-                "thread"
-            ) or {}
-            if thread.get("url"):
-                result.thread_urls.append(thread["url"])
-            posted += 1
-            result.posted += 1
+            try_anchor = id(finding) in anchor_ids
+            posted_one, anchored, url = _github_post_one(
+                client, headers, graphql_url, pr_id, finding, ctx.token, try_anchor=try_anchor
+            )
+            result._record(posted=posted_one, anchored=anchored, attempted_anchor=try_anchor)
+            if posted_one:
+                posted += 1
+                if url:
+                    result.thread_urls.append(url)
 
         for fp, thread_id in existing_index.items():
             if fp in wanted_fps:
@@ -426,7 +500,106 @@ def _github_post_inline(
                     _redact(str(exc), ctx.token),
                 )
 
+    _log_summary(ctx, result)
     return result
+
+
+def _github_post_one(
+    client: Any,
+    headers: dict[str, str],
+    graphql_url: str,
+    pr_id: str,
+    finding: Any,
+    token: str,
+    *,
+    try_anchor: bool,
+) -> tuple[bool, bool, str | None]:
+    """Post a single GitHub review thread. Returns ``(posted, anchored, url)``.
+
+    Tries an anchored ``addPullRequestReviewThread`` first when
+    ``try_anchor`` is set; on a 4xx response or GraphQL ``errors``
+    field (e.g. "pull_request_review_thread.line must be part of the
+    diff"), retries with ``subjectType: FILE``.
+    """
+    if try_anchor:
+        anchored_input = {
+            "pullRequestId": pr_id,
+            "body": _render_inline_body(finding, anchored=True),
+            "path": getattr(finding, "file_path", "") or "",
+            "line": int(getattr(finding, "line_number", 0) or 0),
+            "side": "RIGHT",
+        }
+        ok, url, retry = _github_send_thread(client, headers, graphql_url, anchored_input, token)
+        if ok:
+            return True, True, url
+        if not retry:
+            return False, False, None
+        logger.info(
+            "Inline comments: GitHub rejected anchored thread for %s:%s, retrying as file-level.",
+            getattr(finding, "file_path", "?"),
+            getattr(finding, "line_number", "?"),
+        )
+
+    file_level_input = {
+        "pullRequestId": pr_id,
+        "body": _render_inline_body(finding, anchored=False),
+        "path": getattr(finding, "file_path", "") or "",
+        "subjectType": "FILE",
+    }
+    ok, url, _retry = _github_send_thread(client, headers, graphql_url, file_level_input, token)
+    return ok, False, url
+
+
+def _github_send_thread(
+    client: Any,
+    headers: dict[str, str],
+    graphql_url: str,
+    inp: dict[str, Any],
+    token: str,
+) -> tuple[bool, str | None, bool]:
+    """Send one ``addPullRequestReviewThread`` mutation.
+
+    Returns ``(posted, thread_url, retry_as_file_level)``. ``retry_as_file_level``
+    is True only on 4xx HTTP or GraphQL errors that look like position
+    rejections - those we retry; transport / 5xx / unknown errors we don't.
+    """
+    httpx = _httpx()
+    try:
+        resp = client.post(
+            graphql_url,
+            headers=headers,
+            json={
+                "query": _GH_GRAPHQL_MUTATION_ADD_THREAD,
+                "variables": {"input": inp},
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json() or {}
+    except httpx.HTTPError as exc:
+        retry = _is_4xx(exc) and inp.get("subjectType") != "FILE"
+        if not retry:
+            logger.warning(
+                "Inline comments: GitHub addReviewThread failed for %s:%s (%s).",
+                inp.get("path", "?"),
+                inp.get("line", "?"),
+                _redact(str(exc), token),
+            )
+        return False, None, retry
+
+    errors = data.get("errors")
+    if errors:
+        retry = inp.get("subjectType") != "FILE"
+        if not retry:
+            logger.warning(
+                "Inline comments: GitHub addReviewThread errors for %s:%s (%s).",
+                inp.get("path", "?"),
+                inp.get("line", "?"),
+                _redact(str(errors), token),
+            )
+        return False, None, retry
+
+    thread = ((data.get("data") or {}).get("addPullRequestReviewThread") or {}).get("thread") or {}
+    return True, thread.get("url"), False
 
 
 def _github_pr_node_id(
