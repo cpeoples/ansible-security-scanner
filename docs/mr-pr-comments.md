@@ -138,14 +138,30 @@ comment.
 Two body shapes are emitted, depending on whether the thread is
 anchored to a diff line:
 
-- **Anchored threads** show only the rule, severity, one-line
-  description, and fix hint. The platform renders the diff hunk
-  itself above the comment (green/red line markers, surrounding
-  context), so we do not duplicate it as a fenced YAML block.
+- **Anchored threads** include the rule header, the full description,
+  the full recommendation prose, a `<details>` block with the
+  remediation example (when the rule ships one), a `<details>` block
+  with compliance-framework links, and the resolution disclaimer.
+  The platform renders the diff hunk itself above the comment
+  (green/red line markers, surrounding context), so we do not
+  duplicate it as a fenced YAML block.
 - **File-level threads** (off-diff findings, or anchored posts the
-  platform rejected) include a fenced YAML snippet of the
-  offending code, since there's no rendered diff above to provide
-  context.
+  platform rejected) carry the same enriched body as anchored threads
+  *plus* a fenced YAML snippet of the offending code, since there's
+  no rendered diff above to provide context.
+
+Both shapes end with the resolution-semantics disclaimer:
+
+> *Resolving this thread does not unblock the pipeline. The scan
+> re-runs on every push and will close fixed-finding threads
+> automatically.*
+
+GitLab and GitHub do not expose a way to suppress the per-thread
+"Resolve thread" button on MR/PR diff discussions (the `resolvable`
+attribute is a read-only response field, not a request parameter).
+The disclaimer makes the button's actual semantics explicit:
+resolving locally is bookkeeping only - the CI gate is driven by
+re-running the scan, not by thread state.
 
 ### Anchor-first with file-level fallback
 

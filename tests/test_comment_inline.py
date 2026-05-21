@@ -115,7 +115,7 @@ class TestRenderInlineBody:
         body = comment.inline._render_inline_body(finding, anchored=True)
         assert "```yaml" not in body
         assert "validate_certs" not in body
-        assert "**Fix:**" in body
+        assert "**Recommendation:**" in body
 
     def test_file_level_body_keeps_yaml_fence(self):
         finding = _Finding("rule_a", "HIGH", "f.yml", 10)
@@ -134,6 +134,51 @@ class TestRenderInlineBody:
         body = comment.inline._render_inline_body(finding, anchored=False)
         assert "hunter2" not in body
         assert "***" in body
+
+    def test_full_description_is_not_truncated(self):
+        long_desc = (
+            "First sentence about the rule. Second sentence with extra detail. "
+            "Third sentence about exploitation. Fourth sentence on impact."
+        )
+        finding = _Finding("rule_a", "HIGH", "f.yml", 10, description=long_desc)
+        body = comment.inline._render_inline_body(finding, anchored=True)
+        assert long_desc in body
+
+    def test_remediation_example_appears_in_details_block(self):
+        finding = _Finding(
+            "rule_a",
+            "HIGH",
+            "f.yml",
+            10,
+            remediation_example="```yaml\n- name: secure\n  uri:\n    validate_certs: true\n```",
+        )
+        body = comment.inline._render_inline_body(finding, anchored=True)
+        assert "Show recommended fix" in body
+        assert "validate_certs: true" in body
+
+    def test_compliance_frameworks_block_renders_when_metadata_present(self):
+        finding = _Finding("rule_a", "HIGH", "f.yml", 10, cwe=["CWE-295"])
+        body = comment.inline._render_inline_body(finding, anchored=True)
+        assert "Compliance frameworks" in body
+        assert "CWE-295" in body
+
+    def test_compliance_block_omitted_when_no_metadata(self):
+        finding = _Finding("rule_a", "HIGH", "f.yml", 10)
+        body = comment.inline._render_inline_body(finding, anchored=True)
+        assert "Compliance frameworks" not in body
+
+    def test_resolution_disclaimer_present_above_marker(self):
+        finding = _Finding("rule_a", "HIGH", "f.yml", 10)
+        body = comment.inline._render_inline_body(finding, anchored=True)
+        assert "Resolving this thread does not unblock the pipeline" in body
+        disclaimer_idx = body.index("Resolving this thread")
+        marker_idx = body.index("ansible-security-scanner:inline:v1:")
+        assert disclaimer_idx < marker_idx
+
+    def test_marker_is_last_block(self):
+        finding = _Finding("rule_a", "HIGH", "f.yml", 10)
+        body = comment.inline._render_inline_body(finding, anchored=True)
+        assert body.rstrip().endswith("-->")
 
 
 class TestSplitFindings:

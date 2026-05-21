@@ -24,7 +24,12 @@ from typing import Any
 
 from .context import PlatformContext, _redact
 from .fingerprint import _finding_fingerprint
-from .rendering import _SEVERITY_EMOJI, _first_sentence, _redact_snippet
+from .rendering import (
+    _SEVERITY_EMOJI,
+    _redact_snippet,
+    _render_framework_coverage_inline,
+    _render_remediation_block,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +39,11 @@ _INLINE_MARKER_RE = re.compile(r"<!--\s*ansible-security-scanner:inline:v1:([0-9
 
 # Beyond this cap, the summary comment is a saner read than 50+ threads.
 _MAX_INLINE_COMMENTS = 50
+
+_RESOLUTION_DISCLAIMER = (
+    "_Resolving this thread does not unblock the pipeline. The scan re-runs "
+    "on every push and will close fixed-finding threads automatically._"
+)
 
 
 @dataclass
@@ -130,8 +140,8 @@ def _render_inline_body(finding: Any, *, anchored: bool) -> str:
     emoji = _SEVERITY_EMOJI.get(severity, "\u26aa")
     rule_id = getattr(finding, "rule_id", "") or "unknown"
     title = (getattr(finding, "title", "") or rule_id).strip()
-    description = _first_sentence(getattr(finding, "description", "") or "")
-    fix = _first_sentence(getattr(finding, "recommendation", "") or "")
+    description = (getattr(finding, "description", "") or "").strip()
+    recommendation = (getattr(finding, "recommendation", "") or "").strip()
 
     parts: list[str] = [
         f"{emoji} **{severity}** \u00b7 `{rule_id}` \u2014 {title}",
@@ -147,9 +157,18 @@ def _render_inline_body(finding: Any, *, anchored: bool) -> str:
         if snippet:
             parts.append(f"```yaml\n{snippet}\n```")
 
-    if fix:
-        parts.append(f"\U0001f4a1 **Fix:** {fix}")
+    if recommendation:
+        parts.append(f"**Recommendation:** {recommendation}")
 
+    remediation = _render_remediation_block(finding)
+    if remediation:
+        parts.append(remediation)
+
+    frameworks = _render_framework_coverage_inline(finding)
+    if frameworks:
+        parts.append(frameworks)
+
+    parts.append(_RESOLUTION_DISCLAIMER)
     parts.append(_inline_marker(_finding_fingerprint(finding)))
     return "\n\n".join(parts)
 

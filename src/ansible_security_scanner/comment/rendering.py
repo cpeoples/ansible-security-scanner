@@ -19,6 +19,17 @@ import re
 from pathlib import Path
 from typing import Any
 
+from ..link_resolver import (
+    resolve_atlas,
+    resolve_cis,
+    resolve_cwe,
+    resolve_hipaa,
+    resolve_mitre,
+    resolve_nist,
+    resolve_pci,
+    resolve_soc2,
+    resolve_stig,
+)
 from .context import PlatformContext, _file_deep_link, _resolve_finding_paths
 from .fingerprint import (
     _compute_delta,
@@ -621,6 +632,43 @@ def _ensure_fence_blank_lines(md: str) -> str:
         else:
             out.append(line)
     return "\n".join(out)
+
+
+def _render_framework_coverage_inline(finding: Any) -> str:
+    """Render compliance-framework links as a collapsed ``<details>`` block.
+
+    Returns ``""`` when the finding carries no framework metadata.
+    """
+    sources: list[tuple[str, list[str], Any]] = [
+        ("CWE", getattr(finding, "cwe", []) or [], resolve_cwe),
+        ("MITRE ATT&CK", getattr(finding, "mitre_attack", []) or [], resolve_mitre),
+        ("MITRE ATLAS", getattr(finding, "mitre_atlas", []) or [], resolve_atlas),
+        ("CIS Controls", getattr(finding, "cis_controls", []) or [], resolve_cis),
+        ("NIST 800-53", getattr(finding, "nist_controls", []) or [], resolve_nist),
+        ("PCI-DSS v4", getattr(finding, "pci_dss", []) or [], resolve_pci),
+        ("HIPAA", getattr(finding, "hipaa", []) or [], resolve_hipaa),
+        ("SOC 2 TSC", getattr(finding, "soc2", []) or [], resolve_soc2),
+        ("DISA STIG", getattr(finding, "stig", []) or [], resolve_stig),
+    ]
+
+    rows: list[str] = []
+    for label, ids, resolver in sources:
+        if not ids:
+            continue
+        rendered: list[str] = []
+        for raw in ids:
+            ref = resolver(raw)
+            if ref:
+                rendered.append(f"[{ref.id}]({ref.url})")
+            else:
+                rendered.append(f"`{raw}`")
+        rows.append(f"- **{label}:** " + ", ".join(rendered))
+
+    if not rows:
+        return ""
+
+    body = "\n".join(rows)
+    return f"<details><summary>Compliance frameworks</summary>\n\n{body}\n\n</details>"
 
 
 def _render_remediation_block(finding: Any) -> str:
