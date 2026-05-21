@@ -12,7 +12,7 @@ import tempfile
 from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -56,20 +56,20 @@ class AnsibleSecurityScanner:
     def __init__(
         self,
         directory: str = ".",
-        target_files: Optional[list[str]] = None,
-        allowlist_path: Optional[str] = None,
+        target_files: list[str] | None = None,
+        allowlist_path: str | None = None,
         show_suppressed: bool = False,
         *,
         disable_suppressions: bool = False,
         fail_on_suppressed: bool = False,
-        max_suppressions: Optional[int] = None,
+        max_suppressions: int | None = None,
         fix_mode: bool = False,
         scan_git_history: bool = False,
         git_history_max_commits: int = 50,
         jobs: int = 1,
         dedup_cross_file: bool = False,
-        select_rules: Optional[Iterable[str]] = None,
-        ignore_rules: Optional[Iterable[str]] = None,
+        select_rules: Iterable[str] | None = None,
+        ignore_rules: Iterable[str] | None = None,
     ):
         """
         Initialize the scanner
@@ -118,7 +118,7 @@ class AnsibleSecurityScanner:
         # narrows its YAML pattern set AND the synthetic-finding gate
         # at the end of scan_file uses this same set.
         if select_rules is None and ignore_rules is None:
-            active_rule_ids: Optional[frozenset[str]] = None
+            active_rule_ids: frozenset[str] | None = None
         else:
             universe = known_rule_ids()
             selected = (
@@ -238,7 +238,7 @@ class AnsibleSecurityScanner:
         parsed_files: dict[Path, ParsedFile] = {}
         suppression_warnings: list = []
 
-        def _read_and_parse(yml_file: Path) -> Optional[ParsedFile]:
+        def _read_and_parse(yml_file: Path) -> ParsedFile | None:
             try:
                 with open(yml_file, encoding="utf-8") as f:
                     raw = f.read()

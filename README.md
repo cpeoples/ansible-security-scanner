@@ -39,7 +39,7 @@ A security scanner for Ansible playbooks. Detects malicious code, unauthorized c
 pip install ansible-security-scanner
 ```
 
-Requires Python 3.9+. Installs an `ansible-security-scanner` command on your PATH.
+Requires Python 3.11+. Installs an `ansible-security-scanner` command on your PATH.
 
 ## Quick Start
 
@@ -199,7 +199,7 @@ hugo server
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.11+
 - PyYAML >= 6.0
 - Jinja2 >= 3.0
 - httpx >= 0.27 (used by `--github-comment` / `--gitlab-comment` only)

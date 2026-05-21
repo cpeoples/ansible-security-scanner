@@ -8,18 +8,28 @@ description = "Security scanner for Ansible playbooks - detects malicious code, 
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 authors = [
     { name = "Chris Peoples" },
 ]
 keywords = [
     "ansible",
-    "security",
-    "scanner",
-    "static-analysis",
+    "ansible-playbook",
+    "ci-cd",
+    "code-scanning",
     "devsecops",
-    "sast",
+    "gitlab-sast",
+    "iac-security",
+    "infrastructure-as-code",
     "sarif",
+    "sast",
+    "scanner",
+    "secrets-detection",
+    "security",
+    "security-scanner",
+    "static-analysis",
+    "supply-chain-security",
+    "vulnerability-scanner",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -28,8 +38,6 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -116,7 +124,7 @@ venv = ".venv"
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 extend-exclude = [
     ".hugo/themes",
     "src/ansible_security_scanner/_version.py",

@@ -129,7 +129,7 @@ def _encode_marker(
             )
         if rules_list is not None:
             pair_map: dict[str, str] = {}
-            for fp, rid in zip(fps_list, rules_list):
+            for fp, rid in zip(fps_list, rules_list, strict=True):
                 if fp and fp not in pair_map:
                     pair_map[fp] = rid or ""
             sorted_fps = sorted(pair_map.keys())

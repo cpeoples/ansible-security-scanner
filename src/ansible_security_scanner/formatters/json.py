@@ -48,7 +48,7 @@ class JSONFormatter(OutputFormatter):
 
     def format(self, report: ScanReport) -> str:
         data = asdict(report)
-        for finding_dict, finding in zip(data["findings"], report.findings):
+        for finding_dict, finding in zip(data["findings"], report.findings, strict=True):
             finding_dict["framework_references"] = _resolve_refs(finding)
         return json.dumps(data, indent=2, default=str, ensure_ascii=False)
 

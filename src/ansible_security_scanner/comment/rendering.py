@@ -525,7 +525,7 @@ def _severity_header(
     if not parts:
         parts = ["\u2705 0 findings"]
 
-    header = "### \U0001f6e1\ufe0f Security Scan - " + " \u00b7 ".join(parts)
+    header = "### \U0001f6e1\ufe0f Ansible Security Scan - " + " \u00b7 ".join(parts)
     if security_score is not None:
         score_line = f"\n\n**Security score:** {int(round(security_score))} / 100"
         if active_policy:

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Optional, Union
 
 from .models import SecurityFinding
 
@@ -34,7 +33,7 @@ from .models import SecurityFinding
 #     lands on a child field a few lines below.
 #   * ``None`` - same as empty ``str``; returned by advisory-only
 #     handlers when they can't confidently locate the edit target.
-FixResult = Optional[Union[str, tuple[int, str]]]
+FixResult = str | tuple[int, str] | None
 
 
 class FixProposer:
