@@ -9,6 +9,8 @@ on:
       - "docs/**"
       - "README.md"
       - ".github/workflows/scanner-docs.yml"
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
