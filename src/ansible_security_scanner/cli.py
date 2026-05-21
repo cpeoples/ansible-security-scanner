@@ -933,19 +933,20 @@ def _post_mr_comment(args, ctx, report, scanner) -> None:
         )
 
     if getattr(args, "inline_comments", False):
-        _post_inline_comments(args, ctx, report)
+        _post_inline_comments(args, ctx, report, scanner)
 
 
-def _post_inline_comments(args, ctx, report) -> None:
+def _post_inline_comments(args, ctx, report, scanner) -> None:
     """Post per-finding inline review comments alongside the summary."""
     from . import comment
 
     changed = comment.fetch_changed_files(ctx) or []
+    scan_root = Path(scanner.directory) if getattr(scanner, "directory", None) else None
     inline_result = comment.post_inline_comments(
         report.findings,
         ctx,
         changed_files=set(changed) or None,
-        diff_lines=comment.fetch_diff_lines(ctx),
+        scan_root=scan_root,
     )
     if inline_result.error:
         logger.warning(

@@ -149,17 +149,30 @@ anchored to a diff line:
 
 ### Anchor-first with file-level fallback
 
-For every finding the scanner asks the platform to anchor the
-thread on `(file_path, line_number)`. If the platform rejects the
-anchor (line not actually in the MR's diff per the platform's view,
-file renamed in a way the position payload can't express, etc.) the
-thread is automatically retried as a file-level comment.
+The scanner asks the platform to anchor the thread on
+`(file_path, line_number)` for every finding whose file is in the MR's
+changed-files list. If the platform rejects the anchor (line not in the
+diff per the platform's view, file renamed in a way the position
+payload can't express, etc.) the thread is automatically retried as a
+file-level comment. Findings whose file isn't in the MR's diff at all
+go straight to file-level.
 
-`fetch_diff_lines()` is treated as a hint for round-trip avoidance,
-not as the source of truth. On GitLab the hint comes from the
-`/merge_requests/:iid/versions/:id` endpoint (canonical, untruncated
-diffs), falling back to `/changes` if `/versions` returns nothing.
-On GitHub the hint comes from `/pulls/:number/files`.
+The platform is the source of truth. The scanner does not maintain a
+client-side cache of which lines are in the diff: that approach was
+brittle (truncated `/changes` responses, rename detection, hunk-header
+parsing edge cases, scan-directory vs repo-root path mismatches) and
+caused on-diff findings to silently post as file-level when the
+client-side hint disagreed with the platform. With the platform as
+the only authority, the worst case is one wasted POST per off-diff
+finding, which auto-falls-back transparently.
+
+### Path normalization
+
+Findings carry `file_path` relative to the scanner's `--directory`
+argument; the MR/PR diff is always repo-root-relative. The scanner
+rewrites finding paths to repo-root-relative before posting so the
+two views line up. Without this normalization, every finding under a
+non-root `--directory` would land in the file-level fallback path.
 
 ### Summary-comment changes
 
@@ -178,13 +191,12 @@ remain.
 
 - **GitLab** [Discussions API][gl-discussions]:
   `POST /merge_requests/:iid/discussions` (with a `position` payload
-  for line anchors), `PUT .../discussions/:id` to resolve.
-  Diff lines come from `GET /merge_requests/:iid/versions` →
-  `GET /merge_requests/:iid/versions/:id`.
+  for line anchors), `PUT .../discussions/:id` to resolve. Changed
+  files come from `GET /merge_requests/:iid/changes`.
 - **GitHub** GraphQL `addPullRequestReviewThread` /
   `resolveReviewThread`. The v3 REST review-comment endpoint can't
   anchor file-level threads, so GraphQL is used for both shapes.
-  Diff lines come from `GET /repos/:owner/:repo/pulls/:n/files`.
+  Changed files come from `GET /repos/:owner/:repo/pulls/:n/files`.
 
 ### Operational notes
 
@@ -195,7 +207,9 @@ remain.
   `fallback` count is normal and indicates the platform rejected
   some anchor positions; a non-zero `failed` count is worth
   investigating (5xx, network errors, or fallback also failed).
-- 4xx responses on anchored posts trigger the file-level retry; 5xx
-  / transport errors do not (those are usually transient).
+- 4xx responses on anchored posts trigger the file-level retry and
+  are logged at INFO with the platform's response body so reviewers
+  can see exactly *why* the anchor was rejected. 5xx / transport
+  errors do not retry (those are usually transient).
 
 [gl-discussions]: https://docs.gitlab.com/ee/api/discussions.html

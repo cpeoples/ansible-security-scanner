@@ -18,7 +18,8 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from pathlib import Path
 from typing import Any
 
 from .context import PlatformContext, _redact
@@ -85,6 +86,20 @@ def _is_4xx(exc: Any) -> bool:
     return isinstance(code, int) and 400 <= code < 500
 
 
+def _response_body(exc: Any, token: str, *, limit: int = 240) -> str:
+    """Best-effort extract of the platform's response body for logging.
+
+    Returns the (redacted, truncated) body text, falling back to
+    ``str(exc)`` when no body is reachable.
+    """
+    resp = getattr(exc, "response", None)
+    text = getattr(resp, "text", None) or str(exc)
+    redacted = _redact(text, token)
+    if len(redacted) > limit:
+        return redacted[:limit] + "..."
+    return redacted
+
+
 def _log_summary(ctx: PlatformContext, result: InlinePostResult) -> None:
     logger.info(
         "Inline comments on %s: posted=%d (anchored=%d file_level=%d "
@@ -142,28 +157,65 @@ def _render_inline_body(finding: Any, *, anchored: bool) -> str:
 def _split_findings(
     findings: list[Any],
     changed_files: set[str] | None,
-    diff_lines: dict[str, set[int]] | None,
 ) -> tuple[list[Any], list[Any]]:
-    """Hint-split findings into ``(anchor_candidates, file_level_only)``.
+    """Partition findings into ``(anchor_candidates, file_level_only)``.
 
-    Findings whose ``(file, line)`` looks on-diff per ``changed_files`` /
-    ``diff_lines`` go in the first bucket; the rest in the second. The
-    split is advisory: callers still let the platform reject anchors and
-    fall back at request time.
+    A finding goes in the first bucket when its file is in
+    ``changed_files`` (or when ``changed_files`` is ``None`` and we have
+    no information either way). The platform is the source of truth for
+    whether the specific *line* is anchorable; we don't second-guess.
     """
+    if changed_files is None:
+        return list(findings), []
     anchor_candidates: list[Any] = []
     file_level_only: list[Any] = []
-    have_diff = changed_files is not None or diff_lines is not None
     for f in findings:
         fp = getattr(f, "file_path", "") or ""
-        ln = int(getattr(f, "line_number", 0) or 0)
-        in_changed = changed_files is None or fp in changed_files
-        in_lines = diff_lines is None or ln in diff_lines.get(fp, set())
-        if not have_diff or (in_changed and in_lines):
+        if fp in changed_files:
             anchor_candidates.append(f)
         else:
             file_level_only.append(f)
     return anchor_candidates, file_level_only
+
+
+def _normalize_path(file_path: str, scan_root: Path | None) -> str:
+    """Rewrite ``file_path`` from ``--directory``-relative to repo-root-relative.
+
+    Findings carry paths relative to the scanner's ``--directory``; the
+    MR/PR diff returns paths relative to the repo root. When ``scan_root``
+    is provided, prepend its repo-root-relative prefix so the two views
+    line up. When ``scan_root`` is ``None`` or the rewrite isn't
+    expressible (e.g. ``scan_root`` is outside the cwd), return the path
+    unchanged.
+    """
+    if not file_path or scan_root is None:
+        return file_path
+    candidate = Path(file_path)
+    if candidate.is_absolute():
+        return file_path
+    on_disk = (scan_root / candidate).resolve()
+    try:
+        return on_disk.relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return file_path
+
+
+def _normalize_findings(findings: list[Any], scan_root: Path | None) -> list[Any]:
+    """Return findings with ``file_path`` rewritten to repo-root-relative."""
+    if scan_root is None:
+        return findings
+    return [_rewrite_finding_path(f, scan_root) for f in findings]
+
+
+def _rewrite_finding_path(finding: Any, scan_root: Path) -> Any:
+    original = getattr(finding, "file_path", "") or ""
+    normalized = _normalize_path(original, scan_root)
+    if normalized == original:
+        return finding
+    try:
+        return replace(finding, file_path=normalized)
+    except TypeError:
+        return finding
 
 
 def post_inline_comments(
@@ -171,23 +223,23 @@ def post_inline_comments(
     ctx: PlatformContext,
     *,
     changed_files: set[str] | None = None,
-    diff_lines: dict[str, set[int]] | None = None,
+    scan_root: Path | None = None,
     timeout: float = 15.0,
 ) -> InlinePostResult:
     """Post, skip, or resolve per-finding inline threads on ``ctx``'s MR/PR.
 
-    For each finding the platform is asked to anchor the thread on its
-    ``(file, line)``. If the platform rejects the anchor (line not
-    actually in the MR's diff, file renamed in a way the position
-    payload can't express, etc.) the thread is retried as a file-level
-    comment. ``diff_lines`` is a hint that lets us skip the round-trip
-    for findings we already know are off-diff; it is not authoritative.
+    Findings whose file is in ``changed_files`` are tried as anchored
+    threads; the platform decides whether the line is anchorable and we
+    fall back to file-level on rejection. Findings outside the changed
+    set go straight to file-level. ``scan_root`` (the scanner's
+    ``--directory``) is used to rewrite ``file_path`` to repo-root-relative
+    so it lines up with the platform's diff view.
     """
-    findings = list(findings)
+    findings = _normalize_findings(list(findings), scan_root)
     try:
         if ctx.platform == "github":
-            return _github_post_inline(findings, ctx, changed_files, diff_lines, timeout=timeout)
-        return _gitlab_post_inline(findings, ctx, changed_files, diff_lines, timeout=timeout)
+            return _github_post_inline(findings, ctx, changed_files, timeout=timeout)
+        return _gitlab_post_inline(findings, ctx, changed_files, timeout=timeout)
     except Exception as exc:  # pragma: no cover
         msg = _redact(str(exc), ctx.token)
         logger.warning("Inline comments: %s post failed (%s).", ctx.platform, msg)
@@ -204,7 +256,6 @@ def _gitlab_post_inline(
     findings: list[Any],
     ctx: PlatformContext,
     changed_files: set[str] | None,
-    diff_lines: dict[str, set[int]] | None,
     *,
     timeout: float,
 ) -> InlinePostResult:
@@ -220,7 +271,7 @@ def _gitlab_post_inline(
         existing_index = _gitlab_existing_discussions(client, headers, base)
         diff_refs = _gitlab_diff_refs(client, headers, base)
 
-        anchor_candidates, file_level_only = _split_findings(findings, changed_files, diff_lines)
+        anchor_candidates, file_level_only = _split_findings(findings, changed_files)
         anchor_ids = {id(f) for f in anchor_candidates}
         wanted_fps: set[str] = set()
         posted = 0
@@ -299,7 +350,7 @@ def _gitlab_post_one(
                     "Inline comments: GitLab POST failed for %s:%s (%s).",
                     file_path,
                     line_number,
-                    _redact(str(exc), token),
+                    _response_body(exc, token),
                 )
                 return False, False
             logger.info(
@@ -307,7 +358,7 @@ def _gitlab_post_one(
                 "retrying as file-level (%s).",
                 file_path,
                 line_number,
-                _redact(str(exc), token),
+                _response_body(exc, token),
             )
 
     payload = {"body": _render_inline_body(finding, anchored=False)}
@@ -320,7 +371,7 @@ def _gitlab_post_one(
             "Inline comments: GitLab file-level POST failed for %s:%s (%s).",
             file_path,
             line_number,
-            _redact(str(exc), token),
+            _response_body(exc, token),
         )
         return False, False
 
@@ -425,7 +476,6 @@ def _github_post_inline(
     findings: list[Any],
     ctx: PlatformContext,
     changed_files: set[str] | None,
-    diff_lines: dict[str, set[int]] | None,
     *,
     timeout: float,
 ) -> InlinePostResult:
@@ -455,7 +505,7 @@ def _github_post_inline(
         existing_index = _github_existing_threads(
             client, headers, graphql_url, owner, name, ctx.mr_number
         )
-        anchor_candidates, file_level_only = _split_findings(findings, changed_files, diff_lines)
+        anchor_candidates, file_level_only = _split_findings(findings, changed_files)
         anchor_ids = {id(f) for f in anchor_candidates}
         wanted_fps: set[str] = set()
         posted = 0
@@ -582,7 +632,7 @@ def _github_send_thread(
                 "Inline comments: GitHub addReviewThread failed for %s:%s (%s).",
                 inp.get("path", "?"),
                 inp.get("line", "?"),
-                _redact(str(exc), token),
+                _response_body(exc, token),
             )
         return False, None, retry
 

@@ -137,24 +137,25 @@ class TestRenderInlineBody:
 
 
 class TestSplitFindings:
-    def test_no_diff_metadata_treats_all_as_line_anchored(self):
+    def test_no_changed_files_treats_all_as_anchor_candidates(self):
         f1 = _Finding("r", "HIGH", "a.yml", 1)
-        line, file = comment.inline._split_findings([f1], None, None)
+        line, file = comment.inline._split_findings([f1], None)
         assert line == [f1]
         assert file == []
 
     def test_unchanged_file_falls_back_to_file_level(self):
         f1 = _Finding("r", "HIGH", "a.yml", 1)
         f2 = _Finding("r", "HIGH", "b.yml", 1)
-        line, file = comment.inline._split_findings([f1, f2], {"a.yml"}, {"a.yml": {1}})
+        line, file = comment.inline._split_findings([f1, f2], {"a.yml"})
         assert line == [f1]
         assert file == [f2]
 
-    def test_off_diff_line_falls_back_to_file_level(self):
+    def test_off_diff_line_still_attempts_anchor_when_file_is_changed(self):
+        # Line membership is now decided by the platform, not us.
         f = _Finding("r", "HIGH", "a.yml", 99)
-        line, file = comment.inline._split_findings([f], {"a.yml"}, {"a.yml": {1, 2, 3}})
-        assert line == []
-        assert file == [f]
+        line, file = comment.inline._split_findings([f], {"a.yml"})
+        assert line == [f]
+        assert file == []
 
 
 class TestGitLabInline:
@@ -181,7 +182,6 @@ class TestGitLabInline:
                 [finding],
                 ctx,
                 changed_files={"a.yml"},
-                diff_lines={"a.yml": {5}},
             )
         assert r.posted == 1
         assert r.skipped == 0
@@ -211,7 +211,6 @@ class TestGitLabInline:
                 [finding],
                 ctx,
                 changed_files={"a.yml"},
-                diff_lines={"a.yml": {5}},
             )
         assert r.posted == 0
         assert r.skipped == 1
@@ -283,14 +282,13 @@ class TestGitHubInline:
                 [finding],
                 ctx,
                 changed_files={"a.yml"},
-                diff_lines={"a.yml": {5}},
             )
         assert r.posted == 1
         assert r.thread_urls == ["https://github.com/x"]
 
-    def test_off_diff_finding_posts_with_subject_type_file(self):
+    def test_unchanged_file_posts_with_subject_type_file(self):
         ctx = _ctx("github")
-        finding = _Finding("r", "HIGH", "a.yml", 99)
+        finding = _Finding("r", "HIGH", "untouched.yml", 99)
 
         captured: dict[str, Any] = {}
 
@@ -322,7 +320,6 @@ class TestGitHubInline:
                 [finding],
                 ctx,
                 changed_files={"a.yml"},
-                diff_lines={"a.yml": {1, 2, 3}},
             )
         assert r.posted == 1
         add_calls = [
@@ -441,7 +438,6 @@ class TestGitLabAnchorFallback:
                 [finding],
                 ctx,
                 changed_files={"a.yml"},
-                diff_lines={"a.yml": {5}},
             )
         assert r.posted == 1
         assert r.anchored == 0
@@ -466,7 +462,6 @@ class TestGitLabAnchorFallback:
                 [finding],
                 ctx,
                 changed_files={"a.yml"},
-                diff_lines={"a.yml": {5}},
             )
         assert r.posted == 0
         assert r.failed == 1
@@ -515,7 +510,6 @@ class TestGitHubAnchorFallback:
                 [finding],
                 ctx,
                 changed_files={"a.yml"},
-                diff_lines={"a.yml": {5}},
             )
         assert r.posted == 1
         assert r.fallback == 1
@@ -560,6 +554,57 @@ class TestSummaryInlineMode:
         assert "`a.yml:5`" in body
         assert "**Fix:**" in body
         assert "Pin every dependency" in body
+
+
+class TestPathNormalization:
+    """Regression test for the v0.1.5 inline-comment path-prefix bug:
+    findings carry ``file_path`` relative to ``--directory`` while the
+    MR diff is repo-root-relative. Without normalization the
+    file-membership check fails and every finding posts as file-level
+    instead of anchored.
+    """
+
+    def test_scan_root_rewrites_finding_paths_to_repo_root(self, tmp_path, monkeypatch):
+        scan_dir = tmp_path / "ansible"
+        scan_dir.mkdir()
+        monkeypatch.chdir(tmp_path)
+
+        finding = _Finding("r", "HIGH", "demo.yml", 5)
+        captured: list[dict[str, Any]] = []
+
+        def _post(url, *, headers=None, json=None):
+            captured.append(json or {})
+            return _resp({"id": "disc-1"})
+
+        def _get(url, *, headers=None):
+            if "/discussions" in url:
+                return _resp([])
+            if url.endswith("/merge_requests/7"):
+                return _resp({"diff_refs": {"base_sha": "B", "start_sha": "S", "head_sha": "H"}})
+            return _resp([])
+
+        with patch.object(
+            comment.httpx, "Client", return_value=_routed_client(get=_get, post=_post)
+        ):
+            r = comment.post_inline_comments(
+                [finding],
+                _ctx("gitlab"),
+                changed_files={"ansible/demo.yml"},
+                scan_root=scan_dir,
+            )
+
+        assert r.posted == 1
+        assert r.anchored == 1
+        assert r.file_level == 0
+        assert captured, "no POST captured"
+        position = captured[0].get("position") or {}
+        assert position.get("new_path") == "ansible/demo.yml"
+        assert position.get("old_path") == "ansible/demo.yml"
+
+    def test_no_scan_root_leaves_paths_unchanged(self):
+        f = _Finding("r", "HIGH", "demo.yml", 5)
+        out = comment.inline._normalize_findings([f], None)
+        assert out[0].file_path == "demo.yml"
 
 
 class TestSummaryAutoExpand:

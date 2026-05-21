@@ -120,8 +120,12 @@ def fetch_diff_lines(
     timeout: float = 15.0,
 ) -> dict[str, set[int]] | None:
     """Return ``{file_path: {added/context line numbers}}`` for the MR diff,
-    or ``None`` when the platform call fails (callers then treat every
-    finding as off-diff and post file-level).
+    or ``None`` when the platform call fails.
+
+    Deprecated: inline-comment posting no longer consumes this hint -
+    the platform itself is now the source of truth for whether a given
+    ``(file, line)`` is anchorable. Kept for downstream callers but
+    scheduled for removal once those migrate.
     """
     httpx = _httpx()
     if httpx is None:
