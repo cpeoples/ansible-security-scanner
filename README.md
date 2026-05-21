@@ -15,6 +15,7 @@ A security scanner for Ansible playbooks. Detects malicious code, unauthorized c
 - [Documentation](#documentation)
 - [Requirements](#requirements)
 - [Contributing](#contributing)
+- [Security](#security)
 - [License & Attribution](#license--attribution)
 
 ### Built with
@@ -240,6 +241,48 @@ python task.py scan ./tests/playbooks/bad_example.yml   # try the scanner locall
    `utils.get_formatter_class`.
 4. **Run the gates before opening a PR** - `python task.py test` (full
    suite), `python task.py lint`, `python task.py build`.
+
+## Security
+
+This repository runs three GitHub-native security checks on every push
+and pull request:
+
+- **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)) -
+  weekly update PRs for `pip` and `github-actions` ecosystems, plus
+  out-of-band security advisories.
+- **CodeQL** (default setup, configured in repo settings) - SAST against
+  the Python in `src/ansible_security_scanner/`.
+- **Secret scanning + push protection** - alerts on credential-shaped
+  strings in tracked files.
+
+### Why some paths are excluded from secret scanning
+
+Because this *is* a security scanner, the repo ships two structurally
+required corpora that look exactly like real secrets:
+
+1. **Hand-curated negative fixtures** (`tests/playbooks/bad_example.yml`
+   and `tests/playbooks/multi_example_bad/**`) - the integration tests
+   feed these to the scanner to assert each rule class fires correctly.
+   They contain deliberate hardcoded credentials, fake AWS keys, and
+   embedded SQS URLs; nothing here is a real credential.
+2. **Pattern-pack `vulnerable_examples:` blocks**
+   (`src/ansible_security_scanner/patterns/**`) - rule definitions
+   document, by design, the literal strings each rule is meant to
+   match. These blocks are rendered into the generated rule docs that
+   ship at <https://cpeoples.github.io/ansible-security-scanner/>.
+
+Both surfaces are excluded via [`.github/secret_scanning.yml`](.github/secret_scanning.yml),
+where each entry is annotated with the structural reason it's there.
+
+### Reporting a vulnerability
+
+Open a private security advisory via the
+[Security tab](https://github.com/cpeoples/ansible-security-scanner/security/advisories/new)
+rather than a public issue. Vulnerabilities in the scanner itself
+(e.g. a code path that lets an attacker leak unredacted secrets through
+an MR comment) are in scope; vulnerabilities in *Ansible playbooks
+detected by the scanner* are not - those belong to the playbook's
+maintainer.
 
 ## License & Attribution
 
