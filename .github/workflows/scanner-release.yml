@@ -79,7 +79,7 @@ jobs:
       name: testpypi
       url: https://test.pypi.org/p/ansible-security-scanner
     permissions:
-      id-token: write  # required for OIDC / trusted publishing
+      id-token: write
 
     steps:
       - name: Download built distribution
@@ -175,9 +175,9 @@ jobs:
     needs: publish-pypi
     if: github.event_name == 'release'
     permissions:
-      id-token: write     # Sigstore keyless signing
-      contents: write  # upload assets to the Release
-      attestations: write  # record build provenance
+      id-token: write
+      contents: write
+      attestations: write
 
     steps:
       - name: Download built distribution
