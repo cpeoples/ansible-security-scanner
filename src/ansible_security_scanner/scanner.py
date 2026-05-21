@@ -160,7 +160,6 @@ class AnsibleSecurityScanner:
         Dot-prefixed files are excluded unless explicitly listed in ``target_files``.
         """
         findings = []
-        scanned_files = 0
 
         supported_suffixes = {".yml", ".yaml", ".j2", ".cfg"}
 
@@ -181,7 +180,6 @@ class AnsibleSecurityScanner:
                     and not file_path.name.startswith(".")
                 ):
                     yml_files.append(file_path)
-                    scanned_files += 1
                 else:
                     if file_path.name.startswith("."):
                         logger.debug("Skipping dot file: %s", target)
@@ -205,7 +203,6 @@ class AnsibleSecurityScanner:
             ]
             # Stable order for deterministic reporting.
             yml_files.sort()
-            scanned_files = len(yml_files)
 
             if len(all_candidate_files) > len(yml_files):
                 logger.info(

@@ -38,15 +38,12 @@ implementation lives in the four sibling modules:
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 try:
     import httpx
 except ImportError:  # pragma: no cover - declared as a runtime dependency
     httpx = None  # type: ignore[assignment]
-
-logger = logging.getLogger(__name__)
 
 from .context import (  # noqa: E402
     CommentResult,

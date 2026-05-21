@@ -13,12 +13,15 @@ of the per-file security scan.
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 
 import yaml
 
 from ._ast_helpers import extract_all_tasks
+
+logger = logging.getLogger(__name__)
 
 # purl prefixes by dependency kind. ``generic`` is the catch-all for both
 # system packages (no per-distro ecosystem in minimal purl) and unknown
@@ -199,24 +202,24 @@ class DependencyCollector:
             try:
                 data = yaml.safe_load(content)
                 self._walk_requirements(data)
-            except yaml.YAMLError:
-                pass
+            except yaml.YAMLError as exc:
+                logger.debug("Skipping malformed requirements YAML at %s: %s", dest, exc)
             return
 
         if dest_lower.endswith(("/meta/main.yml", "\\meta\\main.yml")):
             try:
                 data = yaml.safe_load(content)
                 self._walk_meta_dependencies(data)
-            except yaml.YAMLError:
-                pass
+            except yaml.YAMLError as exc:
+                logger.debug("Skipping malformed meta/main.yml at %s: %s", dest, exc)
             return
 
         if basename == "execution-environment.yml":
             try:
                 data = yaml.safe_load(content)
                 self._walk_ee(data)
-            except yaml.YAMLError:
-                pass
+            except yaml.YAMLError as exc:
+                logger.debug("Skipping malformed execution-environment.yml at %s: %s", dest, exc)
             return
 
         if basename == "bindep.txt" or "bindep" in basename:
