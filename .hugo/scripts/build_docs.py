@@ -17,6 +17,8 @@ file with theme-side navigation, search, and front-matter -- no two-source
 drift.
 """
 
+from __future__ import annotations
+
 import os
 import re
 import shutil
@@ -93,7 +95,7 @@ def _inject_code_break_opportunities(body: str) -> str:
     escapes HTML inside backticks.
     """
 
-    def _replace(match: "re.Match[str]") -> str:
+    def _replace(match: re.Match[str]) -> str:
         inner = match.group(1)
         for ch in _BREAK_AFTER_CHARS:
             inner = inner.replace(ch, f"{ch}<wbr>")

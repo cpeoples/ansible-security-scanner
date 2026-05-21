@@ -13,7 +13,7 @@ class UnauthorizedCloudAccessRemediationGenerator(BaseRemediationGenerator):
         # AWS: SQS
         "ansible_aws_sqs_module": "_generate_sqs_fix",
         "boto3_sqs_client": "_generate_sqs_fix",
-        "direct_sqs_queue_url": "_generate_sqs_fix",
+        "direct_sqs_queue_url": "_generate_sqs_url_hygiene_fix",
         "direct_sqs_send_message": "_generate_sqs_fix",
         # AWS: SNS / Lambda
         "direct_lambda_invoke": "_generate_lambda_fix",
@@ -149,6 +149,42 @@ workflows. Anyone who can trigger this playbook can inject messages into the que
 - Direct SQS has no authentication at the message level
 - API Gateway provides request validation, rate limiting, and audit logging
 - API keys can be rotated and scoped per consumer
+"""
+
+    def _generate_sqs_url_hygiene_fix(self, code_snippet: str) -> str:
+        return f"""
+**❌ Vulnerable Code:**
+```yaml
+{code_snippet}
+```
+
+**🚨 Hardcoded SQS Queue URL:**
+The queue URL embeds the AWS account id and region directly in the playbook,
+leaking ownership info to anyone with repo read access and pinning the
+playbook to a single environment. The same playbook can't run in
+non-prod/prod/DR without hand-editing YAML.
+
+**✅ Secure Fix - Externalize the URL per environment:**
+```yaml
+# group_vars/<env>/sqs.yml  (vault if the URL is sensitive)
+sqs_provisioning_queue_url: "https://sqs.{{{{ aws_region }}}}.amazonaws.com/{{{{ aws_account_id }}}}/provisioning"
+
+# playbook
+- name: enqueue provisioning request
+  community.aws.sqs_queue:
+    queue: "{{{{ sqs_provisioning_queue_url }}}}"
+    state: present
+```
+
+**🔐 Why This Matters:**
+- AWS account ids in source control are a low-effort recon target
+- Per-environment overrides become a `group_vars` change instead of a YAML edit
+- If the URL ever rotates, one variable change beats grep-and-replace
+- Vaulting the variable hides it from forks and CI logs
+
+If your real concern is *talking to SQS from a playbook at all*, see the
+`direct_sqs_send_message` / `boto3_sqs_client` / `ansible_aws_sqs_module`
+rules - they recommend routing through a gated API endpoint instead.
 """
 
     def _generate_sns_fix(self, code_snippet: str) -> str:
