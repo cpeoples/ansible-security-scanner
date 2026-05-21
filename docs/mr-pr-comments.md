@@ -114,6 +114,67 @@ findings, the comment flips to a resolved banner:
 >
 > **Resolved since last scan:** 3 findings (rules: `hardcoded_credentials`, `unpinned_container`, `missing_no_log`)
 
+## Suppression transparency
+
+Whenever you pass `--select` or `--ignore`, the comment renders an
+always-on transparency note so reviewers know the score and findings
+reflect the configured policy rather than a clean codebase. Two
+surfaces change:
+
+1. **Score qualifier.** The `**Security score:** N / 100` line picks
+   up an *(active policy)* italic suffix - both on the regular
+   findings header and on the zero-findings resolved banner. Six
+   characters, no claim that the codebase is unconditionally clean.
+
+2. **Footer note.** A note describing the active policy is appended
+   above the footer divider. The voice depends on which flag is set:
+
+   - `--select` (with or without `--ignore`) -> *"Scan limited to N
+     rules via `--select` (and M further suppressed via `--ignore`)"*
+     followed by the active rule list. The active set is the
+     actionable surface for reviewers; an ignore inside a select
+     universe is a footnote.
+   - `--ignore` only -> *"N rules suppressed via `--ignore`"*
+     followed by the suppressed rule list.
+
+   Either voice uses the same list-shape ladder:
+
+   - **Up to 8 rules** -> a single-line blockquote, comma-separated.
+     Cheapest signal-to-noise for a hand-curated policy:
+
+     > **Note:** 3 rules suppressed via `--ignore`: `hardcoded_password`, `missing_no_log`, `curl_with_credentials`.
+
+   - **9-60 rules** -> a collapsed `<details>` grouped by category,
+     with every rule listed under its category. Categories are
+     ordered by rule count (largest group first), rules alphabetical
+     inside each group.
+
+   - **Above 60 rules** -> a collapsed `<details>` listing the
+     top-5 categories with rule counts plus a note that the full
+     rule list was capped for readability. Pathologically broad
+     globs (e.g. `*` against the full rule set) hit this branch.
+
+   Synthetic and code-emitted rule_ids land in an `Other` bucket
+   when grouped.
+
+3. **Inline-thread breadcrumb.** When either resolved list exceeds
+   8 rules, every inline review thread picks up a one-line italic
+   pointer at the summary's policy block:
+
+   > *This run suppresses other rule classes; see the summary
+   > comment for the policy.*
+
+   Below the threshold the summary's flat list is small enough to
+   read at a glance; the breadcrumb would be redundant noise.
+
+The transparency surfaces are always-on - there is no flag to suppress
+them. Hiding the policy behind an opt-in defeats the point. If you
+want a scheduled "what would my unfiltered scan look like?" report,
+run a separate non-MR pipeline with no `--select` / `--ignore` against
+the same directory and post the output to Slack / a tracking issue:
+that preserves MR comments as a per-change signal and policy-debt
+reporting as a separate audit cadence.
+
 ## Tuning
 
 | Flag | Default | Purpose |

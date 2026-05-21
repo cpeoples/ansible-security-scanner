@@ -673,3 +673,62 @@ class TestSummaryAutoExpand:
         body = comment.render_comment_body(findings, _ctx("github"))
         assert "<details open>" not in body
         assert "<details>" in body
+
+
+class TestInlineBreadcrumbPlumbing:
+    """End-to-end check that ``post_inline_comments`` forwards the
+    resolved policy to ``_render_inline_body`` only when the policy is
+    large enough to warrant the breadcrumb. We capture the actual JSON
+    posted to the GitLab Discussions API and inspect the body. Both
+    ``--select`` and ``--ignore`` exercise the same code path."""
+
+    def _capture_post(
+        self,
+        ignored_rule_ids: list[str] | None = None,
+        selected_rule_ids: list[str] | None = None,
+    ) -> str:
+        ctx = _ctx("gitlab")
+        finding = _Finding("r", "HIGH", "a.yml", 5)
+        captured: dict[str, Any] = {}
+
+        def post(url: str, headers=None, json=None, **_):
+            captured["body"] = (json or {}).get("body", "")
+            return _resp({"id": "disc-1"})
+
+        cm = _routed_client(
+            get=lambda *a, **k: _resp(
+                []
+                if "discussions" in (a[0] if a else "") and "?" in (a[0] if a else "")
+                else {"diff_refs": {"base_sha": "B", "start_sha": "S", "head_sha": "H"}}
+            ),
+            post=post,
+        )
+        with patch.object(comment.httpx, "Client", return_value=cm):
+            comment.post_inline_comments(
+                [finding],
+                ctx,
+                changed_files={"a.yml"},
+                ignored_rule_ids=ignored_rule_ids,
+                selected_rule_ids=selected_rule_ids,
+            )
+        return captured.get("body", "")
+
+    def test_no_policy_means_no_breadcrumb(self):
+        body = self._capture_post()
+        assert "see the summary comment for the policy" not in body
+
+    def test_small_ignore_list_means_no_breadcrumb(self):
+        body = self._capture_post(ignored_rule_ids=[f"r{i}" for i in range(8)])
+        assert "see the summary comment for the policy" not in body
+
+    def test_large_ignore_list_emits_breadcrumb(self):
+        body = self._capture_post(ignored_rule_ids=[f"r{i}" for i in range(20)])
+        assert "see the summary comment for the policy" in body
+
+    def test_large_select_list_emits_breadcrumb(self):
+        body = self._capture_post(selected_rule_ids=[f"r{i}" for i in range(20)])
+        assert "see the summary comment for the policy" in body
+
+    def test_small_select_list_means_no_breadcrumb(self):
+        body = self._capture_post(selected_rule_ids=[f"r{i}" for i in range(3)])
+        assert "see the summary comment for the policy" not in body

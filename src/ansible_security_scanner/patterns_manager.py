@@ -463,6 +463,22 @@ def known_rule_ids() -> frozenset[str]:
     return frozenset(yaml_ids | set(SYNTHETIC_RULE_FRAMEWORKS) | _CODE_EMITTED_RULE_IDS)
 
 
+def known_rule_categories() -> dict[str, str]:
+    """Return a ``{rule_id: category}`` map for every rule in the YAML
+    pattern files.
+
+    Synthetic and code-emitted rule ids are deliberately omitted - they
+    have no native category and the consumer (the MR-comment renderer)
+    falls them back into a single ``other`` bucket. Lazy-imports
+    nothing; the YAML walk is shared with ``known_rule_ids``.
+    """
+    return {
+        p.id: p.category
+        for patterns in patterns_manager.discover_and_load_patterns().values()
+        for p in patterns
+    }
+
+
 def filter_patterns(
     pattern_data: dict[str, list[SecurityPattern]],
     *,

@@ -12,7 +12,12 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
-from .patterns_manager import RuleSelectionError, known_rule_ids
+from .patterns_manager import (
+    RuleSelectionError,
+    known_rule_categories,
+    known_rule_ids,
+    resolve_rule_specs,
+)
 from .scanner import AnsibleSecurityScanner
 from .utils import get_exit_code, get_formatter_class, parse_changed_files, setup_logging
 
@@ -831,6 +836,32 @@ def _maybe_scope_to_changed_files(args, ctx, existing_target_files: list | None)
     return yaml_files
 
 
+def _resolve_run_policy(args) -> tuple[list[str], list[str], dict[str, str]]:
+    """Resolve ``--select`` / ``--ignore`` globs to concrete sorted
+    rule-id lists and build a ``{rule_id: category}`` map for the
+    transparency renderer.
+
+    Returns ``([selected], [ignored], categories)``. Both lists are
+    empty (and ``categories`` is empty) when neither flag is set.
+    Glob errors are swallowed - typos already crashed the scan in
+    ``main`` via the resolver call there; the swallow here is
+    defence-in-depth so a comment-rendering glitch never aborts a
+    post that would otherwise succeed.
+    """
+    select_spec = getattr(args, "select", None)
+    ignore_spec = getattr(args, "ignore", None)
+    if not select_spec and not ignore_spec:
+        return [], [], {}
+
+    universe = known_rule_ids()
+    try:
+        selected = sorted(resolve_rule_specs([select_spec], universe)) if select_spec else []
+        ignored = sorted(resolve_rule_specs([ignore_spec], universe)) if ignore_spec else []
+    except RuleSelectionError:
+        return [], [], {}
+    return selected, ignored, known_rule_categories()
+
+
 def _post_mr_comment(args, ctx, report, scanner) -> None:
     """Post-scan hook: render the concise MR comment, write the
     full-report artifact, then POST/PATCH the comment. Warn-and-
@@ -846,6 +877,8 @@ def _post_mr_comment(args, ctx, report, scanner) -> None:
         return
 
     from . import comment
+
+    selected_rule_ids, ignored_rule_ids, category_for_rule = _resolve_run_policy(args)
 
     # Always write the full Markdown report alongside the comment so
     # reviewers can click through from the dashboard. We use the
@@ -901,6 +934,9 @@ def _post_mr_comment(args, ctx, report, scanner) -> None:
         previous=comment.fetch_existing_marker(ctx),
         scan_root=Path(scanner.directory) if getattr(scanner, "directory", None) else None,
         inline_mode=getattr(args, "inline_comments", False),
+        ignored_rule_ids=ignored_rule_ids,
+        selected_rule_ids=selected_rule_ids,
+        category_for_rule=category_for_rule,
     )
     result = comment.post_or_update_comment(ctx, body)
 
@@ -933,10 +969,10 @@ def _post_mr_comment(args, ctx, report, scanner) -> None:
         )
 
     if getattr(args, "inline_comments", False):
-        _post_inline_comments(args, ctx, report, scanner)
+        _post_inline_comments(args, ctx, report, scanner, ignored_rule_ids, selected_rule_ids)
 
 
-def _post_inline_comments(args, ctx, report, scanner) -> None:
+def _post_inline_comments(args, ctx, report, scanner, ignored_rule_ids, selected_rule_ids) -> None:
     """Post per-finding inline review comments alongside the summary."""
     from . import comment
 
@@ -947,6 +983,8 @@ def _post_inline_comments(args, ctx, report, scanner) -> None:
         ctx,
         changed_files=set(changed) or None,
         scan_root=scan_root,
+        ignored_rule_ids=ignored_rule_ids,
+        selected_rule_ids=selected_rule_ids,
     )
     if inline_result.error:
         logger.warning(

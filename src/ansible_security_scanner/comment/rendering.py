@@ -63,6 +63,16 @@ _TOP_RULES_IN_DASHBOARD = 10
 # below this count, or when there's only one rule group.
 _AUTO_EXPAND_FINDING_THRESHOLD = 3
 
+# Suppression-transparency thresholds. ``_IGNORE_FLAT_LIMIT`` is the
+# largest ignore list we render as a comma-separated blockquote; above
+# it we group by category. ``_IGNORE_HARD_CAP`` bounds the number of
+# rule names we'll print in the grouped form before collapsing the
+# tail into a top-categories summary - guards against pathologically
+# broad globs (``*`` against ~1k rules) blowing up the comment.
+_IGNORE_FLAT_LIMIT = 8
+_IGNORE_HARD_CAP = 60
+_IGNORE_TOP_CATEGORIES = 5
+
 # Severity weights used when ranking "top rules". Matches the scanner's
 # own severity-weighted scoring; keeps the comment's "top offenders"
 # list aligned with the score surfaced in the header.
@@ -488,8 +498,19 @@ def _rule_rank(group: list[Any]) -> tuple[int, int, int]:
     return (peak, weight_sum, len(group))
 
 
-def _severity_header(findings: list[Any], security_score: float | None) -> str:
-    """Build the one-line severity counter that anchors the comment."""
+def _severity_header(
+    findings: list[Any],
+    security_score: float | None,
+    *,
+    active_policy: bool = False,
+) -> str:
+    """Build the one-line severity counter that anchors the comment.
+
+    ``active_policy`` appends ``(active policy)`` to the score line when
+    either ``--select`` or ``--ignore`` is in effect, signalling that
+    the score reflects the configured policy rather than a clean
+    codebase.
+    """
     counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
     for f in findings:
         sev = (getattr(f, "severity", "") or "").upper()
@@ -506,8 +527,109 @@ def _severity_header(findings: list[Any], security_score: float | None) -> str:
 
     header = "### \U0001f6e1\ufe0f Security Scan - " + " \u00b7 ".join(parts)
     if security_score is not None:
-        header += f"\n\n**Security score:** {int(round(security_score))} / 100"
+        score_line = f"\n\n**Security score:** {int(round(security_score))} / 100"
+        if active_policy:
+            score_line += " *(active policy)*"
+        header += score_line
     return header
+
+
+def _pluralize(n: int, singular: str, plural: str | None = None) -> str:
+    """Format ``"1 rule"`` / ``"3 rules"``-style counts."""
+    return f"{n} {singular if n == 1 else (plural or singular + 's')}"
+
+
+def _render_policy_note(
+    *,
+    selected_rule_ids: list[str],
+    ignored_rule_ids: list[str],
+    category_for_rule: dict[str, str],
+) -> str:
+    """Render the always-on suppression-transparency note.
+
+    Returns ``""`` when neither ``--select`` nor ``--ignore`` is in
+    effect. Otherwise emits one note that summarises the *active* run
+    policy:
+
+    * ``--select`` was used (with or without ``--ignore``) - voices
+      the note as *"scan limited to N rule(s) via --select"* and lists
+      the active set, since that's the actionable surface; an ignore
+      list inside a select universe is appended in parentheses.
+    * Only ``--ignore`` was used - voices the note as *"N rule(s)
+      suppressed via --ignore"* and lists the suppressed set.
+
+    The list-shape (flat blockquote vs grouped ``<details>`` vs
+    capped categories) follows :data:`_IGNORE_FLAT_LIMIT` and
+    :data:`_IGNORE_HARD_CAP` regardless of which voice fires; the
+    rendering machinery is reused.
+    """
+    if selected_rule_ids:
+        head = f"Scan limited to {_pluralize(len(selected_rule_ids), 'rule')} via `--select`"
+        if ignored_rule_ids:
+            head += f" (and {len(ignored_rule_ids)} further suppressed via `--ignore`)"
+        return _render_rule_disclosure(head, selected_rule_ids, category_for_rule)
+
+    if ignored_rule_ids:
+        head = f"{_pluralize(len(ignored_rule_ids), 'rule')} suppressed via `--ignore`"
+        return _render_rule_disclosure(head, ignored_rule_ids, category_for_rule)
+
+    return ""
+
+
+def _render_rule_disclosure(
+    head: str,
+    rule_ids: list[str],
+    category_for_rule: dict[str, str],
+) -> str:
+    """Render a "Note: <head>" disclosure listing ``rule_ids``.
+
+    Three shapes by list size:
+
+    * ``<= _IGNORE_FLAT_LIMIT`` - blockquote, flat comma-separated list.
+    * ``<= _IGNORE_HARD_CAP`` - collapsed ``<details>`` grouped by
+      category, all rules listed under their category.
+    * ``> _IGNORE_HARD_CAP`` - collapsed ``<details>`` showing the
+      top ``_IGNORE_TOP_CATEGORIES`` categories with rule counts.
+
+    Rules without a known YAML category fall into an ``other`` bucket.
+    """
+    if len(rule_ids) <= _IGNORE_FLAT_LIMIT:
+        listed = ", ".join(f"`{rid}`" for rid in rule_ids)
+        return f"> **Note:** {head}: {listed}."
+
+    by_category: dict[str, list[str]] = {}
+    for rid in rule_ids:
+        by_category.setdefault(category_for_rule.get(rid, "other"), []).append(rid)
+    ordered = sorted(by_category.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+
+    summary = (
+        f"<summary><strong>Note:</strong> {head} across "
+        f"{_pluralize(len(ordered), 'category', 'categories')} "
+        "(click to expand)</summary>"
+    )
+
+    if len(rule_ids) > _IGNORE_HARD_CAP:
+        top = ordered[:_IGNORE_TOP_CATEGORIES]
+        lines = [f"- **{_humanize_category(cat)}** \u2014 {len(rids)} rules" for cat, rids in top]
+        tail = len(ordered) - len(top)
+        if tail > 0:
+            lines.append(f"- *...and {_pluralize(tail, 'more category', 'more categories')}*")
+        lines.append("")
+        lines.append("*Rule list capped for readability; see your CI config for the full policy.*")
+        body = "\n".join(lines)
+    else:
+        body = "\n".join(
+            f"- **{_humanize_category(cat)}** ({len(rids)}): "
+            + ", ".join(f"`{rid}`" for rid in sorted(rids))
+            for cat, rids in ordered
+        )
+
+    return f"<details>\n{summary}\n\n{body}\n</details>"
+
+
+def _humanize_category(category_key: str) -> str:
+    """Render a snake_case category key as a Title Cased label."""
+    return category_key.replace("_", " ").title()
 
 
 def _fence(body: str) -> str:
@@ -883,8 +1005,11 @@ def _render_resolved_banner(
     previous_findings_count: int | None,
     previous_open_rule_ids: list[str],
     ctx: PlatformContext,
+    *,
+    active_policy: bool = False,
 ) -> str:
     """Render the zero-findings resolved state."""
+    qualifier = " *(active policy)*" if active_policy else ""
     if previous_findings_count and previous_findings_count > 0:
         cleaned = previous_findings_count
         rules = ", ".join(f"`{r}`" for r in previous_open_rule_ids[:6])
@@ -896,12 +1021,12 @@ def _render_resolved_banner(
             rules_line += f" (rules: {rules})"
         return (
             "### \u2705 All security findings resolved\n\n"
-            "**Security score:** 100 / 100 \u00b7 review confidence: high" + rules_line
+            f"**Security score:** 100 / 100{qualifier} \u00b7 review confidence: high" + rules_line
         )
 
     return (
         "### \u2705 No security findings\n\n"
-        "**Security score:** 100 / 100 \u00b7 0 findings on changed files."
+        f"**Security score:** 100 / 100{qualifier} \u00b7 0 findings on changed files."
     )
 
 
@@ -1030,6 +1155,9 @@ def render_comment_body(
     full_report_link: str | None = None,
     scan_root: Path | None = None,
     inline_mode: bool = False,
+    ignored_rule_ids: list[str] | None = None,
+    selected_rule_ids: list[str] | None = None,
+    category_for_rule: dict[str, str] | None = None,
 ) -> str:
     """Produce the final Markdown body for the MR/PR comment.
 
@@ -1041,9 +1169,27 @@ def render_comment_body(
       dashboard-only view: header + top-N rule summaries + a
       prominent link to the full-report artifact.
 
+    ``selected_rule_ids`` and ``ignored_rule_ids`` (both resolved
+    post-glob) drive the always-on policy-transparency note: a footer
+    block listing whichever set is most informative for the run
+    (active set when ``--select`` is in effect, suppressed set
+    otherwise). The score line picks up an *(active policy)* qualifier
+    whenever either is set. Both surfaces are silent when the
+    arguments are empty / ``None``.
+
     Every output includes the stable marker so subsequent scans can
     locate and PATCH this exact comment.
     """
+    ignored_rule_ids = ignored_rule_ids or []
+    selected_rule_ids = selected_rule_ids or []
+    category_for_rule = category_for_rule or {}
+    active_policy = bool(ignored_rule_ids or selected_rule_ids)
+    policy_note = _render_policy_note(
+        selected_rule_ids=selected_rule_ids,
+        ignored_rule_ids=ignored_rule_ids,
+        category_for_rule=category_for_rule,
+    )
+
     open_rule_ids = sorted(
         {getattr(f, "rule_id", "") for f in findings if getattr(f, "rule_id", "")}
     )
@@ -1057,17 +1203,23 @@ def render_comment_body(
         if previous:
             prev_count = previous.get("findings_count")
             prev_open = previous.get("open_rule_ids") or []
-        body = _render_resolved_banner(prev_count, list(prev_open), ctx)
+        body = _render_resolved_banner(
+            prev_count, list(prev_open), ctx, active_policy=active_policy
+        )
         footer = _render_footer(ctx, full_report_link)
         marker = _encode_marker(0, ctx.commit_sha, open_rule_ids)
-        return "\n\n".join([body, "---", footer, marker]) + "\n"
+        parts = [body, "---"]
+        if policy_note:
+            parts.extend([policy_note, "---"])
+        parts.extend([footer, marker])
+        return "\n\n".join(parts) + "\n"
 
     groups = _group_by_rule(findings)
     ranked = sorted(groups.items(), key=lambda kv: _rule_rank(kv[1]), reverse=True)
     total = len(findings)
     expanded = total <= _AUTO_EXPAND_FINDING_THRESHOLD or len(groups) == 1
 
-    header = _severity_header(findings, security_score)
+    header = _severity_header(findings, security_score, active_policy=active_policy)
     if delta_line:
         header += f"\n\n{delta_line}"
     header += (
@@ -1093,6 +1245,7 @@ def render_comment_body(
         total,
         finding_fingerprints=finding_fingerprints,
         finding_rule_ids=finding_rule_ids,
+        policy_note=policy_note,
     )
     if len(body.encode("utf-8")) <= _MAX_COMMENT_BYTES and total < _DASHBOARD_THRESHOLD:
         return body
@@ -1128,6 +1281,7 @@ def render_comment_body(
         trailing=tail_summary,
         finding_fingerprints=finding_fingerprints,
         finding_rule_ids=finding_rule_ids,
+        policy_note=policy_note,
     )
     if len(body.encode("utf-8")) <= _MAX_COMMENT_BYTES:
         return body
@@ -1145,6 +1299,7 @@ def render_comment_body(
         trailing=tail_summary,
         finding_fingerprints=finding_fingerprints,
         finding_rule_ids=finding_rule_ids,
+        policy_note=policy_note,
     )
 
 
@@ -1159,6 +1314,7 @@ def _render_drilldown(
     trailing: str = "",
     finding_fingerprints: list[str] | None = None,
     finding_rule_ids: list[str] | None = None,
+    policy_note: str = "",
 ) -> str:
     """Assemble header + rule blocks + footer + marker into the final
     comment body.
@@ -1177,6 +1333,9 @@ def _render_drilldown(
     parts.extend(blocks)
     if trailing:
         parts.append(trailing)
+    if policy_note:
+        parts.append("---")
+        parts.append(policy_note)
     parts.append("---")
     parts.append(footer)
     parts.append(marker)

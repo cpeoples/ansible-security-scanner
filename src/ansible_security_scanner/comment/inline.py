@@ -45,6 +45,15 @@ _RESOLUTION_DISCLAIMER = (
     "on every push and will close fixed-finding threads automatically._"
 )
 
+# Inline-thread breadcrumb appears only when the run's resolved policy
+# (`--select` or `--ignore`) is large enough that the missing context is
+# non-obvious. For small hand-curated lists the summary comment is right
+# there - no breadcrumb needed.
+_INLINE_BREADCRUMB_THRESHOLD = 8
+_INLINE_BREADCRUMB = (
+    "_This run suppresses other rule classes; see the summary comment for the policy._"
+)
+
 
 @dataclass
 class InlinePostResult:
@@ -126,7 +135,7 @@ def _log_summary(ctx: PlatformContext, result: InlinePostResult) -> None:
     )
 
 
-def _render_inline_body(finding: Any, *, anchored: bool) -> str:
+def _render_inline_body(finding: Any, *, anchored: bool, breadcrumb: bool = False) -> str:
     """Render an inline-thread body for ``finding``.
 
     ``anchored=True`` skips the YAML code fence: the platform renders
@@ -135,6 +144,12 @@ def _render_inline_body(finding: Any, *, anchored: bool) -> str:
     ``anchored=False`` keeps the fenced snippet: file-level threads
     aren't attached to a hunk, so the snippet is the only context the
     reviewer gets.
+
+    ``breadcrumb=True`` appends a one-line italic note pointing reviewers
+    at the summary-comment policy block. Set when either the resolved
+    ``--ignore`` or ``--select`` list exceeds
+    ``_INLINE_BREADCRUMB_THRESHOLD``; below that the summary's flat
+    list is small enough to spot at a glance.
     """
     severity = (getattr(finding, "severity", "") or "LOW").upper()
     emoji = _SEVERITY_EMOJI.get(severity, "\u26aa")
@@ -169,6 +184,8 @@ def _render_inline_body(finding: Any, *, anchored: bool) -> str:
         parts.append(frameworks)
 
     parts.append(_RESOLUTION_DISCLAIMER)
+    if breadcrumb:
+        parts.append(_INLINE_BREADCRUMB)
     parts.append(_inline_marker(_finding_fingerprint(finding)))
     return "\n\n".join(parts)
 
@@ -244,6 +261,8 @@ def post_inline_comments(
     changed_files: set[str] | None = None,
     scan_root: Path | None = None,
     timeout: float = 15.0,
+    ignored_rule_ids: list[str] | None = None,
+    selected_rule_ids: list[str] | None = None,
 ) -> InlinePostResult:
     """Post, skip, or resolve per-finding inline threads on ``ctx``'s MR/PR.
 
@@ -253,16 +272,44 @@ def post_inline_comments(
     set go straight to file-level. ``scan_root`` (the scanner's
     ``--directory``) is used to rewrite ``file_path`` to repo-root-relative
     so it lines up with the platform's diff view.
+
+    ``selected_rule_ids`` and ``ignored_rule_ids`` are the resolved
+    (post-glob) policy. When either list exceeds
+    :data:`_INLINE_BREADCRUMB_THRESHOLD`, each inline body picks up a
+    one-line pointer at the summary comment's policy block; otherwise
+    the bodies are unchanged.
     """
     findings = _normalize_findings(list(findings), scan_root)
+    breadcrumb = _policy_warrants_breadcrumb(ignored_rule_ids, selected_rule_ids)
     try:
         if ctx.platform == "github":
-            return _github_post_inline(findings, ctx, changed_files, timeout=timeout)
-        return _gitlab_post_inline(findings, ctx, changed_files, timeout=timeout)
+            return _github_post_inline(
+                findings, ctx, changed_files, timeout=timeout, breadcrumb=breadcrumb
+            )
+        return _gitlab_post_inline(
+            findings, ctx, changed_files, timeout=timeout, breadcrumb=breadcrumb
+        )
     except Exception as exc:  # pragma: no cover
         msg = _redact(str(exc), ctx.token)
         logger.warning("Inline comments: %s post failed (%s).", ctx.platform, msg)
         return InlinePostResult(error=msg)
+
+
+def _policy_warrants_breadcrumb(
+    ignored_rule_ids: list[str] | None,
+    selected_rule_ids: list[str] | None,
+) -> bool:
+    """True when the run's resolved policy is large enough that each
+    inline thread should point reviewers at the summary's policy block.
+
+    Symmetric across ``--select`` and ``--ignore``: a 30-rule whitelist
+    hides as much context as a 30-rule blacklist, so both gate the
+    breadcrumb at the same threshold.
+    """
+    return any(
+        rules and len(rules) > _INLINE_BREADCRUMB_THRESHOLD
+        for rules in (ignored_rule_ids, selected_rule_ids)
+    )
 
 
 # GitLab Discussions API:
@@ -277,6 +324,7 @@ def _gitlab_post_inline(
     changed_files: set[str] | None,
     *,
     timeout: float,
+    breadcrumb: bool = False,
 ) -> InlinePostResult:
     httpx = _httpx()
     if httpx is None:
@@ -307,7 +355,14 @@ def _gitlab_post_inline(
 
             try_anchor = id(finding) in anchor_ids and diff_refs is not None
             posted_one, anchored = _gitlab_post_one(
-                client, headers, base, finding, ctx.token, diff_refs, try_anchor=try_anchor
+                client,
+                headers,
+                base,
+                finding,
+                ctx.token,
+                diff_refs,
+                try_anchor=try_anchor,
+                breadcrumb=breadcrumb,
             )
             result._record(posted=posted_one, anchored=anchored, attempted_anchor=try_anchor)
             if posted_one:
@@ -343,6 +398,7 @@ def _gitlab_post_one(
     diff_refs: dict[str, str] | None,
     *,
     try_anchor: bool,
+    breadcrumb: bool = False,
 ) -> tuple[bool, bool]:
     """Post a single GitLab discussion. Returns ``(posted, anchored)``.
 
@@ -356,7 +412,7 @@ def _gitlab_post_one(
 
     if try_anchor and diff_refs is not None:
         payload = {
-            "body": _render_inline_body(finding, anchored=True),
+            "body": _render_inline_body(finding, anchored=True, breadcrumb=breadcrumb),
             "position": _gitlab_position(finding, diff_refs),
         }
         try:
@@ -380,7 +436,7 @@ def _gitlab_post_one(
                 _response_body(exc, token),
             )
 
-    payload = {"body": _render_inline_body(finding, anchored=False)}
+    payload = {"body": _render_inline_body(finding, anchored=False, breadcrumb=breadcrumb)}
     try:
         resp = client.post(f"{base}/discussions", headers=headers, json=payload)
         resp.raise_for_status()
@@ -497,6 +553,7 @@ def _github_post_inline(
     changed_files: set[str] | None,
     *,
     timeout: float,
+    breadcrumb: bool = False,
 ) -> InlinePostResult:
     httpx = _httpx()
     if httpx is None:
@@ -541,7 +598,14 @@ def _github_post_inline(
 
             try_anchor = id(finding) in anchor_ids
             posted_one, anchored, url = _github_post_one(
-                client, headers, graphql_url, pr_id, finding, ctx.token, try_anchor=try_anchor
+                client,
+                headers,
+                graphql_url,
+                pr_id,
+                finding,
+                ctx.token,
+                try_anchor=try_anchor,
+                breadcrumb=breadcrumb,
             )
             result._record(posted=posted_one, anchored=anchored, attempted_anchor=try_anchor)
             if posted_one:
@@ -582,6 +646,7 @@ def _github_post_one(
     token: str,
     *,
     try_anchor: bool,
+    breadcrumb: bool = False,
 ) -> tuple[bool, bool, str | None]:
     """Post a single GitHub review thread. Returns ``(posted, anchored, url)``.
 
@@ -593,7 +658,7 @@ def _github_post_one(
     if try_anchor:
         anchored_input = {
             "pullRequestId": pr_id,
-            "body": _render_inline_body(finding, anchored=True),
+            "body": _render_inline_body(finding, anchored=True, breadcrumb=breadcrumb),
             "path": getattr(finding, "file_path", "") or "",
             "line": int(getattr(finding, "line_number", 0) or 0),
             "side": "RIGHT",
@@ -611,7 +676,7 @@ def _github_post_one(
 
     file_level_input = {
         "pullRequestId": pr_id,
-        "body": _render_inline_body(finding, anchored=False),
+        "body": _render_inline_body(finding, anchored=False, breadcrumb=breadcrumb),
         "path": getattr(finding, "file_path", "") or "",
         "subjectType": "FILE",
     }

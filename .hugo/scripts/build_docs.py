@@ -195,6 +195,28 @@ def _rewrite_links_for_hugo(body: str) -> str:
     return body
 
 
+_LEADING_H1_RE = re.compile(r"^#\s+(?P<title>.+?)\s*$\n+", re.MULTILINE)
+
+
+def _strip_leading_h1(content: str) -> tuple[str, str | None]:
+    """Strip the first leading ``# Title`` line from ``content``.
+
+    Returns ``(content_without_h1, raw_title)``. ``raw_title`` is
+    ``None`` when no leading H1 was found. The caller decides whether
+    to use the extracted title (home page) or discard it (doc pages
+    where the title is curated in ``DOC_PAGES``).
+
+    Hugo themes render the page title from front-matter; leaving the
+    body's H1 in place would stack two identical titles in the rendered
+    page.
+    """
+    match = _LEADING_H1_RE.match(content)
+    if not match:
+        return content, None
+    title = re.sub(r"<[^>]+>", "", match.group("title")).strip()
+    return content[match.end() :], title
+
+
 def build_index() -> None:
     """Convert README.md to the Hugo home page."""
     print("Converting README.md -> content/_index.md")
@@ -212,13 +234,8 @@ def build_index() -> None:
     content = _rewrite_links_for_hugo(content)
     content = _inject_code_break_opportunities(content)
 
-    title = "Ansible Security Scanner"
-    h1_match = re.match(r"^#\s+(.+)$", content, re.MULTILINE)
-    if h1_match:
-        raw_title = h1_match.group(1).strip()
-        title = re.sub(r"<[^>]+>", "", raw_title).strip()
-        content = content[: h1_match.start()] + content[h1_match.end() :]
-        content = content.lstrip("\n")
+    content, raw_title = _strip_leading_h1(content)
+    title = raw_title or "Ansible Security Scanner"
 
     heading_pre = (
         f'<img src="{ASSET_URL_PREFIX}ansible.svg" alt="" height="40" '
@@ -261,6 +278,7 @@ def build_doc_pages() -> None:
             )
         body = _rewrite_links_for_hugo(src_path.read_text())
         body = _inject_code_break_opportunities(body)
+        body, _ = _strip_leading_h1(body)
         front = f'---\ntitle: "{meta["title"]}"\nweight: {meta["weight"]}\n---\n\n'
         (CONTENT_DIR / f"{slug}.md").write_text(front + body)
         print(f"  Created content/{slug}.md")
