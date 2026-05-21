@@ -103,6 +103,7 @@ secrets.yml
 !CONTRIBUTING.md
 !RELEASING.md
 !NOTICE.md
+!SECURITY.md
 !/.github/**/*.md
 !/docs/**/*.md
 !/.hugo/**/*.md
