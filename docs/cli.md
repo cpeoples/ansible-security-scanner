@@ -78,6 +78,13 @@ Filtering & performance:
                                   sorted) and exit. Pipe-friendly: header goes
                                   to stderr, rule_ids to stdout. Combine with
                                   `grep` / `fzf` to discover what to --select.
+  --list-rules-detailed           Like --list-rules but emits a TSV of
+                                  `rule_id<TAB>severity<TAB>category<TAB>title`
+                                  so operators can disambiguate findings whose
+                                  display title is shared by more than one
+                                  rule_id. Synthetic / code-emitted rule_ids
+                                  carry `<synthetic>` placeholders for
+                                  severity/category/title.
   --jobs N, -j N                  Run the per-file scan stage on N worker
                                   threads (default: 1 = sequential). The
                                   downstream sort makes the final report

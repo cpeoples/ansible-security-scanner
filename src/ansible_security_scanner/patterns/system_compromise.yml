@@ -46,7 +46,7 @@ patterns:
   - id: "setuid_binary_creation_compromise"
     category: "system_compromise"
     severity: "CRITICAL"
-    title: "SetUID Binary Creation"
+    title: "SetUID Binary Creation (System Compromise Surface)"
     description: >-
         chmod sets the setuid bit (4xxx mask or u+s). New setuid binaries are a
         textbook persistence/privesc primitive on Linux.
@@ -133,7 +133,7 @@ patterns:
   - id: "kernel_module_loading"
     category: "system_compromise"
     severity: "HIGH"
-    title: "Kernel Module Loading"
+    title: "Kernel Module Loading (Ring-0 Code Execution Surface)"
     description: >-
         insmod / modprobe / rmmod is invoked. Kernel modules run with full ring-0
         privilege; loading an unverified module is equivalent to root code execution

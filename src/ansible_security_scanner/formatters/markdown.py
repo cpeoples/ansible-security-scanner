@@ -288,7 +288,7 @@ class MarkdownFormatter(OutputFormatter):
 
             for i, finding in enumerate(critical_findings_to_show, 1):
                 markdown += f"""
-### {i}. {finding.title}
+### {i}. `{finding.rule_id}` · {finding.title}
 - **File:** `{finding.file_path}` (Line {finding.line_number})
 - **Issue:** {finding.description}
 - **Code:** `{self._inline_code_snippet(finding.code_snippet, finding.match_line)}`{self._framework_coverage(finding)}{self._duplicates_block(finding)}
@@ -318,7 +318,7 @@ class MarkdownFormatter(OutputFormatter):
 
             for _i, finding in enumerate(high_findings_to_show, 1):
                 markdown += f"""
-**{finding.title}**
+**`{finding.rule_id}` · {finding.title}**
 - File: `{finding.file_path}` (Line {finding.line_number})
 - Issue: {finding.description}
 - Code: `{self._inline_code_snippet(finding.code_snippet, finding.match_line)}`{self._framework_coverage(finding)}{self._duplicates_block(finding)}

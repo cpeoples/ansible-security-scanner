@@ -228,6 +228,39 @@ def test_cli_list_rules_header_goes_to_stderr() -> None:
     assert "rule_ids known" not in result.stdout
 
 
+def test_cli_list_rules_detailed_emits_tsv_with_metadata() -> None:
+    """``--list-rules-detailed`` must emit one TSV row per rule_id with
+    the canonical four columns (``rule_id<TAB>severity<TAB>category
+    <TAB>title``). YAML rules carry real metadata; synthetic and
+    code-emitted rule_ids carry the documented ``<synthetic>`` sentinel
+    so consumers can filter them out.
+    """
+    result = _run_cli("--list-rules-detailed")
+    assert result.returncode == 0
+
+    parsed = [line.split("\t") for line in result.stdout.splitlines() if line.strip()]
+    assert all(len(cols) == 4 for cols in parsed), (
+        f"every row must have exactly 4 tab-separated columns; "
+        f"first malformed: {next((r for r in parsed if len(r) != 4), None)!r}"
+    )
+    assert {cols[0] for cols in parsed} == known_rule_ids(), (
+        "row count must match the canonical rule_id universe"
+    )
+
+    valid_severities = {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}
+    yaml_severities = {cols[1] for cols in parsed if cols[1] != "<synthetic>"}
+    assert yaml_severities, "expected at least one YAML-backed rule"
+    assert yaml_severities <= valid_severities, (
+        f"YAML severities must be one of {sorted(valid_severities)}; saw {sorted(yaml_severities)}"
+    )
+
+
+def test_cli_list_rules_detailed_header_goes_to_stderr() -> None:
+    result = _run_cli("--list-rules-detailed")
+    assert "rule_ids known" in result.stderr
+    assert "rule_ids known" not in result.stdout
+
+
 def test_cli_unknown_rule_id_exits_2() -> None:
     result = _run_cli("--select", "definitely_not_a_real_rule")
     assert result.returncode == 2

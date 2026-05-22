@@ -13,9 +13,11 @@ from dataclasses import replace
 from pathlib import Path
 
 from .patterns_manager import (
+    RuleListingRow,
     RuleSelectionError,
     known_rule_categories,
     known_rule_ids,
+    known_rule_metadata,
     resolve_rule_specs,
 )
 from .scanner import AnsibleSecurityScanner
@@ -62,6 +64,16 @@ _FORMAT_TO_OUTPUT_EXTENSION: dict[str, str] = {
 _AGGREGATE_ONLY_FORMATS: frozenset[str] = frozenset({"cyclonedx", "sbom"})
 
 _SEVERITY_RANK: dict[str, int] = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
+
+
+# Sentinel row for `--list-rules-detailed` when a rule_id has no YAML
+# backing (synthetic / code-emitted). The CLI documents the
+# ``<synthetic>`` placeholder so consumers can filter it out cleanly.
+_SYNTHETIC_LISTING_ROW: RuleListingRow = {
+    "severity": "<synthetic>",
+    "category": "<synthetic>",
+    "title": "<synthetic>",
+}
 
 
 def _infer_format_from_output_path(output_path: str) -> str | None:
@@ -445,6 +457,18 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "Use with `--select` / `--ignore` to discover the universe of "
         "rule_ids. Output is plain text on stdout so it's pipeable to "
         "grep/awk/fzf.",
+    )
+    parser.add_argument(
+        "--list-rules-detailed",
+        action="store_true",
+        help="Like `--list-rules` but emits a TSV of "
+        "`rule_id<TAB>severity<TAB>category<TAB>title` so operators can "
+        "disambiguate findings whose display title is shared by more "
+        "than one rule_id (the canonical example: two distinct rules "
+        'both titled "SetUID Binary Creation"). Synthetic / '
+        "code-emitted rule_ids carry sentinel placeholders for "
+        "severity/category/title - their identity is the rule_id "
+        "itself.",
     )
 
     # MR / PR commenting
@@ -1046,14 +1070,23 @@ def main():
     # honour ``--verbose`` (INFO messages are otherwise silent).
     setup_logging(args.verbose)
 
-    # ``--list-rules`` short-circuits everything else: print the
-    # universe and exit cleanly. Pipe-friendly (sorted, one rule_id
-    # per line on stdout); diagnostics go to stderr.
-    if args.list_rules:
+    # ``--list-rules`` / ``--list-rules-detailed`` short-circuit
+    # everything else: print the universe and exit cleanly.
+    # Pipe-friendly (sorted, one rule_id per line on stdout, TSV when
+    # detailed); diagnostics go to stderr so ``| grep`` stays clean.
+    if args.list_rules or args.list_rules_detailed:
         ids = sorted(known_rule_ids())
-        print(f"# {len(ids)} rule_ids known to ansible-security-scanner", file=sys.stderr)
-        for rid in ids:
-            print(rid)
+        header = f"# {len(ids)} rule_ids known to ansible-security-scanner"
+        if args.list_rules_detailed:
+            meta = known_rule_metadata()
+            print(f"{header} (rule_id<TAB>severity<TAB>category<TAB>title)", file=sys.stderr)
+            for rid in ids:
+                row = meta.get(rid, _SYNTHETIC_LISTING_ROW)
+                print(f"{rid}\t{row['severity']}\t{row['category']}\t{row['title']}")
+        else:
+            print(header, file=sys.stderr)
+            for rid in ids:
+                print(rid)
         sys.exit(0)
 
     # Resolve the effective output format. Precedence:

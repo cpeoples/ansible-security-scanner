@@ -12,11 +12,24 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import yaml
 
 logger = logging.getLogger(__name__)
+
+
+class RuleListingRow(TypedDict):
+    """One row of `--list-rules-detailed` TSV output.
+
+    Populated from a ``SecurityPattern``; the CLI substitutes a
+    sentinel-filled ``RuleListingRow`` for synthetic / code-emitted
+    rule_ids that have no YAML backing.
+    """
+
+    severity: str
+    category: str
+    title: str
 
 
 @dataclass
@@ -474,6 +487,22 @@ def known_rule_categories() -> dict[str, str]:
     """
     return {
         p.id: p.category
+        for patterns in patterns_manager.discover_and_load_patterns().values()
+        for p in patterns
+    }
+
+
+def known_rule_metadata() -> dict[str, RuleListingRow]:
+    """Return ``{rule_id: {severity, category, title}}`` for YAML rules.
+
+    Powers ``--list-rules-detailed`` so operators can disambiguate
+    findings whose human-readable ``title`` is shared across multiple
+    rule_ids (the SetUID-binary precedent that motivated this helper).
+    Synthetic and code-emitted rule_ids deliberately omitted - they have
+    no static title; the CLI renders them with a sentinel placeholder.
+    """
+    return {
+        p.id: RuleListingRow(severity=p.severity, category=p.category, title=p.title)
         for patterns in patterns_manager.discover_and_load_patterns().values()
         for p in patterns
     }

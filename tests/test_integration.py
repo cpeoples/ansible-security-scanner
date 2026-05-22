@@ -319,6 +319,27 @@ def test_no_duplicate_pattern_ids(all_patterns_flat):
     assert len(dupes) == 0, f"{len(dupes)} duplicate ID(s):\n" + "\n".join(dupes)
 
 
+def test_no_duplicate_pattern_titles(all_patterns_flat):
+    """Display ``title`` must be unique too. Two distinct rule_ids
+    sharing one title silently breaks ignore-list curation: an operator
+    reads the title in a Markdown report, picks ``the`` rule_id from
+    ``--list-rules``, and is confused when findings persist (canonical
+    regression: ``setuid_binary_creation`` and
+    ``setuid_binary_creation_compromise`` both rendered as ``SetUID
+    Binary Creation``). Disambiguate with a category-scoped qualifier
+    in the YAML title rather than reusing the raw phrase."""
+    seen: dict[str, str] = {}
+    dupes: list[str] = []
+    for yml, p in all_patterns_flat:
+        title = p.get("title", "")
+        if not title:
+            continue
+        if title in seen:
+            dupes.append(f"  {title!r}: in {seen[title]} AND {yml.name} ({p['id']})")
+        seen[title] = f"{yml.name} ({p['id']})"
+    assert len(dupes) == 0, f"{len(dupes)} duplicate title(s):\n" + "\n".join(dupes)
+
+
 def test_all_regexes_compile(all_patterns_flat):
     """Every regex in every pattern file must be valid Python regex."""
     errors = []
@@ -664,6 +685,26 @@ def test_all_output_formats_valid(bad_example_report):
     failures = [r for r in results if r is not None]
     assert not failures, f"{len(failures)} format(s) produced invalid output:\n" + "\n".join(
         failures
+    )
+
+
+def test_markdown_critical_and_high_findings_carry_rule_id(bad_example_report):
+    """Every CRITICAL / HIGH finding rendered into Markdown must show
+    its ``rule_id`` next to the title. Operators curate ``--ignore``
+    lists by reading the report; without the ``rule_id`` two rules
+    that share a display ``title`` (the SetUID-binary precedent) are
+    indistinguishable and the ignore list silently misses one.
+    """
+    from ansible_security_scanner.formatters.markdown import MarkdownFormatter
+
+    output = MarkdownFormatter(show_all=True).format(bad_example_report)
+    rendered = [f for f in bad_example_report.findings if f.severity in {"CRITICAL", "HIGH"}]
+    assert rendered, "fixture must produce at least one CRITICAL/HIGH finding"
+
+    missing = [f.rule_id for f in rendered if f"`{f.rule_id}`" not in output]
+    assert not missing, (
+        f"{len(missing)} rendered finding(s) missing rule_id in Markdown: "
+        f"{sorted(set(missing))[:10]}"
     )
 
 
