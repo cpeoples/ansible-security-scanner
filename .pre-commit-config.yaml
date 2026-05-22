@@ -14,8 +14,6 @@ repos:
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
-        # positive_examples block scalars use trailing whitespace as
-        # significant indentation; let yamllint police those instead.
         exclude: ^src/ansible_security_scanner/patterns/.*\.yml$
       - id: check-yaml
         exclude: ^\.hugo/themes/
