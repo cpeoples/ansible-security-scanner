@@ -531,7 +531,14 @@ def create_argument_parser() -> argparse.ArgumentParser:
 
 
 def handle_target_files(args) -> list[str] | None:
-    """Determine which files to scan based on command line arguments.
+    """Validate path-shaped CLI inputs and decide which files to scan.
+
+    Validates ``--directory`` (must be an existing directory) and
+    ``--files`` (each entry must be a file, not a directory) up front,
+    failing with exit code 2 on a usage error. Without these guards the
+    scanner accepts a swapped-flag invocation, walks an empty file set,
+    and writes a structurally valid but empty report - which reads as
+    "no findings" to anyone glancing at the output.
 
     Returns ``None`` to mean "no explicit file list - scan the directory
     tree". Returning an empty list would mean "the user asked for these
@@ -539,6 +546,22 @@ def handle_target_files(args) -> list[str] | None:
     different (terminal) case the caller already handles before reaching
     this function.
     """
+    directory = Path(args.directory)
+    if not directory.is_dir():
+        if directory.is_file():
+            logger.error(
+                "--directory expects a directory, not a file. Got: %s. "
+                "To scan a single file, use --files %s instead.",
+                args.directory,
+                args.directory,
+            )
+        else:
+            logger.error(
+                "--directory %s does not exist or is not a directory.",
+                args.directory,
+            )
+        sys.exit(2)
+
     target_files: list[str] | None = None
 
     if args.changed_files:
@@ -555,6 +578,16 @@ def handle_target_files(args) -> list[str] | None:
             sys.exit(0)
 
     elif args.files:
+        directories = [f for f in args.files if Path(f).is_dir()]
+        if directories:
+            logger.error(
+                "--files expects file paths, not directories. Got: %s. "
+                "To scan a directory tree, drop --files and use --directory %s "
+                "(or just pass the directory positionally).",
+                ", ".join(directories),
+                directories[0],
+            )
+            sys.exit(2)
         target_files = args.files
         logger.info("Scanning specific files: %s", target_files)
 

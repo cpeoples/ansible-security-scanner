@@ -1183,6 +1183,75 @@ def test_cli_refuses_to_overwrite_input_playbook(tmp_path, monkeypatch, capsys, 
     )
 
 
+def test_cli_rejects_directory_passed_to_files(tmp_path, monkeypatch, capsys, caplog):
+    """``--files`` takes file paths. Passing a directory used to be
+    silently accepted and produced an empty-but-valid report, which
+    reads as "no findings" to anyone glancing at the output. The CLI
+    must abort with a usage error and point the user at ``--directory``.
+    """
+    _clean_playbook(tmp_path)
+    with caplog.at_level("ERROR"):
+        exit_code = _run_cli_with_argv(
+            monkeypatch,
+            capsys,
+            [
+                "ansible-security-scanner",
+                "--files",
+                str(tmp_path),
+            ],
+        )
+
+    assert exit_code == 2, f"--files <directory> must exit 2; got {exit_code}"
+    error_text = "\n".join(r.message for r in caplog.records if r.levelname == "ERROR")
+    assert "expects file paths" in error_text.lower(), error_text
+    assert "--directory" in error_text, error_text
+
+
+def test_cli_rejects_file_passed_to_directory(tmp_path, monkeypatch, capsys, caplog):
+    """The opposite mistake: ``--directory <playbook.yml>``. ``rglob``
+    on a file path yields nothing, so the old behaviour was a green
+    empty report. The CLI must reject up front and point the user at
+    ``--files``.
+    """
+    playbook = _clean_playbook(tmp_path)
+    with caplog.at_level("ERROR"):
+        exit_code = _run_cli_with_argv(
+            monkeypatch,
+            capsys,
+            [
+                "ansible-security-scanner",
+                "--directory",
+                str(playbook),
+            ],
+        )
+
+    assert exit_code == 2, f"--directory <file> must exit 2; got {exit_code}"
+    error_text = "\n".join(r.message for r in caplog.records if r.levelname == "ERROR")
+    assert "expects a directory" in error_text.lower(), error_text
+    assert "--files" in error_text, error_text
+
+
+def test_cli_rejects_nonexistent_directory(tmp_path, monkeypatch, capsys, caplog):
+    """A typo in ``--directory`` should fail loudly rather than walk an
+    empty tree and emit a clean report.
+    """
+    missing = tmp_path / "does-not-exist"
+    with caplog.at_level("ERROR"):
+        exit_code = _run_cli_with_argv(
+            monkeypatch,
+            capsys,
+            [
+                "ansible-security-scanner",
+                "--directory",
+                str(missing),
+            ],
+        )
+
+    assert exit_code == 2, f"--directory <missing> must exit 2; got {exit_code}"
+    error_text = "\n".join(r.message for r in caplog.records if r.levelname == "ERROR")
+    assert "does not exist" in error_text.lower(), error_text
+
+
 def test_cli_unknown_extension_warns_and_defaults_to_markdown(
     tmp_path, monkeypatch, capsys, caplog
 ):
