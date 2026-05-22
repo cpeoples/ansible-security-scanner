@@ -6,7 +6,7 @@
 <!-- BADGES_START - stripped from the Hugo docs build; see .hugo/scripts/build_docs.py -->
 <p align="center">
   <a href="https://github.com/cpeoples/ansible-security-scanner/actions/workflows/scanner-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/cpeoples/ansible-security-scanner/scanner-ci.yml?branch=main&label=CI&style=flat-square" alt="CI" /></a>&nbsp;&nbsp;
-  <a href="https://www.bestpractices.dev/projects/12942/baseline"><img src="https://img.shields.io/badge/OpenSSF%20Baseline-Level%203-success?style=flat-square" alt="OpenSSF Baseline Level 3" /></a>&nbsp;&nbsp;
+  <a href="https://www.bestpractices.dev/en/projects/12942/baseline-3"><img src="https://img.shields.io/badge/OpenSSF%20Baseline-Level%203-blueviolet?style=flat-square" alt="OpenSSF Baseline Level 3" /></a>&nbsp;&nbsp;
   <a href="https://scorecard.dev/viewer/?uri=github.com/cpeoples/ansible-security-scanner"><img src="https://img.shields.io/ossf-scorecard/github.com/cpeoples/ansible-security-scanner?style=flat-square&label=OpenSSF%20Scorecard" alt="OpenSSF Scorecard" /></a>&nbsp;&nbsp;
   <a href="src/ansible_security_scanner/patterns"><img src="https://img.shields.io/badge/Rules-1091-blue?style=flat-square&logo=ansible&logoColor=white" alt="Rules" /></a>&nbsp;&nbsp;
   <a href="https://pypi.org/project/ansible-security-scanner/"><img src="https://img.shields.io/pypi/v/ansible-security-scanner?style=flat-square&logo=pypi&logoColor=white&label=PyPI" alt="PyPI" /></a>&nbsp;&nbsp;
