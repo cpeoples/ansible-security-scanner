@@ -304,6 +304,16 @@ _CHIP_FRAMEWORKS = (
 _MAX_CHIPS_PER_ROW = 12
 
 
+def _escape_table_cell(text: str) -> str:
+    """Make a YAML string safe to drop between Markdown table separators.
+
+    A literal ``|`` inside a cell shifts every following column right
+    (the ``Jinja2: |safe filter ...`` regression); a newline breaks the
+    single-row constraint of a Markdown table.
+    """
+    return text.replace("|", "\\|").replace("\n", " ")
+
+
 def _render_framework_chips(pattern: dict) -> str:
     """Render a sparse chip strip of resolvable framework refs for one rule.
 
@@ -417,11 +427,8 @@ def build_pattern_pages() -> dict:
         for p in sorted_patterns:
             rid = p.get("id", "unknown")
             sev = p.get("severity", "MEDIUM").upper()
-            title = p.get("title", rid.replace("_", " ").title())
-            # Render full descriptions verbatim - the docs site is the
-            # canonical reference. Only the markdown table separator needs
-            # escaping.
-            desc = p.get("description", "").replace("|", "\\|").replace("\n", " ")
+            title = _escape_table_cell(p.get("title", rid.replace("_", " ").title()))
+            desc = _escape_table_cell(p.get("description", ""))
             chips = _render_framework_chips(p) or '<span class="framework-chip-empty">—</span>'
             # <wbr> after each underscore lets the browser break long IDs
             # at word seams. Markdown code spans would escape the tag, so

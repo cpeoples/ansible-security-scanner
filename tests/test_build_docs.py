@@ -94,3 +94,39 @@ def test_render_chips_overflow_counts_across_frameworks(build_docs):
     assert visible == cap
     overflow = len(cves) + len(cwes) + len(mitres) - cap
     assert f">+{overflow} more</span>" in out
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("Jinja2: |safe filter", r"Jinja2: \|safe filter"),
+        ("a|b|c", r"a\|b\|c"),
+        ("line one\nline two", "line one line two"),
+        ("plain title", "plain title"),
+        ("", ""),
+    ],
+)
+def test_escape_table_cell(build_docs, raw, expected):
+    assert build_docs._escape_table_cell(raw) == expected
+
+
+def test_authored_pattern_rows_have_six_columns(build_docs):
+    """Every shipped pattern, rendered through the same escape helper
+    the build script uses, must produce exactly the five
+    column-separators (six cells) of the rule table. This is the
+    contract that broke when ``Jinja2: |safe filter ...`` shifted
+    everything right of Title; it guards against any future title or
+    description regrowing an unescaped ``|``.
+    """
+    bad: list[str] = []
+    for yml in sorted(build_docs.PATTERNS_DIR.glob("*.yml")):
+        for p in build_docs.load_patterns(yml).get("patterns", []) or []:
+            title = build_docs._escape_table_cell(p.get("title", ""))
+            desc = build_docs._escape_table_cell(p.get("description", ""))
+            row = f"| rid | sev | {title} | {desc} | chips |"
+            unescaped = sum(
+                1 for i, c in enumerate(row) if c == "|" and (i == 0 or row[i - 1] != "\\")
+            )
+            if unescaped != 6:
+                bad.append(f"  {yml.name}::{p.get('id', '?')} -> {unescaped} cells")
+    assert not bad, "rows with the wrong column count:\n" + "\n".join(bad)
