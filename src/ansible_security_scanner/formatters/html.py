@@ -15,6 +15,7 @@ from ..link_resolver import (
     resolve_stig,
 )
 from ..models import ScanReport, SecurityFinding
+from ._policy import voice as _voice_policy
 from .base import OutputFormatter, ReportEmojis
 
 
@@ -96,6 +97,34 @@ class HTMLFormatter(OutputFormatter):
             + "</div>"
         )
 
+    def _render_active_policy(self, report: ScanReport) -> str:
+        """Render the ``--select`` / ``--ignore`` disclosure panel.
+
+        Mirrors :meth:`MarkdownFormatter._active_policy_section` via the
+        shared voicing helper so the report file and the HTML report
+        read identically. Returns ``""`` when neither flag was used so
+        the HTML structure is unchanged for default scans.
+        """
+        voicing = _voice_policy(report.selected_rule_ids, report.ignored_rule_ids)
+        if voicing is None:
+            return ""
+        head = voicing.head_template.format(
+            select="<code>--select</code>", ignore="<code>--ignore</code>"
+        )
+        items = "\n".join(
+            f"<li><code>{self._escape_html(rid)}</code></li>" for rid in voicing.rule_ids
+        )
+        return (
+            '\n        <div class="active-policy" style="'
+            "margin: 20px 0; padding: 15px; border-left: 4px solid #f39c12; "
+            'background: #fffbe6;">'
+            f"<strong>Active scan policy:</strong> {head}. "
+            "The score above reflects this policy rather than a clean codebase."
+            f'<details style="margin-top: 10px;"><summary>Affected rules '
+            f"({len(voicing.rule_ids)})</summary>"
+            f'<ul style="margin: 8px 0 0 20px;">{items}</ul></details></div>'
+        )
+
     def _duplicates_block_html(self, finding: SecurityFinding) -> str:
         """Render a collapsed HTML block listing cross-file duplicate locations.
 
@@ -122,6 +151,7 @@ class HTMLFormatter(OutputFormatter):
 
     def format(self, report: ScanReport) -> str:
         score_color = self._get_score_color(report.security_score.overall_score)
+        policy_html = self._render_active_policy(report)
 
         html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -771,7 +801,7 @@ class HTMLFormatter(OutputFormatter):
                 <div class="summary-value" style="color: #e67e22;">{report.summary["high"]}</div>
             </div>
         </div>
-
+{policy_html}
         <div class="navigation">
             <div class="nav-links">
                 <a href="#summary" class="nav-link">{ReportEmojis.SUMMARY} Summary</a>

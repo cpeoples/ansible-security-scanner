@@ -48,31 +48,36 @@ class CycloneDXFormatter(OutputFormatter):
             components = [self._component(c) for c in report.components or []]
             vulnerabilities = self._build_vulnerabilities(report.findings or [], components)
 
+            metadata: dict[str, Any] = {
+                "timestamp": self._iso_now(report.scan_timestamp),
+                "tools": {
+                    "components": [
+                        {
+                            "type": "application",
+                            "name": "ansible-security-scanner",
+                            "version": "1.0.0",
+                            "purl": "pkg:pypi/ansible-security-scanner@1.0.0",
+                        }
+                    ],
+                },
+                "component": {
+                    "type": "application",
+                    "bom-ref": "root-component",
+                    "name": self._root_name(report),
+                    "version": "0.0.0",
+                },
+            }
+            policy_props = self._active_policy_properties(report)
+            if policy_props:
+                metadata["properties"] = policy_props
+
             sbom: dict[str, Any] = {
                 "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
                 "bomFormat": "CycloneDX",
                 "specVersion": "1.5",
                 "serialNumber": f"urn:uuid:{uuid.uuid4()}",
                 "version": 1,
-                "metadata": {
-                    "timestamp": self._iso_now(report.scan_timestamp),
-                    "tools": {
-                        "components": [
-                            {
-                                "type": "application",
-                                "name": "ansible-security-scanner",
-                                "version": "1.0.0",
-                                "purl": "pkg:pypi/ansible-security-scanner@1.0.0",
-                            }
-                        ],
-                    },
-                    "component": {
-                        "type": "application",
-                        "bom-ref": "root-component",
-                        "name": self._root_name(report),
-                        "version": "0.0.0",
-                    },
-                },
+                "metadata": metadata,
                 "components": components,
                 "vulnerabilities": vulnerabilities,
             }
@@ -208,6 +213,33 @@ class CycloneDXFormatter(OutputFormatter):
                 v["properties"] = props
             out.append(v)
         return out
+
+    @staticmethod
+    def _active_policy_properties(report: ScanReport) -> list[dict[str, str]]:
+        """Return ``metadata.properties[]`` describing CLI rule scoping.
+
+        CycloneDX ``vulnerabilities[]`` is gated by the same
+        ``--select`` / ``--ignore`` flags that drive the scan, so a
+        Dependency-Track-style consumer needs the policy alongside the
+        BOM. Empty when no policy is in effect so default scans stay
+        byte-stable.
+        """
+        props: list[dict[str, str]] = []
+        if report.selected_rule_ids:
+            props.append(
+                {
+                    "name": "ansible-security-scanner:selected_rule_ids",
+                    "value": ",".join(report.selected_rule_ids),
+                }
+            )
+        if report.ignored_rule_ids:
+            props.append(
+                {
+                    "name": "ansible-security-scanner:ignored_rule_ids",
+                    "value": ",".join(report.ignored_rule_ids),
+                }
+            )
+        return props
 
     @staticmethod
     def _bom_ref(c: dict[str, str]) -> str:

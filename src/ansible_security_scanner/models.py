@@ -98,6 +98,12 @@ class ScanReport:
     suppressed_count: int = 0
     suppression_warnings: list[str] = field(default_factory=list)
     suppressed_gate_failed: bool = False
+    # CLI rule scoping. Populated by ``main()`` after the report is built so
+    # every formatter can disclose ``--select`` / ``--ignore`` narrowing
+    # uniformly: a 100/100 score with a long ``ignored_rule_ids`` list reads
+    # very differently from a clean codebase.
+    selected_rule_ids: list[str] = field(default_factory=list)
+    ignored_rule_ids: list[str] = field(default_factory=list)
     # Dependency inventory collected during the scan (Galaxy collections,
     # roles, pip packages, bindep system packages, EE base images). Used by
     # the CycloneDX SBOM formatter. Defaults to an empty list so every

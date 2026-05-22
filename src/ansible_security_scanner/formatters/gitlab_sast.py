@@ -333,6 +333,13 @@ class GitLabSastFormatter(OutputFormatter):
             "end_time": report.scan_timestamp,
             "status": "success" if success else "failure",
         }
+        if report.selected_rule_ids or report.ignored_rule_ids:
+            block["options"] = {
+                "active_policy": {
+                    "selected_rule_ids": list(report.selected_rule_ids),
+                    "ignored_rule_ids": list(report.ignored_rule_ids),
+                }
+            }
         if not success and error_message:
             block["messages"] = [{"level": "fatal", "value": error_message}]
         return block

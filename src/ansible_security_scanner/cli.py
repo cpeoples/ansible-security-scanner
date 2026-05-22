@@ -1211,6 +1211,16 @@ def main():
     # findings because we fell back to the whole tree" outcome.
     report = scanner._create_empty_report() if mr_scoped_to_empty else scanner.scan_directory()
 
+    # Stamp the resolved CLI rule policy onto the report so every formatter
+    # can disclose ``--select`` / ``--ignore`` narrowing uniformly.
+    selected_rule_ids, ignored_rule_ids, _ = _resolve_run_policy(args)
+    if selected_rule_ids or ignored_rule_ids:
+        report = replace(
+            report,
+            selected_rule_ids=selected_rule_ids,
+            ignored_rule_ids=ignored_rule_ids,
+        )
+
     # --compliance: filter to findings whose cis_controls overlap with the
     # requested set. `--compliance list` prints every tag present so users
     # can discover what's available for their scan's rule set.
@@ -1311,9 +1321,10 @@ def main():
 
     # Log summary information
     logger.info(
-        "Security Score: %d/100 (%s)",
+        "Security Score: %d/100 (%s)%s",
         report.security_score.overall_score,
         scanner.score_calculator.get_security_status(report.security_score.overall_score),
+        " (active policy)" if report.selected_rule_ids or report.ignored_rule_ids else "",
     )
     logger.info(
         "Total Issues: %d (Critical: %d, High: %d)",
@@ -1321,6 +1332,16 @@ def main():
         report.summary["critical"],
         report.summary["high"],
     )
+    if report.selected_rule_ids:
+        head = f"Scan limited to {len(report.selected_rule_ids)} rule(s) via --select"
+        if report.ignored_rule_ids:
+            head += f" (and {len(report.ignored_rule_ids)} further suppressed via --ignore)"
+        logger.info("%s", head)
+    elif report.ignored_rule_ids:
+        logger.info(
+            "%d rule(s) suppressed via --ignore",
+            len(report.ignored_rule_ids),
+        )
     if report.suppressed_count:
         logger.info(
             "Suppressed Findings: %d (use --show-suppressed to view%s)",

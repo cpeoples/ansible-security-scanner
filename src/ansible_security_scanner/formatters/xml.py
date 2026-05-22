@@ -53,6 +53,19 @@ class XMLFormatter(OutputFormatter):
             )
             ET.SubElement(security_score, "RiskScore").text = str(report.security_score.risk_score)
 
+            if report.selected_rule_ids or report.ignored_rule_ids:
+                policy = ET.SubElement(root, "ActivePolicy")
+                if report.selected_rule_ids:
+                    selected_elem = ET.SubElement(policy, "SelectedRules")
+                    selected_elem.set("count", str(len(report.selected_rule_ids)))
+                    for rid in report.selected_rule_ids:
+                        ET.SubElement(selected_elem, "RuleId").text = str(rid)
+                if report.ignored_rule_ids:
+                    ignored_elem = ET.SubElement(policy, "IgnoredRules")
+                    ignored_elem.set("count", str(len(report.ignored_rule_ids)))
+                    for rid in report.ignored_rule_ids:
+                        ET.SubElement(ignored_elem, "RuleId").text = str(rid)
+
             findings = ET.SubElement(root, "Findings")
             for finding in report.findings:
                 finding_elem = ET.SubElement(findings, "Finding")

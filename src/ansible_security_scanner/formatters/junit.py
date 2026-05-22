@@ -22,6 +22,8 @@ class JUnitFormatter(OutputFormatter):
             root.set("failures", str(report.summary["critical"] + report.summary["high"]))
             root.set("errors", str(report.summary["medium"] + report.summary["low"]))
 
+            self._append_active_policy(root, report)
+
             for severity in _SEVERITIES:
                 matching = [f for f in report.findings if f.severity == severity]
                 if not matching:
@@ -52,3 +54,24 @@ class JUnitFormatter(OutputFormatter):
 <testsuites name="Ansible Security Scan" tests="0" failures="0" errors="0">
   <e>Failed to generate JUnit XML: {str(e)}</e>
 </testsuites>"""
+
+    @staticmethod
+    def _append_active_policy(root: ET.Element, report: ScanReport) -> None:
+        """Surface ``--select`` / ``--ignore`` scoping under ``<properties>``.
+
+        ``<properties>`` is the canonical slot CI test dashboards
+        (Jenkins, GitLab CI, GitHub Actions) read for suite-level
+        metadata. Skipped entirely when no policy is in effect so the
+        default JUnit output stays byte-stable.
+        """
+        if not report.selected_rule_ids and not report.ignored_rule_ids:
+            return
+        props = ET.SubElement(root, "properties")
+        if report.selected_rule_ids:
+            prop = ET.SubElement(props, "property")
+            prop.set("name", "ansible-security-scanner.selected_rule_ids")
+            prop.set("value", ",".join(report.selected_rule_ids))
+        if report.ignored_rule_ids:
+            prop = ET.SubElement(props, "property")
+            prop.set("name", "ansible-security-scanner.ignored_rule_ids")
+            prop.set("value", ",".join(report.ignored_rule_ids))

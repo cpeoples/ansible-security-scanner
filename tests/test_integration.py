@@ -1007,6 +1007,44 @@ def _run_cli_with_argv(monkeypatch, capsys, argv: list[str]) -> int:
     return exit_code
 
 
+# Two-rule ignore list shared across the policy-disclosure tests below.
+# Keeping it module-scoped lets the tests assert against a single source
+# of truth for both "what the CLI was told to ignore" and "what each
+# format must surface".
+_POLICY_IGNORE_RULES = ("hardcoded_password", "missing_no_log")
+_POLICY_IGNORE_ARG = ",".join(_POLICY_IGNORE_RULES)
+
+
+def _run_policy_scan(
+    monkeypatch,
+    capsys,
+    *,
+    tmp_path: Path,
+    fmt: str,
+    out_path: Path,
+    ignore: str = _POLICY_IGNORE_ARG,
+) -> int:
+    """Run a clean-playbook scan with ``--ignore`` and write the report
+    in ``fmt`` to ``out_path``. Centralises the argv shape for the
+    policy-disclosure tests so they only need to assert on the format-
+    specific output."""
+    return _run_cli_with_argv(
+        monkeypatch,
+        capsys,
+        [
+            "ansible-security-scanner",
+            "--directory",
+            str(tmp_path),
+            "--format",
+            fmt,
+            "--output",
+            str(out_path),
+            "--ignore",
+            ignore,
+        ],
+    )
+
+
 def _clean_playbook(tmp_path) -> Path:
     """Shared minimal clean playbook for CLI format-inference tests."""
     return _write_tmp_playbook(
@@ -1250,6 +1288,236 @@ def test_cli_rejects_nonexistent_directory(tmp_path, monkeypatch, capsys, caplog
     assert exit_code == 2, f"--directory <missing> must exit 2; got {exit_code}"
     error_text = "\n".join(r.message for r in caplog.records if r.levelname == "ERROR")
     assert "does not exist" in error_text.lower(), error_text
+
+
+def test_cli_summary_discloses_active_policy_on_ignore(tmp_path, monkeypatch, capsys, caplog):
+    """A clean codebase scanned with ``--ignore`` used to log
+    ``Security Score: 100/100`` with no hint that the score reflected a
+    truncated rule set. The stdout summary must surface the active
+    policy alongside the score and the ignored-rule count.
+    """
+    _clean_playbook(tmp_path)
+    with caplog.at_level("INFO"):
+        exit_code = _run_cli_with_argv(
+            monkeypatch,
+            capsys,
+            [
+                "ansible-security-scanner",
+                "--directory",
+                str(tmp_path),
+                "--ignore",
+                _POLICY_IGNORE_ARG,
+            ],
+        )
+
+    assert exit_code == 0, f"clean scan must exit 0; got {exit_code}"
+    info_text = "\n".join(r.message for r in caplog.records if r.levelname == "INFO")
+    assert "active policy" in info_text.lower(), (
+        f"score line must carry the (active policy) qualifier; got:\n{info_text}"
+    )
+    assert f"{len(_POLICY_IGNORE_RULES)} rule(s) suppressed via --ignore" in info_text, (
+        f"summary must report the resolved count; got:\n{info_text}"
+    )
+
+
+def test_json_report_carries_active_policy_rule_ids(tmp_path, monkeypatch, capsys):
+    """``--ignore`` must round-trip through ``asdict`` so JSON
+    consumers (CI dashboards, code-review automations) can detect
+    truncated coverage without parsing log output.
+    """
+    _clean_playbook(tmp_path)
+    out_path = tmp_path / "report.json"
+    exit_code = _run_policy_scan(
+        monkeypatch, capsys, tmp_path=tmp_path, fmt="json", out_path=out_path
+    )
+
+    assert exit_code == 0, f"clean scan must exit 0; got {exit_code}"
+    data = json.loads(out_path.read_text())
+    assert "ignored_rule_ids" in data, list(data.keys())
+    assert sorted(data["ignored_rule_ids"]) == sorted(_POLICY_IGNORE_RULES)
+    assert data.get("selected_rule_ids", []) == [], data.get("selected_rule_ids")
+
+
+def test_markdown_report_renders_active_policy_section(tmp_path, monkeypatch, capsys):
+    """The Markdown report must surface the policy disclosure both as
+    an inline qualifier on the Security Score row and as a dedicated
+    section listing the affected rule IDs.
+    """
+    _clean_playbook(tmp_path)
+    out_path = tmp_path / "report.md"
+    exit_code = _run_policy_scan(
+        monkeypatch, capsys, tmp_path=tmp_path, fmt="markdown", out_path=out_path
+    )
+
+    assert exit_code == 0, f"clean scan must exit 0; got {exit_code}"
+    md = out_path.read_text()
+    assert "*(active policy)*" in md, md
+    assert "### Active Scan Policy" in md, md
+    for rid in _POLICY_IGNORE_RULES:
+        assert f"`{rid}`" in md, md
+
+
+def test_sarif_report_carries_active_policy_in_tool_driver(tmp_path, monkeypatch, capsys):
+    """SARIF consumers (GitHub code-scanning, generic viewers) must be
+    able to tell a 100% run was constrained by ``--ignore``. The
+    canonical slot for scanner-level metadata is
+    ``runs[0].tool.driver.properties``.
+    """
+    _clean_playbook(tmp_path)
+    out_path = tmp_path / "report.sarif"
+    exit_code = _run_policy_scan(
+        monkeypatch, capsys, tmp_path=tmp_path, fmt="sarif", out_path=out_path
+    )
+
+    assert exit_code == 0, f"clean scan must exit 0; got {exit_code}"
+    data = json.loads(out_path.read_text())
+    driver = data["runs"][0]["tool"]["driver"]
+    assert "properties" in driver, driver
+    policy = driver["properties"].get("activePolicy")
+    assert policy is not None, driver["properties"]
+    assert sorted(policy["ignoredRuleIds"]) == sorted(_POLICY_IGNORE_RULES)
+    assert policy["selectedRuleIds"] == []
+
+
+def test_sarif_report_omits_active_policy_for_default_run(tmp_path, monkeypatch, capsys):
+    """A scan with no ``--select``/``--ignore`` must leave the SARIF
+    shape unchanged so existing CI ingestion paths keep validating.
+    """
+    _clean_playbook(tmp_path)
+    out_path = tmp_path / "report.sarif"
+    exit_code = _run_cli_with_argv(
+        monkeypatch,
+        capsys,
+        [
+            "ansible-security-scanner",
+            "--directory",
+            str(tmp_path),
+            "--format",
+            "sarif",
+            "--output",
+            str(out_path),
+        ],
+    )
+
+    assert exit_code == 0, f"clean scan must exit 0; got {exit_code}"
+    data = json.loads(out_path.read_text())
+    driver = data["runs"][0]["tool"]["driver"]
+    assert "properties" not in driver or "activePolicy" not in driver.get("properties", {}), driver
+
+
+def test_gitlab_sast_report_carries_active_policy_in_scan_options(tmp_path, monkeypatch, capsys):
+    """GitLab's MR security widget reads ``scan.options`` for pipeline
+    metadata. Surfacing the active policy there lets reviewers see
+    that a clean SAST report was produced under a constrained rule
+    set rather than against the full catalog.
+    """
+    _clean_playbook(tmp_path)
+    out_path = tmp_path / "gl-sast-report.json"
+    exit_code = _run_policy_scan(
+        monkeypatch, capsys, tmp_path=tmp_path, fmt="gitlab-sast", out_path=out_path
+    )
+
+    assert exit_code == 0, f"clean scan must exit 0; got {exit_code}"
+    data = json.loads(out_path.read_text())
+    options = data["scan"].get("options")
+    assert options is not None, data["scan"]
+    policy = options.get("active_policy")
+    assert policy is not None, options
+    assert sorted(policy["ignored_rule_ids"]) == sorted(_POLICY_IGNORE_RULES)
+    assert policy["selected_rule_ids"] == []
+
+
+def test_yaml_report_carries_active_policy_rule_ids(tmp_path, monkeypatch, capsys):
+    """YAML rides the same ``asdict(report)`` path as JSON, so the
+    policy fields must appear at the top level. Locks in the contract
+    so a future formatter rewrite doesn't silently drop them.
+    """
+    _clean_playbook(tmp_path)
+    out_path = tmp_path / "report.yaml"
+    exit_code = _run_policy_scan(
+        monkeypatch, capsys, tmp_path=tmp_path, fmt="yaml", out_path=out_path
+    )
+
+    assert exit_code == 0, f"clean scan must exit 0; got {exit_code}"
+    data = yaml.safe_load(out_path.read_text())
+    assert sorted(data["ignored_rule_ids"]) == sorted(_POLICY_IGNORE_RULES)
+    assert data["selected_rule_ids"] == []
+
+
+def test_junit_report_surfaces_active_policy_in_properties(tmp_path, monkeypatch, capsys):
+    """CI test dashboards (Jenkins, GitLab CI, GitHub Actions) read
+    ``<properties>`` for suite-level metadata. The active policy must
+    surface there so a clean JUnit report can't masquerade as a
+    full-coverage clean run.
+    """
+    _clean_playbook(tmp_path)
+    out_path = tmp_path / "junit.xml"
+    exit_code = _run_policy_scan(
+        monkeypatch, capsys, tmp_path=tmp_path, fmt="junit", out_path=out_path
+    )
+
+    assert exit_code == 0, f"clean scan must exit 0; got {exit_code}"
+    root = ET.fromstring(out_path.read_text())
+    props: dict[str, str] = {
+        name: value
+        for p in root.findall("./properties/property")
+        if (name := p.get("name")) and (value := p.get("value")) is not None
+    }
+    assert "ansible-security-scanner.ignored_rule_ids" in props, props
+    assert sorted(props["ansible-security-scanner.ignored_rule_ids"].split(",")) == sorted(
+        _POLICY_IGNORE_RULES
+    )
+    assert "ansible-security-scanner.selected_rule_ids" not in props, props
+
+
+def test_junit_report_omits_active_policy_for_default_run(tmp_path, monkeypatch, capsys):
+    """A scan with no ``--select``/``--ignore`` must keep the JUnit
+    output byte-stable so existing CI dashboards (which fingerprint
+    test reports) don't see spurious diffs on every run.
+    """
+    _clean_playbook(tmp_path)
+    out_path = tmp_path / "junit.xml"
+    exit_code = _run_cli_with_argv(
+        monkeypatch,
+        capsys,
+        [
+            "ansible-security-scanner",
+            "--directory",
+            str(tmp_path),
+            "--format",
+            "junit",
+            "--output",
+            str(out_path),
+        ],
+    )
+
+    assert exit_code == 0, f"clean scan must exit 0; got {exit_code}"
+    root = ET.fromstring(out_path.read_text())
+    assert root.find("./properties") is None, ET.tostring(root, encoding="unicode")
+
+
+def test_cyclonedx_report_carries_active_policy_in_metadata_properties(
+    tmp_path, monkeypatch, capsys
+):
+    """CycloneDX's ``vulnerabilities[]`` is gated by ``--select`` /
+    ``--ignore``, so a Dependency-Track-style consumer must be able to
+    detect a constrained run. ``metadata.properties[]`` is the
+    documented slot for arbitrary scanner metadata.
+    """
+    _clean_playbook(tmp_path)
+    out_path = tmp_path / "bom.json"
+    exit_code = _run_policy_scan(
+        monkeypatch, capsys, tmp_path=tmp_path, fmt="cyclonedx", out_path=out_path
+    )
+
+    assert exit_code == 0, f"clean scan must exit 0; got {exit_code}"
+    data = json.loads(out_path.read_text())
+    props = {p["name"]: p["value"] for p in data["metadata"].get("properties", [])}
+    assert "ansible-security-scanner:ignored_rule_ids" in props, props
+    assert sorted(props["ansible-security-scanner:ignored_rule_ids"].split(",")) == sorted(
+        _POLICY_IGNORE_RULES
+    )
+    assert "ansible-security-scanner:selected_rule_ids" not in props, props
 
 
 def test_cli_unknown_extension_warns_and_defaults_to_markdown(

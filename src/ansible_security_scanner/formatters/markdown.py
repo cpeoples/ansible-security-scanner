@@ -18,6 +18,7 @@ from ..link_resolver import (
     resolve_stig,
 )
 from ..models import ScanReport, SecurityFinding
+from ._policy import voice as _voice_policy
 from .base import OutputFormatter, ReportEmojis
 
 
@@ -143,6 +144,25 @@ class MarkdownFormatter(OutputFormatter):
             badge = f"{ReportEmojis.LOW} Low"
         return f"| Issue Density | {density:.1f} per file | {badge} |\n"
 
+    @staticmethod
+    def _active_policy_section(report: ScanReport) -> str:
+        """Render an ``### Active Scan Policy`` block disclosing
+        ``--select`` / ``--ignore`` narrowing. Returns ``""`` when the
+        scan ran with the full rule universe.
+        """
+        voicing = _voice_policy(report.selected_rule_ids, report.ignored_rule_ids)
+        if voicing is None:
+            return ""
+        head = voicing.head_template.format(select="`--select`", ignore="`--ignore`")
+        rules_block = "\n".join(f"- `{rid}`" for rid in voicing.rule_ids)
+        return (
+            "\n### Active Scan Policy\n\n"
+            f"> {head}. The score above reflects this policy rather than a clean codebase.\n\n"
+            f"<details><summary>Affected rules ({len(voicing.rule_ids)})</summary>\n\n"
+            f"{rules_block}\n\n"
+            "</details>\n\n"
+        )
+
     def format(self, report: ScanReport) -> str:
         """Render ``report`` as a Markdown document with anchor links and per-finding remediation examples."""
 
@@ -155,6 +175,9 @@ class MarkdownFormatter(OutputFormatter):
 
         risk_emoji = {"Minimal": "🟢", "Low": "🟡", "Medium": "🟠", **ReportEmojis.RISK_STATUS}
 
+        policy_qualifier = (
+            " *(active policy)*" if report.selected_rule_ids or report.ignored_rule_ids else ""
+        )
         # Render a human-friendly timestamp for the header while keeping the
         # raw ISO-8601 value in report.scan_timestamp intact (JSON/SARIF/JUnit
         # formatters depend on the precise form). Falls back gracefully if the
@@ -209,11 +232,10 @@ class MarkdownFormatter(OutputFormatter):
 ### Overall Security Posture
 | Metric | Score | Status |
 |--------|-------|--------|
-| Security Score | {report.security_score.overall_score}/100 | {status_emoji.get(security_status, "❓")} {security_status} |
+| Security Score | {report.security_score.overall_score}/100{policy_qualifier} | {status_emoji.get(security_status, "❓")} {security_status} |
 | Risk Level | {report.security_score.risk_score}/100 | {risk_emoji.get(risk_level, "❓")} {risk_level} |
 | Total Issues | {report.summary["total_findings"]} | {f"{ReportEmojis.URGENT} URGENT" if report.summary["total_findings"] > 50 else f"{ReportEmojis.ATTENTION} Attention Needed" if report.summary["total_findings"] > 0 else f"{ReportEmojis.CLEAN} Clean"} |
-{self._issue_density_row(report)}
-### Risk Distribution
+{self._issue_density_row(report)}{self._active_policy_section(report)}### Risk Distribution
 | Severity | Count | Impact |
 |----------|-------|---------|
 | {ReportEmojis.CRITICAL_ISSUE} CRITICAL | {report.summary["critical"]} | {f"{ReportEmojis.STOP} Stop deployment" if report.summary["critical"] > 0 else f"{ReportEmojis.NONE} None"} |

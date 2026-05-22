@@ -57,15 +57,18 @@ class SARIFFormatter(OutputFormatter):
             rule_id_to_index = {r["id"]: idx for idx, r in enumerate(rules)}
             taxonomies = self._build_taxonomies(report.findings)
 
+            driver: dict = {
+                "name": "Ansible Security Scanner",
+                "version": "1.0.0",
+                "informationUri": "https://github.com/cpeoples/ansible-security-scanner",
+                "rules": rules,
+            }
+            policy_props = self._active_policy_properties(report)
+            if policy_props:
+                driver["properties"] = policy_props
+
             run_block = {
-                "tool": {
-                    "driver": {
-                        "name": "Ansible Security Scanner",
-                        "version": "1.0.0",
-                        "informationUri": "https://github.com/cpeoples/ansible-security-scanner",
-                        "rules": rules,
-                    }
-                },
+                "tool": {"driver": driver},
                 "invocations": [
                     {
                         "executionSuccessful": True,
@@ -261,6 +264,25 @@ class SARIFFormatter(OutputFormatter):
         # CVE ids already carry the `CVE-` prefix; pass through as-is.
         ("cve", "CVE", "-", ("CVE-",)),
     )
+
+    @staticmethod
+    def _active_policy_properties(report: ScanReport) -> dict:
+        """Return ``tool.driver.properties`` describing CLI rule scoping.
+
+        SARIF allows arbitrary scanner metadata under
+        ``tool.driver.properties``; code-scanning UIs (GitHub Advanced
+        Security, generic SARIF viewers) surface it in the run / rule
+        detail pane. Empty when no policy is in effect so default scans
+        keep the same SARIF shape.
+        """
+        if not report.selected_rule_ids and not report.ignored_rule_ids:
+            return {}
+        return {
+            "activePolicy": {
+                "selectedRuleIds": list(report.selected_rule_ids),
+                "ignoredRuleIds": list(report.ignored_rule_ids),
+            }
+        }
 
     @staticmethod
     def _tags_for(f: SecurityFinding) -> list[str]:

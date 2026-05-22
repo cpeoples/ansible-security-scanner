@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 """
-CSV output formatter for Ansible Security Scanner
+CSV output formatter for Ansible Security Scanner.
+
+Emits a flat ``findings -> rows`` table with a fixed column header so
+spreadsheet/Pandas/Excel consumers can ingest the file directly.
+
+Active scan policy (``--select`` / ``--ignore``) is intentionally NOT
+disclosed here: there is no scan-level row to attach it to without
+breaking the CSV column contract. Use a structured format (json, yaml,
+markdown, html, xml, sarif, gitlab-sast, junit, cyclonedx) when policy
+disclosure matters alongside the findings.
 """
 
 import csv
