@@ -1,0 +1,56 @@
+name: Scorecard analysis
+
+# OpenSSF Scorecard runs weekly against the default branch and on every
+# push to main. Results land in three places:
+#   1. GitHub Code Scanning (Security tab) - per-check findings as SARIF.
+#   2. The OpenSSF Scorecard public API (api.scorecard.dev) - powers the
+#      README badge and the central transparency database.
+#   3. The Actions tab - SARIF artifact retained for 5 days for ad-hoc
+#      drill-down.
+# The workflow is read-only outside ``security-events: write`` (needed
+# for the SARIF upload) and ``id-token: write`` (needed for OIDC-signed
+# result publication, which is what the badge reads from).
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, Saturday 01:30 UTC. Out-of-band with the rest of CI so a
+    # bad result doesn't block a release.
+    - cron: "30 1 * * 6"
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a  # v2.4.3
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: scorecard-sarif
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to Code Scanning
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif

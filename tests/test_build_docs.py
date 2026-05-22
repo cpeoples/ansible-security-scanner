@@ -130,3 +130,44 @@ def test_authored_pattern_rows_have_six_columns(build_docs):
             if unescaped != 6:
                 bad.append(f"  {yml.name}::{p.get('id', '?')} -> {unescaped} cells")
     assert not bad, "rows with the wrong column count:\n" + "\n".join(bad)
+
+
+def test_strip_readme_badge_block_removes_marker_block(build_docs):
+    """Marker-wrapped block is removed; surrounding prose is preserved."""
+    src = (
+        "# Title\n\n"
+        "<!-- BADGES_START - drop me -->\n"
+        "[![CI](https://example/ci.svg)](https://example/ci)\n"
+        "[![PyPI](https://example/pypi.svg)](https://example/pypi)\n"
+        "<!-- BADGES_END -->\n\n"
+        "Body paragraph stays.\n"
+    )
+    out = build_docs._strip_readme_badge_block(src)
+    assert "BADGES_START" not in out
+    assert "BADGES_END" not in out
+    assert "ci.svg" not in out
+    assert "pypi.svg" not in out
+    assert "Body paragraph stays." in out
+    assert out.startswith("# Title\n\n")
+
+
+def test_strip_readme_badge_block_is_noop_without_markers(build_docs):
+    """Files without the markers must round-trip byte-for-byte."""
+    src = "# Title\n\nNo badges here, just prose.\n"
+    assert build_docs._strip_readme_badge_block(src) == src
+
+
+def test_strip_readme_badge_block_runs_on_live_readme(build_docs):
+    """The live README must contain the marker block, and stripping it
+    must remove every shields.io / api.scorecard.dev URL. Catches an
+    accidental marker rename or a badge URL added outside the markers.
+    """
+    repo_root = Path(__file__).resolve().parents[1]
+    readme = (repo_root / "README.md").read_text()
+    assert "<!-- BADGES_START" in readme, (
+        "README is missing the BADGES_START marker - the Hugo build will "
+        "ship the badge row to the docs home page."
+    )
+    stripped = build_docs._strip_readme_badge_block(readme)
+    assert "img.shields.io" not in stripped
+    assert "api.scorecard.dev" not in stripped

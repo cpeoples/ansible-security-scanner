@@ -45,6 +45,7 @@ repos:
           n=re.sub(r'<!--RULES-->\d+<!--/RULES-->', f'<!--RULES-->{r}<!--/RULES-->', t);
           n=re.sub(r'<!--CATS-->\d+<!--/CATS-->', f'<!--CATS-->{c}<!--/CATS-->', n);
           n=re.sub(r'(#security-checks-)\d+(-categories-)\d+(-rules)', rf'\g<1>{c}\g<2>{r}\g<3>', n);
+          n=re.sub(r'(img\.shields\.io/badge/rules-)\d+(-)', rf'\g<1>{r}\g<2>', n);
           pathlib.Path('README.md').write_text(n);
           sys.exit(0 if n==t else 1)"
         files: ^(README\.md|src/ansible_security_scanner/patterns/.*\.yml)$

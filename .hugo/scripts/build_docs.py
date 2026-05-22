@@ -198,6 +198,23 @@ def _rewrite_links_for_hugo(body: str) -> str:
 
 
 _LEADING_H1_RE = re.compile(r"^#\s+(?P<title>.+?)\s*$\n+", re.MULTILINE)
+_BADGES_BLOCK_RE = re.compile(
+    r"<!--\s*BADGES_START\b.*?-->\n.*?\n<!--\s*BADGES_END\s*-->\n*",
+    re.DOTALL,
+)
+
+
+def _strip_readme_badge_block(content: str) -> str:
+    """Drop the GitHub-only badge row when emitting the Hugo home page.
+
+    The badge row (CI / Scorecard / rule count / PyPI / sigstore) is for
+    evaluators on github.com - the docs site already exposes that
+    metadata via theme chrome (search, version selector, repo link), and
+    rendering it on every doc home-page load would trigger third-party
+    network calls. Markers are ``<!-- BADGES_START -->`` /
+    ``<!-- BADGES_END -->`` so the strip stays deterministic.
+    """
+    return _BADGES_BLOCK_RE.sub("", content)
 
 
 def _strip_leading_h1(content: str) -> tuple[str, str | None]:
@@ -228,6 +245,7 @@ def build_index() -> None:
     else:
         content = README_FILE.read_text()
 
+    content = _strip_readme_badge_block(content)
     content = re.sub(
         r'(src|href)="docs/assets/',
         lambda m: f'{m.group(1)}="{ASSET_URL_PREFIX}',

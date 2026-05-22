@@ -1,5 +1,13 @@
 # <img src="docs/assets/ansible.svg" alt="" height="32" align="center" /> Ansible Security Scanner
 
+<!-- BADGES_START - stripped from the Hugo docs build; see .hugo/scripts/build_docs.py -->
+[![CI](https://img.shields.io/github/actions/workflow/status/cpeoples/ansible-security-scanner/scanner-ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/cpeoples/ansible-security-scanner/actions/workflows/scanner-ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/cpeoples/ansible-security-scanner/badge?style=flat-square)](https://scorecard.dev/viewer/?uri=github.com/cpeoples/ansible-security-scanner)
+[![Rules](https://img.shields.io/badge/rules-1091-blue?style=flat-square&logo=ansible&logoColor=white)](src/ansible_security_scanner/patterns)
+[![PyPI](https://img.shields.io/pypi/v/ansible-security-scanner?style=flat-square&logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/ansible-security-scanner/)
+[![Sigstore](https://img.shields.io/badge/sigstore-verified-success?style=flat-square&logo=sigstore&logoColor=white)](https://github.com/cpeoples/ansible-security-scanner/releases/latest)
+<!-- BADGES_END -->
+
 A security scanner for Ansible playbooks. Detects malicious code, unauthorized cloud access, offensive tooling, reverse shells, data exfiltration, and 500+ additional security anti-patterns. Generates detailed reports with remediation guidance.
 
 **<!--RULES-->1091<!--/RULES--> rules** across **<!--CATS-->31<!--/CATS--> categories** -- all auto-discovered from YAML pattern plugins.
