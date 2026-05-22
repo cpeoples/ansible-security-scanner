@@ -171,3 +171,48 @@ def test_strip_readme_badge_block_runs_on_live_readme(build_docs):
     stripped = build_docs._strip_readme_badge_block(readme)
     assert "img.shields.io" not in stripped
     assert "api.scorecard.dev" not in stripped
+
+
+def test_strip_leading_h1_extracts_markdown_form(build_docs):
+    """A leading ``# Title`` line is consumed and its text returned."""
+    body, title = build_docs._strip_leading_h1("# My Title\n\nBody paragraph.\n")
+    assert title == "My Title"
+    assert body == "Body paragraph.\n"
+
+
+def test_strip_leading_h1_extracts_html_form(build_docs):
+    """The HTML form (``<h1 align="center"><img/>Title</h1>``) used by the
+    centred README header is consumed the same way as the Markdown form,
+    inline tags are stripped from the extracted title, and embedded
+    whitespace is collapsed so the front-matter stays YAML-clean.
+    """
+    src = (
+        '<h1 align="center">\n'
+        '  <img src="docs/assets/ansible.svg" alt="" height="32" align="center" />\n'
+        "  Ansible Security Scanner\n"
+        "</h1>\n\n"
+        "Body paragraph.\n"
+    )
+    body, title = build_docs._strip_leading_h1(src)
+    assert title == "Ansible Security Scanner"
+    assert body == "Body paragraph.\n"
+
+
+def test_strip_leading_h1_runs_on_live_readme(build_docs):
+    """End-to-end: the live README's leading H1 must be extractable and
+    its body must not start with another H1 (which would stack two
+    titles in the rendered Hugo home page).
+    """
+    repo_root = Path(__file__).resolve().parents[1]
+    readme = (repo_root / "README.md").read_text()
+    stripped_badges = build_docs._strip_readme_badge_block(readme)
+    body, title = build_docs._strip_leading_h1(stripped_badges)
+    assert title == "Ansible Security Scanner", (
+        f"expected the README's leading H1 to extract as the project name, got {title!r}"
+    )
+    assert not body.lstrip().startswith("<h1"), (
+        "README body still begins with an <h1> after the leading-H1 strip - the Hugo home page would render two titles."
+    )
+    assert not body.lstrip().startswith("# "), (
+        "README body still begins with a Markdown H1 after the leading-H1 strip."
+    )

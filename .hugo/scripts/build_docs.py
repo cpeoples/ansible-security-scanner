@@ -198,6 +198,10 @@ def _rewrite_links_for_hugo(body: str) -> str:
 
 
 _LEADING_H1_RE = re.compile(r"^#\s+(?P<title>.+?)\s*$\n+", re.MULTILINE)
+_LEADING_HTML_H1_RE = re.compile(
+    r"\A\s*<h1\b[^>]*>(?P<title>.*?)</h1>\s*\n+",
+    re.DOTALL | re.IGNORECASE,
+)
 _BADGES_BLOCK_RE = re.compile(
     r"<!--\s*BADGES_START\b.*?-->\n.*?\n<!--\s*BADGES_END\s*-->\n*",
     re.DOTALL,
@@ -225,14 +229,19 @@ def _strip_leading_h1(content: str) -> tuple[str, str | None]:
     to use the extracted title (home page) or discard it (doc pages
     where the title is curated in ``DOC_PAGES``).
 
-    Hugo themes render the page title from front-matter; leaving the
-    body's H1 in place would stack two identical titles in the rendered
-    page.
+    Both Markdown (``# Title``) and HTML (``<h1>Title</h1>``) forms are
+    supported - the README home page uses the HTML form to centre the
+    title row on GitHub, but the Hugo theme renders its own H1 from
+    front-matter, so either form would otherwise produce two stacked
+    titles in the rendered docs.
     """
     match = _LEADING_H1_RE.match(content)
     if not match:
+        match = _LEADING_HTML_H1_RE.match(content)
+    if not match:
         return content, None
     title = re.sub(r"<[^>]+>", "", match.group("title")).strip()
+    title = re.sub(r"\s+", " ", title)
     return content[match.end() :], title
 
 

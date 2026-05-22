@@ -1,4 +1,7 @@
-# <img src="docs/assets/ansible.svg" alt="" height="32" align="center" /> Ansible Security Scanner
+<h1 align="center" style="text-align: center;">
+  <img src="docs/assets/ansible.svg" alt="" height="32" align="center" />
+  Ansible Security Scanner
+</h1>
 
 <!-- BADGES_START - stripped from the Hugo docs build; see .hugo/scripts/build_docs.py -->
 <p align="center">
