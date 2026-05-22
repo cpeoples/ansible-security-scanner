@@ -1043,18 +1043,35 @@ class FileScanner:
         active_rule_ids: frozenset | None = None,
     ):
         self.directory = directory
-        # Load patterns from patterns_manager, then narrow to the active
-        # rule set. ``active_rule_ids=None`` means "no filter, ship every
-        # rule" - the default behaviour. When set, the line/window scan
-        # loop iterates a smaller pattern list (the perf win) AND
-        # synthetic / structural / jinja / taint findings are filtered
-        # at the end of each scan_file call.
+        # Load patterns from patterns_manager, then narrow to the *scan*
+        # set. ``active_rule_ids=None`` means "no filter, ship every rule".
+        # When set, we narrow ``pattern_data`` to only the rules that
+        # actually need to fire during the scan loop (the perf win) - but
+        # we keep two extra cohorts in the scan set even though they will
+        # ultimately be filtered out of the report:
+        #   1. ``p.exclude`` rules - these are allowlist/exclusion patterns,
+        #      not findings.
+        #   2. Group-siblings of any active rule. ``_apply_overlap_suppression``
+        #      can only suppress a less-specific finding in favour of a
+        #      more-specific one if the more-specific rule actually fired.
+        #      If the user ignored the more-specific rule, we still fire
+        #      it during the scan so the deduper can drop the less-specific
+        #      sibling at the same location; the more-specific finding is
+        #      then dropped by the ``active_rule_ids`` gate at the end of
+        #      ``scan_file``. Net effect: ignoring rule X silences the
+        #      whole vulnerability category at every line where X matches,
+        #      rather than letting a less-specific sibling surface ("whack-
+        #      a-mole" semantics).
         raw_patterns = patterns_manager.discover_and_load_patterns()
         if active_rule_ids is None:
             self.pattern_data = raw_patterns
         else:
+            scan_rule_ids = set(active_rule_ids)
+            for group in _OVERLAP_SUPPRESSION_GROUPS:
+                if any(rid in active_rule_ids for rid in group):
+                    scan_rule_ids.update(group)
             self.pattern_data = {
-                category: [p for p in patterns if p.id in active_rule_ids or p.exclude]
+                category: [p for p in patterns if p.id in scan_rule_ids or p.exclude]
                 for category, patterns in raw_patterns.items()
             }
             self.pattern_data = {k: v for k, v in self.pattern_data.items() if v}
@@ -1490,16 +1507,22 @@ class FileScanner:
         if _is_vendor_collection_path(file_path):
             findings = [_demote_severity_in_vendor_path(f) for f in findings]
         if self.active_rule_ids is not None:
-            # Final gate for synthetic / structural / jinja2 / suspicious-
-            # suppression findings whose rule_ids are emitted in code
-            # rather than via the YAML-pattern loop. Pattern-based findings
-            # were already excluded at scan time via ``self.pattern_data``,
-            # so this is a small no-op for them and a correctness gate
-            # for the rest. ``scan_error`` and ``suspicious_suppression``
-            # are meta-findings that report on the scan itself rather than
-            # on any specific rule's regex - they always fire so the user
-            # learns about parse failures and audit-evasion attempts even
-            # under a narrow ``--select``.
+            # Final ``--ignore`` gate. Runs AFTER ``_apply_overlap_suppression``
+            # so that ignoring the most-specific rule of an overlap group
+            # silences its less-specific siblings at the same location too -
+            # the deduper sees the ignored rule fire (we kept group-siblings
+            # in ``pattern_data`` for exactly this reason), drops the
+            # siblings, then this gate drops the ignored finding itself.
+            # Net result: ignoring rule X means rule X's vulnerability is
+            # silent on every line it matches, instead of a less-specific
+            # sibling surfacing ("whack-a-mole").
+            #
+            # Also covers synthetic / structural / jinja2 / taint findings
+            # whose rule_ids are emitted in code rather than via the YAML
+            # pattern loop. ``scan_error`` and ``suspicious_suppression``
+            # are meta-findings about the scan itself - they always fire
+            # so the user learns about parse failures and audit-evasion
+            # attempts even under a narrow ``--select``.
             findings = [
                 f
                 for f in findings

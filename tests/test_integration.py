@@ -772,6 +772,56 @@ def test_overlap_suppression_dedupes_slack_and_google_aiza_pairs(tmp_path):
     )
 
 
+def test_ignore_silences_overlap_group_siblings_at_same_line(tmp_path):
+    """Ignoring the most-specific firing rule of an overlap-suppression
+    group must silence its less-specific siblings on the same line, not
+    let them surface ("whack-a-mole").
+
+    Regression for the user-reported case where ignoring
+    ``curl_wget_pipe_shell_install_oneliner`` caused
+    ``download_pipe_to_shell`` to surface, then ignoring that caused
+    ``shell_pipe_to_interpreter`` to surface, etc. The expectation is
+    that ``--ignore=<rule>`` silences the vulnerability category on
+    every line where ``<rule>`` matched, regardless of which other
+    less-specific rules in the same group also fired there.
+
+    The fixture fires four rules from the pipe-to-shell suppression
+    group: ``curl_pipe_to_shell`` (most specific firing here),
+    ``curl_wget_pipe_shell_install_oneliner``, ``shell_pipe_to_interpreter``
+    and ``download_pipe_to_shell``. Without ``--ignore``, only
+    ``curl_pipe_to_shell`` survives the deduper. With
+    ``--ignore=curl_pipe_to_shell``, NO pipe-to-shell finding should
+    surface on that line.
+    """
+    playbook = _write_tmp_playbook(
+        tmp_path,
+        """---
+- hosts: all
+  tasks:
+    - name: install via pipe to shell
+      ansible.builtin.shell: curl https://install.example.com/setup.sh | bash
+""",
+    )
+    from ansible_security_scanner.file_scanner import _OVERLAP_SUPPRESSION_GROUPS
+
+    pipe_to_shell_group = next(
+        set(g) for g in _OVERLAP_SUPPRESSION_GROUPS if "curl_pipe_to_shell" in g
+    )
+
+    baseline = _scan_playbook(playbook).findings
+    baseline_pipe = {f.rule_id for f in baseline if f.rule_id in pipe_to_shell_group}
+    assert baseline_pipe == {"curl_pipe_to_shell"}, (
+        f"baseline scan should keep only the most-specific pipe-to-shell rule; got {baseline_pipe}"
+    )
+
+    ignored = _scan_playbook(playbook, ignore_rules=["curl_pipe_to_shell"]).findings
+    ignored_pipe = {f.rule_id for f in ignored if f.rule_id in pipe_to_shell_group}
+    assert not ignored_pipe, (
+        f"ignoring the winning rule of the overlap group should silence ALL "
+        f"pipe-to-shell siblings on that line; instead these surfaced: {ignored_pipe}"
+    )
+
+
 # Folded in from the former tests/test_suppressions.py so everything lives
 # in one place. These exercise the hardening rules in suppressions.py:
 #   - bare `# nosec` (no rule list) is REJECTED
