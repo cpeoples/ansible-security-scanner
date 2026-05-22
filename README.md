@@ -1,11 +1,17 @@
 # <img src="docs/assets/ansible.svg" alt="" height="32" align="center" /> Ansible Security Scanner
 
 <!-- BADGES_START - stripped from the Hugo docs build; see .hugo/scripts/build_docs.py -->
-[![CI](https://img.shields.io/github/actions/workflow/status/cpeoples/ansible-security-scanner/scanner-ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/cpeoples/ansible-security-scanner/actions/workflows/scanner-ci.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/cpeoples/ansible-security-scanner/badge?style=flat-square)](https://scorecard.dev/viewer/?uri=github.com/cpeoples/ansible-security-scanner)
-[![Rules](https://img.shields.io/badge/rules-1091-blue?style=flat-square&logo=ansible&logoColor=white)](src/ansible_security_scanner/patterns)
-[![PyPI](https://img.shields.io/pypi/v/ansible-security-scanner?style=flat-square&logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/ansible-security-scanner/)
-[![Sigstore](https://img.shields.io/badge/sigstore-verified-success?style=flat-square&logo=sigstore&logoColor=white)](https://github.com/cpeoples/ansible-security-scanner/releases/latest)
+<p>
+  <a href="https://github.com/cpeoples/ansible-security-scanner/actions/workflows/scanner-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/cpeoples/ansible-security-scanner/scanner-ci.yml?branch=main&label=CI&style=flat-square" alt="CI" /></a>
+  &nbsp;
+  <a href="https://scorecard.dev/viewer/?uri=github.com/cpeoples/ansible-security-scanner"><img src="https://api.scorecard.dev/projects/github.com/cpeoples/ansible-security-scanner/badge?style=flat-square" alt="OpenSSF Scorecard" /></a>
+  &nbsp;
+  <a href="src/ansible_security_scanner/patterns"><img src="https://img.shields.io/badge/rules-1091-blue?style=flat-square&logo=ansible&logoColor=white" alt="Rules" /></a>
+  &nbsp;
+  <a href="https://pypi.org/project/ansible-security-scanner/"><img src="https://img.shields.io/pypi/v/ansible-security-scanner?style=flat-square&logo=pypi&logoColor=white&label=PyPI" alt="PyPI" /></a>
+  &nbsp;
+  <a href="https://github.com/cpeoples/ansible-security-scanner/releases/latest"><img src="https://img.shields.io/badge/sigstore-verified-success?style=flat-square&logo=sigstore&logoColor=white" alt="Sigstore verified" /></a>
+</p>
 <!-- BADGES_END -->
 
 A security scanner for Ansible playbooks. Detects malicious code, unauthorized cloud access, offensive tooling, reverse shells, data exfiltration, and 500+ additional security anti-patterns. Generates detailed reports with remediation guidance.
