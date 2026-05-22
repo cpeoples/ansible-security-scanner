@@ -682,6 +682,26 @@ _OVERLAP_SUPPRESSION_GROUPS: tuple[tuple[str, ...], ...] = (
         "http_basic_auth",
         "insecure_protocol_usage",
     ),
+    # ``slack_webhook_url`` and ``slack_webhook`` are the same
+    # ``hooks.slack.com/services/...`` regex under two category
+    # framings (webhook_exposure vs hardcoded_credentials). The
+    # webhook-specific framing carries Slack-specific rotation
+    # remediation, so it wins when both fire on the same line.
+    (
+        "slack_webhook_url",
+        "slack_webhook",
+    ),
+    # ``google_api_key`` and ``youtube_api_key`` both match the
+    # ``AIza`` + 35-char Google credential shape - the regex
+    # cannot distinguish them, because YouTube Data API keys
+    # ARE Google API keys (same GCP keyspace). Keep the
+    # CRITICAL google_api_key framing: any leaked AIza... key
+    # warrants project-wide rotation, not the lower-severity
+    # YouTube-only response.
+    (
+        "google_api_key",
+        "youtube_api_key",
+    ),
 )
 
 

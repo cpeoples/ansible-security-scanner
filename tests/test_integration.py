@@ -340,6 +340,41 @@ def test_no_duplicate_pattern_titles(all_patterns_flat):
     assert len(dupes) == 0, f"{len(dupes)} duplicate title(s):\n" + "\n".join(dupes)
 
 
+def test_identical_regexes_are_paired_in_overlap_suppression(all_patterns_flat):
+    """When two distinct rule_ids share the same regex they will both
+    fire on every match. That's only acceptable when the pair is listed
+    in ``_OVERLAP_SUPPRESSION_GROUPS`` so the deduper keeps just one
+    finding per ``(file, line)``. The sentinel ``(?!)`` regex is
+    explicitly allowed because rules using it skip the regex pass and
+    rely on a Python AST/semantic walker instead."""
+    from collections import defaultdict
+
+    from ansible_security_scanner.file_scanner import _OVERLAP_SUPPRESSION_GROUPS
+
+    by_regex: dict[tuple[str, bool], list[str]] = defaultdict(list)
+    for _, p in all_patterns_flat:
+        regex = p.get("regex", "")
+        if regex == "(?!)":
+            continue
+        by_regex[(regex, bool(p.get("multiline")))].append(p["id"])
+
+    paired: set[frozenset[str]] = {frozenset(g) for g in _OVERLAP_SUPPRESSION_GROUPS}
+
+    unpaired: list[str] = []
+    for (regex, _), ids in by_regex.items():
+        if len(ids) < 2:
+            continue
+        if not any(frozenset(ids).issubset(g) for g in paired):
+            unpaired.append(f"  {sorted(ids)}: regex={regex[:80]}")
+
+    assert not unpaired, (
+        f"{len(unpaired)} regex(es) are shared by distinct rule_ids without an "
+        f"overlap-suppression group entry; either give one rule a tighter regex "
+        f"or add the pair to _OVERLAP_SUPPRESSION_GROUPS in file_scanner.py:\n"
+        + "\n".join(unpaired)
+    )
+
+
 def test_all_regexes_compile(all_patterns_flat):
     """Every regex in every pattern file must be valid Python regex."""
     errors = []
@@ -705,6 +740,35 @@ def test_markdown_critical_and_high_findings_carry_rule_id(bad_example_report):
     assert not missing, (
         f"{len(missing)} rendered finding(s) missing rule_id in Markdown: "
         f"{sorted(set(missing))[:10]}"
+    )
+
+
+def test_overlap_suppression_dedupes_slack_and_google_aiza_pairs(tmp_path):
+    """``slack_webhook`` / ``slack_webhook_url`` and ``google_api_key`` /
+    ``youtube_api_key`` share their regex; without an overlap-suppression
+    entry they double-fire on every match. The fixture intentionally
+    triggers both pairs and asserts the deduper kept only the canonical
+    framing."""
+    playbook = _write_tmp_playbook(
+        tmp_path,
+        """---
+- hosts: all
+  vars:
+    slack: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+    yt: "AIzaSyABCDEFGHIJKLMNOPQRSTUVWXYZ0123456"
+""",
+    )
+    findings = _scan_playbook(playbook).findings
+    on_slack_line = {f.rule_id for f in findings if f.line_number == 4}
+    on_aiza_line = {f.rule_id for f in findings if f.line_number == 5}
+
+    assert "slack_webhook_url" in on_slack_line, on_slack_line
+    assert "slack_webhook" not in on_slack_line, (
+        f"slack_webhook should be suppressed by slack_webhook_url; got {on_slack_line}"
+    )
+    assert "google_api_key" in on_aiza_line, on_aiza_line
+    assert "youtube_api_key" not in on_aiza_line, (
+        f"youtube_api_key should be suppressed by google_api_key; got {on_aiza_line}"
     )
 
 
