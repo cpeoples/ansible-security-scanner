@@ -1,9 +1,4 @@
 name: Scorecard analysis
-
-# OpenSSF Scorecard runs weekly against the default branch and on every
-# push to main. Results are published to api.scorecard.dev via
-# ``publish_results: true``; that's what powers the README badge.
-
 on:
   push:
     branches: [main]
