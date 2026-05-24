@@ -3,25 +3,7 @@ name: Lint
 on:
   push:
     branches: [main]
-    paths:
-      - "**/*.py"
-      - "**/*.pyi"
-      - "**/*.yml"
-      - "**/*.yaml"
-      - "pyproject.toml"
-      - ".pre-commit-config.yaml"
-      - ".yamllint.yaml"
-      - ".github/workflows/lint.yml"
   pull_request:
-    paths:
-      - "**/*.py"
-      - "**/*.pyi"
-      - "**/*.yml"
-      - "**/*.yaml"
-      - "pyproject.toml"
-      - ".pre-commit-config.yaml"
-      - ".yamllint.yaml"
-      - ".github/workflows/lint.yml"
   workflow_dispatch:
 
 concurrency:
