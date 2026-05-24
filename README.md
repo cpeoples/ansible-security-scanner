@@ -14,7 +14,7 @@
 </p>
 <!-- BADGES_END -->
 
-A security scanner for Ansible playbooks. Detects malicious code, unauthorized cloud access, offensive tooling, reverse shells, data exfiltration, and 500+ additional security anti-patterns. Generates detailed reports with remediation guidance.
+Static SAST scanner for Ansible playbooks, roles, collections, task files, vars, and inventories. Detects malicious code, RCE, command and template injection, hardcoded credentials, supply-chain risk, unauthorized cloud access, lateral movement, and reverse shells. Outputs SARIF, CycloneDX SBOM, GitLab SAST, JUnit, JSON, HTML, and Markdown reports with remediation guidance. CI-native, autofix-capable, DevSecOps-ready.
 
 **<!--RULES-->1091<!--/RULES--> rules** across **<!--CATS-->31<!--/CATS--> categories** -- all auto-discovered from YAML pattern plugins.
 
@@ -25,6 +25,7 @@ A security scanner for Ansible playbooks. Detects malicious code, unauthorized c
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [What it detects](#what-it-detects)
 - [Project Structure](#project-structure)
 - [Documentation](#documentation)
 - [Requirements](#requirements)
@@ -105,6 +106,39 @@ ansible-security-scanner --help
 
 **Working from a source checkout?** Use `python main.py ...` instead of the
 installed CLI - it's a thin shim around the same entry point.
+
+## What it detects
+
+The scanner ships <!--RULES-->1091<!--/RULES--> rules across <!--CATS-->31<!--/CATS--> auto-discovered categories. Highlights:
+
+**Malicious code and post-exploitation**
+
+- Reverse shells, webshell deployment, system compromise, lateral movement
+- Anti-forensics, obfuscation and evasion, tunneling, offensive tooling
+
+**Code execution and injection**
+
+- Command injection, template injection, variable injection
+- Jinja lookup RCE, dangerous Ansible modules, binary planting
+
+**Secrets and supply chain**
+
+- Hardcoded credentials and API keys
+- Supply-chain risk (Galaxy collections, ad-hoc downloads, untrusted URLs)
+- Data exfiltration, webhook exposure, external URL contact
+
+**Cloud, IaC, and platform hardening**
+
+- Unauthorized cloud access, Kubernetes insecure specs
+- Privilege escalation, unsafe permissions, environment hijacking
+- Insecure communication (TLS, SSH, plaintext protocols)
+
+**AI/ML and operational hygiene**
+
+- AI/ML supply-chain and prompt-injection risks
+- Ansible hygiene, Ansible-specific anti-patterns, operational security
+
+Every rule includes severity, CWE/OWASP mapping, vulnerable and remediated examples, and remediation guidance. Findings are deduplicated across files via cross-file taint tracking. See the [full rule index](https://cpeoples.github.io/ansible-security-scanner/) for a per-category breakdown.
 
 ## Project Structure
 
