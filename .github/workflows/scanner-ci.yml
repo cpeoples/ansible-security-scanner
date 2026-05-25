@@ -39,7 +39,7 @@ jobs:
 
       - name: Install package (editable) + test deps
         run: |
-          python -m pip install --upgrade pip
+          pip install --require-hashes -c "$PIP_CONSTRAINT" pip
           pip install -e ".[dev]"
 
       - name: Run scanner unit + regression tests
@@ -61,7 +61,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install build frontend
-        run: python -m pip install --upgrade build twine
+        run: pip install --require-hashes -c "$PIP_CONSTRAINT" build twine
 
       - name: Build sdist and wheel
         run: python -m build

@@ -14,19 +14,6 @@ updates:
       prefix: deps
       include: scope
 
-  - package-ecosystem: pip
-    directory: "/.github/workflows"
-    schedule:
-      interval: weekly
-      day: monday
-      time: "06:00"
-      timezone: "America/New_York"
-    open-pull-requests-limit: 5
-    labels: [dependencies, python, ci]
-    commit-message:
-      prefix: ci(deps)
-      include: scope
-
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

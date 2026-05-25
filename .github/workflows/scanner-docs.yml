@@ -40,7 +40,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Python dependencies
-        run: pip install pyyaml
+        run: pip install --require-hashes -c "$PIP_CONSTRAINT" pyyaml
 
       - name: Configure GitHub Pages
         id: pages
