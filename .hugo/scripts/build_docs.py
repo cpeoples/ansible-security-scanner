@@ -199,7 +199,7 @@ def _rewrite_links_for_hugo(body: str) -> str:
 
 _LEADING_H1_RE = re.compile(r"^#\s+(?P<title>.+?)\s*$\n+", re.MULTILINE)
 _LEADING_HTML_H1_RE = re.compile(
-    r"\A\s*<h1\b[^>]*>(?P<title>.*?)</h1>\s*\n+",
+    r"\A(?:\s*<p\b[^>]*>.*?</p>\s*)?\s*<h1\b[^>]*>(?P<title>.*?)</h1>\s*\n+",
     re.DOTALL | re.IGNORECASE,
 )
 _BADGES_BLOCK_RE = re.compile(
@@ -256,7 +256,7 @@ def build_index() -> None:
 
     content = _strip_readme_badge_block(content)
     content = re.sub(
-        r'(src|href)="docs/assets/',
+        r'(src|href|srcset)="docs/assets/',
         lambda m: f'{m.group(1)}="{ASSET_URL_PREFIX}',
         content,
     )

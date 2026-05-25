@@ -1,7 +1,11 @@
-<h1 align="center" style="text-align: center;">
-  <img src="docs/assets/ansible.svg" alt="" height="32" align="center" />
-  Ansible Security Scanner
-</h1>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand-mark.svg">
+    <img src="docs/assets/brand-mark-light.svg" alt="Ansible Security Scanner" width="560">
+  </picture>
+</p>
+
+<hr style="margin: 1.5rem 0;">
 
 <!-- BADGES_START - stripped from the Hugo docs build; see .hugo/scripts/build_docs.py -->
 <p align="center">
@@ -14,7 +18,7 @@
 </p>
 <!-- BADGES_END -->
 
-Static SAST scanner for Ansible playbooks, roles, collections, task files, vars, and inventories. Detects malicious code, RCE, command and template injection, hardcoded credentials, supply-chain risk, unauthorized cloud access, lateral movement, and reverse shells. Outputs SARIF, CycloneDX SBOM, GitLab SAST, JUnit, JSON, HTML, and Markdown reports with remediation guidance. CI-native, autofix-capable, DevSecOps-ready.
+Static SAST scanner for Ansible playbooks, roles, collections, task files, vars, and inventories. Detects malicious code, RCE, command and template injection, hardcoded credentials, supply-chain risk, unauthorized cloud access, lateral movement, and reverse shells. Outputs SARIF, CycloneDX SBOM, GitLab SAST, JUnit, JSON, HTML, and Markdown reports with remediation guidance. Findings map to CWE, OWASP Top 10, OWASP ASVS, MITRE ATT&CK, NIST, and CIS. CI-native, autofix-capable, DevSecOps-ready.
 
 **<!--RULES-->1091<!--/RULES--> rules** across **<!--CATS-->31<!--/CATS--> categories** -- all auto-discovered from YAML pattern plugins.
 
@@ -138,7 +142,7 @@ The scanner ships <!--RULES-->1091<!--/RULES--> rules across <!--CATS-->31<!--/C
 - AI/ML supply-chain and prompt-injection risks
 - Ansible hygiene, Ansible-specific anti-patterns, operational security
 
-Every rule includes severity, CWE/OWASP mapping, vulnerable and remediated examples, and remediation guidance. Findings are deduplicated across files via cross-file taint tracking. See the [full rule index](https://cpeoples.github.io/ansible-security-scanner/) for a per-category breakdown.
+Every rule includes severity, framework mappings (CWE, OWASP Top 10, OWASP ASVS, MITRE ATT&CK, NIST, CIS Controls), vulnerable and remediated examples, and remediation guidance. Findings are deduplicated across files via cross-file taint tracking. See the [full rule index](https://cpeoples.github.io/ansible-security-scanner/) for a per-category breakdown.
 
 ## Project Structure
 
