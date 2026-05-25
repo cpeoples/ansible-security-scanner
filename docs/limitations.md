@@ -22,11 +22,14 @@ and cannot do.
   maliciously
 - **Custom obfuscation** - novel encoding schemes, steganographic payloads,
   or patterns not covered by existing rules
-- **External content** - malicious code pulled in via `include_role`,
-  `import_tasks`, Galaxy roles, or fetched scripts that aren't part of the
-  scanned file set
-- **Multi-file logic** - attack chains that span multiple playbooks,
-  inventories, or variable files
+- **External content at runtime** - the scanner flags risky-looking
+  `include_role` / `import_tasks` from URLs and unpinned Galaxy installs,
+  but cannot inspect the *content* of files fetched or rendered at
+  execution time
+- **Off-tree data flow** - cross-file taint tracking works across the
+  scanned set (registered vars, `set_fact`, `include_vars`, host/group
+  vars), but data that originates outside that set (controller env at
+  execution, dynamic inventories, external lookups) cannot be tracked
 
 **Recommendations:**
 
