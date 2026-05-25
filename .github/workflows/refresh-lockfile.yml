@@ -11,9 +11,6 @@ on:
 permissions:
   contents: read
 
-env:
-  PIP_CONSTRAINT: ${{ github.workspace }}/.github/workflows/constraints.txt
-
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -29,7 +26,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install pip-tools
-        run: pip install --require-hashes -c "$PIP_CONSTRAINT" pip pip-tools
+        run: pip install --require-hashes -c .github/workflows/constraints.txt pip pip-tools
 
       - name: Recompile lockfile
         run: |

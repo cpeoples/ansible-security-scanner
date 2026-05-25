@@ -13,9 +13,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  PIP_CONSTRAINT: ${{ github.workspace }}/.github/workflows/constraints.txt
-
 jobs:
   test:
     name: Tests (${{ matrix.python-version }})
@@ -39,8 +36,8 @@ jobs:
 
       - name: Install package (editable) + test deps
         run: |
-          pip install --require-hashes -c "$PIP_CONSTRAINT" pip
-          PIP_CONSTRAINT= pip install -e ".[dev]"
+          pip install --require-hashes -c .github/workflows/constraints.txt pip
+          pip install -e ".[dev]"
 
       - name: Run scanner unit + regression tests
         run: pytest tests/ -v
@@ -61,7 +58,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install build frontend
-        run: pip install --require-hashes -c "$PIP_CONSTRAINT" build twine
+        run: pip install --require-hashes -c .github/workflows/constraints.txt build twine
 
       - name: Build sdist and wheel
         run: python -m build
