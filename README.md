@@ -19,7 +19,7 @@ Static SAST scanner for Ansible playbooks, roles, collections, task files, vars,
 
 **<!--RULES-->1091<!--/RULES--> rules** across **<!--CATS-->31<!--/CATS--> categories** -- all auto-discovered from YAML pattern plugins.
 
-<!--SEV-->**<!--CRIT-->412<!--/CRIT--> critical**, <!--HIGH-->528<!--/HIGH--> high, <!--MED-->131<!--/MED--> medium, <!--LOW-->19<!--/LOW--> low.<!--/SEV--> [Per-category breakdown -> dashboard.](https://cpeoples.github.io/ansible-security-scanner/dashboard/)
+**<!--CRIT-->412<!--/CRIT--> critical**, <!--HIGH-->528<!--/HIGH--> high, <!--MED-->131<!--/MED--> medium, <!--LOW-->19<!--/LOW--> low. [Per-category breakdown on the dashboard.](https://cpeoples.github.io/ansible-security-scanner/dashboard/)
 
 > [!NOTE]
 > **Scope.** This is a *static, pattern-based* scanner - one layer in a defense-in-depth strategy. Pair it with the runtime controls you already trust (AAP/AWX approval gates, execution-environment lockdown, network egress policy, code review) for full coverage. See [Limitations](docs/limitations.md) for the specific classes of issue this layer cannot catch on its own.
