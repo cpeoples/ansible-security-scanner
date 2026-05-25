@@ -523,6 +523,7 @@ patterns:
     soc2: ['CC7.1', 'CC8.1']
 
   # -- Ansible raw Module with Encoded PowerShell -----------------------------
+
   - id: "raw_encoded_powershell"
     category: "command_injection"
     severity: "CRITICAL"

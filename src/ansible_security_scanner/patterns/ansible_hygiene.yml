@@ -7,6 +7,7 @@ description: >
 
 patterns:
   # -- Secrets in Comments --------------------------------------------------
+
   - id: "secret_in_comment"
     category: "ansible_hygiene"
     severity: "MEDIUM"
@@ -51,6 +52,7 @@ patterns:
   # root-become tasks without logging suppression. These complement the
   # category-specific rules (hardcoded_credentials, supply_chain, etc.) by
   # catching the surrounding task-level hygiene errors.
+
   - id: "no_log_explicitly_false_on_credential_task"
     category: "ansible_hygiene"
     severity: "HIGH"

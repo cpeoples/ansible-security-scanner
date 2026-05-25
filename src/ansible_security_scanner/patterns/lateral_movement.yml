@@ -248,6 +248,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1']
 
   # -- Windows / Active Directory Lateral Movement ----------------------------
+
   - id: "winrm_unencrypted_transport"
     category: "lateral_movement"
     severity: "HIGH"

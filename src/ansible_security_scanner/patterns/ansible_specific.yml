@@ -8,6 +8,7 @@ description: >
 
 patterns:
   # -- Ansible Connection Secrets ---------------------------------------------
+
   - id: "ansible_become_pass"
     category: "ansible_specific"
     severity: "CRITICAL"
@@ -111,6 +112,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1']
 
   # -- SNMP Community Strings --------------------------------------------------
+
   - id: "snmp_community_string"
     category: "ansible_specific"
     severity: "HIGH"
@@ -132,6 +134,7 @@ patterns:
     soc2: ['CC6.1', 'CC7.1', 'CC8.1']
 
   # -- Terraform State Access -------------------------------------------------
+
   - id: "terraform_state_access"
     category: "ansible_specific"
     severity: "CRITICAL"
@@ -153,6 +156,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1', 'CC6.7']
 
   # -- Kubeconfig Manipulation ------------------------------------------------
+
   - id: "kubeconfig_access"
     category: "ansible_specific"
     severity: "HIGH"
@@ -211,6 +215,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1', 'CC6.7']
 
   # -- CI/CD Token Exposure ---------------------------------------------------
+
   - id: "cicd_token_exposure"
     category: "ansible_specific"
     severity: "CRITICAL"
@@ -255,6 +260,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1', 'CC6.7', 'CC7.2']
 
   # -- Unauthenticated Service Access -----------------------------------------
+
   - id: "redis_unauthenticated"
     category: "ansible_specific"
     severity: "HIGH"
@@ -316,6 +322,7 @@ patterns:
     soc2: ['CC7.1', 'CC7.2', 'CC8.1']
 
   # -- Windows Attack Vectors -------------------------------------------------
+
   - id: "powershell_download_cradle"
     category: "ansible_specific"
     severity: "CRITICAL"
@@ -371,6 +378,7 @@ patterns:
     soc2: ['CC6.8', 'CC7.1', 'CC8.1']
 
   # -- AAP / AWX / Tower Runtime Risks ----------------------------------------
+
   - id: "awx_job_launch_user_extra_vars"
     category: "ansible_specific"
     severity: "HIGH"
@@ -558,6 +566,7 @@ patterns:
     soc2: ['CC6.2', 'CC6.3']
 
   # -- 2024-2026 container-runtime hygiene ----------------------------------
+
   - id: "docker_socket_mounted_into_task"
     category: "ansible_specific"
     severity: "CRITICAL"

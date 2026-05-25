@@ -7,6 +7,7 @@ description: >
 
 patterns:
   # -- AWS: SQS --------------------------------------------------------------
+
   - id: "direct_sqs_send_message"
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
@@ -87,6 +88,7 @@ patterns:
     soc2: ['CC6.3']
 
   # -- AWS: SNS / Lambda -----------------------------------------------------
+
   - id: "direct_sns_publish"
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
@@ -125,6 +127,7 @@ patterns:
     soc2: ['CC6.3']
 
   # -- AWS: IAM / STS --------------------------------------------------------
+
   - id: "aws_sts_assume_role"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -188,6 +191,7 @@ patterns:
     soc2: ['CC6.1']
 
   # -- AWS: EC2 --------------------------------------------------------------
+
   - id: "aws_ec2_run_instances"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -209,6 +213,7 @@ patterns:
     soc2: ['CC6.3', 'CC7.1', 'CC8.1']
 
   # -- AWS: Inline Scripts / Credentials --------------------------------------
+
   - id: "inline_boto3_script"
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
@@ -248,6 +253,7 @@ patterns:
     soc2: ['CC6.1']
 
   # -- GCP --------------------------------------------------------------------
+
   - id: "gcloud_direct_command"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -311,6 +317,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1', 'CC7.1', 'CC8.1']
 
   # -- Azure ------------------------------------------------------------------
+
   - id: "az_cli_direct_command"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -357,6 +364,7 @@ patterns:
     soc2: ['CC6.1']
 
   # -- Cloud Metadata (generic) -----------------------------------------------
+
   - id: "cloud_instance_metadata"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -379,6 +387,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1', 'CC7.1', 'CC8.1']
 
   # -- Kubernetes -------------------------------------------------------------
+
   - id: "kubectl_exec_in_pod"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -434,6 +443,7 @@ patterns:
     soc2: ['CC6.3']
 
   # -- Terraform / IaC Abuse --------------------------------------------------
+
   - id: "terraform_apply_from_ansible"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -455,6 +465,7 @@ patterns:
     soc2: ['CC6.3', 'CC8.1']
 
   # -- Vault / Secrets Engines ------------------------------------------------
+
   - id: "vault_token_in_playbook"
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
@@ -515,6 +526,7 @@ patterns:
     soc2: ['CC6.2', 'CC6.3']
 
   # -- AWS: S3 Data Access --------------------------------------------------
+
   - id: "aws_s3_data_access"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -554,6 +566,7 @@ patterns:
     soc2: ['CC6.3']
 
   # -- AWS: Secrets Manager / SSM ------------------------------------------
+
   - id: "aws_secrets_manager_get"
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
@@ -612,6 +625,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1']
 
   # -- AWS: KMS -------------------------------------------------------------
+
   - id: "aws_kms_decrypt"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -634,6 +648,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1']
 
   # -- AWS: Database Services ----------------------------------------------
+
   - id: "aws_rds_management"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -678,6 +693,7 @@ patterns:
     soc2: ['CC6.3']
 
   # -- AWS: Container Services ---------------------------------------------
+
   - id: "aws_ecs_run_task"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -739,6 +755,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1', 'CC8.1']
 
   # -- AWS: Infrastructure -------------------------------------------------
+
   - id: "aws_cloudformation_deploy"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -797,6 +814,7 @@ patterns:
     soc2: ['CC6.3']
 
   # -- AWS: Audit Evasion --------------------------------------------------
+
   - id: "aws_cloudtrail_disable"
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
@@ -875,6 +893,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Docker / Containers -------------------------------------------------
+
   - id: "docker_run_command"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -1002,6 +1021,7 @@ patterns:
     soc2: ['CC6.3']
 
   # -- Kubernetes Extended -------------------------------------------------
+
   - id: "kubectl_port_forward"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -1102,6 +1122,7 @@ patterns:
     soc2: ['CC6.3']
 
   # -- GCP Extended --------------------------------------------------------
+
   - id: "gsutil_data_access"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -1190,6 +1211,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Azure Extended ------------------------------------------------------
+
   - id: "az_keyvault_secret"
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
@@ -1279,6 +1301,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Other IaC Tools -----------------------------------------------------
+
   - id: "pulumi_deploy_from_ansible"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -1338,6 +1361,7 @@ patterns:
     soc2: ['CC6.3', 'CC8.1']
 
   # -- Oracle Cloud (OCI) -----------------------------------------------------
+
   - id: "oci_cli_command"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -1378,6 +1402,7 @@ patterns:
     soc2: ['CC6.3']
 
   # -- AWS IAM Privilege Escalation -----------------------------------------
+
   - id: "aws_iam_policy_manipulation"
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
@@ -1418,6 +1443,7 @@ patterns:
     soc2: ['CC6.3']
 
   # -- AWS S3 Extended Operations ------------------------------------------
+
   - id: "aws_s3_list_or_delete"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -1439,6 +1465,7 @@ patterns:
     soc2: ['CC6.3']
 
   # -- AWS EC2 Reconnaissance & Manipulation ------------------------------
+
   - id: "aws_ec2_recon_modify"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -1461,6 +1488,7 @@ patterns:
     soc2: ['C1.1', 'CC6.7', 'CC7.2']
 
   # -- AWS Audit/Logging Destruction --------------------------------------
+
   - id: "aws_cloudtrail_delete"
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
@@ -1523,6 +1551,7 @@ patterns:
     soc2: ['CC6.6', 'CC6.7', 'CC7.1', 'CC8.1']
 
   # -- AWS Organization Escape --------------------------------------------
+
   - id: "aws_organization_manipulation"
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
@@ -1544,6 +1573,7 @@ patterns:
     soc2: ['CC6.2', 'CC6.3']
 
   # -- AWS STS Enumeration -------------------------------------------------
+
   - id: "aws_sts_enumeration"
     category: "unauthorized_cloud_access"
     severity: "MEDIUM"
@@ -1566,6 +1596,7 @@ patterns:
     soc2: ['C1.1', 'CC6.7', 'CC7.2']
 
   # -- AWS Lambda Create --------------------------------------------------
+
   - id: "aws_lambda_create"
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
@@ -1586,6 +1617,7 @@ patterns:
     soc2: ['CC7.1', 'CC8.1']
 
   # -- Modern IAM / Identity Attack Surface -----------------------------------
+
   - id: "aws_imds_v1_enabled"
     category: "unauthorized_cloud_access"
     severity: "HIGH"
@@ -1746,6 +1778,7 @@ patterns:
     soc2: ['CC6.2', 'CC6.3']
 
   # -- Workload-identity federation misconfig (2025-2026) -------------------
+
   - id: "aws_sso_admin_permission_set"
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
@@ -2252,7 +2285,7 @@ patterns:
     owasp_asvs: ["V2.1.1", "V8.1.1"]
     mitre_attack: ['T1133', 'T1190', 'T1530']
     cis_controls: ['CIS-3.3', 'CIS-4.7', 'CIS-14.4']
-    nist_controls: ['AC-3', 'IA-2', 'SC-28']
+    nist_controls: ['IA-5', 'AC-3', 'IA-2', 'SC-28']
     pci_dss: ['2.2.1', '8.3.1']
     hipaa: ['164.312(a)(1)', '164.312(a)(2)(iv)']
     soc2: ['CC6.1', 'CC6.7']
@@ -2308,7 +2341,7 @@ patterns:
     owasp_asvs: ["V2.10.2", "V2.10.4", "V12.4.1", "V14.1.5"]
     mitre_attack: ['T1078.004', 'T1098.001', 'T1136.003']
     cis_controls: ['CIS-3.3', 'CIS-5.2', 'CIS-6.7']
-    nist_controls: ['AC-2', 'AC-2(7)', 'AC-6']
+    nist_controls: ['IA-5', 'AC-2', 'AC-2(7)', 'AC-6']
     pci_dss: ['7.2.1', '8.2.1', '8.3.1']
     hipaa: ['164.308(a)(4)(ii)(B)', '164.312(a)(1)']
     soc2: ['CC6.1', 'CC6.2', 'CC6.3']

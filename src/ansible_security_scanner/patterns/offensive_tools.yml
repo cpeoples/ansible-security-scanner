@@ -497,6 +497,7 @@ patterns:
     soc2: ['CC7.3']
 
   # -- Steganography ----------------------------------------------------------
+
   - id: "steganography_tool"
     category: "offensive_tools"
     severity: "CRITICAL"
@@ -595,6 +596,7 @@ patterns:
     soc2: ['CC7.3']
 
   # -- Windows / Active Directory Offensive Tooling ---------------------------
+
   - id: "adcs_certify_abuse"
     category: "offensive_tools"
     severity: "CRITICAL"

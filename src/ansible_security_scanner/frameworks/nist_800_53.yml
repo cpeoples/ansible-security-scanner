@@ -4,9 +4,9 @@
 # Purpose
 # -------
 # Maps every NIST 800-53 control identifier referenced by the scanner's
-# patterns to its official control name and canonical URL. Consumed by
-# `link_resolver` to enrich findings and render compliance coverage in
-# Markdown / HTML / SARIF / JSON reports.
+# patterns to its official control name. Consumed by `link_resolver` to
+# enrich findings and render compliance coverage in Markdown / HTML /
+# SARIF / JSON reports.
 #
 # Authoring rules
 # ---------------
@@ -15,544 +15,432 @@
 # 2. IDs are stored in the canonical form used by NIST:
 #      Family-NN        e.g. "AC-3"           (base control)
 #      Family-NN(KK)    e.g. "AC-3(7)"        (control enhancement)
-#    Families used by this scanner:
-#      AC - Access Control
-#      AU - Audit and Accountability
-#      CM - Configuration Management
-#      IA - Identification and Authentication
-#      SC - System and Communications Protection
-#      SI - System and Information Integrity
-#      SA - System and Services Acquisition
-#      RA - Risk Assessment
-#      AT - Awareness and Training
-#      IR - Incident Response
-#      CP - Contingency Planning
-#      PE - Physical and Environmental Protection
-#      CA - Assessment, Authorization, and Monitoring
 #    The resolver normalizes on lookup so patterns can write `nist-AC-3`,
 #    `NIST-800-53-AC-3`, or bare `AC-3` and still match.
 # 3. `name` is NIST's official control name verbatim. Source:
 #    https://csrc.nist.gov/Projects/risk-management/sp800-53-controls
-# 4. `url` is the NVD/OSCAL deep-link. We use the NVD control-browser form
-#    because it renders usefully for both human operators and LLM agents.
+# 4. URLs are NOT stored here. `link_resolver._build_nist_url` synthesizes
+#    the canonical CPRT deep-link from the catalog key. CPRT version is
+#    pinned in `_NIST_CPRT_VERSION` (currently SP 800-53 Rev 5.2.0). When
+#    NIST publishes a new revision, bump that one constant; do not edit
+#    URLs in this file.
 
-# -- AC - Access Control ---------------------------------------------------
+
 AC-2:
-  name: "Account Management"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-2"
-  family: "Access Control"
+  name: Account Management
+  family: Access Control
 
 AC-3:
-  name: "Access Enforcement"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-3"
-  family: "Access Control"
+  name: Access Enforcement
+  family: Access Control
 
 AC-3(7):
-  name: "Access Enforcement | Role-based Access Control"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-3(7)"
-  family: "Access Control"
+  name: Access Enforcement | Role-based Access Control
+  family: Access Control
 
 AC-4:
-  name: "Information Flow Enforcement"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-4"
-  family: "Access Control"
+  name: Information Flow Enforcement
+  family: Access Control
 
 AC-5:
-  name: "Separation of Duties"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-5"
-  family: "Access Control"
+  name: Separation of Duties
+  family: Access Control
 
 AC-6:
-  name: "Least Privilege"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-6"
-  family: "Access Control"
+  name: Least Privilege
+  family: Access Control
 
 AC-6(1):
-  name: "Least Privilege | Authorize Access to Security Functions"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-6(1)"
-  family: "Access Control"
+  name: Least Privilege | Authorize Access to Security Functions
+  family: Access Control
 
 AC-6(9):
-  name: "Least Privilege | Log Use of Privileged Functions"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-6(9)"
-  family: "Access Control"
+  name: Least Privilege | Log Use of Privileged Functions
+  family: Access Control
 
 AC-6(10):
-  name: "Least Privilege | Prohibit Non-privileged Users from Executing Privileged Functions"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-6(10)"
-  family: "Access Control"
+  name: Least Privilege | Prohibit Non-privileged Users from Executing Privileged Functions
+  family: Access Control
 
 AC-11:
-  name: "Device Lock"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-11"
-  family: "Access Control"
+  name: Device Lock
+  family: Access Control
 
 AC-17:
-  name: "Remote Access"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-17"
-  family: "Access Control"
+  name: Remote Access
+  family: Access Control
 
 AC-17(2):
-  name: "Remote Access | Protection of Confidentiality and Integrity Using Encryption"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-17(2)"
-  family: "Access Control"
+  name: Remote Access | Protection of Confidentiality and Integrity Using Encryption
+  family: Access Control
 
 AC-18:
-  name: "Wireless Access"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-18"
-  family: "Access Control"
+  name: Wireless Access
+  family: Access Control
 
-# -- AU - Audit and Accountability -----------------------------------------
 AU-2:
-  name: "Event Logging"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AU-2"
-  family: "Audit and Accountability"
+  name: Event Logging
+  family: Audit and Accountability
 
 AU-3:
-  name: "Content of Audit Records"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AU-3"
-  family: "Audit and Accountability"
+  name: Content of Audit Records
+  family: Audit and Accountability
 
 AU-6:
-  name: "Audit Record Review, Analysis, and Reporting"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AU-6"
-  family: "Audit and Accountability"
+  name: Audit Record Review, Analysis, and Reporting
+  family: Audit and Accountability
 
 AU-8:
-  name: "Time Stamps"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AU-8"
-  family: "Audit and Accountability"
+  name: Time Stamps
+  family: Audit and Accountability
 
 AU-9:
-  name: "Protection of Audit Information"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AU-9"
-  family: "Audit and Accountability"
+  name: Protection of Audit Information
+  family: Audit and Accountability
 
 AU-9(3):
-  name: "Protection of Audit Information | Cryptographic Protection"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AU-9"
-  family: "Audit and Accountability"
+  name: Protection of Audit Information | Cryptographic Protection
+  family: Audit and Accountability
 
 AU-10:
-  name: "Non-repudiation"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AU-10"
-  family: "Audit and Accountability"
+  name: Non-repudiation
+  family: Audit and Accountability
 
 AU-12:
-  name: "Audit Record Generation"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AU-12"
-  family: "Audit and Accountability"
+  name: Audit Record Generation
+  family: Audit and Accountability
 
-# -- CM - Configuration Management -----------------------------------------
 CM-2:
-  name: "Baseline Configuration"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CM-2"
-  family: "Configuration Management"
+  name: Baseline Configuration
+  family: Configuration Management
 
 CM-3:
-  name: "Configuration Change Control"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CM-3"
-  family: "Configuration Management"
+  name: Configuration Change Control
+  family: Configuration Management
 
 CM-5:
-  name: "Access Restrictions for Change"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CM-5"
-  family: "Configuration Management"
+  name: Access Restrictions for Change
+  family: Configuration Management
 
 CM-6:
-  name: "Configuration Settings"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CM-6"
-  family: "Configuration Management"
+  name: Configuration Settings
+  family: Configuration Management
 
 CM-7:
-  name: "Least Functionality"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CM-7"
-  family: "Configuration Management"
+  name: Least Functionality
+  family: Configuration Management
 
 CM-7(5):
-  name: "Least Functionality | Authorized Software - Allow-by-exception"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CM-7(5)"
-  family: "Configuration Management"
+  name: Least Functionality | Authorized Software - Allow-by-exception
+  family: Configuration Management
 
 CM-8:
-  name: "System Component Inventory"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CM-8"
-  family: "Configuration Management"
+  name: System Component Inventory
+  family: Configuration Management
 
 CM-11:
-  name: "User-installed Software"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CM-11"
-  family: "Configuration Management"
+  name: User-installed Software
+  family: Configuration Management
 
-# -- IA - Identification and Authentication --------------------------------
 IA-2:
-  name: "Identification and Authentication (Organizational Users)"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IA-2"
-  family: "Identification and Authentication"
+  name: Identification and Authentication (Organizational Users)
+  family: Identification and Authentication
 
 IA-2(1):
-  name: "Identification and Authentication | Multi-factor Authentication to Privileged Accounts"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IA-2(1)"
-  family: "Identification and Authentication"
+  name: Identification and Authentication | Multi-factor Authentication to Privileged Accounts
+  family: Identification and Authentication
 
 IA-5:
-  name: "Authenticator Management"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IA-5"
-  family: "Identification and Authentication"
+  name: Authenticator Management
+  family: Identification and Authentication
 
 IA-5(1):
-  name: "Authenticator Management | Password-based Authentication"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IA-5(1)"
-  family: "Identification and Authentication"
+  name: Authenticator Management | Password-based Authentication
+  family: Identification and Authentication
 
 IA-5(7):
-  name: "Authenticator Management | No Embedded Unencrypted Static Authenticators"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IA-5(7)"
-  family: "Identification and Authentication"
+  name: Authenticator Management | No Embedded Unencrypted Static Authenticators
+  family: Identification and Authentication
 
-# -- SC - System and Communications Protection ----------------------------
 SC-5:
-  name: "Denial-of-service Protection"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-5"
-  family: "System and Communications Protection"
+  name: Denial-of-service Protection
+  family: System and Communications Protection
 
 SC-7:
-  name: "Boundary Protection"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-7"
-  family: "System and Communications Protection"
+  name: Boundary Protection
+  family: System and Communications Protection
 
 SC-8:
-  name: "Transmission Confidentiality and Integrity"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-8"
-  family: "System and Communications Protection"
+  name: Transmission Confidentiality and Integrity
+  family: System and Communications Protection
 
 SC-8(1):
-  name: "Transmission Confidentiality and Integrity | Cryptographic Protection"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-8(1)"
-  family: "System and Communications Protection"
+  name: Transmission Confidentiality and Integrity | Cryptographic Protection
+  family: System and Communications Protection
 
 SC-12:
-  name: "Cryptographic Key Establishment and Management"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-12"
-  family: "System and Communications Protection"
+  name: Cryptographic Key Establishment and Management
+  family: System and Communications Protection
 
 SC-13:
-  name: "Cryptographic Protection"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-13"
-  family: "System and Communications Protection"
+  name: Cryptographic Protection
+  family: System and Communications Protection
 
 SC-28:
-  name: "Protection of Information at Rest"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-28"
-  family: "System and Communications Protection"
+  name: Protection of Information at Rest
+  family: System and Communications Protection
 
-# -- SI - System and Information Integrity ---------------------------------
 SI-2:
-  name: "Flaw Remediation"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SI-2"
-  family: "System and Information Integrity"
+  name: Flaw Remediation
+  family: System and Information Integrity
 
 SI-3:
-  name: "Malicious Code Protection"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SI-3"
-  family: "System and Information Integrity"
+  name: Malicious Code Protection
+  family: System and Information Integrity
 
 SI-4:
-  name: "System Monitoring"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SI-4"
-  family: "System and Information Integrity"
+  name: System Monitoring
+  family: System and Information Integrity
 
 SI-7:
-  name: "Software, Firmware, and Information Integrity"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SI-7"
-  family: "System and Information Integrity"
+  name: Software, Firmware, and Information Integrity
+  family: System and Information Integrity
 
 SI-7(1):
-  name: "Software, Firmware, and Information Integrity | Integrity Checks"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SI-7"
-  family: "System and Information Integrity"
+  name: Software, Firmware, and Information Integrity | Integrity Checks
+  family: System and Information Integrity
 
 SI-10:
-  name: "Information Input Validation"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SI-10"
-  family: "System and Information Integrity"
+  name: Information Input Validation
+  family: System and Information Integrity
 
-# -- SA - System and Services Acquisition ----------------------------------
 SA-10:
-  name: "Developer Configuration Management"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SA-10"
-  family: "System and Services Acquisition"
+  name: Developer Configuration Management
+  family: System and Services Acquisition
 
 SA-11:
-  name: "Developer Testing and Evaluation"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SA-11"
-  family: "System and Services Acquisition"
+  name: Developer Testing and Evaluation
+  family: System and Services Acquisition
 
 SA-15:
-  name: "Development Process, Standards, and Tools"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SA-15"
-  family: "System and Services Acquisition"
+  name: Development Process, Standards, and Tools
+  family: System and Services Acquisition
 
-# -- RA - Risk Assessment --------------------------------------------------
 RA-3:
-  name: "Risk Assessment"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=RA-3"
-  family: "Risk Assessment"
+  name: Risk Assessment
+  family: Risk Assessment
 
 RA-5:
-  name: "Vulnerability Monitoring and Scanning"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=RA-5"
-  family: "Risk Assessment"
+  name: Vulnerability Monitoring and Scanning
+  family: Risk Assessment
 
-# -- IR - Incident Response ------------------------------------------------
 IR-4:
-  name: "Incident Handling"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IR-4"
-  family: "Incident Response"
+  name: Incident Handling
+  family: Incident Response
 
-# -- CA - Assessment, Authorization, and Monitoring ------------------------
-"AC-6(7)":
-  name: "Least Privilege | Review of User Privileges"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-6"
-  family: "Access Control"
+AC-6(7):
+  name: Least Privilege | Review of User Privileges
+  family: Access Control
 
-"IA-2(2)":
-  name: "Identification and Authentication | Multi-factor Authentication to Non-privileged Accounts"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IA-2"
-  family: "Identification and Authentication"
+IA-2(2):
+  name: Identification and Authentication | Multi-factor Authentication to Non-privileged Accounts
+  family: Identification and Authentication
 
-"IA-5(2)":
-  name: "Authenticator Management | Public Key-Based Authentication"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IA-5"
-  family: "Identification and Authentication"
+IA-5(2):
+  name: Authenticator Management | Public Key-Based Authentication
+  family: Identification and Authentication
 
-"SC-28(1)":
-  name: "Protection of Information at Rest | Cryptographic Protection"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-28"
-  family: "System and Communications Protection"
+SC-28(1):
+  name: Protection of Information at Rest | Cryptographic Protection
+  family: System and Communications Protection
 
 AC-2(5):
-  name: 'Account Management | Inactivity Logout'
+  name: Account Management | Inactivity Logout
   family: Access Control
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-2(5)
+
 AC-2(7):
-  name: 'Account Management | Privileged User Accounts'
+  name: Account Management | Privileged User Accounts
   family: Access Control
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-2(7)
+
 AC-6(5):
-  name: "Least Privilege | Privileged Accounts"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-6"
+  name: Least Privilege | Privileged Accounts
 
 AC-7:
   name: Unsuccessful Logon Attempts
   family: Access Control
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-7
 
 AC-10:
   name: Concurrent Session Control
   family: Access Control
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-10
 
 AC-12:
   name: Session Termination
   family: Access Control
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-12
 
 AC-17(3):
-  name: 'Remote Access | Managed Access Control Points'
+  name: Remote Access | Managed Access Control Points
   family: Access Control
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-17(3)
 
 AC-24:
   name: Access Control Decisions
   family: Access Control
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AC-24
+
 AU-4:
-  name: "Audit Log Storage Capacity"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AU-4"
-  family: "Audit and Accountability"
+  name: Audit Log Storage Capacity
+  family: Audit and Accountability
 
 AU-5:
   name: Response to Audit Logging Process Failures
   family: Audit and Accountability
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AU-5
+
 AU-8(1):
-  name: 'Time Stamps | Synchronization with Authoritative Time Source'
+  name: Time Stamps | Synchronization with Authoritative Time Source
   family: Audit and Accountability
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AU-8(1)
 
 AU-11:
-  name: "Audit Record Retention"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=AU-11"
-  family: "Audit and Accountability"
+  name: Audit Record Retention
+  family: Audit and Accountability
 
 CA-7:
-  name: "Continuous Monitoring"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CA-7"
-  family: "Assessment, Authorization, and Monitoring"
+  name: Continuous Monitoring
+  family: Assessment, Authorization, and Monitoring
 
 CM-5(3):
-  name: "Access Restrictions For Change | Signed Components"
-  family: "Configuration Management"
-  url: "https://csrc.nist.gov/Projects/risk-management/sp800-53-controls/release-search#/control?version=5.1&number=CM-5"
+  name: Access Restrictions For Change | Signed Components
+  family: Configuration Management
 
 CM-14:
-  name: "Signed Components"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CM-14"
-  family: "Configuration Management"
+  name: Signed Components
+  family: Configuration Management
 
 CP-2:
-  name: "Contingency Plan"
-  family: "Contingency Planning"
-  url: "https://csrc.nist.gov/Projects/risk-management/sp800-53-controls/release-search#/control?version=5.1&number=CP-2"
+  name: Contingency Plan
+  family: Contingency Planning
 
 CP-9:
-  name: "System Backup"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CP-9"
-  family: "Contingency Planning"
+  name: System Backup
+  family: Contingency Planning
 
 CP-9(5):
-  name: 'System Backup | Transfer to Alternate Storage Site'
+  name: System Backup | Transfer to Alternate Storage Site
   family: Contingency Planning
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CP-9(5)
+
 CP-10:
-  name: "System Recovery and Reconstitution"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=CP-10"
-  family: "Contingency Planning"
+  name: System Recovery and Reconstitution
+  family: Contingency Planning
 
 IA-3:
-  name: "Device Identification and Authentication"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IA-3"
+  name: Device Identification and Authentication
 
 IA-4:
-  name: "Identifier Management"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IA-4"
-  family: "Identification and Authentication"
+  name: Identifier Management
+  family: Identification and Authentication
 
 IA-5(13):
-  name: 'Authenticator Management | Expiration of Cached Authenticators'
+  name: Authenticator Management | Expiration of Cached Authenticators
   family: Identification and Authentication
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IA-5(13)
+
 IA-7:
-  name: "Cryptographic Module Authentication"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IA-7"
-  family: "Identification and Authentication"
+  name: Cryptographic Module Authentication
+  family: Identification and Authentication
 
 IA-8:
-  name: "Identification and Authentication (Non-Organizational Users)"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IA-8"
-  family: "Identification and Authentication"
+  name: Identification and Authentication (Non-Organizational Users)
+  family: Identification and Authentication
 
 IR-6:
-  name: "Incident Reporting"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=IR-6"
-  family: "Incident Response"
+  name: Incident Reporting
+  family: Incident Response
 
 MP-4:
   name: Media Storage
   family: Media Protection
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=MP-4
 
 MP-5:
   name: Media Transport
   family: Media Protection
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=MP-5
+
 MP-6:
-  name: "Media Sanitization"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=MP-6"
-  family: "Media Protection"
+  name: Media Sanitization
+  family: Media Protection
 
 SA-12:
   name: Supply Chain Protection
   family: System and Services Acquisition
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SA-12
+
 SA-22:
   name: Unsupported System Components
   family: System and Services Acquisition
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SA-22
+
 SC-7(3):
   name: Boundary Protection | Access Points
   family: System and Communications Protection
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-7(3)
 
 SC-7(5):
   name: Boundary Protection | Deny by Default - Allow by Exception
   family: System and Communications Protection
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-7(5)
 
 SC-7(21):
-  name: 'Boundary Protection | Isolation of System Components'
+  name: Boundary Protection | Isolation of System Components
   family: System and Communications Protection
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-7(21)
 
 SC-13(1):
-  name: 'Cryptographic Protection | FIPS-Validated Cryptography'
+  name: Cryptographic Protection | FIPS-Validated Cryptography
   family: System and Communications Protection
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-13(1)
+
 SC-18:
-  name: "Mobile Code"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-18"
-  family: "System and Communications Protection"
+  name: Mobile Code
+  family: System and Communications Protection
 
 SC-20:
-  name: "Secure Name/Address Resolution Service (Authoritative Source)"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-20"
+  name: Secure Name/Address Resolution Service (Authoritative Source)
 
 SC-21:
-  name: "Secure Name/Address Resolution Service (Recursive or Caching Resolver)"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-21"
+  name: Secure Name/Address Resolution Service (Recursive or Caching Resolver)
 
 SC-22:
   name: Architecture and Provisioning for Name / Address Resolution Service
   family: System and Communications Protection
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-22
+
 SC-23:
-  name: "Session Authenticity"
-  family: "System and Communications Protection"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-23"
+  name: Session Authenticity
+  family: System and Communications Protection
 
 SC-39:
-  name: "Process Isolation"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-39"
-  family: "System and Communications Protection"
+  name: Process Isolation
+  family: System and Communications Protection
 
 SC-45:
-  name: "System Time Synchronization"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SC-45"
-  family: "System and Communications Protection"
+  name: System Time Synchronization
+  family: System and Communications Protection
 
 SI-2(2):
   name: Flaw Remediation | Automated Flaw Remediation Status
   family: System and Information Integrity
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SI-2(2)
+
 SI-3(8):
-  name: 'Malicious Code Protection | Detect Unauthorized Commands'
+  name: Malicious Code Protection | Detect Unauthorized Commands
   family: System and Information Integrity
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SI-3(8)
+
 SI-8:
   name: Spam Protection
   family: System and Information Integrity
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SI-8
 
 SI-10(5):
-  name: 'Information Input Validation | Restrict Inputs to Trusted Sources and Approved Formats'
+  name: Information Input Validation | Restrict Inputs to Trusted Sources and Approved Formats
   family: System and Information Integrity
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SI-10(5)
 
 SI-11:
-  name: "Error Handling"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SI-11"
+  name: Error Handling
 
 SI-13:
   name: Predictable Failure Prevention
   family: System and Information Integrity
-  url: https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SI-13
+
 SI-17:
-  name: "Fail-Safe Procedures"
-  family: "System and Information Integrity"
-  url: "https://csrc.nist.gov/Projects/risk-management/sp800-53-controls/release-search#/control?version=5.1&number=SI-17"
+  name: Fail-Safe Procedures
+  family: System and Information Integrity
 
 SR-11:
-  name: "Component Authenticity"
-  family: "Supply Chain Risk Management"
-  url: "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/SP_800_53_5_1_1/home?element=SR-11"
+  name: Component Authenticity
+  family: Supply Chain Risk Management

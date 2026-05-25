@@ -7,6 +7,7 @@ description: >
 
 patterns:
   # -- Untrusted Package Repositories ---------------------------------------
+
   - id: "untrusted_apt_repo"
     category: "operational_security"
     severity: "HIGH"
@@ -52,6 +53,7 @@ patterns:
     stig: ['V-230221']
 
   # -- Certificate Trust Store Manipulation ---------------------------------
+
   - id: "rogue_ca_certificate"
     category: "operational_security"
     severity: "CRITICAL"
@@ -81,6 +83,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Network Reconnaissance -----------------------------------------------
+
   - id: "network_port_scan"
     category: "operational_security"
     severity: "HIGH"
@@ -110,6 +113,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Log Tampering / Evidence Destruction ---------------------------------
+
   - id: "log_file_deletion"
     category: "operational_security"
     severity: "CRITICAL"
@@ -150,6 +154,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Unauthorized Persistence Mechanisms ----------------------------------
+
   - id: "systemd_service_creation"
     category: "operational_security"
     severity: "MEDIUM"
@@ -290,6 +295,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- SSH Tunneling / Unauthorized Network Access --------------------------
+
   - id: "ssh_tunnel_creation"
     category: "operational_security"
     severity: "HIGH"
@@ -320,6 +326,7 @@ patterns:
     stig: ['V-230386', 'V-230388']
 
   # -- Database CLI with Credentials ----------------------------------------
+
   - id: "database_cli_credentials"
     category: "operational_security"
     severity: "HIGH"
@@ -335,6 +342,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Ansible Galaxy Untrusted Roles ---------------------------------------
+
   - id: "ansible_galaxy_untrusted"
     category: "operational_security"
     severity: "MEDIUM"
@@ -368,6 +376,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Firewall Manipulation ------------------------------------------------
+
   - id: "firewall_disable"
     category: "operational_security"
     severity: "CRITICAL"
@@ -383,6 +392,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- DNS Exfiltration -----------------------------------------------------
+
   - id: "dns_exfiltration"
     category: "operational_security"
     severity: "HIGH"
@@ -398,6 +408,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Kernel Module Loading ------------------------------------------------
+
   - id: "kernel_module_load"
     category: "operational_security"
     severity: "CRITICAL"
@@ -414,6 +425,7 @@ patterns:
     stig: ['V-230234', 'V-230237']
 
   # -- Crypto Mining ----------------------------------------------------------
+
   - id: "crypto_mining_binary"
     category: "operational_security"
     severity: "CRITICAL"
@@ -443,6 +455,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- LD_PRELOAD / Shared Library Injection ----------------------------------
+
   - id: "ld_preload_injection"
     category: "operational_security"
     severity: "CRITICAL"
@@ -472,6 +485,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- PAM Backdoor ----------------------------------------------------------
+
   - id: "pam_module_manipulation"
     category: "operational_security"
     severity: "CRITICAL"
@@ -487,6 +501,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Process Manipulation / Memory Access -----------------------------------
+
   - id: "process_memory_access"
     category: "operational_security"
     severity: "CRITICAL"
@@ -502,6 +517,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Time-Delayed / Persistent Execution ------------------------------------
+
   - id: "at_scheduled_execution"
     category: "operational_security"
     severity: "HIGH"
@@ -531,6 +547,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Network Traffic Redirection --------------------------------------------
+
   - id: "iptables_nat_redirect"
     category: "operational_security"
     severity: "CRITICAL"
@@ -560,6 +577,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Container Escape Extensions --------------------------------------------
+
   - id: "nsenter_container_escape"
     category: "operational_security"
     severity: "CRITICAL"
@@ -589,6 +607,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Credential File Creation -----------------------------------------------
+
   - id: "credential_file_creation"
     category: "operational_security"
     severity: "HIGH"
@@ -618,6 +637,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- SSH Authorized Keys Manipulation ---------------------------------------
+
   - id: "ssh_authorized_keys_write"
     category: "operational_security"
     severity: "HIGH"
@@ -633,6 +653,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Proxy Credential Exposure ----------------------------------------------
+
   - id: "proxy_credential_exposure"
     category: "operational_security"
     severity: "HIGH"
@@ -648,6 +669,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- IPMI / BMC Out-of-Band Management --------------------------------------
+
   - id: "ipmi_bmc_access"
     category: "operational_security"
     severity: "CRITICAL"
@@ -677,6 +699,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- DNS Zone Transfer ------------------------------------------------------
+
   - id: "dns_zone_transfer"
     category: "operational_security"
     severity: "HIGH"
@@ -706,6 +729,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Systemd Timer Persistence ----------------------------------------------
+
   - id: "systemd_timer_creation"
     category: "operational_security"
     severity: "HIGH"
@@ -735,6 +759,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Miscellaneous Niche Vectors --------------------------------------------
+
   - id: "ebpf_program_load"
     category: "operational_security"
     severity: "HIGH"
@@ -792,6 +817,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Container Escape Tools ------------------------------------------------
+
   - id: "deepce_container_escape"
     category: "operational_security"
     severity: "CRITICAL"
@@ -921,6 +947,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Active Directory Operational Security ----------------------------------
+
   - id: "krbtgt_password_reset"
     category: "operational_security"
     severity: "MEDIUM"
@@ -961,6 +988,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1', 'CC6.2', 'CC6.3', 'CC6.7']
 
   # -- RHEL / enterprise Linux hardening (2025-2026) -------------------------
+
   - id: "rhsm_subscription_token_leak"
     category: "operational_security"
     severity: "HIGH"

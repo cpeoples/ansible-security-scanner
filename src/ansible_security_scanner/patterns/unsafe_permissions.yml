@@ -150,6 +150,7 @@ patterns:
   # because host-key verification is a permissions/trust concern. Rule
   # IDs are preserved and still route to SshTrustBypassRemediationGenerator
   # via _RULE_ID_TO_CATEGORY.
+
   - id: "ssh_stricthostkey_disabled"
     category: "unsafe_permissions"
     severity: "HIGH"
@@ -371,6 +372,7 @@ patterns:
   # here because privilege escalation and delegation are permissions
   # concerns. Rule IDs preserved; remediation still routed to
   # BecomeDelegateMisuseRemediationGenerator via _RULE_ID_TO_CATEGORY.
+
   - id: "become_with_password_plaintext"
     category: "unsafe_permissions"
     severity: "CRITICAL"
@@ -553,6 +555,7 @@ patterns:
   # (a common attack pattern: a playbook ships a weakened config to hosts).
   # Rules target the exact line `setting = value`, so they fire on both
   # real .cfg files AND on heredoc content inside playbooks.
+
   - id: "ansible_cfg_allow_world_readable_tmpfiles"
     category: "unsafe_permissions"
     severity: "HIGH"
@@ -741,6 +744,7 @@ patterns:
   # anti-pattern that's specific to inventory vs a regular playbook var.
   # Regexes are deliberately format-agnostic: they match both INI-style
   # (`hostname key=value key=value`) and YAML-style (`key: value`) forms.
+
   - id: "inventory_ansible_ssh_pass_literal"
     category: "unsafe_permissions"
     severity: "CRITICAL"
@@ -908,6 +912,7 @@ patterns:
   # the existing permission/mode rules because the underlying concern is
   # the same: an attacker or mis-config can abuse them to gain write
   # where they shouldn't, silently, at privileged time-of-use.
+
   - id: "file_follow_true_with_become"
     category: "unsafe_permissions"
     severity: "HIGH"

@@ -4,6 +4,7 @@ description: "Detects supply-chain integrity risks: piping remote payloads into 
 
 patterns:
   # -- Remote-payload -> interpreter pipes --------------------------------
+
   - id: "curl_pipe_to_shell"
     category: "supply_chain"
     severity: "CRITICAL"
@@ -172,6 +173,7 @@ patterns:
   # Consolidated here from patterns/galaxy_supply_chain.yml. Rule IDs
   # preserved; remediation routed via _RULE_ID_TO_CATEGORY to the existing
   # GalaxySupplyChainRemediationGenerator.
+
   - id: "galaxy_requirements_http_source"
     category: "supply_chain"
     severity: "HIGH"
@@ -312,6 +314,7 @@ patterns:
   # Consolidated here from patterns/callback_plugin_risk.yml. Rule IDs
   # preserved; remediation routed via _RULE_ID_TO_CATEGORY to the existing
   # CallbackPluginRiskRemediationGenerator.
+
   - id: "callback_whitelist_arbitrary"
     category: "supply_chain"
     severity: "HIGH"
@@ -406,6 +409,7 @@ patterns:
   # A role's meta/main.yml declares dependencies, galaxy metadata, and
   # platforms. Attacker-controlled meta pulls in arbitrary roles; an
   # unversioned dependency pulls in whatever is live today on Galaxy.
+
   - id: "role_meta_dependency_without_version"
     category: "supply_chain"
     severity: "HIGH"
@@ -483,6 +487,7 @@ patterns:
   # that mounts the host Docker socket, runs with --privileged, or
   # disables TLS validation on its driver turns test runs into an attack
   # surface (escape from the test container into the CI host).
+
   - id: "molecule_docker_socket_mount"
     category: "supply_chain"
     severity: "CRITICAL"
@@ -571,6 +576,7 @@ patterns:
   # ansible-builder uses execution-environment.yml to build AAP EEs. A
   # malformed EE definition bakes a compromised base image or install
   # path into every ad-hoc run on the controller.
+
   - id: "ee_untrusted_base_image"
     category: "supply_chain"
     severity: "HIGH"
@@ -726,6 +732,7 @@ patterns:
   # An unconstrained entry pulls whatever the distro publishes at build
   # time; combined with a floating base image, this is a full supply-chain
   # drift vector.
+
   - id: "bindep_unpinned_package"
     category: "supply_chain"
     severity: "MEDIUM"
@@ -770,6 +777,7 @@ patterns:
     owasp_appsec: ["A03:2021"]
 
   # -- CI/CD self-modification ----------------------------------------------
+
   - id: "gh_actions_unpinned_sha"
     category: "supply_chain"
     severity: "HIGH"
@@ -877,6 +885,7 @@ patterns:
     owasp_appsec: ["A01:2021"]
 
   # -- 2024-2026 real-world supply-chain threats -----------------------------
+
   - id: "xz_liblzma_backdoored_version_install"
     category: "supply_chain"
     severity: "CRITICAL"
@@ -1011,6 +1020,7 @@ patterns:
     owasp_asvs: ["V10.3.1", "V10.3.2"]
 
   # -- Execution Environment runtime identity (2025-2026) -------------------
+
   - id: "ee_runs_as_root_user"
     category: "supply_chain"
     severity: "HIGH"
@@ -1089,6 +1099,7 @@ patterns:
     owasp_asvs: ["V10.3.1", "V10.3.2"]
 
   # -- GitOps controllers (2025-2026) ---------------------------------------
+
   - id: "argocd_application_untrusted_repo"
     category: "supply_chain"
     severity: "HIGH"

@@ -34,18 +34,7 @@ repos:
       - id: readme-rule-counts
         name: Regenerate README rule/category counts
         language: system
-        entry: >-
-          python -c "import re,sys,pathlib,yaml;
-          pats=[p for f in sorted(pathlib.Path('src/ansible_security_scanner/patterns').glob('*.yml'))
-          for p in (yaml.safe_load(f.read_text()).get('patterns') or [])];
-          r=len(pats); c=len({p['category'] for p in pats});
-          t=pathlib.Path('README.md').read_text();
-          n=re.sub(r'<!--RULES-->\d+<!--/RULES-->', f'<!--RULES-->{r}<!--/RULES-->', t);
-          n=re.sub(r'<!--CATS-->\d+<!--/CATS-->', f'<!--CATS-->{c}<!--/CATS-->', n);
-          n=re.sub(r'(#security-checks-)\d+(-categories-)\d+(-rules)', rf'\g<1>{c}\g<2>{r}\g<3>', n);
-          n=re.sub(r'(img\.shields\.io/badge/Rules-)\d+(-)', rf'\g<1>{r}\g<2>', n);
-          pathlib.Path('README.md').write_text(n);
-          sys.exit(0 if n==t else 1)"
+        entry: python .hugo/scripts/regen_readme_counts.py
         files: ^(README\.md|src/ansible_security_scanner/patterns/.*\.yml)$
         pass_filenames: false
 
@@ -54,4 +43,11 @@ repos:
         language: system
         entry: python .hugo/scripts/regen_dashboard_counts.py
         files: ^(\.hugo/content/dashboard\.md|src/ansible_security_scanner/patterns/.*\.yml)$
+        pass_filenames: false
+
+      - id: pattern-blank-lines
+        name: Enforce blank line before each rule in pattern YAMLs
+        language: system
+        entry: python .hugo/scripts/regen_pattern_blank_lines.py
+        files: ^src/ansible_security_scanner/patterns/.*\.yml$
         pass_filenames: false

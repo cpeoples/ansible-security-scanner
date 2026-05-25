@@ -157,6 +157,7 @@ patterns:
     soc2: ['CC6.3', 'CC7.1', 'CC8.1']
 
   # -- Windows / Active Directory Privilege Escalation ------------------------
+
   - id: "windows_token_impersonation_privs"
     category: "privilege_escalation"
     severity: "HIGH"

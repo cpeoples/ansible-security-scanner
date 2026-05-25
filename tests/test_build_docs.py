@@ -46,20 +46,59 @@ def test_render_chips_normalizes_lowercase_cve_input(build_docs):
     assert ">CVE-2024-3094</a>" in out
 
 
-def test_render_chips_caps_overflow_with_summary(build_docs):
-    cap = build_docs._MAX_CHIPS_PER_ROW
-    overflow = 2
-    cves = [f"CVE-2024-{1000 + i:04d}" for i in range(cap + overflow)]
-    out = build_docs._render_framework_chips({"id": "x", "cve": cves})
-    assert out.count("framework-chip framework-chip-cve") == cap
-    assert 'class="framework-chip-more"' in out
-    assert f">+{overflow} more</span>" in out
+def test_render_chips_renders_one_per_framework(build_docs):
+    out = build_docs._render_framework_chips(
+        {
+            "id": "x",
+            "cwe": ["CWE-77", "CWE-78", "CWE-94"],
+        }
+    )
+    assert out.count("framework-chip framework-chip-cwe") == 1
+    assert ">CWE-77</a>" in out
+    assert "CWE-78" not in out
+    assert "CWE-94" not in out
 
 
 def test_render_chips_drops_unresolvable_silently(build_docs):
     out = build_docs._render_framework_chips({"id": "x", "cve": ["not-a-cve", "CVE-2024-3094"]})
     assert ">CVE-2024-3094</a>" in out
     assert "not-a-cve" not in out
+
+
+def test_render_chips_skips_unresolvable_to_find_first_resolvable(build_docs):
+    out = build_docs._render_framework_chips({"id": "x", "cwe": ["not-a-cwe", "CWE-78", "CWE-94"]})
+    assert out.count("framework-chip framework-chip-cwe") == 1
+    assert ">CWE-78</a>" in out
+
+
+def test_render_chips_renders_all_five_claimed_frameworks(build_docs):
+    out = build_docs._render_framework_chips(
+        {
+            "id": "x",
+            "cwe": ["CWE-78"],
+            "mitre_attack": ["T1059.004"],
+            "owasp_appsec": ["A03:2021"],
+            "owasp_asvs": ["V5.3.4"],
+            "nist_controls": ["SI-10"],
+            "cis_controls": ["CIS-4.1"],
+        }
+    )
+    for css in (
+        "framework-chip-cwe",
+        "framework-chip-mitre",
+        "framework-chip-owasp",
+        "framework-chip-asvs",
+        "framework-chip-nist",
+        "framework-chip-cis",
+    ):
+        assert css in out, f"missing {css} chip"
+    cwe_idx = out.index("CWE-78")
+    mitre_idx = out.index("T1059.004")
+    owasp_idx = out.index("A03:2021")
+    asvs_idx = out.index("V5.3.4")
+    nist_idx = out.index("SI-10")
+    cis_idx = out.index("CIS-4.1")
+    assert cwe_idx < mitre_idx < owasp_idx < asvs_idx < nist_idx < cis_idx
 
 
 def test_render_chips_renders_cwe_and_mitre_in_priority_order(build_docs):
@@ -79,21 +118,6 @@ def test_render_chips_renders_cwe_and_mitre_in_priority_order(build_docs):
     assert "framework-chip-mitre" in out
     assert 'href="https://cwe.mitre.org/data/definitions/94.html"' in out
     assert 'href="https://attack.mitre.org/techniques/T1059/004/"' in out
-
-
-def test_render_chips_overflow_counts_across_frameworks(build_docs):
-    """Chip cap is global across taxonomies, not per-taxonomy."""
-    cap = build_docs._MAX_CHIPS_PER_ROW
-    cves = [f"CVE-2024-{1000 + i:04d}" for i in range(cap)]
-    cwes = ["CWE-78", "CWE-94"]
-    mitres = ["T1059"]
-    out = build_docs._render_framework_chips(
-        {"id": "x", "cve": cves, "cwe": cwes, "mitre_attack": mitres}
-    )
-    visible = out.count('class="framework-chip ')
-    assert visible == cap
-    overflow = len(cves) + len(cwes) + len(mitres) - cap
-    assert f">+{overflow} more</span>" in out
 
 
 @pytest.mark.parametrize(
@@ -211,3 +235,19 @@ def test_strip_leading_h1_runs_on_live_readme(build_docs):
         assert title == "Ansible Security Scanner"
     assert not body.lstrip().startswith("<h1")
     assert not body.lstrip().startswith("# ")
+
+
+def test_category_pages_do_not_render_yaml_author_field(build_docs):
+    """The ``author:`` field in pattern YAMLs is build metadata, not page
+    content. Guards against ``*Author:`` lines reappearing on rendered pages.
+    """
+    content_dir = Path(build_docs.CONTENT_DIR) / "patterns"
+    if not content_dir.exists():
+        pytest.skip("docs not built; run build_docs.py first")
+    offenders: list[str] = []
+    for md in sorted(content_dir.glob("*.md")):
+        if md.name == "_index.md":
+            continue
+        if "*Author:" in md.read_text():
+            offenders.append(md.name)
+    assert not offenders, "category pages still emit '*Author:' lines: " + ", ".join(offenders)

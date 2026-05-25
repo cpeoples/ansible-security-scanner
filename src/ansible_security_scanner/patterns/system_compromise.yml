@@ -249,6 +249,7 @@ patterns:
     soc2: ['CC6.8', 'CC7.1', 'CC8.1']
 
   # -- Windows Defense Evasion / Post-Compromise ------------------------------
+
   - id: "windows_shadow_copies_delete"
     category: "system_compromise"
     severity: "CRITICAL"
@@ -305,6 +306,7 @@ patterns:
     soc2: ['CC7.2']
 
   # -- Kernel-level exploitation primitives (2024-2026) ---------------------
+
   - id: "userfaultfd_kernel_exploit_primitive"
     category: "system_compromise"
     severity: "CRITICAL"

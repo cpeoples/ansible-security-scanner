@@ -19,6 +19,8 @@ Static SAST scanner for Ansible playbooks, roles, collections, task files, vars,
 
 **<!--RULES-->1091<!--/RULES--> rules** across **<!--CATS-->31<!--/CATS--> categories** -- all auto-discovered from YAML pattern plugins.
 
+<!--SEV-->**<!--CRIT-->412<!--/CRIT--> critical**, <!--HIGH-->528<!--/HIGH--> high, <!--MED-->131<!--/MED--> medium, <!--LOW-->19<!--/LOW--> low.<!--/SEV--> [Per-category breakdown -> dashboard.](https://cpeoples.github.io/ansible-security-scanner/dashboard/)
+
 > [!NOTE]
 > **Scope.** This is a *static, pattern-based* scanner - one layer in a defense-in-depth strategy. Pair it with the runtime controls you already trust (AAP/AWX approval gates, execution-environment lockdown, network egress policy, code review) for full coverage. See [Limitations](docs/limitations.md) for the specific classes of issue this layer cannot catch on its own.
 
@@ -139,7 +141,7 @@ The scanner ships <!--RULES-->1091<!--/RULES--> rules across <!--CATS-->31<!--/C
 - AI/ML supply-chain and prompt-injection risks
 - Ansible hygiene, Ansible-specific anti-patterns, operational security
 
-Every rule includes severity, framework mappings (CWE, OWASP Top 10, OWASP ASVS, MITRE ATT&CK, NIST, CIS Controls), vulnerable and remediated examples, and remediation guidance. Findings are deduplicated across files via cross-file taint tracking. See the [full rule index](https://cpeoples.github.io/ansible-security-scanner/) for a per-category breakdown.
+Every rule includes severity, framework mappings (CWE, OWASP Top 10, OWASP ASVS, MITRE ATT&CK, NIST, CIS Controls), vulnerable and remediated examples, and remediation guidance. Findings are deduplicated across files via cross-file taint tracking. See the [rule dashboard](https://cpeoples.github.io/ansible-security-scanner/dashboard/) for a per-category, per-severity breakdown.
 
 ## Project Structure
 

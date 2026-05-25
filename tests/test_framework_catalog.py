@@ -252,3 +252,104 @@ def test_resolver_fails_closed_on_unknown():
     assert resolve_cve("not-a-cve") is None
     assert resolve_cve("CVE-XX-1234") is None
     assert resolve_cve("CVE-2024") is None
+
+
+# Tokens that imply a rule's primary concern is a hardcoded authenticator
+# stored in source (the IA-5(7) case). Credential-theft rules (mimikatz,
+# credential-file search, swap-file harvest) cite SI-4 / AU-6 instead and
+# are deliberately not matched here.
+_CREDENTIAL_STORAGE_TOKENS = (
+    "api_key",
+    "apikey",
+    "_secret_key",
+    "private_key",
+    "access_key",
+    "hardcoded_password",
+    "hardcoded_secret",
+    "hardcoded_token",
+    "hardcoded_credential",
+    "hardcoded_database_password",
+    "anthropic_api",
+    "openai_api",
+    "cohere_api",
+    "huggingface_token",
+    "replicate_api",
+    "google_ai_api",
+    "azure_openai",
+    "wandb_api",
+    "generic_llm_api",
+)
+# IA-5 is "Authenticator Management"; IA-5(7) is the explicit
+# "No Embedded Unencrypted Static Authenticators" enhancement. Either
+# is acceptable on a credential-storage rule.
+_CREDENTIAL_NIST_CONTROLS = {"IA-5", "IA-5(7)"}
+
+
+def test_credential_storage_rules_map_to_ia5():
+    """Rules whose id implies a hardcoded authenticator stored in source
+    must cite NIST 800-53 IA-5 or IA-5(7) in ``nist_controls``. RA-3
+    (Risk Assessment) is a governance control, not the control violated
+    when an API key is committed to a playbook.
+    """
+    patterns_dir = (
+        Path(__file__).resolve().parents[1] / "src" / "ansible_security_scanner" / "patterns"
+    )
+    offenders: list[str] = []
+    for yml_path in sorted(patterns_dir.glob("*.yml")):
+        data = yaml.safe_load(yml_path.read_text()) or {}
+        for pat in data.get("patterns") or []:
+            rid = (pat.get("id") or "").lower()
+            if not any(tok in rid for tok in _CREDENTIAL_STORAGE_TOKENS):
+                continue
+            nist = set(pat.get("nist_controls") or [])
+            if nist & _CREDENTIAL_NIST_CONTROLS:
+                continue
+            offenders.append(
+                f"  {yml_path.name}::{pat.get('id')} -> "
+                f"nist_controls={sorted(nist)} (missing IA-5 / IA-5(7))"
+            )
+    assert not offenders, (
+        "Credential-storage rules must cite NIST IA-5 (or IA-5(7)) "
+        "since that is the control violated by a hardcoded authenticator "
+        "in source. Add IA-5(7) to nist_controls.\n" + "\n".join(offenders)
+    )
+
+
+# NIST CPRT deep-links require the family suffix and any control-enhancement
+# number to be zero-padded to two digits or the viewer silently renders the
+# empty catalog home view. ``link_resolver._format_nist_element`` does that
+# reformatting on output.
+def test_format_nist_element_zero_pads_correctly():
+    from ansible_security_scanner.link_resolver import _format_nist_element
+
+    assert _format_nist_element("AC-3") == "AC-03"
+    assert _format_nist_element("AU-9") == "AU-09"
+    assert _format_nist_element("RA-3") == "RA-03"
+    assert _format_nist_element("IA-3") == "IA-03"
+    assert _format_nist_element("SC-18") == "SC-18"
+    assert _format_nist_element("SI-10") == "SI-10"
+    assert _format_nist_element("IA-5(7)") == "IA-05(07)"
+    assert _format_nist_element("AC-3(7)") == "AC-03(07)"
+    assert _format_nist_element("AC-6(10)") == "AC-06(10)"
+    assert _format_nist_element("SC-28(1)") == "SC-28(01)"
+    assert _format_nist_element("XX-100") == "XX-100"
+
+
+def test_resolve_nist_builds_cprt_5_2_0_url():
+    """End-to-end: a resolved URL must point at CPRT 5.2.0 with a padded
+    element so the rendered chip lands on the actual control panel.
+    """
+    from ansible_security_scanner.link_resolver import resolve_nist
+
+    base = (
+        "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/"
+        "version/SP_800_53_5_2_0/home?element="
+    )
+    ref = resolve_nist("AC-3")
+    assert ref is not None and ref.url == base + "AC-03"
+    ref = resolve_nist("IA-5(7)")
+    assert ref is not None and ref.url == base + "IA-05(07)"
+    ref = resolve_nist("SC-18")
+    assert ref is not None and ref.url == base + "SC-18"
+    ref = resolve_nist("nist-AC-6(9)")
+    assert ref is not None and ref.url == base + "AC-06(09)"

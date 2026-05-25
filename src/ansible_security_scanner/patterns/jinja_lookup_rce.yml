@@ -4,6 +4,7 @@ description: "Detects remote code execution and information disclosure via Jinja
 
 patterns:
   # -- lookup() plugin abuse -----------------------------------------------
+
   - id: "lookup_pipe_rce"
     category: "jinja_lookup_rce"
     severity: "CRITICAL"
@@ -122,6 +123,7 @@ patterns:
     soc2: ['CC6.1']
 
   # -- !unsafe tag bypasses ------------------------------------------------
+
   - id: "unsafe_tag_bypass"
     category: "jinja_lookup_rce"
     severity: "HIGH"
@@ -142,6 +144,7 @@ patterns:
     references: ["https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_advanced_syntax.html#unsafe-or-raw-strings"]
 
   # -- Jinja in control-flow clauses --------------------------------------
+
   - id: "jinja_in_when_clause"
     category: "jinja_lookup_rce"
     severity: "HIGH"
