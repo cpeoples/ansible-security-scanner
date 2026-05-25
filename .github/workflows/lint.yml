@@ -13,9 +13,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  PIP_CONSTRAINT: ${{ github.workspace }}/.github/workflows/constraints.txt
-
 jobs:
   pre-commit:
     name: pre-commit (ruff + yamllint)
@@ -40,7 +37,7 @@ jobs:
             pre-commit-${{ runner.os }}-
 
       - name: Install pre-commit
-        run: python -m pip install --upgrade pip pre-commit
+        run: pip install --require-hashes -c .github/workflows/constraints.txt pip pre-commit
 
       - name: Run pre-commit on all files
         run: pre-commit run --all-files --show-diff-on-failure --color=always

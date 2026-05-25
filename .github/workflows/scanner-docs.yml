@@ -22,9 +22,6 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-env:
-  PIP_CONSTRAINT: ${{ github.workspace }}/.github/workflows/constraints.txt
-
 jobs:
   build-docs:
     runs-on: ubuntu-latest
@@ -40,7 +37,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Python dependencies
-        run: pip install pyyaml
+        run: pip install --require-hashes -c .github/workflows/constraints.txt pyyaml
 
       - name: Configure GitHub Pages
         id: pages

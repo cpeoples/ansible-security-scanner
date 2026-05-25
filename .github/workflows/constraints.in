@@ -1,0 +1,6 @@
+pip
+pip-tools
+pre-commit
+build
+twine
+pyyaml
