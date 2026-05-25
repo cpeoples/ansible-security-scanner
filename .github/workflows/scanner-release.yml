@@ -108,6 +108,8 @@ jobs:
           python-version: "3.12"
 
       - name: Install from TestPyPI (with PyPI fallback for PyYAML etc.)
+        env:
+          PIP_CONSTRAINT: ""
         run: |
           # Retry: TestPyPI's index can lag a few seconds behind the upload.
           for i in 1 2 3 4 5; do
