@@ -101,7 +101,7 @@ patterns:
     recommendation: "File writes to web roots should be from trusted deployment pipelines only"
     cwe: ["CWE-434", "CWE-912"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.2.1", "V12.4.1"]
+    owasp_asvs: [V5.2.2, V5.3.1]
     mitre_attack: ["T1505.003"]
     cis_controls: ["CIS-16.1"]
     nist_controls: ['SA-11', 'SA-15', 'SI-3', 'SI-7']

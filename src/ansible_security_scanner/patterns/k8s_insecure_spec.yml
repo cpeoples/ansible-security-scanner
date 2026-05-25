@@ -31,7 +31,7 @@ patterns:
     references: ["https://kubernetes.io/docs/concepts/security/pod-security-standards/"]
     cwe: ['CWE-250', 'CWE-269']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     stig: ['V-254800']
 
   - id: "k8s_host_network"
@@ -51,7 +51,7 @@ patterns:
     soc2: ['CC6.3']
     mitre_attack: ["T1611"]
     cwe: ['CWE-250', 'CWE-1327']
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     stig: ['V-254800']
 
   - id: "k8s_host_pid"
@@ -71,7 +71,7 @@ patterns:
     soc2: ['CC6.3']
     mitre_attack: ["T1611"]
     cwe: ['CWE-250']
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     stig: ['V-254800']
 
   - id: "k8s_host_ipc"
@@ -91,7 +91,7 @@ patterns:
     soc2: ['CC6.3']
     mitre_attack: ["T1611"]
     cwe: ['CWE-250']
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     stig: ['V-254800']
 
   - id: "k8s_capabilities_add_dangerous"
@@ -115,7 +115,7 @@ patterns:
     mitre_attack: ["T1611"]
     cwe: ['CWE-250', 'CWE-269']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
 
   - id: "k8s_run_as_root"
     category: "k8s_insecure_spec"
@@ -134,7 +134,7 @@ patterns:
     soc2: ['CC6.3']
     mitre_attack: ["T1078.003"]
     cwe: ['CWE-250']
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     stig: ['V-230503', 'V-254800']
 
   - id: "k8s_default_service_account"
@@ -177,7 +177,7 @@ patterns:
     mitre_attack: ["T1078.004"]
     cwe: ['CWE-522', 'CWE-1188']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
 
   - id: "k8s_allow_privilege_escalation"
     category: "k8s_insecure_spec"
@@ -198,7 +198,7 @@ patterns:
     mitre_attack: ["T1611"]
     cwe: ['CWE-250', 'CWE-269']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     stig: ['V-230503', 'V-254800']
 
   - id: "k8s_readonly_root_filesystem_false"
@@ -218,7 +218,7 @@ patterns:
     hipaa: ['164.312(a)(1)']
     soc2: ['CC6.3']
     cwe: ['CWE-732']
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1611']
 
   - id: "k8s_hostpath_volume"
@@ -244,7 +244,7 @@ patterns:
     soc2: ['CC6.3']
     mitre_attack: ["T1611"]
     cwe: ['CWE-250', 'CWE-732']
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
 
   # -- Advanced K8s hardening gaps -----------------------------------------
   # These sit alongside the existing rules above; the structural walker in
@@ -271,7 +271,7 @@ patterns:
     soc2: ['CC6.3', 'CC6.6', 'CC6.7']
     mitre_attack: ["T1611"]
     cwe: ['CWE-250', 'CWE-693']
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
 
   - id: "k8s_apparmor_unconfined"
     category: "k8s_insecure_spec"
@@ -293,7 +293,7 @@ patterns:
     soc2: ['CC6.3', 'CC6.6', 'CC6.7']
     mitre_attack: ["T1611"]
     cwe: ['CWE-250', 'CWE-693']
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
 
   - id: "k8s_wildcard_rbac"
     category: "k8s_insecure_spec"
@@ -324,7 +324,7 @@ patterns:
     mitre_attack: ["T1078.004", "T1548"]
     cwe: ['CWE-250', 'CWE-269', 'CWE-732']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     stig: ['V-254800']
 
   - id: "k8s_image_latest_or_untagged"
@@ -345,7 +345,7 @@ patterns:
     mitre_attack: ["T1195.002", "T1525"]
     cwe: ['CWE-829', 'CWE-1104']
     owasp_appsec: ["A06:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
 
   - id: "k8s_ephemeral_debug_container"
     category: "k8s_insecure_spec"
@@ -382,7 +382,7 @@ patterns:
     soc2: ['CC6.3']
     mitre_attack: ["T1610"]
     cwe: ['CWE-250', 'CWE-1327']
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
 
   - id: "k8s_service_nodeport"
     category: "k8s_insecure_spec"
@@ -422,7 +422,7 @@ patterns:
     cis_controls: ["CIS-K8s-5.1.5"]
     mitre_attack: ["T1499.003"]
     cwe: ['CWE-400', 'CWE-770']
-    owasp_asvs: ["V14.1.3"]
+    owasp_asvs: []
     nist_controls: ['AC-3', 'AC-6', 'SC-5', 'SI-10']
     pci_dss: ['6.3.1', '7.2.1']
     soc2: ['A1.1', 'CC6.3']
@@ -450,7 +450,7 @@ patterns:
     mitre_attack: ['T1610', 'T1611']
     cwe: ['CWE-250', 'CWE-269']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     stig: ['V-254800']
 
   # -- CRI-O / containerd runtime hardening ---------------------------------
@@ -467,7 +467,7 @@ patterns:
     cis_controls: ["CIS-K8s-5.2.1"]
     mitre_attack: ["T1611"]
     cwe: ["CWE-250"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
 
   - id: "k8s_no_new_privileges_false"
     category: "k8s_insecure_spec"
@@ -487,7 +487,7 @@ patterns:
     mitre_attack: ["T1068", "T1611"]
     cwe: ["CWE-250", "CWE-269"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     stig: ["V-230503", "V-254800"]
 
   - id: "pod_security_admission_privileged_namespace"
@@ -506,7 +506,7 @@ patterns:
     recommendation: "Set `pod-security.kubernetes.io/enforce: restricted` on every production namespace, and `baseline` on namespaces that truly need some elevated capabilities (e.g. `ingress-nginx`). Never leave a namespace without an explicit label. Configure the cluster-wide `AdmissionConfiguration` to default to `restricted` so omitting a label fails-safe. Audit existing namespaces with: `kubectl get ns -o=jsonpath='{range .items[*]}{.metadata.name}{\"\\t\"}{.metadata.labels.pod-security\\.kubernetes\\.io/enforce}{\"\\n\"}{end}'`."
     cwe: ['CWE-269', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1068', 'T1611']
     cis_controls: ['CIS-3.3', 'CIS-4.1', 'CIS-5.7']
     nist_controls: ['AC-3', 'AC-6', 'CM-7', 'SC-39']
@@ -556,7 +556,7 @@ patterns:
     recommendation: "Never bind `cluster-admin` to a ServiceAccount - create a purpose-built ClusterRole with only the verbs/resources needed. Never reference `system:masters` as a subject; that group is meant only for the certificate-signed kube-apiserver-internal paths. Audit existing bindings: `kubectl get clusterrolebindings -o json | jq -r '.items[] | select(.roleRef.name==\"cluster-admin\") | .metadata.name + \" -> \" + (.subjects // [] | map(.kind + \"/\" + .name) | join(\", \"))'`. Remove every binding that isn't `cluster-admin -> system:masters` (the kube-apiserver internal binding) or the controller-manager binding."
     cwe: ['CWE-269', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1078.004', 'T1098', 'T1611']
     cis_controls: ['CIS-3.3', 'CIS-5.4', 'CIS-5.7']
     nist_controls: ['AC-3', 'AC-6', 'AC-6(1)']
@@ -594,7 +594,7 @@ patterns:
     recommendation: "Set `readOnlyPort: 0` in every kubelet config (`/var/lib/kubelet/config.yaml`). Verify fleet-wide with Kubernetes Bench (`kube-bench run --targets=node --check=4.2.4`). On managed providers (EKS, AKS, GKE) this is already default - but custom kubelet args can re-enable it, so check via `kubectl get nodes -o json | jq '.items[].metadata.annotations.\"node.kubernetes.io/config.source\"'`. If metrics are needed, use the authenticated Metrics Server or Prometheus `kubelet` job scraping `https://<node>:10250/metrics/cadvisor` with ServiceAccount token."
     cwe: ['CWE-200', 'CWE-306', 'CWE-319']
     owasp_appsec: ["A01:2021", "A02:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V8.1.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V6.2.1, V14.2.2, V12.2.1, V12.3.4]
     mitre_attack: ['T1082', 'T1552.001', 'T1613']
     cis_controls: ['CIS-4.2', 'CIS-5.7', 'CIS-12.6']
     nist_controls: ['AC-3', 'IA-2', 'SC-8']
@@ -615,7 +615,7 @@ patterns:
     recommendation: "Set `authentication.anonymous.enabled: false` in `/var/lib/kubelet/config.yaml` and restart kubelet. ALSO set `authorization.mode: Webhook` (not `AlwaysAllow`) so even authenticated requests are RBAC-checked. Verify via `curl -k https://<node>:10250/pods` - should return `401 Unauthorized`. Audit fleet-wide with `kube-bench run --targets=node --check=4.2.1,4.2.2`. On managed providers, this is fixed by default but custom AMIs/node-images can regress it."
     cwe: ['CWE-284', 'CWE-287', 'CWE-306']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078', 'T1611', 'T1613']
     cis_controls: ['CIS-4.2', 'CIS-5.7', 'CIS-6.8']
     nist_controls: ['AC-3', 'AC-6', 'IA-2']
@@ -674,7 +674,7 @@ patterns:
     recommendation: "Pin ephemeral-container images by digest and source them from your internal registry: `image: registry.internal/debug/netshoot@sha256:<digest>`. Maintain a small, internally-vetted debug-toolbox image that's rebuilt weekly with current CVE patches. For `kubectl debug`, alias it: `alias kdebug='kubectl debug --image=registry.internal/debug/netshoot@sha256:<pinned>'`. Restrict who can create ephemeral containers via RBAC: `rbac.authorization.k8s.io/v1` Role without `pods/ephemeralcontainers` verb for regular devs."
     cwe: ['CWE-494', 'CWE-829', 'CWE-1104']
     owasp_appsec: ["A06:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1611']
     cis_controls: ['CIS-2.4', 'CIS-5.7', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -702,7 +702,7 @@ patterns:
     recommendation: "Use `level: RequestResponse` for every rule matching mutating verbs (`create`/`update`/`patch`/`delete`) on sensitive resources: `secrets`, `configmaps`, `roles`, `clusterroles`, `rolebindings`, `clusterrolebindings`, `serviceaccounts`, `serviceaccounts/token`, `tokenreviews`, `certificatesigningrequests`. For high-volume read-heavy noise (e.g. `get pods` from kubelet), use `level: None` or `level: Metadata` ONLY for `verbs: [get, list, watch]` on low-sensitivity resources. Ship audit events off-cluster to a SIEM with fluentd/vector/fluent-bit - never rely on on-cluster audit storage (attacker-modifiable). Enforce audit policy via GitOps + sign the audit-policy ConfigMap with Sigstore cosign so tampering is detected. Audit via `kubectl get --raw /apis/audit.k8s.io/v1/events` (on clusters that expose it) or the audit log file directly - cross-check against a committed baseline. Alert on ANY audit-policy change via a separate meta-audit rule."
     cwe: ['CWE-284', 'CWE-693', 'CWE-778']
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070', 'T1562.001', 'T1562.006']
     cis_controls: ['CIS-8.2', 'CIS-8.5', 'CIS-8.11']
     nist_controls: ['AU-2', 'AU-6', 'AU-9', 'AU-12']
@@ -743,7 +743,7 @@ patterns:
     recommendation: "Set `maxUnavailable: 1` (one pod evictable at a time - safe for most multi-replica workloads) or `minAvailable: N-1` (for stateful workloads where N is replica count). Never `maxUnavailable: 0`. For single-replica critical workloads that MUST stay up, increase replicas to 2+ and size the PDB accordingly - a PDB cannot create availability that the Deployment doesn't have. For legitimate 'hold this workload in place during a specific operation' scenarios, use a transient PDB with `maxUnavailable: 0` that is DELETED by the same operator when the operation completes - never a permanent PDB. Enforce via Kyverno / OPA Gatekeeper: reject PDBs with `maxUnavailable: 0` or `minAvailable >= <deployment.replicas>`. Audit: `kubectl get pdb -A -o json | jq '.items[] | select((.spec.maxUnavailable == 0 or .spec.maxUnavailable == \"0\") or (.spec.minAvailable == \"100%\")) | .metadata.namespace + \"/\" + .metadata.name'`."
     cwe: ['CWE-284', 'CWE-400', 'CWE-693']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V14.1.3"]
+    owasp_asvs: []
     mitre_attack: ['T1499', 'T1499.004', 'T1565.001']
     cis_controls: ['CIS-3.3', 'CIS-13.6']
     nist_controls: ['CP-10', 'SC-5', 'SI-13']
@@ -766,7 +766,7 @@ patterns:
     recommendation: "Use short-lived projected service-account tokens via `ProjectedVolumeSource` with `expirationSeconds: 3600` (1 hour, also the default) - kubelet auto-rotates 80% through the TTL with zero application changes. For legitimate cases where a longer TTL is REALLY needed (external CI/CD against a cluster), use **IAM/OIDC federation** instead: EKS IRSA, GKE Workload Identity, AKS Workload Identity - the cluster issues a bound 1-hour SA token, then your CI exchanges it via STS for a cloud-native 1-hour credential (no long-lived cluster token in existence). For cross-cluster or fleet scenarios, use **SPIFFE/SPIRE** with 5-minute SVID rotation. Never use the legacy `kubernetes.io/service-account-token` secret on K8s ≥1.24 (it's opt-in and should be off). Enforce via policy: Kyverno `ClusterPolicy` with `validate: spec.expirationSeconds < 86400` on every `TokenRequest` + OPA Gatekeeper constraint `K8sBlockLegacySATokens` denying `Secret.type == kubernetes.io/service-account-token`. Audit: `kubectl get secrets --all-namespaces --field-selector type=kubernetes.io/service-account-token` must return only the bootstrap/cluster-trust secrets you explicitly expect."
     cwe: ['CWE-284', 'CWE-613', 'CWE-798']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1078.004', 'T1098.001', 'T1525']
     cis_controls: ['CIS-3.11', 'CIS-5.2', 'CIS-16.9']
     nist_controls: ['AC-2(5)', 'IA-5', 'IA-5(13)']
@@ -789,7 +789,7 @@ patterns:
     recommendation: "Set every production namespace to `pod-security.kubernetes.io/enforce: restricted` (or `baseline` as a transitional step). Apply `enforce`, `warn`, AND `audit` labels for defense-in-depth. For a cluster-wide default, set the AdmissionConfiguration `defaults.enforce: baseline` minimum and use namespace-level labels to relax for specific workloads (kube-system, operators) - never the other way around. Audit namespaces lacking the enforce label: `kubectl get ns -o jsonpath='{range .items[*]}{.metadata.name}{\" \"}{.metadata.labels.pod-security\\.kubernetes\\.io/enforce}{\"\\n\"}{end}'`. Integrate PSA validation into CI (`kyverno`, `polaris`, `kube-linter`) to fail-fast on manifests that would require a privileged namespace."
     cwe: ['CWE-250', 'CWE-269', 'CWE-284']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1068', 'T1078', 'T1611']
     cis_controls: ['CIS-K8s-5.2.1', 'CIS-K8s-5.2.2', 'CIS-K8s-5.3.2']
     nist_controls: ['AC-3', 'AC-6', 'CM-7']
@@ -830,7 +830,7 @@ patterns:
     recommendation: "Set `automountServiceAccountToken: false` at the **ServiceAccount** level (applies to every pod using that SA) AND at the **Pod spec** level for defense-in-depth. For workloads that DO need API access, create a dedicated SA with a narrowly-scoped RBAC Role (not the default SA), and project a token with a short `expirationSeconds` (≤1h) via `serviceAccountToken` projected volume instead of the static mount. Mutating admission webhooks (Kyverno, OPA Gatekeeper) can auto-inject `automountServiceAccountToken: false` for namespaces that don't opt in. Audit: `kubectl get sa -A -o json | jq '.items[] | select(.automountServiceAccountToken != false) | {ns: .metadata.namespace, name: .metadata.name}'`."
     cwe: ['CWE-250', 'CWE-269', 'CWE-732']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1078', 'T1552.005', 'T1613']
     cis_controls: ['CIS-K8s-5.1.5', 'CIS-K8s-5.1.6']
     nist_controls: ['AC-6', 'CM-7', 'IA-5']

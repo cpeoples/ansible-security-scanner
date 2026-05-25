@@ -116,7 +116,7 @@ patterns:
     recommendation: "Validate the user-controlled path against an allow-list and resolve it under a controller-trusted base directory before passing to src: / dest: / path:; ansible.builtin.assert that the resolved path stays within the intended root to prevent traversal."
     cwe: ["CWE-22", "CWE-1336"]
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.3.1", "V12.3.5"]
+    owasp_asvs: [V5.3.2, V1.2.5]
     mitre_attack: ['T1059', 'T1083']
     cis_controls: ['CIS-16.10']
     nist_controls: ['SI-10']
@@ -235,7 +235,7 @@ patterns:
     mitre_attack: ["T1552.001"]
     cwe: ["CWE-200", "CWE-532"]
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V8.1.1"]
+    owasp_asvs: [V16.2.5, V14.2.2]
 
   - id: "jinja2_eval_via_attr"
     category: "template_injection"
@@ -317,7 +317,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1']
     cwe: ["CWE-532"]
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1"]
+    owasp_asvs: [V16.2.5]
     mitre_attack: ['T1552.001']
 
   # -- YAML schema abuse --------------------------------------------------
@@ -342,7 +342,7 @@ patterns:
     mitre_attack: ["T1055", "T1059.006"]
     cwe: ["CWE-94", "CWE-502"]
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.2.1"]
+    owasp_asvs: []
     mitre_atlas: ['AML.T0011.000', 'AML.T0010']
 
   - id: "yaml_binary_tag_on_executable"
@@ -380,7 +380,7 @@ patterns:
     mitre_attack: ["T1499.002"]
     cwe: ["CWE-400", "CWE-776"]
     owasp_appsec: ["A05:2021"]
-    owasp_asvs: ["V14.1.3"]
+    owasp_asvs: []
     nist_controls: ['AC-11', 'CM-6', 'SC-5', 'SI-10']
     pci_dss: ['2.2.1', '6.3.1']
     soc2: ['A1.1', 'CC6.1', 'CC7.1']
@@ -406,7 +406,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1', 'CC6.7']
     cwe: ["CWE-200", "CWE-532"]
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V8.1.1"]
+    owasp_asvs: [V16.2.5, V14.2.2]
     mitre_attack: ['T1552.001']
 
   - id: "yaml_duplicate_key_suppression"
@@ -443,7 +443,7 @@ patterns:
     mitre_attack: ["T1059.006"]
     cwe: ["CWE-502"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.2.1"]
+    owasp_asvs: []
     nist_controls: ['CM-8', 'SI-3', 'SI-10']
     pci_dss: ['6.2.4']
     soc2: ['CC6.1', 'CC7.1']

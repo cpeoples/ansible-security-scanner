@@ -16,7 +16,7 @@ patterns:
       - "mode: \"0777\""
     recommendation: "Replace mode: '0777' / chmod 777 with the most restrictive mode that satisfies the workload (typically 0640 for files, 0750 for directories) and use group ownership rather than world-writability to share access."
     cwe: ["CWE-732"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1222.002']
     cis_controls: ['CIS-3.3', 'CIS-4.1']
     nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7']
@@ -38,7 +38,7 @@ patterns:
     recommendation: "Files whose name contains key / secret / password / credential should not be world-readable; set mode: '0600' (or '0640' with a service group) and confirm the owning user matches the consuming service."
     cwe: ["CWE-200", "CWE-732"]
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1", "V12.4.1"]
+    owasp_asvs: [V14.2.2, V5.3.1]
     mitre_attack: ['T1222.002', 'T1552.001']
     cis_controls: ['CIS-3.3', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
@@ -57,7 +57,7 @@ patterns:
     window: 6
     exclude: true  # This pattern excludes findings, used to reduce false positives
     cwe: ['CWE-732']
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1222.002']
     cis_controls: ['CIS-3.3']
     nist_controls: ['AC-3', 'AC-6']
@@ -78,7 +78,7 @@ patterns:
       - "chmod -R 777"
     recommendation: "chmod -R 777/666 walks every file under the target and is rarely the intent; scope the change with ansible.builtin.file's recurse: true plus separate mode: for directories vs files, or use find: + file: to apply the right mode per type."
     cwe: ["CWE-732"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1222.002']
     cis_controls: ['CIS-3.3', 'CIS-4.1']
     nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7']
@@ -98,7 +98,7 @@ patterns:
       - "mode:4000"
     recommendation: "Drop the setuid bit (mode 4xxx / u+s) - prefer filesystem capabilities (setcap cap_X+ep) or a dedicated systemd service with the right User= and AmbientCapabilities= so the binary does not need to run as root."
     cwe: ["CWE-250", "CWE-732"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1548.001']
     cis_controls: ['CIS-4.1', 'CIS-10.1']
     nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'CM-6', 'CM-7', 'SI-3']
@@ -119,7 +119,7 @@ patterns:
       - "mode: '2750'"
     recommendation: "Setgid on regular files is rarely needed and is a privilege-escalation surface; if the goal is shared-group writability on a directory, set mode: '2770' on the directory only and leave files at 0640."
     cwe: ["CWE-250", "CWE-732"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1548.001']
     cis_controls: ['CIS-4.1', 'CIS-10.1']
     nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'CM-6', 'CM-7', 'SI-3']
@@ -137,7 +137,7 @@ patterns:
       - "chmod -t "
     recommendation: "The sticky bit on shared directories (e.g. /tmp) prevents users from deleting each other's files; do not remove it. If the directory should not be world-writable in the first place, change ownership / mode instead of stripping +t."
     cwe: ["CWE-732"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1222.002']
     cis_controls: ['CIS-3.3', 'CIS-4.1']
     nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7']
@@ -171,7 +171,7 @@ patterns:
     references: ["https://www.ssh.com/academy/ssh/stricthostkeychecking"]
     cwe: ["CWE-295", "CWE-322"]
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
     stig: ['V-230556', 'V-260468']
 
   - id: "ssh_userknownhosts_devnull"
@@ -193,7 +193,7 @@ patterns:
     mitre_attack: ["T1557"]
     cwe: ["CWE-295"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
     stig: ['V-230556']
 
   - id: "ansible_host_key_checking_false"
@@ -216,7 +216,7 @@ patterns:
     references: ["https://docs.ansible.com/ansible/latest/inventory_guide/connection_details.html#managing-host-key-checking"]
     cwe: ["CWE-295"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
 
   - id: "ansible_cfg_host_key_checking_false"
     category: "unsafe_permissions"
@@ -235,7 +235,7 @@ patterns:
     mitre_attack: ["T1557"]
     cwe: ["CWE-295"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
 
   - id: "ssh_keyscan_auto_accept"
     category: "unsafe_permissions"
@@ -254,7 +254,7 @@ patterns:
     mitre_attack: ["T1557"]
     cwe: ["CWE-295"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
     stig: ['V-230556']
 
   - id: "git_accept_hostkey_yes"
@@ -300,7 +300,7 @@ patterns:
     mitre_attack: ["T1195.002", "T1557"]
     cwe: ["CWE-295", "CWE-322"]
     owasp_appsec: ["A07:2021", "A08:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
 
   - id: "ssh_args_disable_host_key"
     category: "unsafe_permissions"
@@ -323,7 +323,7 @@ patterns:
     mitre_attack: ["T1557"]
     cwe: ["CWE-295"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
     stig: ['V-230556']
 
   - id: "ssh_proxycommand_skips_verification"
@@ -345,7 +345,7 @@ patterns:
     mitre_attack: ["T1557"]
     cwe: ["CWE-295"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
     stig: ['V-230556']
 
   - id: "winrm_cert_validation_ignore"
@@ -365,7 +365,7 @@ patterns:
     mitre_attack: ["T1557"]
     cwe: ["CWE-295"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
 
   # -- Become / Delegate / Connection Misuse ----------------------------
   # Rules originally in patterns/become_delegate_misuse.yml; consolidated
@@ -390,7 +390,7 @@ patterns:
     mitre_attack: ["T1552.001", "T1552.006"]
     cwe: ["CWE-259", "CWE-798"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
 
   - id: "become_flags_nopasswd_inline"
     category: "unsafe_permissions"
@@ -427,7 +427,7 @@ patterns:
     soc2: ['CC6.3']
     mitre_attack: ["T1548.003"]
     cwe: ["CWE-250"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
 
   - id: "delegate_to_localhost_run_as_remote"
     category: "unsafe_permissions"
@@ -573,7 +573,7 @@ patterns:
     mitre_attack: ["T1552.001"]
     cwe: ["CWE-200", "CWE-732"]
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1", "V12.4.1"]
+    owasp_asvs: [V14.2.2, V5.3.1]
 
   - id: "ansible_cfg_pipelining_without_requiretty"
     category: "unsafe_permissions"
@@ -608,7 +608,7 @@ patterns:
     soc2: ['C1.1', 'CC6.1']
     cwe: ["CWE-532"]
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1"]
+    owasp_asvs: [V16.2.5]
     mitre_attack: ['T1552.001']
 
   - id: "ansible_cfg_log_path_world_readable"
@@ -628,7 +628,7 @@ patterns:
     mitre_attack: ["T1005"]
     cwe: ["CWE-200", "CWE-532"]
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V8.1.1"]
+    owasp_asvs: [V16.2.5, V14.2.2]
 
   - id: "ansible_cfg_display_skipped_hosts_false"
     category: "unsafe_permissions"
@@ -646,7 +646,7 @@ patterns:
     soc2: ['CC7.2']
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1562.001']
 
   - id: "ansible_cfg_nocows_disabled_in_prod"
@@ -683,7 +683,7 @@ patterns:
     mitre_attack: ["T1552.004"]
     cwe: ["CWE-522", "CWE-732"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V12.4.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V5.3.1]
 
   - id: "ansible_cfg_callback_whitelist_unpinned"
     category: "unsafe_permissions"
@@ -701,7 +701,7 @@ patterns:
     mitre_attack: ["T1195.001"]
     cwe: ["CWE-829", "CWE-1188"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
 
   - id: "ansible_cfg_any_errors_fatal_false_in_prod"
     category: "unsafe_permissions"
@@ -736,7 +736,7 @@ patterns:
     soc2: ['CC6.3']
     mitre_attack: ["T1195.001"]
     cwe: ["CWE-427", "CWE-732"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
 
   # -- Inventory / group_vars / host_vars hardening -----------------------
   # These fire on content rendered via copy.content OR on actual inventory
@@ -762,7 +762,7 @@ patterns:
     mitre_attack: ["T1078.001", "T1552.001"]
     cwe: ["CWE-259", "CWE-798"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     stig: ['V-230555', 'V-260469']
 
   - id: "inventory_ansible_become_pass_literal"
@@ -782,7 +782,7 @@ patterns:
     mitre_attack: ["T1078.003", "T1552.001"]
     cwe: ["CWE-259", "CWE-798"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
 
   - id: "inventory_ansible_connection_paramiko_without_host_key"
     category: "unsafe_permissions"
@@ -801,7 +801,7 @@ patterns:
     mitre_attack: ["T1557.001"]
     cwe: ["CWE-295"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
 
   - id: "inventory_become_method_sudo_no_password"
     category: "unsafe_permissions"
@@ -839,7 +839,7 @@ patterns:
     mitre_attack: ["T1557.002"]
     cwe: ["CWE-295"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
 
   - id: "inventory_group_vars_all_contains_plaintext_secret"
     category: "unsafe_permissions"
@@ -862,7 +862,7 @@ patterns:
     mitre_attack: ["T1552.001"]
     cwe: ["CWE-312", "CWE-798"]
     owasp_appsec: ["A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V6.1.2", "V8.3.1", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1, V14.1.1, V14.2.1]
     positive_examples:
       # Canonical inventory secret: literal password.
       - 'admin_user_password: "lobster-clam-bake"'
@@ -926,7 +926,7 @@ patterns:
     recommendation: "Leave `follow:` at its default (no). If you genuinely need to operate on the symlink target, first validate the path with `stat:` (check that path itself is owned by root and not in a world-writable parent), then chmod/chown the target. Never combine `follow: yes` + `become: true` on a user-controlled path."
     cwe: ["CWE-59", "CWE-250", "CWE-362"]
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ["T1548.001"]
     cis_controls: ["CIS-3.3", "CIS-4.1"]
     nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'CM-6', 'CM-7']
@@ -971,7 +971,7 @@ patterns:
     window: 18
     recommendation: "If the file is genuinely a config, use mode 0644 (or 0640 for sensitive). If it's genuinely a script, put it in a role's `files/` directory and use `copy:` (so it's reviewed as a script, not a template) - and deploy it to /usr/local/libexec/<role>/ with an explicit systemd unit/cron line, not by virtue of being PATH-reachable."
     cwe: ["CWE-250", "CWE-732"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ["T1505.003", "T1543.002"]
     cis_controls: ["CIS-4.1", "CIS-10.1"]
     nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'CM-6', 'CM-7', 'SI-3']
@@ -1010,7 +1010,7 @@ patterns:
     recommendation: "Use targeted, minimum-necessary ACLs: `setfacl -m u:jenkins:r-x /srv/app/logs` rather than broad `u::rwx,g::rwx,o::rwx`. Never grant `rwx` to `other` on `/etc/*`. Audit effective ACLs with `getfacl -R /etc /root /var/log | grep rwx`. Enforce with an AIDE rule that alerts on any ACL change to /etc/shadow, /etc/sudoers, /etc/ssh/*."
     cwe: ["CWE-276", "CWE-732"]
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ["T1222.002"]
     cis_controls: ["CIS-3.3", "CIS-4.1"]
     nist_controls: ["AC-3", "AC-6"]
@@ -1030,7 +1030,7 @@ patterns:
     recommendation: "Remove `+ssh-rsa` / `+ssh-dss` from every SSH-args override. If a legacy target truly requires SHA-1 RSA (pre-OpenSSH 7.2 servers, some embedded appliances), upgrade the server first - every distro with vendor support has shipped OpenSSH ≥ 7.2 for years. Where upgrading is impossible in the short term, scope the exception tightly: a single `group_vars/<legacy-group>.yml` with `ansible_ssh_extra_args: \"-oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedAlgorithms=+ssh-rsa,rsa-sha2-256,rsa-sha2-512\"` (so SHA-2 is still preferred when the server advertises it) instead of a global `ansible.cfg` knob, and file a ticket to retire the legacy target. Modern baseline: `HostKeyAlgorithms` defaults to `ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256`, and `PubkeyAcceptedAlgorithms` the same - never widen these without a documented, time-boxed exception."
     cwe: ["CWE-295", "CWE-326", "CWE-327"]
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V6.2.5", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V11.3.1, V11.3.2, V11.4.1, V12.2.1, V12.3.4]
     mitre_attack: ["T1557"]
     cis_controls: ["CIS-3.10", "CIS-5.2.10"]
     nist_controls: ["IA-7", "SC-8", "SC-12", "SC-13"]

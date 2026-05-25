@@ -13,7 +13,7 @@ patterns:
       - "dd if=/dev/zero of=/dev/sd"
     recommendation: "Disk wiping is destructive and irreversible; remove immediately"
     cwe: ["CWE-400", "CWE-506"]
-    owasp_asvs: ["V14.1.3"]
+    owasp_asvs: []
     mitre_attack: ["T1485", "T1561.001"]
     cis_controls: ["CIS-11.1"]
     nist_controls: ['SI-3', 'SI-7']
@@ -102,7 +102,7 @@ patterns:
     recommendation: "Disk formatting destroys all data; should only happen during initial provisioning"
     no_ansible_remediation: true
     cwe: ["CWE-400", "CWE-506"]
-    owasp_asvs: ["V14.1.3"]
+    owasp_asvs: []
     mitre_attack: ["T1485", "T1561.002"]
     cis_controls: ["CIS-11.1"]
     nist_controls: ['SI-3', 'SI-7']

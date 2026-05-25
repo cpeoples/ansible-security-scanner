@@ -17,7 +17,7 @@ patterns:
     recommendation: "Treat the leaked Slack webhook as compromised: revoke it in the Slack app settings, rotate to a new URL, and store the replacement in Ansible Vault or a secrets manager rather than the playbook source."
     cwe: ['CWE-532', 'CWE-798']
     owasp_appsec: ["A07:2021", "A09:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V7.1.1", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1, V16.2.5]
     mitre_attack: ['T1552.001', 'T1567']
     cis_controls: ['CIS-3.3', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AC-6', 'AU-9', 'IA-5', 'IA-5(7)', 'SC-28']
@@ -39,7 +39,7 @@ patterns:
     recommendation: "Treat the leaked Discord webhook as compromised: delete it from the channel integrations panel, issue a new one, and reference the replacement via a Vault-encrypted variable instead of inlining the URL."
     cwe: ['CWE-532', 'CWE-798']
     owasp_appsec: ["A07:2021", "A09:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V7.1.1", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1, V16.2.5]
     mitre_attack: ['T1552.001', 'T1567']
     cis_controls: ['CIS-3.3', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AC-6', 'AU-9', 'IA-5', 'IA-5(7)', 'SC-28']
@@ -58,7 +58,7 @@ patterns:
     recommendation: "Treat the leaked Teams webhook as compromised: remove the connector from the channel, recreate it, and pass the new URL via an Ansible Vault-encrypted variable rather than committing it to source."
     cwe: ['CWE-532', 'CWE-798']
     owasp_appsec: ["A07:2021", "A09:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V7.1.1", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1, V16.2.5]
     mitre_attack: ['T1552.001', 'T1567']
     cis_controls: ['CIS-3.3', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AC-6', 'AU-9', 'IA-5', 'IA-5(7)', 'SC-28']
@@ -80,7 +80,7 @@ patterns:
     recommendation: "Move the ?token= / ?secret= / ?key= query parameter out of the URL; rotate the token at the receiving service, and pass the new value via the module's headers: (Authorization: Bearer ...) loaded from Ansible Vault."
     cwe: ['CWE-532', 'CWE-798']
     owasp_appsec: ["A07:2021", "A09:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V7.1.1", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1, V16.2.5]
     mitre_attack: ['T1552.001', 'T1567']
     cis_controls: ['CIS-3.3', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AC-6', 'AU-9', 'IA-5', 'IA-5(7)', 'SC-28']
@@ -101,7 +101,7 @@ patterns:
     recommendation: "Place the SCIM endpoint behind a WAF with an IP allowlist limited to the IdP's published egress ranges (Okta, Entra publish these). Require mutual TLS if the IdP supports it. Rotate SCIM tokens quarterly via automation; store them in Vault / Key Vault and retrieve at runtime - never literal."
     cwe: ["CWE-287", "CWE-798"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1", "V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V6.2.1, V13.2.3, V13.3.1]
     mitre_attack: ["T1098.005", "T1190"]
     cis_controls: ["CIS-6.1", "CIS-Secrets"]
     nist_controls: ["AC-3", "IA-5", "SC-7"]

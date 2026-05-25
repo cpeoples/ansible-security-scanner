@@ -14,7 +14,7 @@ patterns:
     recommendation: "Avoid blanket NOPASSWD: ALL; instead grant NOPASSWD only on the specific commands the automation needs (e.g. /usr/sbin/systemctl restart nginx) via a drop-in under /etc/sudoers.d/, validated with visudo -cf."
     cwe: ['CWE-250', 'CWE-269']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1548.003']
     cis_controls: ['CIS-5.4', 'CIS-6.8']
     nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
@@ -33,7 +33,7 @@ patterns:
       - "chmod 0640 /etc/ldap/localhost.key"
     recommendation: "Setuid binaries are an enduring privilege-escalation surface; prefer filesystem capabilities (setcap cap_net_bind_service+ep) or a systemd unit with the appropriate User= / AmbientCapabilities= directives instead of setting the suid bit."
     cwe: ['CWE-250', 'CWE-732']
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1548.001']
     cis_controls: ['CIS-4.1', 'CIS-10.1']
     nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'CM-6', 'CM-7', 'SI-3']
@@ -111,7 +111,7 @@ patterns:
     recommendation: "Replace the inline curl | bash / python -c cron entry with an ansible-managed script under /usr/local/sbin (root-owned, mode 0750) and reference it from a systemd timer or a versioned crontab, so the executed code is reviewable and diff-able."
     cwe: ['CWE-78', 'CWE-250']
     owasp_appsec: ["A03:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1053.003']
     cis_controls: ['CIS-4.1', 'CIS-8.2']
     nist_controls: ['AC-6', 'AC-6(1)', 'AU-2', 'AU-12', 'CM-6', 'CM-7', 'SI-3', 'SI-10']
@@ -130,7 +130,7 @@ patterns:
     recommendation: "Move the inline shell payload into a packaged binary or vetted script with fixed ownership / mode; in the unit file set ExecStart= to the absolute path and add NoNewPrivileges=, ProtectSystem=strict, and a least-privileged User=."
     cwe: ['CWE-78', 'CWE-250']
     owasp_appsec: ["A03:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1543.002']
     cis_controls: ['CIS-4.1', 'CIS-8.2']
     nist_controls: ['AC-6', 'AC-6(1)', 'AU-2', 'AU-12', 'CM-6', 'CM-7', 'SI-3', 'SI-10']
@@ -148,7 +148,7 @@ patterns:
       - "mode: \"0777\""
     recommendation: "Replace 0777 / 0666 / o+w with the least-permissive mode that still satisfies the workload (typically 0640 for files and 0750 for directories), and use group ownership rather than world-write to share access between services."
     cwe: ['CWE-732']
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1222.002']
     cis_controls: ['CIS-3.3', 'CIS-4.1']
     nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7']
@@ -169,7 +169,7 @@ patterns:
     recommendation: "Grant these privileges only to system-owned accounts (LOCAL SYSTEM, LOCAL SERVICE) or tightly scoped break-glass accounts. Review via 'secpol.msc > User Rights Assignment' and baseline against CIS Microsoft Windows Server benchmark."
     cwe: ['CWE-250', 'CWE-269']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1134.001', 'T1134.002']
     cis_controls: ['CIS-5.4', 'CIS-6.8']
     nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
@@ -188,7 +188,7 @@ patterns:
     recommendation: "Use Role-Based Access Control via AD groups scoped to specific services. Avoid adding individual users to Domain Admins; use Privileged Access Workstations + time-bound membership (PAM / JIT elevation) instead."
     cwe: ['CWE-250', 'CWE-269']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1078.002', 'T1098.007']
     cis_controls: ['CIS-5.1', 'CIS-6.8']
     nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
@@ -227,7 +227,7 @@ patterns:
     recommendation: "NEVER enable `AlwaysInstallElevated`. If the registry values currently exist on ANY host, remove them immediately: `- ansible.windows.win_regedit: path: 'HKLM:\\Software\\Policies\\Microsoft\\Windows\\Installer', name: 'AlwaysInstallElevated', state: absent` (repeat for HKCU). Audit every GPO via `gpresult /H report.html` or `Get-GPOReport -All -ReportType HTML` and grep for `AlwaysInstallElevated`. For legitimate admin-privileged install needs, use **Intune** / SCCM Software Center with the deployment running as SYSTEM (never grant the USER the elevation). For DevOps self-service installs, use **winget** configuration files with admin-signed package sources. Detect exploitation attempts via Sysmon Event ID 1 (process creation) for `msiexec` invocations from non-admin users combined with child process spawn - high-confidence compromise indicator."
     cwe: ['CWE-250', 'CWE-269', 'CWE-732']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1068', 'T1112', 'T1548.002']
     cis_controls: ['CIS-3.3', 'CIS-4.7', 'CIS-5.2']
     nist_controls: ['AC-6', 'AC-6(1)', 'CM-7']
@@ -248,7 +248,7 @@ patterns:
     recommendation: "Always quote `BinaryPathName` / `binPath` when the path contains a space: `sc create MySvc binPath= \"\\\"C:\\Program Files\\Acme\\App Helper\\service.exe\\\" --arg\"` (note the escaped double-quotes AROUND the exe path AND the `binPath=` itself). For Ansible: `- win_service: name: MySvc, path: '\"C:\\Program Files\\Acme\\App Helper\\service.exe\"', start_mode: auto` (outer single-quote, inner double-quote). Audit every service on every host: `Get-WmiObject Win32_Service | Where-Object {$_.PathName -notmatch '^\"' -and $_.PathName -match ' '} | Select Name, PathName` must return zero. For services you control, install into a space-free path under `C:\\ProgramData\\<vendor>\\` and set NTFS deny-write for Authenticated-Users on every parent directory. Monitor via Sysmon Event ID 11 (file create) for `.exe` drops into `C:\\`, `C:\\Program*`, `C:\\Program Files*` from non-admin processes - immediate alert."
     cwe: ['CWE-20', 'CWE-428', 'CWE-732']
     owasp_appsec: ["A03:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1068', 'T1543.003', 'T1574.009']
     cis_controls: ['CIS-3.3', 'CIS-4.7', 'CIS-5.2']
     nist_controls: ['AC-6', 'CM-5', 'CM-6']
@@ -269,7 +269,7 @@ patterns:
     recommendation: "NEVER enable WDigest UseLogonCredential. Explicitly set it to 0 (disabled) via GPO 'Computer Configuration -> Preferences -> Windows Settings -> Registry -> HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest\\UseLogonCredential = 0 (DWORD)' on every domain-joined host. Protect LSASS with: (1) **RunAsPPL (LSA Protection)** - `HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\RunAsPPL=1`, (2) **Credential Guard** (VBS-based isolation of LSASS secrets) on Win 10/11 Enterprise via Intune 'Device Guard -> Turn On Credential Guard -> Enabled with UEFI lock', (3) Defender ASR rule `9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2` block credential stealing from LSASS. Detect re-enablement with Sysmon Event ID 13 (registry-value set) on the WDigest key, plus Windows Security Event 4657 (registry modified). Hunt for historic credential theft: Sysmon Event ID 10 (ProcessAccess) for handle opens to lsass.exe with GrantedAccess `0x1010` / `0x1410` / `0x143a` from non-Windows processes."
     cwe: ['CWE-312', 'CWE-316', 'CWE-522']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.1.2", "V6.2.1", "V8.3.1"]
+    owasp_asvs: [V13.2.1, V14.1.1, V11.2.5, V14.2.1]
     mitre_attack: ['T1003.001', 'T1112', 'T1552.002']
     cis_controls: ['CIS-3.10', 'CIS-4.1', 'CIS-10.5']
     nist_controls: ['AC-6', 'IA-5(1)', 'SC-28']
@@ -291,7 +291,7 @@ patterns:
     recommendation: "Enable RunAsPPL on every domain-joined Windows 10/11 and Server 2016+ host via GPO: Computer Configuration -> Preferences -> Registry -> `HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\RunAsPPL = 1 (DWORD)` - add `RunAsPPLBoot = 2` on Windows 11 22H2+ for UEFI-locked protection (cannot be disabled by local admin without a reboot to recovery). Pair with Credential Guard (VBS LSASS isolation), Defender ASR `9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2` (block credential stealing from LSASS), and Microsoft Vulnerable Driver Blocklist (enabled by default Win 11 22H2+) to defeat BYOVD Mimikatz variants. Verify state with `Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa' -Name RunAsPPL` and `Get-CimInstance Win32_Service -Filter 'Name=\"lsass\"'` -> ProcessId should show PPL-signed process (check via `ProcessMitigations -Name lsass.exe`). Audit-detect disablement with Sysmon Event ID 13 (registry set) on the RunAsPPL value and Windows Security Event 4657."
     cwe: ['CWE-250', 'CWE-316', 'CWE-693']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1003.001', 'T1112', 'T1562.001']
     cis_controls: ['CIS-3.10', 'CIS-4.1', 'CIS-10.5']
     nist_controls: ['AC-6', 'SC-7(21)', 'SC-39']

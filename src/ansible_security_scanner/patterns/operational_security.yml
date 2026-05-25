@@ -979,7 +979,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
     mitre_attack: ['T1003', 'T1555']
     cis_controls: ['CIS-3.11', 'CIS-6.8']
     nist_controls: ['AC-2', 'AC-3', 'IA-5(7)', 'SC-28']
@@ -1003,7 +1003,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-312', 'CWE-522', 'CWE-798']
     owasp_appsec: ["A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.1", "V2.10.2", "V2.10.4", "V6.1.2", "V6.2.1", "V8.3.1", "V14.1.5"]
+    owasp_asvs: [V13.2.1, V13.2.3, V13.3.1, V14.1.1, V11.2.5, V14.2.1]
     mitre_attack: ['T1078.004', 'T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
@@ -1023,7 +1023,7 @@ patterns:
     recommendation: "Never use `--no-rpm-verify` on a production upgrade. If an unsigned package is legitimately required (internal custom RPM), sign it with the organisation's GPG key first and add that key to the RPM trust store, rather than bypassing verification globally. For irrecoverable signature-failure situations, file a Red Hat Support case - `LEAPP_UNSUPPORTED=1` removes upgrade support entirely."
     cwe: ['CWE-345', 'CWE-347', 'CWE-494']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1554']
     cis_controls: ['CIS-Supply-Chain']
     nist_controls: ['CM-11', 'SA-10', 'SI-7']
@@ -1042,7 +1042,7 @@ patterns:
     window: 8
     recommendation: "Keep fapolicyd enabled and in enforcing mode: `systemctl enable --now fapolicyd`, `permissive = 0` in `/etc/fapolicyd/fapolicyd.conf`. Add allow rules to `/etc/fapolicyd/rules.d/` for legitimate custom applications (generate with `fapolicyd-cli --file add /opt/myapp/bin/myapp`). Ship the baseline via an Ansible role so ad-hoc changes are reverted on the next run."
     cwe: ['CWE-693', 'CWE-732']
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1562.001', 'T1562.004']
     cis_controls: ['CIS-2.7', 'CIS-4.1']
     nist_controls: ['CM-7', 'CM-7(5)', 'SI-3', 'SI-4']
@@ -1084,7 +1084,7 @@ patterns:
     recommendation: "Immutable / append-only flags on `/etc/shadow`, `/etc/sudoers`, `/etc/ssh/sshd_config`, `/var/log/audit/audit.log`, and `/etc/audit/rules.d/` are a deliberate defence; removing them should only happen inside a short, audited maintenance window, with the flag restored immediately after. If an Ansible role needs to edit these files routinely, fix the root cause (don't set the flag), rather than toggling it. Monitor: add an auditd watch (`-w /etc/shadow -p wa`) and alert on `ausearch -k shadow_write` from a non-maintenance session."
     no_ansible_remediation: true
     cwe: ['CWE-281', 'CWE-732']
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1070.002', 'T1222', 'T1562.001']
     cis_controls: ['CIS-3.14', 'CIS-4.1']
     nist_controls: ['AC-3', 'AC-6', 'AU-9', 'SI-7']
@@ -1129,7 +1129,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070.002', 'T1562.001']
     cis_controls: ['CIS-8.2', 'CIS-8.5', 'CIS-10.5']
     nist_controls: ['AU-2', 'AU-6', 'AU-9', 'AU-12', 'SI-4']
@@ -1151,7 +1151,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070.002', 'T1070.003']
     cis_controls: ['CIS-8.2', 'CIS-8.5', 'CIS-8.10']
     nist_controls: ['AU-2', 'AU-4', 'AU-9', 'AU-12']
@@ -1196,7 +1196,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070.004', 'T1562.001']
     cis_controls: ['CIS-3.14', 'CIS-8.2', 'CIS-8.5']
     nist_controls: ['AU-9', 'AU-11', 'SI-4', 'SI-7']
@@ -1218,7 +1218,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-441', 'CWE-778']
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1071.004', 'T1562.004', 'T1572']
     cis_controls: ['CIS-9.2', 'CIS-13.7', 'CIS-13.10']
     nist_controls: ['AU-12', 'SC-7', 'SI-4']
@@ -1242,7 +1242,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070', 'T1562.008']
     cis_controls: ['CIS-3.11', 'CIS-8.2', 'CIS-8.5']
     nist_controls: ['AU-2', 'AU-6', 'AU-9', 'AU-12']
@@ -1264,7 +1264,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1562.001', 'T1562.008']
     cis_controls: ['CIS-8.2', 'CIS-8.11', 'CIS-13.7']
     nist_controls: ['AU-6', 'AU-12', 'IR-4', 'SI-4']
@@ -1285,7 +1285,7 @@ patterns:
     recommendation: "Mute-configs MUST be narrowly scoped to a specific finding-category AND a specific project or resource: `--filter='category=\"PUBLIC_BUCKET_ACL\" AND resource.project_id=\"known-public-docs-site\"'`. Never mute at the severity level. Set an expiry on every mute-config (`--expiry-time=<rfc3339-timestamp>`, max 30 days) via mandatory Terraform module. Alert on SCC finding `MUTE_CONFIG_CREATED` via Pub/Sub -> SIEM. Audit existing mute-configs: `gcloud scc muteconfigs list --organization=<org-id>` and remove any with empty / wildcard filters."
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1562.001', 'T1562.008']
     cis_controls: ['CIS-8.11', 'CIS-13.7']
     nist_controls: ['AU-6', 'AU-12', 'SI-4']
@@ -1305,7 +1305,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1562.001', 'T1562.008']
     cis_controls: ['CIS-8.2', 'CIS-8.11', 'CIS-13.7']
     nist_controls: ['AU-6', 'AU-12', 'SI-4']
@@ -1325,7 +1325,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-250', 'CWE-284', 'CWE-693']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1014', 'T1553', 'T1562.001']
     cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-10.5']
     nist_controls: ['AC-6', 'CM-7', 'SI-7']
@@ -1344,7 +1344,7 @@ patterns:
     recommendation: "Leave Gatekeeper enabled: `spctl --master-enable`, `defaults delete com.apple.LaunchServices LSQuarantine`, and re-arm via `spctl --assess --verbose=4 /Applications`. For internal unsigned tools use the correct path: Developer ID + notarization (`xcrun notarytool submit`), NOT disabling Gatekeeper fleet-wide. Enforce via MDM `com.apple.systempolicy.control` payload with `DisableOverride = true`. Monitor via `spctl --status` in a Jamf/Kandji extension-attribute."
     cwe: ['CWE-347', 'CWE-494', 'CWE-693']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1204.002', 'T1553.001', 'T1562.001']
     cis_controls: ['CIS-2.3', 'CIS-10.5']
     nist_controls: ['CM-7', 'SI-3', 'SI-7']
@@ -1384,7 +1384,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-269', 'CWE-506', 'CWE-732']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1543.001', 'T1543.004', 'T1547']
     cis_controls: ['CIS-2.3', 'CIS-8.5', 'CIS-10.5']
     nist_controls: ['AU-12', 'CM-7', 'SI-7']
@@ -1406,7 +1406,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1562.001', 'T1562.004']
     cis_controls: ['CIS-3.3', 'CIS-4.4', 'CIS-12.2']
     nist_controls: ['AC-4', 'CM-7', 'SC-7']
@@ -1426,7 +1426,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070', 'T1562.004']
     cis_controls: ['CIS-4.4', 'CIS-8.2', 'CIS-8.11']
     nist_controls: ['AU-6', 'AU-9', 'SI-4']
@@ -1495,7 +1495,7 @@ patterns:
     recommendation: "NEVER programmatically disable Object Lock or Versioning on a production bucket. Object Lock is WRITE-ONCE - once enabled with COMPLIANCE mode + retention period, it CANNOT be overridden, even by the root account. That's the entire security property. For legitimate bucket-deletion, use a separate 'cold archive' bucket without Object Lock; don't toggle it. Require MFA-Delete on all versioning buckets (`aws s3api put-bucket-versioning --mfa 'arn:aws:iam::...::mfa/root SerialNumber code' --versioning-configuration Status=Enabled,MFADelete=Enabled`). Alert on `PutObjectLockConfiguration` / `PutBucketVersioning` CloudTrail events where the new config is less restrictive than the old one."
     cwe: ['CWE-693', 'CWE-732', 'CWE-922']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1485', 'T1490', 'T1562.001']
     cis_controls: ['CIS-3.11', 'CIS-11.3', 'CIS-11.4']
     nist_controls: ['AU-9', 'CP-9', 'CP-10', 'SI-7']
@@ -1516,7 +1516,7 @@ patterns:
     recommendation: "Lock Backup Vaults in COMPLIANCE mode with a `MinRetentionDays >= 30` and `ChangeableForDays=0` (permanent lock) via `aws backup put-backup-vault-lock-configuration --mode=COMPLIANCE`. Once in COMPLIANCE mode, no AWS action - not even by root - can shorten retention. For regulatory DR use `MinRetentionDays >= 2555` (7-year). Audit CloudTrail for `DeleteBackupVault`/`DeleteRecoveryPoint`/`PutBackupVaultLockConfiguration` events with `requestParameters.lockMode != 'COMPLIANCE'` - alert high on any of these, page on-call on `DeleteBackupVault`. Require SCPs at the org-level to deny `backup:DeleteBackupVault` entirely except for a break-glass role."
     cwe: ['CWE-693', 'CWE-732', 'CWE-922']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1485', 'T1490', 'T1562.001']
     cis_controls: ['CIS-11.3', 'CIS-11.4']
     nist_controls: ['CP-9', 'CP-10', 'SI-7']
@@ -1537,7 +1537,7 @@ patterns:
     recommendation: "Use `perimeterType: PERIMETER_TYPE_REGULAR` (strong boundary) for all production perimeters. Enforce via `status:` block not `spec:`/`dryRun:` only - `spec` is audit-only; `status` blocks violations. Bridge perimeters are ONLY legitimate for very narrow multi-project read-only scenarios; if you need one, it must itself be protected by an Access Policy with MFA-required ingress. Alert on `accesscontextmanager.*.update` AuditLog events that move a perimeter from `status` to `spec` mode or change its type to BRIDGE. Require Org-Admin + Access-Context-Admin dual-control for these changes."
     cwe: ['CWE-284', 'CWE-693', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1530', 'T1562.007']
     cis_controls: ['CIS-3.12', 'CIS-12.2']
     nist_controls: ['AC-4', 'SC-7', 'SI-4']
@@ -1559,7 +1559,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-732', 'CWE-922']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1485', 'T1490', 'T1562.007']
     cis_controls: ['CIS-3.12', 'CIS-11.3']
     nist_controls: ['AC-6', 'CP-9', 'SI-7']
@@ -1585,7 +1585,7 @@ patterns:
     recommendation: "Keep SSH and ESXi Shell DISABLED on production hypervisors. Use vCenter's web UI + vSphere API (authenticated, audit-logged) for all management. For rare break-glass shell access: enable SSH only during an approved maintenance window, from a jump host with source-IP ACL (`/UserVars/SSHClientRange`), require lockdown mode `strict`, and disable immediately after. Enforce via vSphere Host Profiles - attach a baseline with `TSM-SSH.state=stopped`, `TSM.state=stopped`, and `Security.AccountLockFailures=5`. Alert on any `esxcli system settings advanced set` event touching SuppressShellWarning."
     cwe: ['CWE-284', 'CWE-306', 'CWE-693']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1021.004', 'T1133', 'T1562.001']
     cis_controls: ['CIS-4.4', 'CIS-5.7', 'CIS-12.6']
     nist_controls: ['AC-17', 'CM-7', 'SI-4']
@@ -1606,7 +1606,7 @@ patterns:
     recommendation: "On hypervisors: set `PermitRootLogin prohibit-password` (key-only), `PasswordAuthentication no`, `AuthenticationMethods publickey,hostbased`. Restrict ciphers to modern: `Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr`, `MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com`, `KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512`. Gate all hypervisor SSH access behind a bastion with per-user certificates (`TrustedUserCAKeys`), auditd `-a always,exit -S execve -F uid=0 -k hypervisor_root_exec`, and IDS alerts on new SSH sessions."
     cwe: ['CWE-287', 'CWE-326', 'CWE-327']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V6.2.1, V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1021.004', 'T1078', 'T1557']
     cis_controls: ['CIS-4.4', 'CIS-5.7', 'CIS-12.6']
     nist_controls: ['IA-2', 'IA-5', 'SC-13']
@@ -1628,7 +1628,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-250', 'CWE-284', 'CWE-693']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1059.001', 'T1112', 'T1562.001']
     cis_controls: ['CIS-3.3', 'CIS-8.5', 'CIS-10.5']
     nist_controls: ['CM-6', 'CM-7', 'SI-7']
@@ -1650,7 +1650,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-326', 'CWE-327', 'CWE-693']
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1021.002', 'T1210', 'T1562.001']
     cis_controls: ['CIS-4.1', 'CIS-4.4', 'CIS-12.6']
     nist_controls: ['CM-7', 'SC-8(1)', 'SI-3']
@@ -1671,7 +1671,7 @@ patterns:
     recommendation: "Set `LDAPServerIntegrity = 2` (REQUIRED) and `LdapEnforceChannelBinding = 2` (REQUIRED) on every Domain Controller. Enforce via GPO `Default Domain Controllers Policy` -> Security Options -> `Domain controller: LDAP server signing requirements = Require signing` and `LDAP server channel binding token requirements = Always`. Test impact with Microsoft's LDAP Channel Binding And Signing Health Check tool BEFORE enforcing. Rotate affected service accounts to use LDAPS (636) with cert-based auth. Audit Windows EID 2886, 2887, 2888, 2889 on DCs - presence of 2889 (clear-text bind) indicates clients still at risk."
     cwe: ['CWE-287', 'CWE-295', 'CWE-308']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1", "V9.2.1"]
+    owasp_asvs: [V6.2.1, V12.3.4]
     mitre_attack: ['T1078', 'T1550.002', 'T1557.001']
     cis_controls: ['CIS-3.10', 'CIS-6.5', 'CIS-12.6']
     nist_controls: ['IA-2', 'SC-8', 'SC-23']
@@ -1693,7 +1693,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-284', 'CWE-306']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V8.1.1"]
+    owasp_asvs: [V6.2.1, V14.2.2]
     mitre_attack: ['T1018', 'T1069.002', 'T1087.002']
     cis_controls: ['CIS-3.3', 'CIS-4.1', 'CIS-5.1']
     nist_controls: ['AC-3', 'AC-6', 'AU-12']
@@ -1715,7 +1715,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-311', 'CWE-319', 'CWE-522']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1021.006', 'T1552.001', 'T1557.001']
     cis_controls: ['CIS-3.10', 'CIS-12.6']
     nist_controls: ['IA-2', 'SC-8', 'SC-8(1)']
@@ -1738,7 +1738,7 @@ patterns:
     cwe: ['CWE-250', 'CWE-269', 'CWE-284']
     cve: ["CVE-2021-34527", "CVE-2023-21678", "CVE-2024-20683"]
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1068', 'T1078.002', 'T1543.003']
     cis_controls: ['CIS-2.3', 'CIS-4.1', 'CIS-5.1']
     nist_controls: ['AC-6', 'CM-6', 'CM-7']
@@ -1759,7 +1759,7 @@ patterns:
     recommendation: "Configure every production trail as organization-wide, multi-region, with `ReadWriteType: All`, `IncludeManagementEvents: true`, + data-event selectors for sensitive buckets (`AWS::S3::Object`) and Lambda functions (`AWS::Lambda::Function`). Enable log-file validation (`EnableLogFileValidation: true`) + S3 Object Lock + cross-account log archive. Require SCP at org level denying `cloudtrail:PutEventSelectors` with `ReadWriteType=ReadOnly` except for a break-glass role. Alert on `PutEventSelectors` CloudTrail events where the new config covers fewer event types than the old one. Cross-check trail health quarterly via `aws cloudtrail get-trail-status` + `get-event-selectors`."
     cwe: ['CWE-284', 'CWE-693', 'CWE-778']
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1562.001', 'T1562.008', 'T1578']
     cis_controls: ['CIS-8.2', 'CIS-8.5', 'CIS-8.11']
     nist_controls: ['AU-2', 'AU-6', 'AU-9', 'AU-12']
@@ -1781,7 +1781,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1562.007', 'T1562.008', 'T1578']
     cis_controls: ['CIS-3.12', 'CIS-6.8', 'CIS-16.5']
     nist_controls: ['AC-3', 'AC-6', 'CM-5']
@@ -1803,7 +1803,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-308', 'CWE-522', 'CWE-798']
     owasp_appsec: ["A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.1", "V2.10.2", "V2.10.4", "V6.2.1", "V14.1.5"]
+    owasp_asvs: [V13.2.1, V13.2.3, V13.3.1, V11.2.5]
     mitre_attack: ['T1078.004', 'T1098.001']
     cis_controls: ['CIS-3.11', 'CIS-6.5', 'CIS-16.9']
     nist_controls: ['AC-2', 'IA-5', 'IA-5(1)']
@@ -1824,7 +1824,7 @@ patterns:
     recommendation: "Never populate `exempted_members` on `DATA_READ`, `ADMIN_READ`, or `DATA_WRITE` audit configs. If a service account is generating noisy audit volume (e.g. a metrics-scraper reading every Bigtable row), REDUCE the service's read frequency, add BigQuery row-level security, or use a separate project for the noisy workload - never exempt. Set org-level constraint `constraints/iam.disableServiceAccountKeyUpload` + `constraints/gcp.restrictCloudAuditLogExemptions` (2024 GA). Monitor via Cloud Logging log-based metrics on `protoPayload.methodName=SetIamPolicy` + `SetAuditConfig` events. Store audit config IaC in Terraform and deny-by-default non-empty `exempted_members` via OPA/Sentinel."
     cwe: ['CWE-284', 'CWE-693', 'CWE-778']
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1562.001', 'T1562.008']
     cis_controls: ['CIS-8.2', 'CIS-8.11']
     nist_controls: ['AU-2', 'AU-9', 'AU-12']
@@ -1846,7 +1846,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693', 'CWE-778']
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1562.001', 'T1562.008', 'T1578']
     cis_controls: ['CIS-8.2', 'CIS-8.5', 'CIS-8.11']
     nist_controls: ['AU-2', 'AU-9', 'AU-12']
@@ -1888,7 +1888,7 @@ patterns:
     recommendation: "DELETE the `guest` user entirely: `rabbitmqctl delete_user guest`. Create per-service accounts with scoped vhost permissions: `rabbitmqctl add_user <svc> <strong-password-from-vault>` + `rabbitmqctl set_permissions -p /<vhost> <svc> '^svc-.*$' '^svc-.*$' '^svc-.*$'`. Keep `loopback_users = [guest]` (default) even after deletion as a safety net. Enforce TLS on AMQP listener: `listeners.ssl.default = 5671` + disable plaintext: `listeners.tcp = none`. Enable client-cert authentication for service-to-service. Audit: `rabbitmqctl list_users` - any `guest` entry is a finding. Monitor `rabbitmq_management` API access logs for `guest` login attempts."
     cwe: ['CWE-287', 'CWE-521', 'CWE-798']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1", "V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V6.2.1, V13.2.3, V13.3.1]
     mitre_attack: ['T1078.001', 'T1552.001']
     cis_controls: ['CIS-4.7', 'CIS-5.2', 'CIS-16.9']
     nist_controls: ['AC-2', 'AC-6', 'IA-5']
@@ -1909,7 +1909,7 @@ patterns:
     recommendation: "Set `security.inter.broker.protocol=SSL` (TLS, or `SASL_SSL` for authN+TLS). Configure `listener.security.protocol.map=CLIENT:SASL_SSL,INTERNAL:SSL`, `inter.broker.listener.name=INTERNAL`. Provision TLS certs via cert-manager (k8s) or Vault PKI (VMs) with per-broker hostnames; rotate annually. Enable mTLS between brokers: `ssl.client.auth=required`. For in-transit protection of consumer groups too, use `security.protocol=SSL` on the client side. Audit: `kafka-configs --bootstrap-server <broker>:9092 --entity-type brokers --describe | grep listeners` - verify no `PLAINTEXT://` entries. Enforce at org scope via Confluent RBAC policy `require_tls=true`."
     cwe: ['CWE-311', 'CWE-319', 'CWE-326']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1, V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1552.001']
     cis_controls: ['CIS-3.10', 'CIS-14.4']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -1930,7 +1930,7 @@ patterns:
     recommendation: "Configure the `authorization {}` block with per-user credentials or (better) NKey / JWT-based auth: `authorization { users = [{ user: svc-orders, password: $2a$11$... }, { nkey: UABC... }] }`. For multi-tenant clusters use decentralized accounts (NATS 2.x): `operator: /etc/nats/operator.jwt` + per-tenant account JWTs. Enable TLS on the listen address: `tls { cert_file, key_file, verify: true }`. Never include real users in the `$SYS` account - reserve it for cluster-admin only, deploy an enterprise NATS Admin Console for access. For dev/test clusters, bind to loopback: `listen: 127.0.0.1:4222`. Audit open NATS ports: `nmap -p 4222,8222 <subnet>` - any response from an uncredentialed probe is a finding."
     cwe: ['CWE-284', 'CWE-287', 'CWE-306']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1040', 'T1190', 'T1210']
     cis_controls: ['CIS-3.3', 'CIS-4.7', 'CIS-12.6']
     nist_controls: ['AC-3', 'AC-6', 'IA-2']
@@ -1951,7 +1951,7 @@ patterns:
     recommendation: "Enable immutability on every backup repository with minimum 14-day retention (PCI-scoped: 30 days; HIPAA/regulated: 90+ days). Veeam: `Hardened Repository` with XFS + filesystem-level immutability + `Immutable for: 30 days` policy + separate non-domain-joined backup-service account. Commvault: WORM-enabled storage policy + Cloud Storage Lock with S3 Object Lock in Compliance mode. Rubrik: SLA with `retention_lock_mode: COMPLIANCE` + `snapshot_archival_lock_duration_days: 30`. Cohesity: DataLock with `lockDurationUsecs: 2592000000000` (30 days in µs). For cloud S3-backed backups: `aws s3api put-object-lock-configuration --bucket backups --object-lock-configuration 'ObjectLockEnabled=Enabled,Rule={DefaultRetention={Mode=COMPLIANCE,Days=30}}'` + separate AWS account with SCP denying `s3:PutObjectLockConfiguration` / `s3:BypassGovernanceRetention` from anyone outside break-glass role. Test quarterly via ransomware-simulation: attempt deletion as domain-admin - must fail. Audit: Veeam `Get-VBRBackupRepository | Select Name, ImmutabilityPeriodDays` / `aws s3api get-object-lock-configuration --bucket <b>`."
     no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-732', 'CWE-1326']
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1485', 'T1490', 'T1565.001']
     cis_controls: ['CIS-11.1', 'CIS-11.2', 'CIS-11.5']
     nist_controls: ['CP-9', 'CP-9(5)', 'CP-10']
@@ -1972,7 +1972,7 @@ patterns:
     recommendation: "Never use `listen_tcp = 1` + `auth_tcp = none`. For remote libvirt management, use `libvirt+ssh://` transport (port 22, uses SSH keys - already authenticated and encrypted): `virsh -c qemu+ssh://root@hypervisor/system`. For high-throughput remote APIs (oVirt / RHEV manager), use `libvirt+tls://` (port 16514) with: `listen_tcp = 0`, `listen_tls = 1`, `auth_tls = \"x509\"`, cert pinning via `tls_allowed_dn_list`, + firewall inbound 16514 to the management-network CIDR only. Disable the listen entirely on hypervisors managed only locally: remove `--listen` from `LIBVIRTD_ARGS` and rely on `/var/run/libvirt/libvirt-sock` (Unix socket, requires local login + group membership). For VM tenancy on a multi-customer host, use per-tenant AppArmor/SELinux profiles + sVirt. Audit: `ss -tlnp | grep ':16509'` must return nothing on production + `virsh -c qemu+tcp://<host>/system list` from another host must fail. Rotate any TLS certs used for libvirt management annually."
     cwe: ['CWE-284', 'CWE-306', 'CWE-319']
     owasp_appsec: ["A01:2021", "A02:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V6.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1021', 'T1133', 'T1563']
     cis_controls: ['CIS-3.10', 'CIS-4.7', 'CIS-12.6']
     nist_controls: ['AC-3', 'IA-2', 'SC-8']
@@ -1997,7 +1997,7 @@ patterns:
     cwe: ['CWE-250', 'CWE-269', 'CWE-732']
     cve: ["CVE-2024-26589", "CVE-2024-40967"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1055', 'T1068', 'T1611']
     cis_controls: ['CIS-4.1', 'CIS-4.7', 'CIS-5.4']
     nist_controls: ['AC-6', 'CM-7', 'SC-39']
@@ -2034,7 +2034,7 @@ patterns:
               state: stopped
     recommendation: "Never disable Falco on a production node. If rules are too noisy, tune via `falco_rules.local.yaml` (add narrow `exceptions:` blocks) instead of stopping the service. Deploy Falco as a Kubernetes DaemonSet with `updateStrategy: RollingUpdate`, ship alerts to a SIEM via Falco Sidekick (HTTP-to-Loki/Slack/PagerDuty/Sentinel), and put the `falco` namespace + rules ConfigMap under OPA Gatekeeper / Kyverno admission policy that blocks accidental deletion. Enable the eBPF probe (`driver: modern_ebpf`) - no kernel-module signing required and survives kernel updates. Alert on the meta-event `Falco service stopped` and `Rules reloaded` (both already in the default ruleset) with a P1 pager. For compliance frameworks requiring runtime protection (PCI-DSS 10.5, CIS Docker 5.25, SOC 2 CC7.2), document Falco as a compensating control. If you prefer a commercial equivalent (Sysdig Secure, Aqua Enforcer, Wiz Runtime Sensor, Datadog CWS), the same 'never allow disable in production' rule applies."
     cwe: ['CWE-693', 'CWE-693', 'CWE-1357']
-    owasp_asvs: ["V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1070', 'T1562.001', 'T1562.007']
     cis_controls: ['CIS-8.1', 'CIS-8.2', 'CIS-13.3']
     nist_controls: ['AU-12', 'CM-7', 'SI-4']
@@ -2055,7 +2055,7 @@ patterns:
     recommendation: "Never disable Tetragon on a Cilium-protected cluster. Tune by narrowing `TracingPolicy` selectors (pod label, namespace, binary path) rather than uninstalling. Deploy Tetragon as a DaemonSet with `kubectl apply -f tetragon.yaml` managed by a GitOps reconciler (ArgoCD/Flux) that blocks drift; enable Tetragon's JSON event export to a SIEM (Loki, Splunk, Datadog, Sentinel). Put `TracingPolicy` CRDs under OPA Gatekeeper admission policy that blocks delete for `kill_action: SIGKILL` rules tagged critical. Alert on Tetragon agent restart/stop, on deleted `TracingPolicy` objects, and on `kprobe_process_event_count` going to zero for any node. Document Tetragon as the PCI-DSS 10.5, CIS K8s 3.2, SOC 2 CC7.2 compensating control for runtime behavioural monitoring. Review Isovalent's 2024 Tetragon hardening guide and the MITRE-aligned TracingPolicy library."
     no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-1357']
-    owasp_asvs: ["V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1070', 'T1562.001', 'T1562.007']
     cis_controls: ['CIS-8.1', 'CIS-8.2', 'CIS-13.3']
     nist_controls: ['AU-12', 'CM-7', 'SI-4']
@@ -2076,7 +2076,7 @@ patterns:
     recommendation: "Bind OTLP receivers to a specific internal IP or a Kubernetes ClusterIP service - never `0.0.0.0`. In Kubernetes, expose the collector via a `ClusterIP` (or `ClusterIP` + `NetworkPolicy` ingress-allowlisted to your instrumented workloads). Enable OTLP auth: either (a) mTLS via the `tls` block with a private-CA-issued cert + `client_ca_file`, or (b) bearer-token header via the `bearertokenauth` extension with a rotated token stored in a sealed secret. Rate-limit via `memory_limiter` + `batch` processors. Run the collector as non-root, `readOnlyRootFilesystem: true`, drop all caps. For SaaS ingestion (Datadog, Honeycomb, New Relic), point the OTLP exporter - not the receiver - at the public endpoint. Audit with `ss -tlnp | grep -E ':431[78]'` and verify the bind IP is internal. Enable the collector's internal-metrics scraping (port 8888) only on loopback."
     cwe: ['CWE-284', 'CWE-306', 'CWE-319']
     owasp_appsec: ["A01:2021", "A02:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V6.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1498', 'T1552.004', 'T1590.002']
     cis_controls: ['CIS-4.4', 'CIS-8.10', 'CIS-12.6']
     nist_controls: ['AC-3', 'AC-4', 'SC-7']
@@ -2097,7 +2097,7 @@ patterns:
     recommendation: "Never enable ESXi Shell (TSM) or SSH on a production ESXi host - both should be stopped with Policy=`off`. Manage hypervisors exclusively through vCenter (vSphere API over HTTPS). For emergency diagnostics, enable TSM temporarily via DCUI console (keyboard at the physical/iLO console), perform the diagnostic, then disable + Policy=`off` immediately - and alert on the event via vCenter `vim.event.LocalTsmEnabledEvent` shipped to SIEM. Enable ESXi Lockdown Mode ('Strict') to block direct-host logins entirely. Require `execInstalledOnly=TRUE` (CIS ESXi 8.0 2.2), Secure Boot on the server, and vSphere Trust Authority. Restrict vCenter access to MFA-enforced admin accounts, segment the management VLAN, and put the host management NIC behind a bastion. Audit fleet-wide with `Get-VMHost | Get-VMHostService | Where {$_.Key -in 'TSM','TSM-SSH' -and $_.Running}`. Review Mandiant UNC3886 + ESXi-targeting ransomware playbooks (2024)."
     cwe: ['CWE-16', 'CWE-250', 'CWE-732']
     owasp_appsec: ["A05:2021"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1021.004', 'T1059.004', 'T1562.001']
     cis_controls: ['CIS-4.1', 'CIS-4.7', 'CIS-12.6']
     nist_controls: ['AC-3', 'AC-17', 'CM-7']
@@ -2138,7 +2138,7 @@ patterns:
     recommendation: "Configure remote syslog on every ESXi host pointing at ≥ 2 SIEM collectors with TLS: `esxcli system syslog config set --loghost='ssl://siem1.example.com:6514,ssl://siem2.example.com:6514' --logdir-unique=true --default-rotate=20 --default-size=10240 && esxcli system syslog reload`. In vCenter: Host -> Configure -> Advanced System Settings -> `Syslog.global.logHost` = `ssl://siem1:6514,ssl://siem2:6514` (TLS mandatory for PCI-DSS 10.5.4). Open the host firewall for outbound syslog: `esxcli network firewall ruleset set -r syslog -e true`. Ship: `hostd.log`, `vpxa.log`, `vmkernel.log`, `shell.log`, `auth.log`, `vmkwarning.log`, `vobd.log` at minimum. Enable log rotation + persistence to a vSAN / NFS datastore (not local-only, which is lost on host rebuild). Alert (P1) on `vmsyslogd` restart, on `Syslog.global.logHost` change, and on any host that stops shipping logs for > 15 min. Review CIS ESXi 8.0 Benchmark 3.1-3.4, PCI-DSS v4.0 10.5, and Mandiant ESXi ransomware playbook."
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070', 'T1562.001', 'T1562.006']
     cis_controls: ['CIS-8.1', 'CIS-8.2', 'CIS-8.10']
     nist_controls: ['AU-4', 'AU-9', 'AU-12']
@@ -2161,7 +2161,7 @@ patterns:
     recommendation: "Always set both: `retention: 90` (or your compliance-mandated number of days - PCI-DSS v4 requires 12 months for audit logs, HIPAA requires 6 years) AND `kms_key_id: arn:aws:kms:...`. For short-lived dev log groups, use `retention: 7` to avoid cost drift. Enforce globally via AWS Config rules `cw-loggroup-retention-period-check` + `cloudwatch-log-group-encrypted`. Apply a default retention via AWS Organizations SCP that denies `logs:PutRetentionPolicy` with `Retention: NeverExpire`. For centralised logging, stream every log group to a log-archive account with Object Lock."
     cwe: ['CWE-311', 'CWE-532', 'CWE-778']
     owasp_appsec: ["A04:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1", "V8.3.1", "V9.1.1"]
+    owasp_asvs: [V16.2.5, V16.3.1, V14.2.1, V12.2.1]
     mitre_attack: ['T1070.002', 'T1562.008']
     cis_controls: ['CIS-8.3', 'CIS-8.10']
     nist_controls: ['AU-4', 'AU-11', 'SC-28']
@@ -2187,7 +2187,7 @@ patterns:
     recommendation: "Set `value: on` for all four logging parameters: `log_checkpoints`, `log_connections`, `log_disconnections`, `log_duration`. Additionally enable `log_statement: ddl` (or `mod` for write-auditing, `all` for full capture - expensive) and `log_min_duration_statement: 1000` (ms) for slow-query forensics. Stream the logs to Azure Monitor Log Analytics + Microsoft Sentinel with a 90-day minimum retention. Enforce via Azure Policy 'Audit PostgreSQL log_*_connections/checkpoints' / built-in policy `ID: eb6f77b9-bd53-4e35-a23d-7f65d5f0e446` (enable logging resources for PostgreSQL)."
     cwe: ['CWE-223', 'CWE-532', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070.002', 'T1562.008']
     cis_controls: ['CIS-8.2', 'CIS-8.5']
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -2235,7 +2235,7 @@ patterns:
     recommendation: "Add to every bucket: `logging: {log_bucket: 'gcs-access-logs-<project>', log_object_prefix: 'access-logs/<bucket>'}`. The sink bucket must be in the same project and grant `group:cloud-storage-analytics@google.com` write access (documented in GCS logging docs). For richer telemetry, also enable `Data Access audit logs` for `storage.googleapis.com` in Cloud Audit Logs (captures authenticated reads). Enforce via Organization Policy `constraints/storage.uniformBucketLevelAccess: enforced` plus a custom `constraints/storage.requireAccessLogging` via Custom Org Policy (Preview). Monitor compliance with `gcloud storage buckets describe gs://<b> --format='value(logging)'`."
     cwe: ['CWE-223', 'CWE-532', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070', 'T1530', 'T1562.008']
     cis_controls: ['CIS-8.5', 'CIS-8.11']
     nist_controls: ['AU-2', 'AU-12', 'SI-4']
@@ -2258,7 +2258,7 @@ patterns:
     recommendation: "On every EKS cluster enable ALL FIVE control-plane log types by adding `logging: {cluster_logging: [{types: [api, audit, authenticator, controllerManager, scheduler], enabled: true}]}`. Ship the CloudWatch log group (`/aws/eks/<cluster>/cluster`) to your SIEM and build detections for: `userAgent` anomalies, `ResponseStatus.code >= 400` bursts (brute-force), `verb: exec|attach` from unexpected SAs, and `system:anonymous` requests. Enforce via AWS Config rule `eks-cluster-logging-enabled` and OPA/Kyverno at the IaC layer."
     cwe: ['CWE-223', 'CWE-532', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1552.007', 'T1562.008', 'T1609']
     cis_controls: ['CIS-8.5', 'CIS-8.11']
     nist_controls: ['AU-2', 'AU-12', 'SI-4']
@@ -2308,7 +2308,7 @@ patterns:
     recommendation: "Set `tracing_config: {mode: Active}` on every Lambda. Grant the function's execution role `arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess` (or inline the three actions: `xray:PutTraceSegments`, `xray:PutTelemetryRecords`, `xray:GetSamplingRules`). Ship X-Ray traces to CloudWatch + your observability platform; build detections for anomalous AWS-SDK calls (e.g. `iam:CreateAccessKey`, `s3:GetObject` from an unexpected bucket). Enforce via AWS Config custom rule or OPA at the IaC layer."
     cwe: ['CWE-223', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1562.008', 'T1578.005']
     cis_controls: ['CIS-8.5', 'CIS-8.11']
     nist_controls: ['AU-2', 'AU-12', 'SI-4']
@@ -2359,7 +2359,7 @@ patterns:
     recommendation: "Set `include_global_resource_types: true` AND `all_supported: true` on at least ONE region's Config Recorder (typically `us-east-1` - IAM is global but surfaces there). Also make sure multi-region aggregation is on: deploy an organization-level AWS Config aggregator with `all_aws_regions: true`. Stream to a centralized S3 bucket with object-lock + a dedicated audit account. Enforce with AWS Config conformance pack `Operational-Best-Practices-for-AWS-Config`."
     cwe: ['CWE-223', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1098', 'T1526', 'T1562.008']
     cis_controls: ['CIS-8.5', 'CIS-8.11']
     nist_controls: ['AU-2', 'AU-12', 'CA-7']
@@ -2391,7 +2391,7 @@ patterns:
     recommendation: "Set `enable_log_file_validation: true` on every CloudTrail. Additionally: (1) write trails to a dedicated S3 bucket in a separate audit AWS account, (2) set the bucket policy to deny delete/put-object-acl to the source-account principals, (3) enable S3 Object Lock in compliance mode, (4) run `aws cloudtrail validate-logs --trail-arn ... --start-time ... --end-time ...` on a scheduled Lambda and alarm on any hash-mismatch. Enforce via AWS Config rule `cloud-trail-log-file-validation-enabled`."
     cwe: ['CWE-345', 'CWE-354', 'CWE-532']
     owasp_appsec: ["A08:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1"]
+    owasp_asvs: [V16.2.5]
     mitre_attack: ['T1070.002', 'T1070.004', 'T1562.008']
     cis_controls: ['CIS-8.3', 'CIS-8.5']
     nist_controls: ['AU-9', 'AU-9(3)', 'SI-7']
@@ -2448,7 +2448,7 @@ patterns:
     window: 50
     recommendation: "Set `ebs_optimized: true` for all production EC2 instances. All current-generation Nitro-based instance types (m5/m6/m7, c5/c6/c7, r5/r6/r7, t3/t3a/t4g) have EBS-optimized enabled by default and at zero additional cost - explicitly passing `ebs_optimized: false` is actively harmful. Legacy families (m4.10xlarge and smaller, c4) charge a small hourly surcharge; budget owners should still enable it for IOPS-sensitive workloads."
     cwe: ['CWE-400', 'CWE-770']
-    owasp_asvs: ["V14.1.3"]
+    owasp_asvs: []
     mitre_attack: ['T1499', 'T1499.004']
     cis_controls: ['CIS-13.11']
     nist_controls: ['CP-2', 'SC-5']

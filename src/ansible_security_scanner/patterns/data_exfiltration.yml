@@ -14,7 +14,7 @@ patterns:
     recommendation: "Bulk-reads of /etc/passwd, /etc/shadow, ~/.ssh, ~/.aws, ~/.docker indicate credential collection; remove the task, audit for exfiltration, and source any legitimate secret from Ansible Vault or a secrets manager rather than copying host credentials off the box."
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
     mitre_attack: ['T1005', 'T1552.001']
     cis_controls: ['CIS-3.3', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
@@ -37,7 +37,7 @@ patterns:
     recommendation: "find -name id_rsa / *.pem / *.key / credentials is a credential-discovery primitive; if the play actually needs to manage SSH keys, target known paths explicitly and use ansible.builtin.find with file_type and a strict pattern: list, never a recursive credential sweep."
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
     mitre_attack: ['T1083', 'T1552.001']
     cis_controls: ['CIS-3.3', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
@@ -59,7 +59,7 @@ patterns:
     recommendation: "env | grep PASSWORD/SECRET/TOKEN/KEY/API enumerates secrets in the running process environment; remove the task, rotate any environment-injected credentials that may have been logged, and source secrets from Vault rather than process environment variables."
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.3', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
@@ -78,7 +78,7 @@ patterns:
     recommendation: "ps aux | grep password|secret|token reads command-line credentials of other processes; remove the task and ensure callers use credential files / env-files with mode 0600 rather than passing secrets as argv."
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1057', 'T1552.001']
     cis_controls: ['CIS-3.3']
     nist_controls: ['AC-3', 'AC-6', 'SC-28']
@@ -120,7 +120,7 @@ patterns:
     recommendation: "Persisting netstat / ss / ip-route output to a file is the System Network Configuration Discovery (T1016) signature; if the data is genuinely needed for operations, capture it via ansible.builtin.setup or a purpose-built fact module and store the result in the controller's fact cache rather than a host file."
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1016', 'T1049']
     cis_controls: ['CIS-3.3', 'CIS-13.1']
     nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
@@ -142,7 +142,7 @@ patterns:
     recommendation: "Bulk-reading /var/log/auth, /var/log/secure, /var/log/messages exfiltrates authentication history; ship logs through a vetted log-forwarder (rsyslog over TLS, journald-remote, Vector) to a central SIEM rather than copying them via ad-hoc shell tasks."
     cwe: ['CWE-200', 'CWE-532']
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V8.1.1"]
+    owasp_asvs: [V16.2.5, V14.2.2]
     mitre_attack: ['T1005', 'T1552.001']
     cis_controls: ['CIS-3.3', 'CIS-8.2']
     nist_controls: ['AC-3', 'AC-6', 'AU-2', 'AU-9', 'AU-12', 'SC-28']
@@ -164,7 +164,7 @@ patterns:
     recommendation: "Pipe mysqldump / pg_dump / mongodump output through a server-side encryption step (age, gpg --encrypt with a recipient key, openssl enc -aes-256-gcm), write to a permissioned path (mode 0600), and verify the dump's destination is controlled by the operator - not an attacker-supplied location."
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
     mitre_attack: ['T1005', 'T1041']
     cis_controls: ['CIS-3.3', 'CIS-11.3']
     nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
@@ -186,7 +186,7 @@ patterns:
     recommendation: "Creating archives of /etc, /home, /root, /var, /opt is the staging step before exfiltration; if backups are intended, use a scoped backup tool (restic, borg, rsnapshot) with an encrypted off-host repository rather than ad-hoc tar/zip."
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1005', 'T1560.001']
     cis_controls: ['CIS-3.3']
     nist_controls: ['AC-3', 'AC-6', 'SC-28']
@@ -208,7 +208,7 @@ patterns:
     recommendation: "scp/rsync/curl-T of files literally named credentials/secrets/keys/passwords is exfiltration; remove the task, rotate any credentials that may have been moved, and audit destination hosts for compromise."
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
     mitre_attack: ['T1041', 'T1048.003']
     cis_controls: ['CIS-3.3', 'CIS-13.1']
     nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28', 'SI-4']
@@ -252,7 +252,7 @@ patterns:
     recommendation: "Chains like tcpdump -w -> curl, cat | nc, dd | gzip | curl are textbook exfiltration primitives (MITRE T1048); remove the task, audit egress firewall logs for the destination, and require all artefact-shipping to flow through a vetted tool with logging."
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1041', 'T1048']
     cis_controls: ['CIS-3.3', 'CIS-13.1']
     nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
@@ -274,7 +274,7 @@ patterns:
     recommendation: "grep -r password|secret|key followed by curl is a search-and-exfiltrate pipeline; remove the task and audit the host. If a security scan is the actual intent, run a sanctioned secret-scanner (gitleaks, trufflehog) whose output goes to the operator, not over an outbound HTTP request."
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
     mitre_attack: ['T1041', 'T1552.001']
     cis_controls: ['CIS-3.3', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
@@ -294,7 +294,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1048', 'T1567.002']
     cis_controls: ['CIS-3.3', 'CIS-13.1']
     nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
@@ -314,7 +314,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1567.002']
     cis_controls: ['CIS-3.3', 'CIS-13.1']
     nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
@@ -334,7 +334,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1567.002']
     cis_controls: ['CIS-3.3', 'CIS-13.1']
     nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
@@ -357,7 +357,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1567.002']
     cis_controls: ['CIS-3.3', 'CIS-13.1']
     nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
@@ -377,7 +377,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1567']
     cis_controls: ['CIS-3.3', 'CIS-13.1']
     nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
@@ -397,7 +397,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1567']
     cis_controls: ['CIS-3.3', 'CIS-13.1']
     nist_controls: ['AC-3', 'AC-6', 'SC-28', 'SI-4']
@@ -417,7 +417,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1071.001', 'T1105']
     cis_controls: ['CIS-4.1', 'CIS-13.1']
     nist_controls: ['AC-3', 'CM-6', 'CM-7', 'SC-28', 'SI-4']

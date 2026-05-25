@@ -17,7 +17,7 @@ patterns:
     recommendation: "FTP transmits the credential and payload in plaintext; switch the URL to sftp:// (transports over SSH) or https:// and source the credential from Ansible Vault / a secrets manager rather than embedding it in the URL."
     cwe: ["CWE-319", "CWE-522"]
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V12.2.1, V12.3.4]
     mitre_attack: ["T1040", "T1557"]
     cis_controls: ["CIS-3.1", "CIS-12.6"]
     nist_controls: ['AC-3', 'IA-5(7)', 'SC-8', 'SC-8(1)', 'SC-28']
@@ -41,7 +41,7 @@ patterns:
     recommendation: "Embedding user:pass@ in an http:// URL exposes the credential to anyone on the path; rewrite the URL as https://, and supply the credential via the module's url_username / url_password parameters loaded from Ansible Vault."
     cwe: ["CWE-319", "CWE-522"]
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V12.2.1, V12.3.4]
     mitre_attack: ["T1040", "T1557"]
     cis_controls: ["CIS-3.1", "CIS-12.6"]
     nist_controls: ['AC-3', 'IA-5(7)', 'SC-8', 'SC-8(1)', 'SC-28']
@@ -77,7 +77,7 @@ patterns:
     recommendation: "Replace http://, ftp://, and telnet:// with their TLS-protected equivalents (https://, sftp:// or ftps://, ssh://); for unauthenticated artifact fetches, additionally pin a SHA-256 via the module's checksum: parameter."
     cwe: ["CWE-319"]
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    owasp_asvs: [V12.2.1, V12.3.4]
     mitre_attack: ["T1040"]
     cis_controls: ["CIS-12.6"]
     nist_controls: ['SC-8', 'SC-8(1)']
@@ -99,7 +99,7 @@ patterns:
     recommendation: "Remove validate_certs: false / verify_ssl: false; if the endpoint uses an internal CA, distribute that CA bundle to the controller and pass it via ca_path: rather than disabling verification."
     cwe: ["CWE-295", "CWE-297"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
     mitre_attack: ["T1557", "T1557.002"]
     cis_controls: ["CIS-3.1", "CIS-12.6"]
     nist_controls: ['AC-3', 'SC-8', 'SC-8(1)', 'SC-12', 'SC-28']
@@ -121,7 +121,7 @@ patterns:
     recommendation: "Drop RC4, single-DES, MD5, and SHA1 from the cipher / MAC list and require a modern TLS 1.2+ profile (e.g. Mozilla Intermediate); for SSH, use a curated Ciphers / MACs / KexAlgorithms list rather than the legacy defaults."
     cwe: ["CWE-326", "CWE-327"]
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ["T1040"]
     cis_controls: ["CIS-3.1", "CIS-12.6"]
     nist_controls: ['AC-3', 'SC-8', 'SC-8(1)', 'SC-28']
@@ -143,7 +143,7 @@ patterns:
     recommendation: "Set sslmode=require (PostgreSQL) / ssl=true + ssl-mode=REQUIRED (MySQL) / ssl=true (MongoDB), and pin the server CA via sslrootcert / ssl-ca so the TLS handshake actually authenticates the database host."
     cwe: ["CWE-311", "CWE-319"]
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ["T1040"]
     cis_controls: ["CIS-3.1"]
     nist_controls: ['AC-3', 'SC-8', 'SC-8(1)', 'SC-28']
@@ -162,7 +162,7 @@ patterns:
     recommendation: "Replace telnet with ssh (or ansible.builtin.ssh) for interactive sessions and with ansible.builtin.uri / community.general.telnet only for explicit non-credentialed reachability checks against TLS-fronted ports."
     cwe: ["CWE-319"]
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    owasp_asvs: [V12.2.1, V12.3.4]
     mitre_attack: ["T1040"]
     cis_controls: ["CIS-12.6"]
     nist_controls: ['SC-8', 'SC-8(1)']
@@ -182,7 +182,7 @@ patterns:
     recommendation: "Submit mail on port 587 with STARTTLS or 465 with implicit TLS, set the module's secure: starttls / always option, and authenticate over the encrypted channel rather than port 25 in cleartext."
     cwe: ["CWE-311", "CWE-319"]
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ["T1040"]
     cis_controls: ["CIS-3.1", "CIS-12.6"]
     nist_controls: ['AC-3', 'SC-8', 'SC-8(1)', 'SC-28']
@@ -223,7 +223,7 @@ patterns:
     recommendation: "Set `xpack.security.enabled: true`, bind to `network.host: _site_` (private interface), and configure at minimum the built-in `elastic` user with a strong password plus API keys for application access. Enable TLS for transport + HTTP with `xpack.security.transport.ssl.enabled: true` and `xpack.security.http.ssl.enabled: true`. If clients truly need internet exposure, front with a reverse-proxy that enforces mTLS or OIDC."
     cwe: ['CWE-284', 'CWE-306', 'CWE-319']
     owasp_appsec: ["A01:2021", "A02:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V6.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1190', 'T1213']
     cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-6.5']
     nist_controls: ['AC-3', 'IA-2', 'SC-7', 'SC-8']
@@ -244,7 +244,7 @@ patterns:
     recommendation: "Set `security.authorization: enabled`, create an admin user via `mongosh` with `db.createUser({user:'admin', pwd: <strong>, roles:['root']})` on first start, and bind to loopback or a private interface (`net.bindIp: 127.0.0.1,10.x.y.z`). Enable TLS with `net.tls.mode: requireTLS`. For sharded / replica-set deployments, also enable keyfile or x.509 cluster authentication."
     cwe: ['CWE-284', 'CWE-306']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1190', 'T1213']
     cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-6.5']
     nist_controls: ['AC-3', 'IA-2', 'SC-7']
@@ -265,7 +265,7 @@ patterns:
     recommendation: "Set a strong `requirepass <32+ char random>` (or switch to Redis 6+ ACLs with `user default off` and named users), keep `protected-mode yes`, and bind to a private interface: `bind 127.0.0.1 10.x.y.z`. Disable dangerous commands via `rename-command CONFIG \"\"`, `rename-command MODULE \"\"`, `rename-command DEBUG \"\"`, `rename-command SLAVEOF \"\"`. Enable TLS with `tls-port 6379 / port 0`."
     cwe: ['CWE-284', 'CWE-306']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1190', 'T1210']
     cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-6.5']
     nist_controls: ['AC-3', 'IA-2', 'SC-7']
@@ -283,7 +283,7 @@ patterns:
     recommendation: "Set `allow_anonymous false` and configure `password_file /etc/mosquitto/passwd` (bcrypt-hashed) or switch to an ACL-capable broker (EMQX + JWT / OIDC, HiveMQ Enterprise + LDAP). Always enable TLS on port 8883 with `require_certificate true` for mutual-auth on OT topics. Use `acl_file` to deny wildcard subscribes from non-operator clients."
     cwe: ['CWE-287', 'CWE-306']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T0830', 'T1190']
     cis_controls: ['CIS-3.3', 'CIS-6.5']
     nist_controls: ['AC-3', 'IA-2', 'SC-7']
@@ -303,7 +303,7 @@ patterns:
     recommendation: "Replace `PLAINTEXT` with `SASL_SSL` and configure `sasl.enabled.mechanisms=SCRAM-SHA-512` (or mTLS via `SSL` listener with client-cert mapping). Set `authorizer.class.name=kafka.security.authorizer.AclAuthorizer` and `allow.everyone.if.no.acl.found=false`, then grant topic-level ACLs explicitly. For Strimzi, use `KafkaUser` with `authorization: { type: simple, acls: [...] }`."
     cwe: ['CWE-306', 'CWE-319']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V6.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1190']
     cis_controls: ['CIS-3.3', 'CIS-6.5']
     nist_controls: ['AC-3', 'IA-2', 'SC-8']
@@ -321,7 +321,7 @@ patterns:
     recommendation: "Set `--client-cert-auth=true`, `--cert-file` / `--key-file` / `--trusted-ca-file`, and bind `--listen-client-urls=https://127.0.0.1:2379,https://<node-ip>:2379`. Never expose 2379/2380 on the public interface; restrict to the control-plane node network. For kubeadm-managed clusters, the default `/etc/kubernetes/manifests/etcd.yaml` already sets these correctly - any playbook that overwrites them should be reverted."
     cwe: ['CWE-284', 'CWE-306', 'CWE-319']
     owasp_appsec: ["A01:2021", "A02:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V6.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1190', 'T1552']
     cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-6.5']
     nist_controls: ['AC-3', 'IA-2', 'SC-7', 'SC-8']
@@ -374,7 +374,7 @@ patterns:
     recommendation: "Always use `https://` URLs and never pass `--insecure-skip-tls-verify`. Prefer OCI-based chart distribution (`helm install oci://ghcr.io/org/chart --version 1.2.3 --verify`) with `--verify` to enforce provenance files signed by a Cosign keyless identity. For Ansible, set `validate_certs: true` on `kubernetes.core.helm_repository`."
     cwe: ['CWE-295', 'CWE-319', 'CWE-494']
     owasp_appsec: ["A02:2021", "A07:2021", "A08:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.2.1, V12.3.4, V15.2.4]
     mitre_attack: ['T1195.002', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-8', 'SC-12', 'SI-7']
@@ -393,7 +393,7 @@ patterns:
     recommendation: "Replace every non-loopback `trust`/`md5` line with `scram-sha-256`. Typical production posture: `hostssl all all 0.0.0.0/0 scram-sha-256` + `hostnossl all all 0.0.0.0/0 reject`. Set `password_encryption = scram-sha-256` in `postgresql.conf` and rotate every user password once (legacy hashes don't auto-upgrade). Reserve `trust` ONLY for `local all postgres peer` and loopback-only initialisation windows."
     cwe: ['CWE-287', 'CWE-327', 'CWE-328']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V6.2.1, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1078', 'T1110.002']
     cis_controls: ['CIS-3.10', 'CIS-6.5', 'CIS-16.5']
     nist_controls: ['IA-2', 'IA-5', 'SC-8', 'SC-13']
@@ -414,7 +414,7 @@ patterns:
     recommendation: "Never grant SUPER (or ALL) to `'%'`. Scope grants to specific host ranges and minimal privileges: `GRANT SELECT, INSERT, UPDATE, DELETE ON app_db.* TO 'app'@'10.1.%'`. For admin accounts, use `'admin'@'10.1.1.5'` with `REQUIRE SSL` and `REQUIRE SUBJECT`. Set `require_secure_transport=ON`, `bind-address=<private-ip>` (never 0.0.0.0 unless explicitly required), and enable audit-log plugin with `audit_log_policy=ALL`."
     cwe: ['CWE-269', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1078', 'T1210', 'T1552.001']
     cis_controls: ['CIS-3.3', 'CIS-5.4', 'CIS-6.8']
     nist_controls: ['AC-3', 'AC-6', 'IA-2', 'SC-8']
@@ -433,7 +433,7 @@ patterns:
     recommendation: "Keep `xp_cmdshell` disabled: `EXEC sp_configure 'xp_cmdshell', 0; RECONFIGURE;`. Keep the `sa` login DISABLED and renamed: `ALTER LOGIN sa DISABLE; ALTER LOGIN sa WITH NAME = [renamed_sa];`. Use AD-integrated logins (`CREATE LOGIN [domain\\user] FROM WINDOWS`) with least-privilege server roles. If a DBA genuinely needs OS command execution for maintenance (rare), use SQL Agent with a proxy account bound to a restricted credential, not `xp_cmdshell`."
     cwe: ['CWE-250', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1059', 'T1078', 'T1210']
     cis_controls: ['CIS-3.3', 'CIS-5.4', 'CIS-6.8']
     nist_controls: ['AC-6', 'CM-7', 'SI-4']
@@ -473,7 +473,7 @@ patterns:
     recommendation: "Set `spec.mtls.mode: STRICT` on a cluster-wide `PeerAuthentication` in `istio-system` as the baseline. Per-workload exceptions should narrow (`STRICT` -> `PORT_LEVEL_MTLS`), never widen (never `PERMISSIVE`). Monitor via `istioctl analyze` in CI and fail the rollout on any `PeerAuthentication` that is not `STRICT`. For gradual migration, roll out `PERMISSIVE` as a transient 24-hour mode only while deploying sidecars, then audit with `istioctl authn tls-check` and flip to `STRICT`."
     cwe: ['CWE-295', 'CWE-319', 'CWE-757']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    owasp_asvs: [V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-13.7']
     nist_controls: ['AC-4', 'SC-8', 'SC-13']
@@ -497,7 +497,7 @@ patterns:
     recommendation: "Always use `https://` OTLP endpoints and never set `tls.insecure: true`. Use mutual TLS between the SDK and the collector (`tls.ca_file`, `tls.cert_file`, `tls.key_file`) and pin the collector's server cert to your internal CA. For the collector -> backend hop, use `authenticator` with OIDC client-credentials to the observability vendor. Block plaintext OTLP at the cluster level via a `NetworkPolicy` denying egress on port 4317 / 4318 without the TLS-enabled authenticator."
     cwe: ['CWE-295', 'CWE-319']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    owasp_asvs: [V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-8.1']
     nist_controls: ['AU-9', 'SC-8', 'SC-12']
@@ -520,7 +520,7 @@ patterns:
     recommendation: "Always use an `https://` URL AND one of: `basic_auth: { username, password_file }`, `authorization: { type: Bearer, credentials_file: }`, or `sigv4:` (for AMP/AWS). Pin the remote server certificate via `tls_config.ca_file` to your internal CA. For multi-tenant setups (Mimir, Cortex, Grafana Cloud), always send the `X-Scope-OrgID` header and enforce it at the receiver. Never point `remote_write` at a cleartext endpoint even on a 'trusted' internal network - the LAN is part of the threat model in the 2024 CISA Zero-Trust memo."
     cwe: ['CWE-287', 'CWE-306', 'CWE-319']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V6.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1041']
     cis_controls: ['CIS-3.10', 'CIS-6.5', 'CIS-8.1']
     nist_controls: ['AU-9', 'IA-2', 'SC-8']
@@ -541,7 +541,7 @@ patterns:
     recommendation: "Set `auth_enabled: true` in every production Loki and front the `/loki/api/v1/push` endpoint with a gateway (`lokiGateway` chart, nginx `auth_basic`, or Envoy JWT filter) that mints / validates the `X-Scope-OrgID` header from an authenticated identity token. Never expose `auth_enabled: false` outside of a local dev `docker compose`. Add a periodic red-team check that issues `curl -H 'X-Scope-OrgID: prod-tenant' https://loki.../loki/api/v1/push -d '{...}'` without a bearer token and alerts on any non-401 response."
     cwe: ['CWE-284', 'CWE-306']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1070.002', 'T1190', 'T1565.001']
     cis_controls: ['CIS-6.5', 'CIS-8.2', 'CIS-8.5']
     nist_controls: ['AC-3', 'AU-9', 'IA-2']
@@ -560,7 +560,7 @@ patterns:
     recommendation: "Replace implicit flow with Authorization Code + PKCE (`response_type=code` + `code_challenge=<S256-hash>`). For SPAs, use the `@okta/okta-auth-js`, `oidc-client-ts`, or `@azure/msal-browser` libraries which default to Code+PKCE. At the OIDC provider, disable implicit flow in the client application (`grantTypes: ['authorization_code', 'refresh_token']`). Audit existing clients for `response_type=token` usage and rotate any long-lived tokens that were issued via implicit."
     cwe: ['CWE-200', 'CWE-287', 'CWE-598']
     owasp_appsec: ["A01:2021", "A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V8.1.1"]
+    owasp_asvs: [V6.2.1, V14.2.2]
     mitre_attack: ['T1528', 'T1539', 'T1550.001']
     cis_controls: ['CIS-6.5', 'CIS-6.8']
     nist_controls: ['IA-2', 'IA-5', 'SC-8']
@@ -579,7 +579,7 @@ patterns:
     cwe: ['CWE-287', 'CWE-345', 'CWE-347']
     cve: ["CVE-2018-1000531"]
     owasp_appsec: ["A02:2021", "A07:2021", "A08:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1550.001', 'T1556.006', 'T1606.001']
     cis_controls: ['CIS-3.11', 'CIS-6.5', 'CIS-6.8']
     nist_controls: ['IA-2', 'IA-5', 'SC-12', 'SC-13']
@@ -599,7 +599,7 @@ patterns:
     recommendation: "Replace every `http://` with `https://` in SAML metadata and OIDC well-known/provider configs. For SAML, enforce `AuthnRequestsSigned=true` and `WantAssertionsSigned=true` on the SP metadata. For OIDC, pin the JWKS certificate chain (`jwks_uri` must resolve via the system trust-store to the IdP's root) and require `response_mode=query` or `form_post` over HTTPS only. Block plaintext-federation endpoints at the network layer: egress firewall DENY `destination_port=80` to any IdP hostname. Audit existing SP / client registrations via `saml2aws list` / `okta apps list --filter protocol=saml` + grep for `http://`."
     cwe: ['CWE-295', 'CWE-319', 'CWE-614']
     owasp_appsec: ["A02:2021", "A05:2021", "A07:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    owasp_asvs: [V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1556.006', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-6.5']
     nist_controls: ['IA-2', 'IA-8', 'SC-8', 'SC-13']
@@ -639,7 +639,7 @@ patterns:
     recommendation: "Restrict to TLS 1.2+ baseline and prefer TLS 1.3 only where possible. Nginx: `ssl_protocols TLSv1.2 TLSv1.3;`. Apache: `SSLProtocol -all +TLSv1.2 +TLSv1.3`. Envoy: `tls_minimum_protocol_version: TLSv1_2`. HAProxy: `ssl-default-bind-options ssl-min-ver TLSv1.2`. Validate external-facing endpoints with `nmap --script ssl-enum-ciphers -p 443 <host>` - alert on any TLS 1.0/1.1 result. For legacy-client backwards-compat exceptions, document the CVE-risk-acceptance, pin to a specific hostname, and set a 90-day sunset."
     cwe: ['CWE-326', 'CWE-327']
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-12.6']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -687,7 +687,7 @@ patterns:
               shell_command: 'curl -k'
     cwe: ['CWE-295', 'CWE-319']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    owasp_asvs: [V12.2.1, V12.3.4]
     mitre_attack: ['T1557', 'T1557.002']
     cis_controls: ['CIS-3.10', 'CIS-12.6']
     nist_controls: ['SC-8', 'SC-8(1)']
@@ -708,7 +708,7 @@ patterns:
     recommendation: "Generate at minimum 2048-bit (preferably 3072 or 4096): `openssl dhparam -out dhparams.pem 4096`. Better: use RFC 7919 standard FFDHE named groups (`ffdhe2048`, `ffdhe3072`, `ffdhe4096`) instead of generating custom params - these are pre-computed, vetted, and supported by every modern TLS stack. In Nginx: `ssl_dhparam /etc/nginx/ffdhe4096.pem` from https://ssl-config.mozilla.org/ffdhe4096.txt. Better still: disable all DHE ciphers and use ECDHE-only (P-256, P-384, X25519) which bypass DH entirely."
     cwe: ['CWE-326', 'CWE-327']
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-12.6']
     nist_controls: ['SC-8(1)', 'SC-12', 'SC-13']
@@ -729,7 +729,7 @@ patterns:
     recommendation: "Use 3072-bit RSA minimum for new deployments (NIST SP 800-57 equivalent of 128-bit symmetric), 4096-bit for long-lived CA keys. Better: migrate to ECDSA P-256 (`openssl ecparam -name prime256v1 -genkey`) or Ed25519 (`ssh-keygen -t ed25519` / `openssl genpkey -algorithm ED25519`) - faster, smaller, and at least as secure. For Ansible: `community.crypto.openssl_privatekey: type=Ed25519` for SSH, `type=ECC curve=secp256r1` for TLS. Audit existing keys: `find / -name '*.key' -exec openssl rsa -in {} -noout -text 2>/dev/null \\\\; | grep 'Private-Key:'`."
     cwe: ['CWE-326', 'CWE-327']
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1552.004', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-16.11']
     nist_controls: ['IA-5(2)', 'SC-12', 'SC-13']
@@ -752,7 +752,7 @@ patterns:
     recommendation: "Use Mozilla's modern TLS config generator (https://ssl-config.mozilla.org/) for your specific server+version. As a baseline, OpenSSL cipher string: `ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256` + TLS 1.3 cipher-suites `TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256`. ALWAYS include `!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!DSS` as explicit exclusions. Test via `openssl s_client -connect host:443 -cipher 'aNULL'` - should return 'no ciphers available'."
     cwe: ['CWE-295', 'CWE-326', 'CWE-327']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5", "V9.2.1"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1, V12.3.4]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-12.6']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -773,7 +773,7 @@ patterns:
     recommendation: "Set `default_policy = \"deny\"` in every Consul agent config. Bootstrap ACLs via `consul acl bootstrap` (Consul 1.4+) and distribute role-scoped tokens to services (never the bootstrap token). Enable `acl.enable_token_persistence = true` and `acl.tokens.default = <per-service-token>`. Require ACLs on all API endpoints: `acl.enable_key_list_policy = true`. Gate all Consul HTTP API calls through TLS (`ports.https = 8501`, `cert_file`, `key_file`, `verify_incoming = true`, `verify_server_hostname = true`). Audit via `consul acl policy list` - every policy should have a specific named scope, no wildcards."
     cwe: ['CWE-284', 'CWE-306', 'CWE-862']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1098', 'T1550', 'T1557.002']
     cis_controls: ['CIS-3.3', 'CIS-6.8', 'CIS-16.5']
     nist_controls: ['AC-3', 'AC-6', 'IA-2']
@@ -794,7 +794,7 @@ patterns:
     recommendation: "Use `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` (default) with TLS to the OTel Collector endpoint. For the Collector itself, configure `receivers.otlp.protocols.grpc.tls.{ca_file,cert_file,key_file}` + `exporters.otlp.tls.{ca_file,insecure: false}`. For in-cluster communication use a service-mesh (Istio/Linkerd) mTLS so both ends are mutually-authenticated without per-process cert config. If an internal demo-only collector genuinely cannot do TLS, restrict its network scope to loopback (`127.0.0.1:4317`) only - never expose it on the pod/host network without TLS. Validate: `openssl s_client -connect <collector>:4317 -servername <collector>` should return a valid cert. Alert on `insecure=true` in any OTel config via admission-controller policy."
     cwe: ['CWE-200', 'CWE-311', 'CWE-319']
     owasp_appsec: ["A01:2021", "A02:2021", "A04:2021"]
-    owasp_asvs: ["V8.1.1", "V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.2.2, V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1539', 'T1552.001']
     cis_controls: ['CIS-3.10', 'CIS-8.2', 'CIS-14.4']
     nist_controls: ['AU-9', 'SC-8', 'SC-8(1)']
@@ -823,7 +823,7 @@ patterns:
     recommendation: "Use HTTPS for every scrape target with `basic_auth`: set `scheme: https` + `tls_config: {ca_file: /etc/ssl/internal-ca.pem, insecure_skip_verify: false}`. For service-to-service auth, prefer bearer tokens over basic auth: `authorization: {type: Bearer, credentials_file: /etc/prometheus/bearer.token}` - still require HTTPS. For internal-only metrics endpoints, use a service-mesh mTLS (Istio, Linkerd) so Prometheus scrapes over the mesh-protected link without explicit config. Rotate scrape credentials quarterly via Vault PKI / cert-manager + reload with `kill -HUP` or `/-/reload`. Audit via `kubectl get configmap -A -o json | jq '..|.basic_auth? | select(.) | input_filename'` -> cross-check each with the scrape-config's `scheme`."
     cwe: ['CWE-311', 'CWE-319', 'CWE-522']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1078.004', 'T1552.001']
     cis_controls: ['CIS-3.10', 'CIS-8.2', 'CIS-14.4']
     nist_controls: ['IA-5', 'SC-8', 'SC-8(1)']
@@ -844,7 +844,7 @@ patterns:
     recommendation: "Enable and KEEP FIPS mode on all regulated workloads: RHEL/CentOS/Fedora `fips-mode-setup --enable && reboot` + verify `fips-mode-setup --check` returns `FIPS mode is enabled.`. Ubuntu: install `ubuntu-advantage-tools` + `pro enable fips-updates` (requires Ubuntu Pro subscription). For container images, use RHEL UBI-FIPS (`registry.redhat.io/ubi9/ubi-minimal` with FIPS-enabled host kernel - containers inherit FIPS from host). Validate via golang `crypto/tls.FIPSEnabled()` or Python `ssl.FIPS_mode()` at app-startup - fail-closed if False. Audit: `update-crypto-policies --show` must return `FIPS` (or `FIPS:NO-ENFORCE` on transitional hosts). Alert on `update-crypto-policies` / `fips-mode-setup` invocations via auditd. For non-regulated workloads still benefiting from strong defaults, use `update-crypto-policies --set FUTURE` (stronger than DEFAULT, no FIPS cert overhead)."
     cwe: ['CWE-326', 'CWE-327', 'CWE-693']
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1562.001', 'T1600']
     cis_controls: ['CIS-3.10', 'CIS-14.6']
     nist_controls: ['CM-6', 'SC-13', 'SC-13(1)']
@@ -865,7 +865,7 @@ patterns:
     recommendation: "Remove explicit `Ciphers` / `MACs` / `KexAlgorithms` lines and let OpenSSH use built-in safe defaults (OpenSSH 9.x+ already excludes everything listed). If you MUST pin explicitly (e.g. for FIPS or CIS compliance): `Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com`, `MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com`, `KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512`, `HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256`. For Kerberos (`krb5.conf`): `permitted_enctypes = aes256-cts-hmac-sha384-192 aes128-cts-hmac-sha256-128 aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96`. For Samba: `server signing = mandatory` + `smb encrypt = required` + `ntlm auth = disabled`. Audit via `ssh-audit` (github.com/jtesta/ssh-audit) - enforce A+ rating in CI. For legacy clients that actually need weak crypto, segment them onto a DMZ + proxy."
     cwe: ['CWE-311', 'CWE-326', 'CWE-327']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5", "V8.3.1", "V9.1.1"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1, V14.2.1, V12.2.1]
     mitre_attack: ['T1040', 'T1557', 'T1600']
     cis_controls: ['CIS-3.10', 'CIS-4.8', 'CIS-14.6']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -884,7 +884,7 @@ patterns:
     recommendation: "Set the minimum TLS version to 1.2 or 1.3 everywhere: `ssl_protocols TLSv1.2 TLSv1.3;` (nginx), `SSLProtocol -all +TLSv1.2 +TLSv1.3` (Apache), `ssl-default-bind-options ssl-min-ver TLSv1.2` (HAProxy), `tls_minimum_protocol_version: TLSv1_2` (Envoy). For client-side (ansible.builtin.uri, OpenSSL), also ensure `MinProtocol = TLSv1.2` in `/etc/ssl/openssl.cnf`. Audit via `testssl.sh <host>:443` + `sslyze --tlsv1 --tlsv1_1 <host>`. For legacy clients that truly can't do TLS 1.2, isolate them on a dedicated endpoint with its own narrow allow-list - don't weaken the main endpoint for everyone."
     cwe: ['CWE-326', 'CWE-327']
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1562.004', 'T1565.002']
     cis_controls: ['CIS-3.10', 'CIS-3.11']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -904,7 +904,7 @@ patterns:
     cwe: ['CWE-326', 'CWE-327']
     cve: ["CVE-2016-2183"]
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1557.001', 'T1562.004']
     cis_controls: ['CIS-3.10', 'CIS-3.11']
     nist_controls: ['SC-8', 'SC-13']
@@ -923,7 +923,7 @@ patterns:
     recommendation: "Generate all DKIM keys as 2048-bit RSA with SHA-256: `opendkim-genkey -s mail-2025 -d example.com -b 2048` (or `-b 4096` for high-assurance domains - note that 4096-bit DNS TXT records need splitting into two strings to fit the 255-byte limit). Always use `a=rsa-sha256` in the signing record. Rotate DKIM selectors every 6-12 months: publish the new selector in DNS, switch signing, retire the old selector after 30 days. For AWS SES, use `PutEmailIdentityDkimSigningAttributes` with `NextSigningKeyLength: RSA_2048_BIT`. For Microsoft 365, the service manages DKIM keys - just enable per-domain signing in the Exchange admin center and confirm 2048-bit. For Google Workspace, use `Dkim DNS management` -> generate 2048-bit. Align DKIM with SPF + DMARC (p=reject) per RFC 7489 and the 2024 Google/Yahoo bulk-sender requirements. Audit with `dig TXT mail-2025._domainkey.example.com +short | grep -o 'p=[^\"]*' | base64 -d | openssl rsa -pubin -text -noout 2>&1 | grep Public-Key`."
     cwe: ['CWE-326', 'CWE-327']
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1585.002', 'T1598.002']
     cis_controls: ['CIS-9.4', 'CIS-9.5']
     nist_controls: ['SC-12', 'SC-13', 'SI-8']
@@ -962,7 +962,7 @@ patterns:
     recommendation: "Block tenant-wide external auto-forwarding by default. In Microsoft 365: Exchange Online -> 'Anti-spam outbound policy' -> 'Automatic forwarding rules: Off - Forwarding is disabled'. In Google Workspace: Admin console -> Apps -> Google Workspace -> Gmail -> Routing -> disable 'Allow users to auto-forward to a specific email address'. For exceptional business need (e.g., shared mailbox forwarding to a ticketing system), allow per-user / per-domain exceptions via transport rule with a specific external sender allowlist, logged to a SIEM. Alert (P1) on every creation/update of an inbox-rule or forwarding address via the Microsoft 365 unified audit log (`New-InboxRule`, `Set-Mailbox`, `Add-MailboxPermission`) or Google Workspace Admin audit log. Run monthly recertification: `Get-Mailbox -ResultSize Unlimited | Where {$_.ForwardingSmtpAddress -ne $null}` and review. Review Microsoft's BEC playbook and the CISA + FBI IC3 BEC guidance (2024)."
     cwe: ['CWE-200', 'CWE-284']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1020', 'T1098.002', 'T1114.003']
     cis_controls: ['CIS-9.5', 'CIS-9.6', 'CIS-13.5']
     nist_controls: ['AC-4', 'AU-12', 'SI-4']
@@ -987,7 +987,7 @@ patterns:
     recommendation: "Always attach a custom ACM certificate in us-east-1 (CloudFront requires that region) via `acm_certificate_arn: arn:aws:acm:us-east-1:...:certificate/...` and set `ssl_support_method: sni-only` + `minimum_protocol_version: TLSv1.2_2021`. Use `aws acm request-certificate --domain-name your.domain.com --validation-method DNS` and DNS-validate against Route 53 for zero-touch renewal. In audit mode, run `aws cloudfront list-distributions --query 'DistributionList.Items[?ViewerCertificate.CloudFrontDefaultCertificate==\\`true\\`]'` and remediate each hit."
     cwe: ['CWE-295', 'CWE-297', 'CWE-319']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    owasp_asvs: [V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-15.4']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -1011,7 +1011,7 @@ patterns:
     recommendation: "Set `minimum_protocol_version: TLSv1.2_2021` (the modern AWS recommendation) on every distribution. For customers in highly regulated industries, consider `TLSv1.3` by specifying the `TLSv1.3_2023` policy where available. Run `aws cloudfront list-distributions --query 'DistributionList.Items[*].[Id,ViewerCertificate.MinimumProtocolVersion]' --output text | grep -vE 'TLSv1\\.2_2021|TLSv1\\.3'` to find all out-of-policy distributions. Combined with `ssl_support_method: sni-only` (required; `vip` costs $600/mo and is rarely needed)."
     cwe: ['CWE-326', 'CWE-327', 'CWE-757']
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-15.4']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -1035,7 +1035,7 @@ patterns:
     recommendation: "Set `viewer_protocol_policy: redirect-to-https` (redirects HTTP -> HTTPS, preserving legacy bookmarks) or `https-only` (hard-fail HTTP, strictly correct for APIs / webhook endpoints). Pair with `minimum_protocol_version: TLSv1.2_2021` and HSTS via a CloudFront Functions response header: `add_header 'Strict-Transport-Security' 'max-age=63072000; includeSubDomains; preload'`. AWS Config rule `cloudfront-viewer-policy-https` flags this continuously."
     cwe: ['CWE-311', 'CWE-319', 'CWE-523']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-15.4']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -1059,7 +1059,7 @@ patterns:
     recommendation: "Use `ssl_policy: ELBSecurityPolicy-TLS13-1-2-2021-06` for ALB/NLB (TLS 1.2 + TLS 1.3, strong forward-secret ciphers only), or `ELBSecurityPolicy-FS-1-2-Res-2020-10` for Forward-Secrecy only. Avoid custom policies. Audit with `aws elbv2 describe-listeners --load-balancer-arn $ARN --query 'Listeners[].SslPolicy'` and `aws elb describe-load-balancer-policies --load-balancer-name $NAME`. Enforce via AWS Config rule `elbv2-acm-certificate-required` + a custom rule that filters approved policies."
     cwe: ['CWE-326', 'CWE-327', 'CWE-757']
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-15.4']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -1080,7 +1080,7 @@ patterns:
     recommendation: "Configure the ALB/ELB with only an HTTPS (443) listener. For backwards-compat with legacy clients, add an HTTP (80) listener whose ONLY action is `type: redirect` with `port: 443, protocol: HTTPS, status_code: HTTP_301` - this is the ALB-native, no-target-group, zero-capacity redirect. On a classic ELB, prefer migrating to ALB. For internal ELBs where you terminate TLS at the app tier, enforce `scheme: internal` explicitly so this rule does not fire. Audit with `aws elbv2 describe-listeners` and correlate against `Scheme: internet-facing`."
     cwe: ['CWE-311', 'CWE-319', 'CWE-523']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-15.4']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -1101,7 +1101,7 @@ patterns:
     recommendation: "Set both `transit_encryption_enabled: true` and `at_rest_encryption_enabled: true` on every new ElastiCache replication group. For Redis, also set `auth_token:` (pulled from AWS Secrets Manager) to require AUTH on every connection. Note: enabling transit-encryption on an existing cluster is a non-zero-downtime migration - plan with `transit_encryption_mode: preferred` rotation. Enforce via AWS Config rule `elasticache-redis-cluster-automatic-backup-check` + custom rule checking both encryption flags. For Memcached (SASL-less protocol), consider Redis migration since Memcached has no TLS story before `memcached 1.5.13` with stunnel."
     cwe: ['CWE-311', 'CWE-312', 'CWE-319']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V6.1.2", "V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.1.1, V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1530']
     cis_controls: ['CIS-3.10', 'CIS-3.11']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-28']
@@ -1125,7 +1125,7 @@ patterns:
     recommendation: "Set `encryption_type: KMS` and `key_id: arn:aws:kms:...` (a CMK, NOT the AWS-managed `alias/aws/kinesis` key - customer-managed keys give you key-policy control and rotation audit via CloudTrail). Combine with a stream resource policy that restricts `kinesis:PutRecord*` / `GetRecord*` to specific role ARNs. Enforce via AWS Config rule `kinesis-stream-encrypted`. For highest-sensitivity streams (PCI / HIPAA), use a dedicated per-team CMK with `kms:ViaService = kinesis` condition and CloudTrail data-event logging."
     cwe: ['CWE-311', 'CWE-312', 'CWE-319']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V6.1.2", "V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.1.1, V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1213', 'T1530']
     cis_controls: ['CIS-3.11', 'CIS-14.8']
     nist_controls: ['SC-28', 'SC-28(1)']
@@ -1149,7 +1149,7 @@ patterns:
     recommendation: "Always set ALL THREE: `encryption_at_rest: {enabled: true, kms_key_id: arn:aws:kms:...}`, `node_to_node_encryption: {enabled: true}`, and `domain_endpoint_options: {enforce_https: true, tls_security_policy: Policy-Min-TLS-1-2-PFS-2023-10}`. Restrict the access policy to a specific IAM role ARN AND a VPC endpoint - never expose an OpenSearch domain publicly. Enable audit logging to a dedicated log group + S3 export for long-term retention. Enforce via AWS Config rules `opensearch-encrypted-at-rest`, `opensearch-node-to-node-encryption-check`, `opensearch-https-required`."
     cwe: ['CWE-311', 'CWE-319', 'CWE-757']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1530']
     cis_controls: ['CIS-3.10', 'CIS-3.11']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-28']
@@ -1174,7 +1174,7 @@ patterns:
     recommendation: "Set `ssl_enforcement: Enabled` (or `enforce_ssl: true`) and additionally set `minimal_tls_version: TLS1_2` (or `TLS1_3` where supported - Azure PostgreSQL Flexible v16+). In the connecting application, use `sslmode=verify-full` (PostgreSQL) or `useSSL=true&requireSSL=true&verifyServerCertificate=true` (MySQL JDBC). Deploy the Azure Root CA bundle into the application image. Enforce via Azure Policy built-in `ID: d158790f-bfb0-486c-8631-2dc6b4e8e6af` (PostgreSQL) / `e802a67a-daf5-4436-9ea6-f6d821dd0c5d` (MySQL). Check current state: `az postgres server show --resource-group $RG --name $NAME --query sslEnforcement`."
     cwe: ['CWE-311', 'CWE-319', 'CWE-523']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-15.4']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -1198,7 +1198,7 @@ patterns:
     recommendation: "Set `enable_non_ssl_port: false` (the secure default on newer Azure API versions). Require TLS-only clients: `minimum_tls_version: '1.2'` on the Redis resource, plus use `redis-cli --tls -h $HOST -p 6380 -a $AUTH_TOKEN` or the stackexchange-redis `ssl=true` connection string. Rotate the auth key if the non-SSL port was ever enabled (assume the token was captured). Enforce via Azure Policy built-in `ID: 22bee202-a82f-4305-9a2a-6d7f44d4dedb` (Azure Cache for Redis should not use the non-SSL port). Audit via `az redis list --query '[].{name:name, ssl:enableNonSslPort}'`."
     cwe: ['CWE-311', 'CWE-319', 'CWE-523']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-15.4']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -1219,7 +1219,7 @@ patterns:
     recommendation: "Set `https_only: true` on every App Service / Function App / Logic App Standard. Configure custom domains with managed certificates (free via Azure-managed cert) and force TLS 1.2 minimum via `min_tls_version: '1.2'` in `site_config:`. Combine with an Application Gateway / Front Door in front that terminates TLS and enforces HSTS. Enforce via Azure Policy built-in `ID: a4af4a39-4135-47fb-b175-47fbdf85311d` ('App Service apps should only be accessible over HTTPS')."
     cwe: ['CWE-311', 'CWE-319', 'CWE-523']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-15.4']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -1243,7 +1243,7 @@ patterns:
     recommendation: "Set `dnssec_config: {state: 'on', default_key_specs: [{algorithm: 'rsasha256', key_length: 2048, key_type: 'zoneSigning'}, {algorithm: 'rsasha256', key_length: 2048, key_type: 'keySigning'}]}`. Prefer `ecdsap256sha256` (P-256) when your registrar supports publishing EC-family DS records - smaller, faster, and preferred by IETF. After enabling, retrieve the DS record with `gcloud dns dns-keys list --zone=<z>` and publish it at the registrar. Enforce via CIS GCP Benchmark 3.3 + 3.5. Validate live with `dig +dnssec +multi <zone> DNSKEY`."
     cwe: ['CWE-326', 'CWE-327', 'CWE-350']
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1557.002', 'T1583.002', 'T1584.002']
     cis_controls: ['CIS-3.4', 'CIS-4.1']
     nist_controls: ['SC-13', 'SC-20', 'SC-21']
@@ -1266,7 +1266,7 @@ patterns:
     recommendation: "Always set `kms_master_key_id:` to a customer-managed KMS key ARN (preferred for multi-account + cross-account access) or `alias/aws/sqs` (AWS-managed fallback). Set `kms_data_key_reuse_period_seconds: 300` (balance between KMS call cost and blast-radius of a leaked data-key). For zero-trust designs, scope the KMS key policy so only the expected producer/consumer IAM roles can `GenerateDataKey`/`Decrypt`. Enforce via AWS Config rule `sqs-queue-encrypted` and SCP denying `sqs:CreateQueue` without `sqs:KmsMasterKeyId`."
     cwe: ['CWE-311', 'CWE-312', 'CWE-319']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V6.1.2", "V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.1.1, V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1005', 'T1530']
     cis_controls: ['CIS-3.11', 'CIS-14.8']
     nist_controls: ['SC-8', 'SC-28', 'SC-28(1)']
@@ -1291,7 +1291,7 @@ patterns:
     recommendation: "Set `node_to_node_encryption_options: {enabled: true}` AND `encryption_at_rest_options: {enabled: true, kms_key_id: <customer-managed>}` AND `domain_endpoint_options: {enforce_https: true, tls_security_policy: 'Policy-Min-TLS-1-2-2019-07'}` on every OpenSearch/Elasticsearch domain. Pair with VPC-only access (`vpc_options.subnet_ids`, no public endpoint) and fine-grained access control with internal-user-database OR Cognito-federated IAM. Enforce via AWS Config rules `elasticsearch-node-to-node-encryption-check` + `opensearch-node-to-node-encryption-check`."
     cwe: ['CWE-311', 'CWE-319', 'CWE-523']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-15.4']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -1316,7 +1316,7 @@ patterns:
     recommendation: "Remove `validate_certs: false`. For genuine self-signed endpoints (internal CAs), pass `ca_path: /etc/pki/ca-trust/source/anchors/internal.crt` instead; for test endpoints, use `--tags test` gating rather than permanently disabling validation. Audit with `grep -rn 'validate_certs:\\s*false' playbooks/ roles/`."
     cwe: ['CWE-295', 'CWE-297', 'CWE-322']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
     mitre_attack: ['T1040', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-15.4']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-23']
@@ -1339,7 +1339,7 @@ patterns:
     recommendation: "Change `url: http://...` -> `url: https://...` on every uri task. If the upstream genuinely has no HTTPS endpoint (rare - most legacy services have been retrofitted by 2025), route through an internal TLS-terminating reverse-proxy (nginx/Envoy) that re-encrypts upstream. Localhost/metadata-service URLs are intentionally excluded by this rule."
     cwe: ['CWE-311', 'CWE-319', 'CWE-523']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1557', 'T1565.002']
     cis_controls: ['CIS-3.10', 'CIS-15.4']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -1363,7 +1363,7 @@ patterns:
     recommendation: "Change `url: http://...` -> `url: https://...` AND set `checksum: 'sha256:...'` to pin the expected hash (so MITM swaps of even HTTPS endpoints with a compromised upstream CA still fail). Prefer fetching from internal Artifactory/Nexus with an internal TLS cert over reaching to random public mirrors. Example: `checksum: 'sha256:{{ lookup(\"file\", \"checksums/\" + artifact_name + \".sha256\") }}'`."
     cwe: ['CWE-319', 'CWE-345', 'CWE-494']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.2.1, V12.3.4, V15.2.4]
     mitre_attack: ['T1105', 'T1195.002', 'T1557']
     cis_controls: ['CIS-2.6', 'CIS-3.10']
     nist_controls: ['SC-8', 'SC-8(1)', 'SI-7']

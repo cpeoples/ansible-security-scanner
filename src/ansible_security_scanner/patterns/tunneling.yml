@@ -69,7 +69,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-693']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1090.002', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
     nist_controls: ['AC-3', 'CM-6', 'CM-7', 'SC-8', 'SC-8(1)', 'SC-28']
@@ -92,7 +92,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-693']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1090.002', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
     nist_controls: ['AC-3', 'CM-6', 'CM-7', 'SC-8', 'SC-8(1)', 'SC-28']
@@ -274,7 +274,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-693']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1090.002', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
     nist_controls: ['AC-3', 'CM-6', 'CM-7', 'SC-8', 'SC-8(1)', 'SC-28']

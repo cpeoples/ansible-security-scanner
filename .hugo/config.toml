@@ -22,7 +22,8 @@ uglyURLs = false
   externalLinkTarget = "_blank"
 
   sidebarmenus = [
-    { type = "page", identifier = "main", disableTitle = true, pageRef = "/" }
+    { type = "page", identifier = "main", disableTitle = true, pageRef = "/" },
+    { type = "menu", identifier = "shortcuts", disableTitle = true }
   ]
 
   customCSS = ["css/custom.css"]
@@ -35,6 +36,12 @@ uglyURLs = false
   [[params.boxStyle]]
     identifier = "note"
     color = "#3b82f6"
+
+[[menu.shortcuts]]
+  pre = '<i class="fa-fw fab fa-github"></i> '
+  name = "GitHub Repo"
+  url = "https://github.com/cpeoples/ansible-security-scanner"
+  weight = 10
 
 [markup]
   [markup.highlight]

@@ -13,7 +13,7 @@ patterns:
       - "path: '/usr/bin/dummy1'"
     recommendation: "System binaries should only be installed via package managers; audit this write carefully"
     cwe: ['CWE-506', 'CWE-732']
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1036.005', 'T1574']
     cis_controls: ['CIS-2.3', 'CIS-10.1']
     nist_controls: ['AC-3', 'AC-6', 'SI-3', 'SI-7']
@@ -85,7 +85,7 @@ patterns:
     recommendation: "Git hooks execute automatically; ensure they come from trusted sources"
     cwe: ['CWE-506', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1546', 'T1554']
     cis_controls: ['CIS-16.1']
     nist_controls: ['CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-3', 'SI-7']
@@ -103,7 +103,7 @@ patterns:
     recommendation: "Editable pip installs from temp directories can inject malicious code"
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1059.006', 'T1195.002']
     cis_controls: ['CIS-Supply-Chain']
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
@@ -121,7 +121,7 @@ patterns:
     recommendation: "Global npm packages should only be installed from the official registry with version pinning"
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1059.007', 'T1195.002']
     cis_controls: ['CIS-Supply-Chain']
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']

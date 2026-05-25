@@ -17,7 +17,7 @@ patterns:
     recommendation: "Replace the URL-shortener link with the resolved upstream URL pinned to a specific release tag or commit SHA, and validate the artifact via checksum_url / signature before use."
     cwe: ["CWE-494", "CWE-829"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1105"]
     cis_controls: ["CIS-16.1", "CIS-Supply-Chain"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
@@ -38,7 +38,7 @@ patterns:
     recommendation: "Pin raw.githubusercontent.com URLs to a specific commit SHA (not a branch name), record the expected SHA-256 in checksum:, and prefer ansible.builtin.get_url over shell + curl so the integrity check runs in-module."
     cwe: ["CWE-494", "CWE-829"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1105", "T1195.001"]
     cis_controls: ["CIS-16.1", "CIS-Supply-Chain"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
@@ -56,7 +56,7 @@ patterns:
     recommendation: "Treat pastebin-class hosts as untrusted: move the content into a versioned internal artifact store (Git, Artifactory, S3 with object-lock), pin a SHA-256, and fetch via ansible.builtin.get_url with checksum:."
     cwe: ["CWE-494", "CWE-829"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1071.001", "T1105"]
     cis_controls: ["CIS-16.1"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
@@ -77,7 +77,7 @@ patterns:
     recommendation: "Anonymous file-sharing services have no integrity or retention guarantees; republish the artifact to your internal package mirror and reference it via ansible.builtin.get_url with a pinned checksum."
     cwe: ["CWE-494", "CWE-829"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1071.001", "T1105"]
     cis_controls: ["CIS-16.1"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
@@ -107,7 +107,7 @@ patterns:
     recommendation: "Replace the public IP literal with a DNS name issued by a CA in your trust store so TLS certificate validation, DNSSEC, and CAA records can apply; if a literal is unavoidable (e.g. internal scrape target), enforce TLS + an operator-managed CA bundle via ca_path."
     cwe: ["CWE-319"]
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    owasp_asvs: [V12.2.1, V12.3.4]
     mitre_attack: ["T1071.001"]
     cis_controls: ["CIS-12.2"]
     nist_controls: ['SC-8', 'SC-8(1)']
@@ -126,7 +126,7 @@ patterns:
     recommendation: "Pin GitLab URLs to specific commit SHAs and verify checksums before execution"
     cwe: ["CWE-494", "CWE-829"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1105", "T1195.001"]
     cis_controls: ["CIS-16.1"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
@@ -145,7 +145,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-78", "CWE-494"]
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1059.004", "T1105"]
     cis_controls: ["CIS-16.1", "CIS-Supply-Chain"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-3', 'SI-7', 'SI-10']
@@ -166,7 +166,7 @@ patterns:
     recommendation: "Pin Bitbucket URLs to specific commit SHAs and verify checksums"
     cwe: ["CWE-494", "CWE-829"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1105", "T1195.001"]
     cis_controls: ["CIS-16.1"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
@@ -184,7 +184,7 @@ patterns:
     recommendation: "Pin to specific commits and verify checksums before use"
     cwe: ["CWE-494", "CWE-829"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1105", "T1195.001"]
     cis_controls: ["CIS-16.1"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
@@ -203,7 +203,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-494", "CWE-829"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1071.001", "T1105"]
     cis_controls: ["CIS-16.1"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
@@ -222,7 +222,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-494", "CWE-829"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1027", "T1105"]
     cis_controls: ["CIS-16.1"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SA-11', 'SA-15', 'SI-7']
