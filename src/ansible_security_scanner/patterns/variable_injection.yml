@@ -82,7 +82,7 @@ patterns:
     recommendation: "Drive ansible.builtin.include_tasks / include_vars from a controller-defined variable resolved against an allow-list (loop with when: var in known_set), and place the included files in a controller-owned directory to prevent path traversal."
     cwe: ['CWE-94', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1059', 'T1105']
     cis_controls: ['CIS-16.10']
     nist_controls: ['CM-11', 'SA-10', 'SI-3', 'SI-7', 'SI-10']

@@ -19,7 +19,7 @@ patterns:
     recommendation: "Remove hardcoded credentials from comments; use placeholders like <REDACTED> or {{ vault_variable }}"
     cwe: ['CWE-540', 'CWE-798']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
@@ -38,7 +38,7 @@ patterns:
     recommendation: "Remove commented-out authentication code that contains credentials"
     cwe: ['CWE-540', 'CWE-798']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
@@ -69,7 +69,7 @@ patterns:
     recommendation: "Remove `no_log: false` or change to `no_log: true`. If you genuinely need to see the task output for debugging, strip the secret into a separate `register:` + `debug:` block that prints only non-sensitive fields (e.g. `{{ result.status }}` not `{{ result.content }}`)."
     cwe: ['CWE-200', 'CWE-532', 'CWE-778']
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1", "V8.1.1"]
+    owasp_asvs: [V16.2.5, V16.3.1, V14.2.2]
     mitre_attack: ['T1552.001', 'T1552.004']
     cis_controls: ['CIS-8.2', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AU-2', 'AU-3', 'AU-9', 'AU-12', 'IA-5(7)', 'SC-28']
@@ -166,7 +166,7 @@ patterns:
     recommendation: "Remove the `no_log: false` override. Ansible sensibly defaults `no_log: true` on modules it knows handle secrets (`user`, `uri` with `url_password`) - leaving it at the default is ALMOST ALWAYS correct. For debugging, instead of `no_log: false`, use `ANSIBLE_DEBUG=1 ansible-playbook -vvv` in a local, ephemeral environment with no real credentials. For AAP/Tower, ensure 'Redact Sensitive Information from stdout' is ON at the organization level. Audit every `no_log: false` in the codebase with `grep -r 'no_log:\\s*false' playbooks/ roles/` and treat each as a review-required change."
     cwe: ['CWE-200', 'CWE-312', 'CWE-532']
     owasp_appsec: ["A01:2021", "A04:2021", "A09:2021"]
-    owasp_asvs: ["V6.1.2", "V7.1.1", "V8.1.1", "V8.3.1"]
+    owasp_asvs: [V14.1.1, V16.2.5, V14.2.2, V14.2.1]
     mitre_attack: ['T1005', 'T1552.001']
     cis_controls: ['CIS-3.11', 'CIS-8.2', 'CIS-16.9']
     nist_controls: ['AU-9', 'IA-5', 'SC-28']
@@ -185,7 +185,7 @@ patterns:
     recommendation: "Remove the env override. For bootstrap scenarios where the host-key is genuinely unknown on first connect, use `ansible-playbook --ssh-extra-args='-o StrictHostKeyChecking=accept-new'` (OpenSSH 7.6+) which adds the key on first-contact but fails on subsequent mismatches - fundamentally safer than disabling checking forever. Populate `~/.ssh/known_hosts` in advance via `ssh-keyscan -t ed25519,ecdsa,rsa <host>` in a trusted build step. For containerised Ansible runners, bake known-hosts into the EE image."
     cwe: ['CWE-295', 'CWE-300', 'CWE-322']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
     mitre_attack: ['T1040', 'T1557', 'T1557.002']
     cis_controls: ['CIS-3.10', 'CIS-12.6']
     nist_controls: ['IA-3', 'SC-8', 'SC-8(1)']
@@ -204,7 +204,7 @@ patterns:
     recommendation: "Always pass the plaintext via stdin: `read -rs secret && printf '%s' \"$secret\" | ansible-vault encrypt_string --stdin-name varname` - this keeps it out of shell history and argv. Add `HISTCONTROL=ignorespace` + prefix the command with a leading space. Never commit the plaintext-piping command itself. For CI, use `ansible-vault encrypt_string --vault-password-file <(echo \"$VAULT_PASSWORD_ENV\")` with stdin-only input. Audit git history for the plaintext with `git log -S '<plaintext-fragment>'` and if found, rotate the secret + git-filter-repo scrub."
     cwe: ['CWE-312', 'CWE-522', 'CWE-532']
     owasp_appsec: ["A04:2021", "A09:2021"]
-    owasp_asvs: ["V2.10.1", "V6.1.2", "V6.2.1", "V7.1.1", "V8.3.1"]
+    owasp_asvs: [V13.2.1, V14.1.1, V11.2.5, V16.2.5, V14.2.1]
     mitre_attack: ['T1552.001', 'T1552.004']
     cis_controls: ['CIS-3.11', 'CIS-16.9']
     nist_controls: ['AU-9', 'IA-5', 'SC-28']
@@ -230,7 +230,7 @@ patterns:
     recommendation: "Never `debug:` the result of a credential-returning task. If you must confirm a secret lookup succeeded, debug a derived non-sensitive attribute: `msg: 'Vault lookup ok, secret has {{ (vault_result.data.data.secret | length) }} chars'` - never the secret value. Mark the lookup task `no_log: true` explicitly (double-defence even though HashiCorp Vault module defaults to that). In AAP, enable 'Verbosity' = 0 on jobs that only need to confirm success, and enable Tower's secret-scrubbing on stdout. Audit history for accidental debug leaks with `grep -rnE 'debug:\\s*\\n\\s*(var|msg):.*vault_(kv_get|result)' .`."
     cwe: ['CWE-200', 'CWE-312', 'CWE-532']
     owasp_appsec: ["A01:2021", "A04:2021", "A09:2021"]
-    owasp_asvs: ["V6.1.2", "V7.1.1", "V8.1.1", "V8.3.1"]
+    owasp_asvs: [V14.1.1, V16.2.5, V14.2.2, V14.2.1]
     mitre_attack: ['T1005', 'T1552.001']
     cis_controls: ['CIS-3.11', 'CIS-8.2', 'CIS-16.9']
     nist_controls: ['AU-9', 'IA-5', 'SC-28']
@@ -275,7 +275,7 @@ patterns:
             var: ansible_passthrough_config
     cwe: ['CWE-200', 'CWE-312', 'CWE-532']
     owasp_appsec: ["A01:2021", "A04:2021", "A09:2021"]
-    owasp_asvs: ["V6.1.2", "V7.1.1", "V8.1.1", "V8.3.1"]
+    owasp_asvs: [V14.1.1, V16.2.5, V14.2.2, V14.2.1]
     mitre_attack: ['T1005', 'T1552.001']
     cis_controls: ['CIS-3.11', 'CIS-8.2', 'CIS-16.9']
     nist_controls: ['AU-9', 'IA-5', 'SC-28']
@@ -295,7 +295,7 @@ patterns:
     recommendation: "Remove the setting; the Ansible default (`False`) is correct. If a trusted internal lookup legitimately returns template expressions that must be rendered (extremely rare), wrap only that one lookup call in `| from_yaml` or an explicit per-call opt-in - never flip the global switch. Audit every playbook, `ansible.cfg`, `group_vars/`, `host_vars/`, and role `defaults/main.yml` with `grep -rniE 'allow_unsafe_lookups\\s*[:=]\\s*(true|yes|1)' .` and treat each hit as a critical finding."
     cwe: ['CWE-94', 'CWE-200', 'CWE-1336']
     owasp_appsec: ["A01:2021", "A03:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1059.004', 'T1105']
     cis_controls: ['CIS-2.3', 'CIS-16.10']
     nist_controls: ['SC-18', 'SI-3', 'SI-10']

@@ -21,7 +21,7 @@ patterns:
     mitre_attack: ["T1059.004", "T1195.002"]
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "wget_pipe_to_shell"
     category: "supply_chain"
@@ -40,7 +40,7 @@ patterns:
     mitre_attack: ["T1059.004", "T1195.002"]
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "python_remote_exec"
     category: "supply_chain"
@@ -58,7 +58,7 @@ patterns:
     mitre_attack: ["T1059.006", "T1195.002"]
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "pip_install_no_version"
     category: "supply_chain"
@@ -76,7 +76,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "raw_github_script_exec"
     category: "supply_chain"
@@ -95,7 +95,7 @@ patterns:
     mitre_attack: ["T1059.004", "T1195.002"]
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "install_script_from_url"
     category: "supply_chain"
@@ -114,7 +114,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "python_setup_py_exec"
     category: "supply_chain"
@@ -132,7 +132,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-94', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
 
   - id: "python_build_from_source"
     category: "supply_chain"
@@ -148,7 +148,7 @@ patterns:
     pci_dss: ['6.3.2']
     soc2: ['CC8.1']
     cwe: ['CWE-1357']
-    owasp_asvs: ["V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002']
 
   - id: "gem_install_local"
@@ -167,7 +167,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   # -- Galaxy / Collections / requirements.yml ---------------------------
   # Consolidated here from patterns/galaxy_supply_chain.yml. Rule IDs
@@ -235,7 +235,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-319', 'CWE-494']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.2.1, V12.3.4, V15.2.4]
 
   - id: "galaxy_requirements_git_branch_ref"
     category: "supply_chain"
@@ -253,7 +253,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "galaxy_requirements_non_galaxy_source"
     category: "supply_chain"
@@ -271,7 +271,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "ansible_galaxy_install_ignore_errors"
     category: "supply_chain"
@@ -307,7 +307,7 @@ patterns:
     pci_dss: ['6.3.2']
     soc2: ['CC8.1']
     cwe: ['CWE-1357']
-    owasp_asvs: ["V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002']
 
   # -- Callback / Plugin / Strategy Risks --------------------------------
@@ -331,7 +331,7 @@ patterns:
     mitre_attack: ["T1546"]
     cwe: ['CWE-94', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
 
   - id: "callback_plugins_path_untrusted"
     category: "supply_chain"
@@ -349,7 +349,7 @@ patterns:
     mitre_attack: ["T1546"]
     cwe: ['CWE-426', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
 
   - id: "strategy_plugin_custom"
     category: "supply_chain"
@@ -366,7 +366,7 @@ patterns:
     soc2: ['CC7.1', 'CC8.1']
     cwe: ['CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1546']
 
   - id: "filter_plugins_path_untrusted"
@@ -385,7 +385,7 @@ patterns:
     mitre_attack: ["T1546"]
     cwe: ['CWE-426', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
 
   - id: "action_plugin_shadow_core"
     category: "supply_chain"
@@ -403,7 +403,7 @@ patterns:
     mitre_attack: ["T1546"]
     cwe: ['CWE-94', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
 
   # -- Ansible role meta/main hygiene -------------------------------------
   # A role's meta/main.yml declares dependencies, galaxy metadata, and
@@ -429,7 +429,7 @@ patterns:
     soc2: ['CC8.1']
     mitre_attack: ["T1195"]
     cwe: ['CWE-1357']
-    owasp_asvs: ["V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "role_meta_dependency_git_url"
     category: "supply_chain"
@@ -447,7 +447,7 @@ patterns:
     mitre_attack: ["T1195"]
     cwe: ['CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "role_meta_galaxy_info_missing_license"
     category: "supply_chain"
@@ -532,7 +532,7 @@ patterns:
     soc2: ['CC6.3', 'CC8.1']
     mitre_attack: ["T1611"]
     cwe: ['CWE-250', 'CWE-732']
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
 
   - id: "molecule_privileged_container"
     category: "supply_chain"
@@ -550,7 +550,7 @@ patterns:
     soc2: ['CC6.3']
     mitre_attack: ["T1611"]
     cwe: ['CWE-250']
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
 
   - id: "molecule_disable_tls_verify"
     category: "supply_chain"
@@ -570,7 +570,7 @@ patterns:
     mitre_attack: ["T1557"]
     cwe: ['CWE-295', 'CWE-319']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    owasp_asvs: [V12.2.1, V12.3.4]
 
   # -- Execution Environment hygiene --------------------------------------
   # ansible-builder uses execution-environment.yml to build AAP EEs. A
@@ -597,7 +597,7 @@ patterns:
     mitre_attack: ["T1195"]
     cwe: ['CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "ee_arbitrary_prepend_cmd"
     category: "supply_chain"
@@ -620,7 +620,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-78', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
 
   - id: "ee_additional_build_steps_append_shell"
     category: "supply_chain"
@@ -640,7 +640,7 @@ patterns:
     mitre_attack: ["T1059.004", "T1195.002"]
     cwe: ['CWE-78', 'CWE-494', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "ee_dependencies_galaxy_http"
     category: "supply_chain"
@@ -660,7 +660,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "ee_dependencies_python_unpinned"
     category: "supply_chain"
@@ -682,7 +682,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-1104', 'CWE-1357']
     owasp_appsec: ["A06:2021"]
-    owasp_asvs: ["V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "ee_additional_build_files_traversal"
     category: "supply_chain"
@@ -702,7 +702,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-22', 'CWE-829']
     owasp_appsec: ["A01:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V12.3.1", "V12.3.5"]
+    owasp_asvs: [V5.3.2, V1.2.5]
 
   - id: "ee_build_arg_secret"
     category: "supply_chain"
@@ -725,7 +725,7 @@ patterns:
     mitre_attack: ["T1552.001", "T1552.007"]
     cwe: ['CWE-200', 'CWE-522', 'CWE-798']
     owasp_appsec: ["A01:2021", "A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.1", "V2.10.2", "V2.10.4", "V6.2.1", "V8.1.1", "V14.1.5"]
+    owasp_asvs: [V13.2.1, V13.2.3, V13.3.1, V11.2.5, V14.2.2]
 
   # -- Bindep hygiene -----------------------------------------------------
   # bindep.txt lists system packages ansible-builder installs into the EE.
@@ -747,7 +747,7 @@ patterns:
     pci_dss: ['6.3.2']
     soc2: ['CC8.1']
     cwe: ['CWE-1357']
-    owasp_asvs: ["V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002']
 
   - id: "bindep_profile_runs_shell"
@@ -796,7 +796,7 @@ patterns:
     mitre_attack: ["T1195.002", "T1199"]
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "gh_actions_pull_request_target"
     category: "supply_chain"
@@ -819,7 +819,7 @@ patterns:
     mitre_attack: ["T1195.002", "T1199"]
     cwe: ['CWE-829', 'CWE-863']
     owasp_appsec: ["A01:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
 
   - id: "self_modifying_ci_config"
     category: "supply_chain"
@@ -840,7 +840,7 @@ patterns:
     mitre_attack: ["T1098", "T1195.002", "T1546"]
     cwe: ['CWE-284', 'CWE-829']
     owasp_appsec: ["A01:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
 
   - id: "git_hook_or_config_write"
     category: "supply_chain"
@@ -901,7 +901,7 @@ patterns:
     cve: ["CVE-2024-3094"]
     cwe: ['CWE-494', 'CWE-506', 'CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1078", "T1195.001", "T1195.002", "T1554"]
     cis_controls: ["CIS-2.2", "CIS-2.3", "CIS-7.7", "CIS-Supply-Chain"]
     nist_controls: ['CM-11', 'SA-10', 'SI-2', 'SI-3', 'SI-7']
@@ -931,7 +931,7 @@ patterns:
     mitre_attack: ["T1195.002", "T1557"]
     cwe: ['CWE-319', 'CWE-494', 'CWE-829']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.2.1, V12.3.4, V15.2.4]
 
   - id: "container_image_unpinned_tag"
     category: "supply_chain"
@@ -961,7 +961,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "cosign_signature_verification_disabled"
     category: "supply_chain"
@@ -1017,7 +1017,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   # -- Execution Environment runtime identity (2025-2026) -------------------
 
@@ -1038,7 +1038,7 @@ patterns:
     soc2: ["CC6.1"]
     mitre_attack: ["T1611"]
     cwe: ["CWE-250"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
 
   - id: "slsa_provenance_verification_missing"
     category: "supply_chain"
@@ -1096,7 +1096,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ["CWE-345", "CWE-494"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   # -- GitOps controllers (2025-2026) ---------------------------------------
 
@@ -1123,7 +1123,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ["CWE-345", "CWE-494"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "flux_image_automation_broad_perms"
     category: "supply_chain"
@@ -1143,7 +1143,7 @@ patterns:
     mitre_attack: ["T1195.002"]
     cwe: ["CWE-284", "CWE-494"]
     owasp_appsec: ["A01:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
 
   - id: "crossplane_providerconfig_broad_iam"
     category: "supply_chain"
@@ -1163,7 +1163,7 @@ patterns:
     mitre_attack: ["T1078.004", "T1098.003"]
     cwe: ["CWE-269", "CWE-732"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
 
   - id: "pip_index_url_plaintext_http"
     category: "supply_chain"
@@ -1178,7 +1178,7 @@ patterns:
     recommendation: "Always use `https://` for index URLs (`--index-url https://pypi.org/simple` or your internal Artifactory/Nexus). Remove `--trusted-host` and fix the underlying TLS configuration instead (add the internal CA to the system trust store, not to pip). Pin hashes with `--require-hashes` + a `requirements.txt` produced by `pip-compile --generate-hashes`, and enable PEP 458 / PEP 480 TUF-based signed indexes where supported."
     cwe: ['CWE-295', 'CWE-319', 'CWE-494']
     owasp_appsec: ["A02:2021", "A07:2021", "A08:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.2.1, V12.3.4, V15.2.4]
     mitre_attack: ['T1195.001', 'T1195.002', 'T1557']
     cis_controls: ['CIS-2.4', 'CIS-3.10', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-8', 'SC-12', 'SI-7']
@@ -1196,7 +1196,7 @@ patterns:
     recommendation: "Set `registry=https://registry.npmjs.org/` (or your private Verdaccio / Artifactory endpoint on HTTPS). Keep `strict-ssl=true` and fix the underlying CA trust problem. Use `npm ci --ignore-scripts` in CI, pin transitive hashes with `package-lock.json` committed, and run `npm audit signatures` (npm 9+) to verify registry-signed provenance."
     cwe: ['CWE-295', 'CWE-319', 'CWE-494']
     owasp_appsec: ["A02:2021", "A07:2021", "A08:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.2.1, V12.3.4, V15.2.4]
     mitre_attack: ['T1195.001', 'T1195.002', 'T1557']
     cis_controls: ['CIS-2.4', 'CIS-3.10', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-8', 'SC-12', 'SI-7']
@@ -1214,7 +1214,7 @@ patterns:
     recommendation: "Never pass `--nogpgcheck` / `--nosignature`. In `.repo` files set `gpgcheck=1`, `repo_gpgcheck=1`, and pin `gpgkey=file:///etc/pki/rpm-gpg/...`. Import vendor keys ahead of time with `rpm --import` in a playbook that runs before any install. For air-gapped environments, mirror the repo and re-sign with an internal key rather than disabling verification."
     cwe: ['CWE-345', 'CWE-347', 'CWE-494']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1554']
     cis_controls: ['CIS-2.4', 'CIS-3.10', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -1234,7 +1234,7 @@ patterns:
     recommendation: "Replace `ADD <url>` with `RUN curl -fsSLO <https-url> && echo '<sha256>  <file>' | sha256sum -c - && tar xzf <file>` (or use `COPY` of a vendored local artifact). Better: fetch via a SLSA-L3 build system that produces a signed SBOM and attestation, and pull the artifact from an OCI registry with `cosign verify-attestation`."
     cwe: ['CWE-319', 'CWE-494', 'CWE-829']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.2.1, V12.3.4, V15.2.4]
     mitre_attack: ['T1195.002', 'T1505.003']
     cis_controls: ['CIS-2.4', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -1308,7 +1308,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-306', 'CWE-749']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1021', 'T1078']
     cis_controls: ['CIS-3.3', 'CIS-4.8']
     nist_controls: ['AC-3', 'AC-17', 'SC-7']
@@ -1358,7 +1358,7 @@ patterns:
     recommendation: "Pin every third-party action to a full 40-char commit SHA and add a trailing comment with the semver tag for readability: `uses: owner/action@a1b2c3d4e5f6...  # v2.4.1`. Automate updates with Dependabot's `version-updates` for the `github-actions` ecosystem, which will open PRs that bump SHA + comment atomically. For maximum assurance, host a private mirror of critical actions via `actions/checkout` to an internal registry."
     cwe: ['CWE-494', 'CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1199']
     cis_controls: ['CIS-2.4', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -1379,7 +1379,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-295', 'CWE-494', 'CWE-693']
     owasp_appsec: ["A07:2021", "A08:2021"]
-    owasp_asvs: ["V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.3.4, V15.2.4]
     mitre_attack: ['T1195.002', 'T1554']
     cis_controls: ['CIS-3.10', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -1416,7 +1416,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.001', 'T1195.002']
     cis_controls: ['CIS-2.4', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -1439,7 +1439,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-345', 'CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1554']
     cis_controls: ['CIS-2.4', 'CIS-3.10', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -1457,7 +1457,7 @@ patterns:
     recommendation: "Always pin to a semver tag (`go install example.com/tool@v1.2.3`) or a full 40-character commit SHA (`go install example.com/tool@abc123...def`). Generate a `go.sum` via `go mod download` and copy it into your build image; then `go install -mod=readonly` to fail-closed if the sum drifts. For CI, use `actions/setup-go` + `go install` with a pinned version from a dependabot-updated manifest. Audit existing playbooks: `grep -rE 'go\\s+(install|get|run).*@(main|master|latest|HEAD)' playbooks/ roles/` and replace each with a pinned version."
     cwe: ['CWE-494', 'CWE-1104', 'CWE-1357']
     owasp_appsec: ["A06:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.001', 'T1195.002']
     cis_controls: ['CIS-2.4', 'CIS-3.10', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -1476,7 +1476,7 @@ patterns:
     recommendation: "Always pin: `cargo install --git https://github.com/rust-lang/mdBook --rev 5e2c9df` or `--tag v0.4.40`. For crates-io installs, use `cargo install --locked <crate>` (honours the crate's committed `Cargo.lock`) and pin the crate version (`cargo install --locked cargo-edit@0.12.2`). Host an internal crates-io mirror (`crates.io-index` with `cargo-audit` CI) and set `CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse` + a pinned-commit alternate index for air-gapped envs. Generate and commit `Cargo.lock` for every binary crate."
     cwe: ['CWE-494', 'CWE-1104', 'CWE-1357']
     owasp_appsec: ["A06:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.001', 'T1195.002']
     cis_controls: ['CIS-2.4', 'CIS-3.10', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -1495,7 +1495,7 @@ patterns:
     recommendation: "Replace every `-SNAPSHOT` with an immutable release version (`<version>1.2.3</version>`). Configure Maven to fail on snapshot resolution in production: add `<enforcer.fail>true</enforcer.fail>` with `maven-enforcer-plugin` rule `requireReleaseDeps`. For Gradle: `configurations.all { resolutionStrategy.failOnChangingVersions() }`. Mirror only release-repository (`repo1.maven.org/maven2/`), not snapshot-repository, in production builds. For unavoidable internal snapshots, pin via `<version>1.2.3-SNAPSHOT+sha.abc123</version>` metadata and validate the sha in CI."
     cwe: ['CWE-494', 'CWE-1104', 'CWE-1357']
     owasp_appsec: ["A06:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.001', 'T1195.002']
     cis_controls: ['CIS-2.4', 'CIS-3.10', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -1515,7 +1515,7 @@ patterns:
     recommendation: "Use only the 4 built-in OLM catalogs: `redhat-operators`, `certified-operators`, `community-operators`, `redhat-marketplace`. For internal catalogs, host on a private registry with Sigstore/cosign signature verification enabled at the OLM level (`PodSecurityAdmission` + `ClusterImagePolicy` over the catalog image). Pin the catalog image by SHA: `image: quay.io/myorg/my-catalog@sha256:<digest>` (not a tag). Set `updateStrategy: { registryPoll: { interval: 0 } }` to disable auto-updates, and roll catalog upgrades via GitOps with explicit review."
     cwe: ['CWE-494', 'CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1554']
     cis_controls: ['CIS-2.4', 'CIS-3.10', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -1535,7 +1535,7 @@ patterns:
     recommendation: "Fix the TLS trust chain in the image: `ADD ca-bundle.crt /etc/ssl/certs/` + `RUN update-ca-certificates`, or for self-signed dev certs bake the CA into the image via `COPY rootCA.pem /usr/local/share/ca-certificates/`. Health-check should be: `HEALTHCHECK CMD curl -fsS --max-time 3 https://localhost:8443/health || exit 1` - with valid TLS. For internal-only endpoints use HTTP on loopback (127.0.0.1) which needs no TLS and is faster. Never `-k` in a healthcheck."
     cwe: ['CWE-295', 'CWE-319']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1"]
+    owasp_asvs: [V12.2.1, V12.3.4]
     mitre_attack: ['T1557']
     cis_controls: ['CIS-3.10', 'CIS-12.6']
     nist_controls: ['SC-8', 'SC-8(1)']
@@ -1558,7 +1558,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-284', 'CWE-668']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1133', 'T1210']
     cis_controls: ['CIS-4.4', 'CIS-12.2', 'CIS-12.6']
     nist_controls: ['AC-3', 'AC-4', 'SC-7']
@@ -1579,7 +1579,7 @@ patterns:
     recommendation: "NEVER add new SUID/SGID binaries via playbook unless the binary is part of a hardened package (`setuid-dumpable`, `capability`-aware, audited by the distro). Prefer Linux capabilities: `setcap cap_net_bind_service=+ep /opt/app/mybin` which grants ONLY the specific capability without full root exposure. For delegated admin, use `sudo` with narrow sudoers rules. Audit existing SUID inventory: `find / -xdev \\\\( -perm -4000 -o -perm -2000 \\\\) -type f -exec ls -la {} \\\\;` and diff against a golden baseline. Alert on new SUID via auditd `-a always,exit -F path=/bin/chmod -F arch=b64 -S chmod,fchmod -k suid_change`."
     cwe: ['CWE-250', 'CWE-269', 'CWE-732']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1543', 'T1548.001']
     cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-8.5']
     nist_controls: ['AC-6', 'AC-6(1)', 'AU-12']
@@ -1600,7 +1600,7 @@ patterns:
     recommendation: "Pull images by digest (`@sha256:...`) not by tag, and never use `--platform` unless you are genuinely cross-building. For multi-arch CI use `docker buildx build --platform=linux/amd64,linux/arm64 --provenance=mode=max --sbom=true --push` which produces SLSA-compliant multi-arch manifests with per-arch attestations. Verify on pull: `cosign verify --type=cosign-signature --certificate-identity=<issuer> <registry>/<image>@sha256:<digest>` - cosign binds the signature to the specific digest, so cross-arch swaps fail verification. Enable Kubernetes `policy-controller` / Kyverno `verifyImages` rule to enforce digest-pinning cluster-wide."
     cwe: ['CWE-345', 'CWE-347', 'CWE-494']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1553.002']
     cis_controls: ['CIS-2.4', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -1623,7 +1623,7 @@ patterns:
     recommendation: "Remove all `--allow-*` flags. For legitimate unsigned internal packages, mirror them to an internal repo via `reprepro` / `aptly` / `pulp-deb` and SIGN them with an enterprise GPG key distributed via `/etc/apt/trusted.gpg.d/` or (better) `/etc/apt/keyrings/` with `signed-by=` in the sources list. For package rollback use `apt install pkg=version` with the version pinned via `apt-mark hold` - not `--allow-downgrades`. For dev/CI unsigned builds, use a separate `deb-src` repo with `Acquire::AllowInsecureRepositories \"true\"` scoped ONLY to that one source via `[allow-insecure=yes]` prefix. Audit: `grep -rhE 'Allow(Unauth|Insecure)|Check-Valid-Until' /etc/apt/apt.conf.d/` - should return only comments or nothing."
     cwe: ['CWE-345', 'CWE-347', 'CWE-494']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1072', 'T1195.002', 'T1553.002']
     cis_controls: ['CIS-2.4', 'CIS-2.7', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-12', 'SI-7']
@@ -1642,7 +1642,7 @@ patterns:
     recommendation: "Never use `--nodigest` / `--nosignature` / `--nofiledigest` / `--noverify`. For internal unsigned packages, sign them with `rpm --addsign` using an internal GPG key + distribute the public key via `rpm --import`. Use `ansible.builtin.dnf` / `ansible.builtin.yum` modules (which respect `gpgcheck` automatically) instead of direct `rpm -i` for repo-sourced packages. For one-off local-file installs, use `dnf install /path/to/file.rpm` which still verifies signatures. Enforce via `rpm --define '__signature_check 1'` macro at system level. Audit: `grep -rE 'rpm\\s+[^|]*(--nodigest|--nosignature|--noverify)' playbooks/ roles/` - should return zero."
     cwe: ['CWE-345', 'CWE-347', 'CWE-494']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1553.002']
     cis_controls: ['CIS-2.4', 'CIS-2.7', 'CIS-16.11']
     nist_controls: ['CM-14', 'SI-7']
@@ -1663,7 +1663,7 @@ patterns:
     recommendation: "Use HTTPS for every pip index - `https://pypi.org/simple/` (public) or `https://internal-pypi.example.com/simple/` (internal mirror). For internal mirrors, provision a trusted TLS cert via an internal CA distributed via `/etc/ssl/certs/` and pip will validate automatically. If a mirror genuinely cannot do TLS (legacy), use `pip install --trusted-host internal-mirror.example.com` and PIN THE HOST TO THE CORPORATE NETWORK ONLY via network policy (never expose the HTTP mirror via a VPN-endpoint or laptop egress). For air-gapped installs, use `pip download` on a trusted build host -> transfer wheels via signed tarball -> `pip install --no-index --find-links=/local/wheels`. Enforce signed packages via `pip install --require-hashes` (PEP 665 / PEP 708 in 2024) referencing a committed `requirements.txt` with sha256 hashes."
     cwe: ['CWE-319', 'CWE-345', 'CWE-494']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.2.1, V12.3.4, V15.2.4]
     mitre_attack: ['T1195.002', 'T1557']
     cis_controls: ['CIS-2.4', 'CIS-3.10', 'CIS-12.6']
     nist_controls: ['CM-14', 'SC-8', 'SI-7']
@@ -1684,7 +1684,7 @@ patterns:
     recommendation: "Use HTTPS for every registry. For RubyGems: `gem sources --add https://rubygems.org/ --remove http://...`. For CPAN: `o conf http_proxy https://...` + enable `verify_certificate 1`. For Cargo: `[registries.custom] index = 'https://...'` + `[source.crates-io] replace-with = 'custom'` + ensure `[registries.custom].token` is set via env. For Go modules: set `GOPROXY=https://proxy.golang.org,direct` + `GOSUMDB=sum.golang.org` (NEVER set `GONOSUMCHECK=1`). For internal modules in Go, use `GOPRIVATE=*.internal.corp` which bypasses the public SUMDB while keeping TLS to the internal proxy. Lock dependency hashes: Ruby `Gemfile.lock`, Go `go.sum`, Cargo `Cargo.lock`. Fail CI on any mismatch."
     cwe: ['CWE-319', 'CWE-345', 'CWE-353', 'CWE-494']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.2.1, V12.3.4, V15.2.4]
     mitre_attack: ['T1195.002', 'T1557']
     cis_controls: ['CIS-2.4', 'CIS-3.10', 'CIS-16.11']
     nist_controls: ['CM-14', 'SC-8', 'SI-7']
@@ -1707,7 +1707,7 @@ patterns:
     recommendation: "Download the script, VERIFY its SHA256 or GPG signature against a pinned known-good hash, review it, then execute: `curl -fsSL -o /tmp/install.sh <url> && echo '<sha256>  /tmp/install.sh' | sha256sum -c && less /tmp/install.sh && bash /tmp/install.sh`. Prefer distro-native packaging (apt/dnf/brew with signed repos) over upstream install scripts. For tools that ONLY distribute via curl-pipe-bash, mirror them to an internal artifact repo (JFrog Artifactory, Nexus, Cloudsmith) with hash pinning via `ansible.builtin.get_url: url=<internal-mirror>/rustup.sh checksum=sha256:<pinned>`. For genuinely trusted upstream installers, at minimum use `curl --tlsv1.3 --proto =https --cacert /etc/ssl/internal-ca.pem -fsSL` + pipe to `tee` before bash so the script is kept for forensics. Fail CI builds on any `| (bash|sh)` pattern in any role file."
     cwe: ['CWE-78', 'CWE-494', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1059.004', 'T1105', 'T1195.002']
     cis_controls: ['CIS-2.4', 'CIS-2.7', 'CIS-16.11']
     nist_controls: ['CM-7', 'CM-14', 'SI-7']
@@ -1737,7 +1737,7 @@ patterns:
     cwe: ['CWE-94', 'CWE-829', 'CWE-1336']
     cve: ["CVE-2024-53899"]
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1059', 'T1059.004', 'T1195.002']
     cis_controls: ['CIS-2.4', 'CIS-16.2', 'CIS-16.11']
     nist_controls: ['CM-7', 'SI-7', 'SI-10']
@@ -1758,7 +1758,7 @@ patterns:
     recommendation: "Pin OIDC trust policies to specific repo + branch/environment. Example: `StringEquals: { 'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com' }` + `StringLike: { 'token.actions.githubusercontent.com:sub': 'repo:<org>/<repo>:environment:production' }` (ideal) or `'repo:<org>/<repo>:ref:refs/heads/main'` (acceptable). NEVER use `aud: *` - it makes the role assumable by any GitHub workflow anywhere. For multiple repos, create a DEDICATED role per repo, not one shared role with `sub: repo:<org>/*`. For GitLab/BitBucket/CircleCI OIDC, apply the same principle - pin to the specific project path + branch. Audit trust policies via `aws iam list-roles | jq '.Roles[] | select(.AssumeRolePolicyDocument.Statement[].Condition)'` - review every OIDC trust for presence of a `sub` condition."
     cwe: ['CWE-284', 'CWE-287', 'CWE-346']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078.004', 'T1098.003', 'T1550']
     cis_controls: ['CIS-6.5', 'CIS-6.8', 'CIS-16.5']
     nist_controls: ['AC-3', 'AC-6', 'IA-2', 'IA-5']
@@ -1780,7 +1780,7 @@ patterns:
     cwe: ['CWE-200', 'CWE-522', 'CWE-532']
     cve: ["CVE-2024-8114"]
     owasp_appsec: ["A01:2021", "A04:2021", "A09:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V7.1.1", "V8.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V16.2.5, V14.2.2]
     mitre_attack: ['T1078.004', 'T1552.001', 'T1552.004']
     cis_controls: ['CIS-3.11', 'CIS-8.2', 'CIS-16.9']
     nist_controls: ['AU-9', 'IA-5', 'SC-28']
@@ -1802,7 +1802,7 @@ patterns:
     cwe: ['CWE-94', 'CWE-284', 'CWE-829']
     cve: ["CVE-2023-47110"]
     owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1195.002', 'T1525', 'T1611']
     cis_controls: ['CIS-5.1', 'CIS-5.7', 'CIS-16.11']
     nist_controls: ['AC-3', 'AC-6', 'CM-7']
@@ -1823,7 +1823,7 @@ patterns:
     cwe: ['CWE-295', 'CWE-319', 'CWE-494']
     cve: ["CVE-2024-32002"]
     owasp_appsec: ["A02:2021", "A07:2021", "A08:2021"]
-    owasp_asvs: ["V9.1.1", "V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.2.1, V12.3.4, V15.2.4]
     mitre_attack: ['T1105', 'T1195.002', 'T1557.002']
     cis_controls: ['CIS-3.10', 'CIS-16.11']
     nist_controls: ['SC-8', 'SC-8(1)', 'SI-7']
@@ -1845,7 +1845,7 @@ patterns:
     cwe: ['CWE-494', 'CWE-1329', 'CWE-1357']
     cve: ["CVE-2025-30066"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1072', 'T1195.002']
     cis_controls: ['CIS-2.4', 'CIS-16.11']
     nist_controls: ['CM-7', 'CM-14', 'SI-7']
@@ -1867,7 +1867,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-506', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1546', 'T1547']
     cis_controls: ['CIS-10.5', 'CIS-16.11']
     nist_controls: ['CM-7', 'SC-18', 'SI-7']
@@ -1888,7 +1888,7 @@ patterns:
     recommendation: "Replace `credential.helper = store` with `manager-core` (cross-platform, 2022+) or platform-native: macOS `osxkeychain`, Windows `wincred`, Linux with GNOME `libsecret`, or `cache --timeout=3600` for short-lived in-memory caching. For automation, use short-lived tokens via `GIT_ASKPASS=/usr/local/bin/get-fresh-pat.sh` where the script fetches a fresh token from Vault on demand. For CI, use OIDC federation to the git host (GitHub's `GITHUB_TOKEN`, GitLab's `CI_JOB_TOKEN`) - no stored credential needed at all. Rotate any existing `~/.git-credentials` contents immediately. Audit: `find /home -name '.git-credentials' -not -empty -printf '%u %p\\n'` - any hit is an immediate credential-rotation trigger."
     cwe: ['CWE-256', 'CWE-312', 'CWE-522']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.1.2", "V6.2.1", "V8.3.1"]
+    owasp_asvs: [V13.2.1, V14.1.1, V11.2.5, V14.2.1]
     mitre_attack: ['T1078', 'T1552.001', 'T1552.004']
     cis_controls: ['CIS-3.11', 'CIS-16.9']
     nist_controls: ['IA-5', 'SC-28']
@@ -1909,7 +1909,7 @@ patterns:
     recommendation: "Enable tag immutability everywhere: ECR `aws_ecr_repository.image_tag_mutability = \"IMMUTABLE\"` (the default, keep it); Artifact Registry `gcloud artifacts repositories update <r> --immutable-tags`; ACR `az acr config content-trust update --status enabled`; Harbor project `Immutability Rules` for `v*.*.*` semver tags. Require signature verification in CI + runtime: `cosign verify --key <pub-key> --certificate-oidc-issuer https://token.actions.githubusercontent.com <image>` for every pull; k8s admission with `sigstore/policy-controller` (ClusterImagePolicy) + fail-closed on unsigned images. Never use `:latest` in production manifests - pin to immutable digest (`image: nginx@sha256:abc123...`). Set `DOCKER_CONTENT_TRUST=1` in all developer + CI environments. Enforce Harbor `enable_content_trust_cosign: true` + `automatic vulnerability scanning` + `prevent_vulnerable_images`. For air-gapped: `cosign sign --key cosign.key <image>` before importing into offline registry + verify on ingress. Rotate signing keys annually; store in cloud KMS (not local .key files)."
     cwe: ['CWE-345', 'CWE-426', 'CWE-494']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1199', 'T1525']
     cis_controls: ['CIS-4.7', 'CIS-16.4', 'CIS-18.3']
     nist_controls: ['CM-5', 'CM-11', 'SI-7']
@@ -1930,7 +1930,7 @@ patterns:
     recommendation: "Every Terraform/OpenTofu remote backend must have: (1) state locking (S3: `dynamodb_table = \"tf-lock\"` with `LockID` hash-key; GCS: native locking auto-enabled; AzureRM: native blob-lease auto-enabled), (2) bucket versioning enabled (recover from accidental / malicious state corruption), (3) server-side encryption with customer-managed KMS key (the KMS key lives in a different AWS account so state-bucket write-access alone can't decrypt), (4) MFA Delete on S3 / retention policy on GCS so state objects can't be destroyed without a second factor, (5) bucket replication to a cross-region standby, (6) public-access-block enforced, (7) bucket policy denying `s3:GetObject` except for specific CI-role ARNs. Never commit `.tfstate` to git. Rotate any credential found in state (all of them, periodically) - state is always sensitive. Enforce via tflint / tfsec in CI. Monitor CloudTrail for `GetObject` on tfstate bucket from unexpected principals + alert. For state migration, use `terraform state pull` + `terraform state push` with `-backup` flag."
     cwe: ['CWE-345', 'CWE-427', 'CWE-732']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1078.004', 'T1552.001', 'T1565.001']
     cis_controls: ['CIS-3.3', 'CIS-3.11', 'CIS-11.2']
     nist_controls: ['CM-5', 'CP-9', 'SC-28']
@@ -1951,7 +1951,7 @@ patterns:
     recommendation: "Never use `-SkipPublisherCheck`. Verify every module's publisher before install: `Find-Module <name> | Select Name,Author,CompanyName,PublishedDate,RepositorySourceLocation` and confirm the CompanyName matches the expected vendor. For Microsoft modules, CompanyName must be `Microsoft Corporation`. Pin exact versions: `Install-Module Az -RequiredVersion 11.2.0` (not just `-Force`). For internal/private modules, use a **signed internal PSGallery** (`New-PSRepository` pointing at Azure Artifacts or ProGet with Authenticode signing enforced). Set global PowerShell execution policy: `Set-ExecutionPolicy -ExecutionPolicy AllSigned -Scope LocalMachine` on servers. Detect: EDR alerting on `powershell.exe` with command-line containing `-SkipPublisherCheck` is a high-confidence signal (almost no legitimate operational use). Audit installed modules: `Get-InstalledModule | ForEach-Object { Get-AuthenticodeSignature (Get-Module -ListAvailable $_.Name).ModuleBase }` - any `NotSigned` or `HashMismatch` is immediately suspect."
     cwe: ['CWE-295', 'CWE-345', 'CWE-494']
     owasp_appsec: ["A07:2021", "A08:2021"]
-    owasp_asvs: ["V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.3.4, V15.2.4]
     mitre_attack: ['T1059.001', 'T1105', 'T1195.002']
     cis_controls: ['CIS-2.7', 'CIS-16.4', 'CIS-16.11']
     nist_controls: ['CM-5', 'CM-11', 'SI-7']
@@ -1973,7 +1973,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-257', 'CWE-522', 'CWE-798']
     owasp_appsec: ["A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.1", "V2.10.2", "V2.10.4", "V6.2.1", "V14.1.5"]
+    owasp_asvs: [V13.2.1, V13.2.3, V13.3.1, V11.2.5]
     mitre_attack: ['T1003.006', 'T1078.002', 'T1552.001']
     cis_controls: ['CIS-3.11', 'CIS-5.2', 'CIS-6.8']
     nist_controls: ['AC-6', 'IA-5', 'SC-28']
@@ -2003,7 +2003,7 @@ patterns:
     recommendation: "Do NOT combine `pull_request_target` with a checkout of the PR head. Either (a) use `pull_request` - which runs in a fork-isolated context without repo secrets and without write token - for any step that builds/tests attacker-controlled code, or (b) split the workflow into two jobs: a `pull_request_target` job that only reads PR metadata (labels, approved-by) and a downstream `workflow_run`-triggered job that does the privileged work on already-merged / already-approved commits. If you must check out the PR head in `pull_request_target`, explicitly require an approval gate (`if: contains(github.event.pull_request.labels.*.name, 'safe-to-test')`) AND scope `GITHUB_TOKEN` to `permissions: contents: read`, AND audit every workflow quarterly against the `pull_request_target` abuse checklist."
     cwe: ['CWE-266', 'CWE-269', 'CWE-732']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1078', 'T1195.002', 'T1199']
     cis_controls: ['CIS-16.1', 'CIS-16.2', 'CIS-16.11']
     nist_controls: ['AC-3', 'AC-6', 'SA-15']
@@ -2042,7 +2042,7 @@ patterns:
     recommendation: "Set `privileged = false`. Replace DinD with rootless image-builders that do NOT require privileged: **Kaniko** (google/kaniko-project), **BuildKit rootless** (`docker.io/moby/buildkit:rootless`), **Buildah unprivileged**, or **img**. For tests that legitimately need privileged ops (kernel modules, nested virtualization), isolate them on a dedicated runner tagged `privileged-only`, restrict project access to that runner via `protected` runners, and require `protected` branches / tagged pipelines only. Never share a privileged runner between projects. Audit `config.toml` + Helm values in source control; fail CI if `privileged: true` appears in runner configs."
     cwe: ['CWE-250', 'CWE-269', 'CWE-284']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1068', 'T1199', 'T1611']
     cis_controls: ['CIS-5.2', 'CIS-16.11', 'CIS-Docker']
     nist_controls: ['AC-6', 'CM-7', 'SC-39']
@@ -2063,7 +2063,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-312', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.1.2", "V6.2.1", "V8.1.1", "V8.3.1"]
+    owasp_asvs: [V13.2.1, V14.1.1, V11.2.5, V14.2.2, V14.2.1]
     mitre_attack: ['T1078', 'T1552.001', 'T1552.004']
     cis_controls: ['CIS-3.11', 'CIS-16.11']
     nist_controls: ['AU-12', 'IA-5', 'SC-28']
@@ -2084,7 +2084,7 @@ patterns:
     recommendation: "Use BuildKit secrets correctly: `RUN --mount=type=secret,id=npm,target=/root/.npmrc npm install` - the secret is available only within that RUN invocation and is not persisted. NEVER copy a BuildKit secret into an `ENV`, a file outside `/run/secrets`, or a layer that will be committed. For runtime secrets, inject at container start via an orchestrator secret-volume (Kubernetes Secret / Swarm secret / ECS Secrets) - not at build time. Never use `--build-arg` for anything sensitive; build args are visible in `docker history`. Audit builds with `docker history <image> --no-trunc | grep -i 'token\\|secret\\|password'`."
     cwe: ['CWE-200', 'CWE-532', 'CWE-798']
     owasp_appsec: ["A01:2021", "A07:2021", "A09:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V7.1.1", "V8.1.1", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1, V16.2.5, V14.2.2]
     mitre_attack: ['T1552.001', 'T1552.004']
     cis_controls: ['CIS-3.11', 'CIS-Docker']
     nist_controls: ['IA-5', 'SC-28']
@@ -2147,7 +2147,7 @@ patterns:
     cwe: ['CWE-78', 'CWE-287', 'CWE-288']
     cve: ["CVE-2023-46805", "CVE-2024-21887"]
     owasp_appsec: ["A03:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1068', 'T1133', 'T1190']
     cis_controls: ['CIS-2.2', 'CIS-7.7', 'CIS-12.1']
     nist_controls: ['CM-8', 'RA-5', 'SI-2', 'SI-3']
@@ -2192,7 +2192,7 @@ patterns:
     cwe: ['CWE-22', 'CWE-200', 'CWE-306']
     cve: ["CVE-2024-24919"]
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V8.1.1", "V12.3.1", "V12.3.5"]
+    owasp_asvs: [V6.2.1, V14.2.2, V5.3.2, V1.2.5]
     mitre_attack: ['T1083', 'T1190', 'T1552.001']
     cis_controls: ['CIS-2.2', 'CIS-7.7', 'CIS-12.1']
     nist_controls: ['CM-8', 'RA-5', 'SI-2', 'SI-3']
@@ -2216,7 +2216,7 @@ patterns:
     cwe: ['CWE-22', 'CWE-287', 'CWE-288']
     cve: ["CVE-2024-1708", "CVE-2024-1709"]
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V12.3.1", "V12.3.5"]
+    owasp_asvs: [V6.2.1, V5.3.2, V1.2.5]
     mitre_attack: ['T1068', 'T1078', 'T1133', 'T1190']
     cis_controls: ['CIS-2.2', 'CIS-7.7', 'CIS-12.1']
     nist_controls: ['CM-8', 'RA-5', 'SI-2', 'SI-3']
@@ -2238,7 +2238,7 @@ patterns:
     cwe: ['CWE-287', 'CWE-306', 'CWE-862']
     cve: ["CVE-2024-47575"]
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1068', 'T1190', 'T1552.001']
     cis_controls: ['CIS-2.2', 'CIS-7.7', 'CIS-12.1']
     nist_controls: ['CM-8', 'RA-5', 'SI-2', 'SI-3']
@@ -2262,7 +2262,7 @@ patterns:
     cwe: ['CWE-77', 'CWE-78', 'CWE-434']
     cve: ["CVE-2024-20253"]
     owasp_appsec: ["A03:2021", "A04:2021"]
-    owasp_asvs: ["V12.2.1", "V12.4.1"]
+    owasp_asvs: [V5.2.2, V5.3.1]
     mitre_attack: ['T1068', 'T1190', 'T1505.003']
     cis_controls: ['CIS-2.2', 'CIS-7.7', 'CIS-12.1']
     nist_controls: ['CM-8', 'RA-5', 'SI-2', 'SI-3']
@@ -2284,7 +2284,7 @@ patterns:
     recommendation: "Always pass `--ignore-scripts` to every npm / pnpm / yarn invocation in CI and playbooks - `npm ci --ignore-scripts` (or `ignore_scripts: true` in `community.general.npm`). Run a separate, explicit, sandboxed build step for each package that legitimately requires a postinstall (esbuild, sharp, canvas) using `node --permission` (Node 20+) or a gVisor/Firecracker container. Pin every dependency + transitive via lockfile integrity (`package-lock.json` with `lockfileVersion: 3` + `integrity: sha512-...`, or `pnpm-lock.yaml` + `verify-store-integrity: true`). Point `registry` at an internal proxy (Artifactory, Sonatype Nexus, GitHub Packages) that enforces allowlist + malware scanning. Enable `npm audit signatures` (2024 provenance) and block unsigned publishes. Review Socket.dev / Snyk advisories weekly. For CI, prefer `actions/setup-node` with `cache: npm` + `npm ci --ignore-scripts` - never use ad-hoc `curl | bash` installers."
     cwe: ['CWE-494', 'CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1059.007', 'T1195.002', 'T1204.002']
     cis_controls: ['CIS-2.5', 'CIS-16.4', 'CIS-16.11']
     nist_controls: ['CM-7', 'SA-12', 'SI-7']
@@ -2304,7 +2304,7 @@ patterns:
     cwe: ['CWE-494', 'CWE-829', 'CWE-1357']
     cve: ["CVE-2025-30066"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1199', 'T1552.001']
     cis_controls: ['CIS-2.5', 'CIS-16.4', 'CIS-16.11']
     nist_controls: ['CM-7', 'CM-8', 'SA-12', 'SI-7']
@@ -2344,7 +2344,7 @@ patterns:
       - "# install BeautifulSoup later in this file"
     cwe: ['CWE-494', 'CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1059.006', 'T1195.002', 'T1204.002']
     cis_controls: ['CIS-2.5', 'CIS-16.4', 'CIS-16.11']
     nist_controls: ['CM-7', 'SA-12', 'SI-7']
@@ -2365,7 +2365,7 @@ patterns:
     recommendation: "Install only from first-party Homebrew taps (`homebrew/core`, `homebrew/cask`, `homebrew/cask-fonts`) in production. For third-party formulas: (a) fork the tap into your own org, audit every Ruby formula for `system`, `exec`, `File.open`, network fetches, and pin a specific commit SHA in your fork's history, (b) use `community.general.homebrew_tap` with `url: https://github.com/<your-org>/<fork>.git` and `state: present`, (c) run `brew audit --strict <formula>` before each update, (d) on MacOS endpoints, enforce Gatekeeper + SIP + prohibit `NOPASSWD sudo` for `brew`. Never run `curl ... | bash` Homebrew installers in a production playbook. Review macOS developer-endpoint telemetry (CrowdStrike Falcon, SentinelOne, Jamf Protect) for `brew tap` / `brew install` events from untrusted repos."
     cwe: ['CWE-494', 'CWE-829', 'CWE-915']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1059.004', 'T1195.002', 'T1204.002']
     cis_controls: ['CIS-2.5', 'CIS-16.4', 'CIS-16.11']
     nist_controls: ['CM-7', 'SA-12', 'SI-7']
@@ -2386,7 +2386,7 @@ patterns:
     recommendation: "Always use a remote, locked, encrypted backend for any non-throwaway Terraform stack: S3 + DynamoDB lock table (`backend \"s3\" { bucket = \"...\"; key = \"env/prod/terraform.tfstate\"; region = \"...\"; dynamodb_table = \"terraform-locks\"; encrypt = true; kms_key_id = \"...\" }`), Azure Storage (`backend \"azurerm\" { ... use_azuread_auth = true }`), GCS (`backend \"gcs\" { ... }`), or Terraform Cloud / HCP Terraform / Spacelift / Scalr. Require versioning + KMS encryption on the state bucket. Enforce `terraform fmt -check` + `tflint` + `tfsec` in CI. Gitignore `*.tfstate`, `*.tfstate.backup`, `.terraform/`. Use `terraform state rm` + re-import rather than ever committing state. For secrets, use `random_password` + `aws_secretsmanager_secret` / `azurerm_key_vault_secret` referenced via data source; never commit plaintext credentials to state (note: even remote encrypted state contains plaintext secrets that any reader can extract - use short-lived IAM roles / OIDC federation instead). Review Terraform docs 'Remote State' and 'Sensitive Data in State', plus HashiCorp's 2024 state-security guidance."
     cwe: ['CWE-312', 'CWE-732', 'CWE-922']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V6.1.2", "V8.3.1", "V12.4.1"]
+    owasp_asvs: [V14.1.1, V14.2.1, V5.3.1]
     mitre_attack: ['T1078.004', 'T1213', 'T1552.001']
     cis_controls: ['CIS-3.11', 'CIS-3.12', 'CIS-16.11']
     nist_controls: ['AC-3', 'AU-9', 'SC-28']
@@ -2407,7 +2407,7 @@ patterns:
     recommendation: "Always set `encrypt = true` AND `kms_key_id = aws_kms_key.tfstate.arn` in every `backend \"s3\"` block - SSE-KMS with a customer-managed key, not SSE-S3. Apply these bucket-level controls: versioning on, MFA-Delete enabled (requires root), Block Public Access ON (all four toggles), bucket policy restricting `s3:GetObject` / `s3:PutObject` to the specific IAM roles that run Terraform + SSO admins, server-access logging on, replication to a cross-region backup bucket, Object Lock in compliance mode for 30+ days. The companion DynamoDB lock table must have encryption-at-rest enabled with KMS CMK + PITR on. Rotate the KMS key annually; use `--bypass-policy-lockout-safety-check` with extreme care. Validate with AWS Config rules `s3-bucket-server-side-encryption-enabled` and `s3-bucket-default-encryption-kms` + `s3-bucket-public-read-prohibited`. Audit existing state: `aws s3api get-bucket-encryption --bucket <tfstate-bucket>` and `aws s3api get-public-access-block`. Review NIST SP 800-171 3.13.16, PCI-DSS v4.0 3.5.1, and CIS AWS Foundations 2.1.1."
     cwe: ['CWE-311', 'CWE-312', 'CWE-921']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V6.1.2", "V8.3.1", "V9.1.1"]
+    owasp_asvs: [V14.1.1, V14.2.1, V12.2.1]
     mitre_attack: ['T1213', 'T1530', 'T1552.001']
     cis_controls: ['CIS-3.11', 'CIS-3.12']
     nist_controls: ['MP-5', 'SC-12', 'SC-28']
@@ -2428,7 +2428,7 @@ patterns:
     recommendation: "Set `sensitive = true` on every variable, output, and local that holds a secret. For example: `variable \"db_password\" { type = string; sensitive = true }` and `output \"rds_endpoint_password\" { value = aws_db_instance.main.password; sensitive = true }`. Even better: never store the secret in Terraform state at all - use `random_password` at create time, immediately write to `aws_secretsmanager_secret_version` / `azurerm_key_vault_secret` / `google_secret_manager_secret_version`, and use `ignore_changes = [password]` + `data` source lookup on subsequent runs. Upgrade Terraform to ≥ 1.6 for the `ephemeral` resource (HCP 2024) which lets secrets flow without hitting state. Run `tfsec --minimum-severity HIGH` in CI to flag unsensitive secret declarations. For plan output, mark with the 2024 `-json` + sensitive-field redaction and pipe through `jq` that strips `.resource_changes[].change.after_sensitive`. Review HashiCorp 'Sensitive data in state' + '2024 Terraform Secrets Handling' guide."
     cwe: ['CWE-200', 'CWE-312', 'CWE-532']
     owasp_appsec: ["A01:2021", "A04:2021", "A09:2021"]
-    owasp_asvs: ["V6.1.2", "V7.1.1", "V8.1.1", "V8.3.1"]
+    owasp_asvs: [V14.1.1, V16.2.5, V14.2.2, V14.2.1]
     mitre_attack: ['T1078.004', 'T1552.001', 'T1552.007']
     cis_controls: ['CIS-3.11', 'CIS-8.11', 'CIS-16.11']
     nist_controls: ['AU-9', 'IA-5', 'SC-28']
@@ -2499,7 +2499,7 @@ patterns:
     recommendation: "Set `image_tag_mutability: IMMUTABLE` on every ECR repo in a production / shared / customer-facing account. Reference images by digest (`repo@sha256:...`) in ECS task definitions and Helm charts, not by mutable tag. Require `ecr:PutImageTagMutability` IAM permission to be denied for all non-admin roles. For dev/scratch repos where immutability is impractical, scope the repo to a dev account with no prod role-assume trust."
     cwe: ['CWE-494', 'CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1554']
     cis_controls: ['CIS-2.6', 'CIS-16.2']
     nist_controls: ['CM-5', 'SA-12', 'SI-7']
@@ -2523,7 +2523,7 @@ patterns:
     recommendation: "Set `admin_user_enabled: false` on every ACR. For Kubernetes, use `--attach-acr` with the AKS kubelet managed-identity (`az aks update --attach-acr`). For Azure Container Apps / Container Instances, use the built-in managed-identity integration. For CI (GitHub Actions / Azure DevOps), use OpenID Connect federation instead of a shared password. Rotate + disable the admin creds immediately if they were ever enabled. Enforce via Azure Policy built-in `ID: dc921057-6b28-4fbe-9b83-f7bec05db6c2` (Container registries should have local admin account disabled)."
     cwe: ['CWE-284', 'CWE-522', 'CWE-798']
     owasp_appsec: ["A01:2021", "A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.1", "V2.10.2", "V2.10.4", "V6.2.1", "V14.1.5"]
+    owasp_asvs: [V13.2.1, V13.2.3, V13.3.1, V11.2.5]
     mitre_attack: ['T1078.004', 'T1552.001']
     cis_controls: ['CIS-4.2', 'CIS-5.2']
     nist_controls: ['AC-2', 'IA-2', 'IA-5']
@@ -2550,7 +2550,7 @@ patterns:
     recommendation: "Remove `force: true` from every `ansible.builtin.apt` task. If a specific package absolutely MUST be downgraded (rare; usually indicative of a broken upgrade path), use `force_apt_get: true` + `allow_downgrade: true` under controlled change-management, and add an allowlist entry via `nosec: apt_force_flag_true reason=\"<JIRA-ID>: reverting CVE-2025-XXX regression\"`. Prefer fixing the underlying version pin in your Ansible variables or APT pin-priority file (`/etc/apt/preferences.d/`)."
     cwe: ['CWE-345', 'CWE-494', 'CWE-1395']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1078', 'T1195.002']
     cis_controls: ['CIS-2.2', 'CIS-2.6']
     nist_controls: ['CM-7', 'CM-11', 'SI-7']
@@ -2616,7 +2616,7 @@ patterns:
     recommendation: "Remove `validate_certs: false` from every yum task. If your internal mirror genuinely uses a self-signed cert, distribute the CA bundle via `ansible.builtin.copy` into `/etc/pki/ca-trust/source/anchors/` + `ansible.builtin.command: update-ca-trust` - never disable validation. Pair with GPG validation (`disable_gpg_check: false`, which is the default) and pin repos with `gpgcheck=1` + `repo_gpgcheck=1` in the `.repo` file."
     cwe: ['CWE-295', 'CWE-345', 'CWE-494']
     owasp_appsec: ["A07:2021", "A08:2021"]
-    owasp_asvs: ["V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.3.4, V15.2.4]
     mitre_attack: ['T1195.002', 'T1557']
     cis_controls: ['CIS-2.2', 'CIS-2.6']
     nist_controls: ['SC-8', 'SC-8(1)', 'SI-7']
@@ -2640,7 +2640,7 @@ patterns:
     recommendation: "Remove `sslverify: false` from yum tasks. For self-signed internal mirrors: distribute the CA bundle to `/etc/pki/ca-trust/source/anchors/` and run `update-ca-trust`. Audit existing hosts with `ansible -m shell -a 'grep -rE \"^sslverify\\s*=\\s*0\" /etc/yum.repos.d/'`."
     cwe: ['CWE-295', 'CWE-345', 'CWE-494']
     owasp_appsec: ["A07:2021", "A08:2021"]
-    owasp_asvs: ["V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.3.4, V15.2.4]
     mitre_attack: ['T1195.002', 'T1557']
     cis_controls: ['CIS-2.2', 'CIS-2.6']
     nist_controls: ['SC-8', 'SC-8(1)', 'SI-7']
@@ -2665,7 +2665,7 @@ patterns:
     recommendation: "Remove `disable_gpg_check: true`. If you genuinely need to install a pre-signed internal RPM, import the vendor GPG key first via `ansible.builtin.rpm_key: {key: https://.../RPM-GPG-KEY-..., state: present}`, then run the install with the default (`disable_gpg_check: false`). Audit existing hosts' `/etc/dnf/dnf.conf` + `/etc/yum.repos.d/*.repo` for `gpgcheck=0` drift."
     cwe: ['CWE-345', 'CWE-347', 'CWE-494']
     owasp_appsec: ["A02:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1553.002']
     cis_controls: ['CIS-2.2', 'CIS-2.6']
     nist_controls: ['CM-5(3)', 'SI-7']
@@ -2689,7 +2689,7 @@ patterns:
     recommendation: "Remove `validate_certs: false`. For self-signed internal mirrors: distribute the CA to `/etc/pki/ca-trust/source/anchors/` + run `update-ca-trust`. Pair with `disable_gpg_check: false` (default) and `repo_gpgcheck=1` in the repo config."
     cwe: ['CWE-295', 'CWE-345', 'CWE-494']
     owasp_appsec: ["A07:2021", "A08:2021"]
-    owasp_asvs: ["V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.3.4, V15.2.4]
     mitre_attack: ['T1195.002', 'T1557']
     cis_controls: ['CIS-2.2', 'CIS-2.6']
     nist_controls: ['SC-8', 'SC-8(1)', 'SI-7']
@@ -2713,7 +2713,7 @@ patterns:
     recommendation: "Remove `sslverify: false`. Trust self-signed mirror CAs via the system trust store (`/etc/pki/ca-trust/source/anchors/` + `update-ca-trust`). Audit via `ansible -m shell -a 'grep -rE \"^sslverify\\s*=\\s*0\" /etc/yum.repos.d/'`."
     cwe: ['CWE-295', 'CWE-345', 'CWE-494']
     owasp_appsec: ["A07:2021", "A08:2021"]
-    owasp_asvs: ["V9.2.1", "V10.3.1", "V10.3.2"]
+    owasp_asvs: [V12.3.4, V15.2.4]
     mitre_attack: ['T1195.002', 'T1557']
     cis_controls: ['CIS-2.2', 'CIS-2.6']
     nist_controls: ['SC-8', 'SC-8(1)', 'SI-7']
@@ -2746,7 +2746,7 @@ patterns:
     recommendation: "Sign every internally-published collection with a project-owned GPG key (`ansible-galaxy collection build` + `gpg --armor --detach-sign -o artifact.tar.gz.asc artifact.tar.gz`), upload both the tarball and `.asc` to Automation Hub / internal pulp-ansible, then reference the signature from requirements.yml: `- name: myorg.infra\\n  version: 1.4.2\\n  source: https://hub.myorg.com/api/galaxy/\\n  signatures:\\n    - https://hub.myorg.com/.../artifact.tar.gz.asc`. Set `keyring: ~/.ansible/pubring.kbx` (or a project-local path) at the top of requirements.yml and commit the public key alongside. In CI, run `ansible-galaxy collection install -r requirements.yml --signature-count-required 1 --keyring <path>` - fail the build on any missing or invalid signature. For public Galaxy content you don't control, vendor the tarballs into your own Automation Hub / private pulp mirror and re-sign there."
     cwe: ['CWE-345', 'CWE-494', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2", "V14.2.3"]
+    owasp_asvs: [V15.2.4, V3.6.1]
     mitre_attack: ['T1195.001', 'T1195.002']
     cis_controls: ['CIS-2.2', 'CIS-16.1']
     nist_controls: ['CM-14', 'SI-7', 'SI-7(1)', 'SR-11']
@@ -2767,7 +2767,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-312', 'CWE-532', 'CWE-598']
     owasp_appsec: ["A07:2021", "A09:2021"]
-    owasp_asvs: ["V2.1.1", "V7.1.1", "V8.3.1"]
+    owasp_asvs: [V6.2.1, V16.2.5, V14.2.1]
     mitre_attack: ['T1552.001', 'T1552.004']
     cis_controls: ['CIS-3.11', 'CIS-8.2']
     nist_controls: ['AU-9', 'IA-5', 'SC-8']

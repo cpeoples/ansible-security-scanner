@@ -182,7 +182,7 @@ patterns:
 
     cwe: ["CWE-798"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ["T1098.001"]
     cis_controls: ["CIS-6.2.1"]
     nist_controls: ['IA-5', 'IA-5(7)']
@@ -244,7 +244,7 @@ patterns:
 
     cwe: ["CWE-798"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ["T1552.001"]
     cis_controls: ["CIS-Secrets"]
     nist_controls: ['IA-5', 'IA-5(7)', 'SC-28']
@@ -287,7 +287,7 @@ patterns:
     recommendation: "Use workload identity or attached service accounts instead of key files"
     cwe: ["CWE-798"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ["T1552.001"]
     cis_controls: ["CIS-Secrets"]
     nist_controls: ['IA-5', 'IA-5(7)', 'SC-28']
@@ -308,7 +308,7 @@ patterns:
 
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1552.005"]
     cis_controls: ["CIS-4.1"]
     nist_controls: ['CM-6', 'CM-7', 'IA-5(7)', 'SC-28']
@@ -355,7 +355,7 @@ patterns:
 
     cwe: ["CWE-798"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ["T1552.001"]
     cis_controls: ["CIS-Secrets"]
     nist_controls: ['IA-5', 'IA-5(7)', 'SC-28']
@@ -378,7 +378,7 @@ patterns:
 
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1552.005"]
     cis_controls: ["CIS-4.1"]
     nist_controls: ['CM-6', 'CM-7', 'IA-5(7)', 'SC-28']
@@ -416,7 +416,7 @@ patterns:
     recommendation: "Manage Kubernetes secrets through sealed-secrets, external-secrets, or Vault"
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1552.007"]
     cis_controls: ["CIS-Secrets"]
     nist_controls: ['IA-5(7)', 'SC-28']
@@ -435,7 +435,7 @@ patterns:
     recommendation: "Deploy workloads through approved manifests and Helm charts, not ad-hoc kubectl run"
 
     cwe: ["CWE-250"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ["T1611"]
     cis_controls: ["CIS-K8s-5.2.1"]
     nist_controls: ['AC-6', 'AC-6(1)']
@@ -477,7 +477,7 @@ patterns:
     recommendation: "Use Vault agent auto-auth or AppRole; never embed tokens in playbooks"
     cwe: ["CWE-798"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ["T1552.001"]
     cis_controls: ["CIS-Secrets"]
     nist_controls: ['IA-5', 'IA-5(7)', 'SC-28']
@@ -497,7 +497,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1552.001"]
     cis_controls: ["CIS-Secrets"]
     nist_controls: ['IA-5(7)', 'SC-28']
@@ -578,7 +578,7 @@ patterns:
     recommendation: "Use the execution environment's credential chain; do not extract secrets in playbooks"
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1552.007"]
     cis_controls: ["CIS-Secrets"]
     nist_controls: ['IA-5(7)', 'SC-28']
@@ -616,7 +616,7 @@ patterns:
 
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1552.001"]
     cis_controls: ["CIS-Secrets"]
     nist_controls: ['IA-5(7)', 'SC-28']
@@ -639,7 +639,7 @@ patterns:
 
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1552.001"]
     cis_controls: ["CIS-Secrets"]
     nist_controls: ['IA-5(7)', 'SC-28']
@@ -725,7 +725,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1552.001"]
     cis_controls: ["CIS-6.8"]
     nist_controls: ['AC-2', 'AC-3', 'IA-5(7)', 'SC-28']
@@ -746,7 +746,7 @@ patterns:
 
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1078.004"]
     cis_controls: ["CIS-16.1"]
     nist_controls: ['IA-5(7)', 'SA-11', 'SA-15', 'SC-28']
@@ -805,7 +805,7 @@ patterns:
     no_ansible_remediation: true
 
     cwe: ["CWE-732"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ["T1562.007"]
     cis_controls: ["CIS-12.2"]
     nist_controls: ['AC-3', 'AC-6']
@@ -827,7 +827,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ["T1562.008"]
     cis_controls: ["CIS-8.2"]
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -884,7 +884,7 @@ patterns:
 
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ["T1562.006"]
     cis_controls: ["CIS-8.11"]
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -956,7 +956,7 @@ patterns:
       - "privileged: true"
     recommendation: "Never run containers in privileged mode; use specific capabilities instead"
     cwe: ["CWE-250"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ["T1611"]
     cis_controls: ["CIS-Docker"]
     nist_controls: ['AC-6', 'AC-6(1)']
@@ -990,7 +990,7 @@ patterns:
       - "docker run --rm --privileged -v $(PWD):/mnt:z -v $(HOME)/.kube:/.kube -v /var/run/docker.sock:/var/run/docker.sock -u $(USER) docker.io/ansibleplaybookbundle/apb-tools:latest prepare"
     recommendation: "Never mount sensitive host directories into containers"
     cwe: ["CWE-732"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ["T1611"]
     cis_controls: ["CIS-Docker"]
     nist_controls: ['AC-3', 'AC-6']
@@ -1053,7 +1053,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-200"]
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ["T1041"]
     cis_controls: ["CIS-3.3"]
     nist_controls: ['AC-3', 'AC-6', 'SC-28']
@@ -1072,7 +1072,7 @@ patterns:
     recommendation: "Resource lifecycle should be managed through GitOps or Helm, not ad-hoc kubectl delete"
     no_ansible_remediation: true
     cwe: ["CWE-732"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ["T1485"]
     cis_controls: ["CIS-K8s-5.2.1"]
     nist_controls: ['AC-3', 'AC-6']
@@ -1091,7 +1091,7 @@ patterns:
     recommendation: "Use an internal Helm chart registry with signature verification"
     cwe: ["CWE-829"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ["T1195.002"]
     cis_controls: ["CIS-Supply-Chain"]
     nist_controls: ['CM-11', 'SA-10', 'SI-7']
@@ -1158,7 +1158,7 @@ patterns:
     recommendation: "Use workload identity with scoped IAM; do not extract secrets via gcloud CLI"
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1552.007"]
     cis_controls: ["CIS-Secrets"]
     nist_controls: ['IA-5(7)', 'SC-28']
@@ -1181,7 +1181,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1552.001"]
     cis_controls: ["CIS-Secrets"]
     nist_controls: ['IA-5(7)', 'SC-28']
@@ -1202,7 +1202,7 @@ patterns:
 
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ["T1562.008"]
     cis_controls: ["CIS-8.2"]
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -1226,7 +1226,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1552.007"]
     cis_controls: ["CIS-Secrets"]
     nist_controls: ['IA-5(7)', 'SC-28']
@@ -1268,7 +1268,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
     mitre_attack: ["T1525"]
     cis_controls: ["CIS-16.1"]
     nist_controls: ['IA-5(7)', 'SA-11', 'SA-15', 'SC-28']
@@ -1292,7 +1292,7 @@ patterns:
 
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ["T1562.008"]
     cis_controls: ["CIS-8.2"]
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -1456,7 +1456,7 @@ patterns:
     no_ansible_remediation: true
 
     cwe: ["CWE-732"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ["T1485"]
     cis_controls: ["CIS-3.3"]
     nist_controls: ['AC-3', 'AC-6']
@@ -1479,7 +1479,7 @@ patterns:
 
     cwe: ["CWE-200"]
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ["T1580"]
     cis_controls: ["CIS-8.2"]
     nist_controls: ['AC-3', 'AU-2', 'AU-12', 'SC-28']
@@ -1503,7 +1503,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ["T1562.008"]
     cis_controls: ["CIS-8.2"]
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -1523,7 +1523,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ["T1070"]
     cis_controls: ["CIS-8.2"]
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -1587,7 +1587,7 @@ patterns:
 
     cwe: ["CWE-200"]
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ["T1087.004"]
     cis_controls: ["CIS-8.2"]
     nist_controls: ['AC-3', 'AU-2', 'AU-12', 'SC-28']
@@ -1609,7 +1609,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ["CWE-494"]
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1648"]
     cis_controls: ["CIS-4.1"]
     nist_controls: ['CM-5', 'CM-6', 'CM-7', 'SI-7']
@@ -1653,7 +1653,7 @@ patterns:
     recommendation: "Enumerate the minimum required actions and resources; use `aws iam simulate-principal-policy` to validate. Attach an explicit permission boundary to cap blast radius. Prefer AWS managed policies + service-linked roles over hand-written wildcards."
     cwe: ["CWE-269", "CWE-732"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ["T1098.003", "T1484.002"]
     cis_controls: ["CIS-3.3", "CIS-6.8"]
     nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
@@ -1672,7 +1672,7 @@ patterns:
     recommendation: "Scope Principal to a specific AWS account, IAM user/role ARN, or federated identity provider. If cross-account access is needed, add a Condition with `aws:PrincipalOrgID` or a required `sts:ExternalId`. Review trust policies with `aws iam get-role --role-name X`."
     cwe: ["CWE-284", "CWE-287"]
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ["T1078.004", "T1199"]
     cis_controls: ["CIS-6.8"]
     nist_controls: ['AC-2', 'AC-3', 'AC-6']
@@ -1691,7 +1691,7 @@ patterns:
     recommendation: "Scope PassRole to specific role ARNs (`arn:aws:iam::*:role/app-worker-*`). Add a `iam:PassedToService` condition to limit which AWS services can receive the role. Audit with `aws iam simulate-principal-policy --action-names iam:PassRole`."
     cwe: ["CWE-269", "CWE-732"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ["T1098.003", "T1548.005"]
     cis_controls: ["CIS-3.3", "CIS-6.8"]
     nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
@@ -1712,7 +1712,7 @@ patterns:
     recommendation: "Add a `StringEquals` or `StringLike` condition on `token.actions.githubusercontent.com:sub` (e.g. `repo:acme/infra:ref:refs/heads/main`) and `:aud` (sts.amazonaws.com). For Cognito, pin `cognito-identity.amazonaws.com:amr`. Never leave an OIDC trust policy with only a Federated principal and no sub/aud condition."
     cwe: ["CWE-284", "CWE-287"]
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ["T1199", "T1550.001"]
     cis_controls: ["CIS-6.8"]
     nist_controls: ['AC-2', 'AC-3', 'AC-6']
@@ -1731,7 +1731,7 @@ patterns:
     recommendation: "Keep all four Block Public Access settings = true at both the account and bucket level (aws s3api put-public-access-block). Use presigned URLs or CloudFront+OAC for legitimate public distribution. Enable `aws_s3_bucket_ownership_controls: BucketOwnerEnforced` to disable ACLs entirely."
     cwe: ["CWE-200", "CWE-732"]
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1", "V12.4.1"]
+    owasp_asvs: [V14.2.2, V5.3.1]
     mitre_attack: ["T1530", "T1580"]
     cis_controls: ["CIS-3.3", "CIS-3.11"]
     nist_controls: ['AC-3', 'AC-6', 'SC-28']
@@ -1750,7 +1750,7 @@ patterns:
     recommendation: "Never grant roles to allUsers or allAuthenticatedUsers on production projects. Enable the `iam.allowedPolicyMemberDomains` Organization Policy constraint to block these bindings at the org level. For public content, use signed URLs or Cloud CDN."
     cwe: ["CWE-284", "CWE-732"]
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ["T1098.003", "T1530"]
     cis_controls: ["CIS-3.3", "CIS-6.8"]
     nist_controls: ['AC-2', 'AC-3', 'AC-6']
@@ -1769,7 +1769,7 @@ patterns:
     recommendation: "Scope Owner assignments to a specific resource group or resource, never a subscription or management group. Use Privileged Identity Management (PIM) for time-bound, approval-required Owner grants. Prefer a custom role scoped to the actual required actions over the built-in Owner."
     cwe: ["CWE-269", "CWE-732"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ["T1078.004", "T1098.003"]
     cis_controls: ["CIS-5.4", "CIS-6.8"]
     nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)']
@@ -1792,7 +1792,7 @@ patterns:
     recommendation: "Create scoped permission sets (e.g. `EC2-Operator`, `S3-ReadOnly-AuditTeam`). Use AWS-managed policies as a starting point but override with inline session policies or a permissions boundary. Require MFA + break-glass workflow for AdministratorAccess; assign per-account rather than org-wide via Identity Center groups + account-assignment automation."
     cwe: ["CWE-269", "CWE-732"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ["T1078.004", "T1098.003"]
     cis_controls: ["CIS-6.1", "CIS-6.8"]
     nist_controls: ["AC-3", "AC-6", "AC-6(1)"]
@@ -1812,7 +1812,7 @@ patterns:
     recommendation: "Always set `ThumbprintList` to the current EKS OIDC root CA thumbprint. Automate rotation: AWS provides `aws eks describe-cluster --query 'cluster.identity.oidc.issuer'` + openssl to compute the thumbprint. Better: enable EKS Pod Identity (launched 2023) which doesn't require a customer-managed OIDC provider at all."
     cwe: ["CWE-295", "CWE-345"]
     owasp_appsec: ["A07:2021", "A08:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
     mitre_attack: ["T1528", "T1550.001"]
     cis_controls: ["CIS-6.1"]
     nist_controls: ["IA-5", "SC-8", "SC-12"]
@@ -1832,7 +1832,7 @@ patterns:
     recommendation: "Create per-workload GSAs with least-privilege roles (`roles/storage.objectViewer` scoped to one bucket, not project-level). Never grant `roles/owner` or `roles/editor` to a KSA binding. Use GKE Workload Identity federation (not per-node service account impersonation). Audit via `gcloud projects get-iam-policy` + `gcloud iam service-accounts get-iam-policy`."
     cwe: ["CWE-269", "CWE-732"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ["T1078.004", "T1098.003"]
     cis_controls: ["CIS-6.1", "CIS-K8s-5.1.5"]
     nist_controls: ["AC-3", "AC-6", "AC-6(1)"]
@@ -1852,7 +1852,7 @@ patterns:
     recommendation: "Scope managed-identity role assignments to the smallest possible resource (single storage account, single key-vault), not the subscription. Use Azure built-in roles with narrow scope (`Storage Blob Data Reader`) or create custom roles. For AKS, prefer federated Workload Identity + per-workload UAMIs over a single shared identity for the cluster."
     cwe: ["CWE-269", "CWE-732"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ["T1078.004"]
     cis_controls: ["CIS-6.1"]
     nist_controls: ["AC-3", "AC-6", "AC-6(1)"]
@@ -1872,7 +1872,7 @@ patterns:
     recommendation: "KMS key policies MUST scope Principal to specific IAM role/user ARNs (or cross-account ARNs) - never `\"*\"`. Use condition blocks to further scope: `\"Condition\": { \"StringEquals\": { \"kms:ViaService\": \"s3.us-east-1.amazonaws.com\", \"kms:CallerAccount\": \"111122223333\" } }`. Audit existing keys with `aws kms list-keys` + `aws kms get-key-policy` and remediate via `aws kms put-key-policy`. For cross-account access use KMS grants (`aws kms create-grant`) which are auditable and revocable, not wildcard key policies."
     cwe: ['CWE-269', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1078.004', 'T1552.005', 'T1580']
     cis_controls: ['CIS-3.11', 'CIS-5.4', 'CIS-6.8']
     nist_controls: ['AC-3', 'AC-6', 'SC-12', 'SC-28']
@@ -1915,7 +1915,7 @@ patterns:
     recommendation: "Grant privileged Azure roles ONLY via PIM as eligible assignments, not permanent active assignments. Use `New-AzRoleAssignmentScheduleRequest -AssignmentType Eligible -ScheduleInfo @{...maxDuration='P8H'...}` (PowerShell Az.Resources 6.x+) or `az role assignment create --assignee ... --role ... --scope ... --condition-version '2.0' --condition ...`. For Entra ID directory roles, use `Open-AzureADMSPrivilegedRoleAssignmentRequest -Type AdminAssign -AssignmentState Eligible`. Require MFA + justification on activation via PIM access-review policies. Audit existing permanent assignments with `Get-AzRoleAssignment` filtered against PIM-eligible lists."
     cwe: ['CWE-269', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1078.004', 'T1098', 'T1484.002']
     cis_controls: ['CIS-3.3', 'CIS-5.4', 'CIS-6.8']
     nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(7)', 'IA-2']
@@ -1936,7 +1936,7 @@ patterns:
     recommendation: "Always set a narrow `--attribute-condition` that pins at minimum the repository (for GitHub) / project (for GitLab) / subject claim: `--attribute-condition='assertion.repository==\"myorg/myrepo\" && assertion.ref==\"refs/heads/main\"'`. Further restrict with `--allowed-audiences=https://iam.googleapis.com/projects/.../providers/...`. Audit every existing provider with `gcloud iam workload-identity-pools providers describe` and add conditions retroactively; remove any provider whose condition is empty or matches `.*`."
     cwe: ['CWE-284', 'CWE-287', 'CWE-346']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078.004', 'T1199', 'T1550.001']
     cis_controls: ['CIS-3.11', 'CIS-5.4', 'CIS-6.8']
     nist_controls: ['AC-3', 'AC-4', 'IA-2', 'IA-8']
@@ -1957,7 +1957,7 @@ patterns:
     recommendation: "Conditional-Access exclusions MUST be narrow: at most 2 named break-glass accounts (stored in an HSM-backed password-vault, 12-month audit-review cycle) - never 'All', 'GuestsOrExternalUsers', or any tenant-wide group. Enforce via Entra Workload Identity PIM on the `Conditional Access Administrator` role (PIM-eligible only, not permanent). Monitor CA-policy changes via Unified Audit Log event `Update conditional access policy` forwarded to Sentinel with a critical-severity alert on any `excludeUsers` widening. Periodically review via `Get-MgIdentityConditionalAccessPolicy | Where {$_.Conditions.Users.ExcludeUsers -contains 'All'}`."
     cwe: ['CWE-284', 'CWE-287', 'CWE-732']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V12.4.1"]
+    owasp_asvs: [V6.2.1, V5.3.1]
     mitre_attack: ['T1078.004', 'T1098.005', 'T1556.006']
     cis_controls: ['CIS-3.3', 'CIS-5.4', 'CIS-6.5']
     nist_controls: ['AC-3', 'AC-6', 'IA-2(1)', 'IA-5(2)']
@@ -1978,7 +1978,7 @@ patterns:
     recommendation: "Every Okta Sign-On policy rule applied to an admin group MUST: (1) set `actions.signon.requireFactor: true` with `factorRequirement` including at least one phishing-resistant factor (`FIDO2`, `WebAuthn`, `YubiKey`), (2) pin `conditions.network.connection: ZONE` with a specific corporate-IP zone (never `ANYWHERE`), (3) set `actions.signon.session.maxSessionLifetimeMinutes ≤ 480`, (4) require `actions.signon.session.usePersistentCookie: false`. Audit existing rules via `okta policies list --type OKTA_SIGN_ON` -> for each policy, `okta policies rules list <policy-id>` and red-flag any rule with `requireFactor=false` OR `network=ANYWHERE` on an admin group."
     cwe: ['CWE-287', 'CWE-306', 'CWE-308']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078.004', 'T1556.006', 'T1621']
     cis_controls: ['CIS-3.3', 'CIS-6.5', 'CIS-6.8']
     nist_controls: ['AC-17', 'IA-2', 'IA-2(1)', 'IA-2(2)']
@@ -2002,7 +2002,7 @@ patterns:
     recommendation: "Enable BlockPublicAccess at the ACCOUNT level (idempotent, covers all buckets): `aws s3control put-public-access-block --account-id <acct> --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true`. For per-bucket policies, use resource-based IAM with specific principals - never canned-ACL public. For CDN-style public serving, put the bucket behind CloudFront with Origin Access Control (OAC) so the bucket itself stays private. Audit: `aws s3api get-bucket-acl --bucket <b> | jq '.Grants[].Grantee.URI'` - any match on `http://acs.amazonaws.com/groups/global/(AllUsers|AuthenticatedUsers)` is an immediate finding. Enforce via SCP: `s3:PutBucketAcl` denied when `s3:x-amz-acl IN [public-read,public-read-write,authenticated-read]`."
     cwe: ['CWE-200', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1", "V12.4.1"]
+    owasp_asvs: [V14.2.2, V5.3.1]
     mitre_attack: ['T1078.004', 'T1530', 'T1580']
     cis_controls: ['CIS-3.3', 'CIS-3.7', 'CIS-11.2']
     nist_controls: ['AC-3', 'AC-6', 'SC-7']
@@ -2023,7 +2023,7 @@ patterns:
     recommendation: "Enable Uniform Bucket-Level Access (UBLA): `gcloud storage buckets update gs://<bucket> --uniform-bucket-level-access` - this eliminates per-object ACLs and forces all access through IAM. Set org-constraint `constraints/storage.publicAccessPrevention = enforced` at the org level - prevents ANY bucket from becoming publicly accessible. For legitimate public CDN-style hosting, use a dedicated project with `enforced` off ONLY on the one bucket + Cloud CDN in front. Never grant write roles to `allUsers`. Audit: `gcloud projects get-iam-policy <proj> --flatten='bindings[].members' --filter='bindings.members~allUsers' --format='value(bindings.role)'` - any row with `storage.*` is immediate remediation. Alert on Cloud Audit Logs `methodName=storage.setIamPermissions` with `allUsers`/`allAuthenticatedUsers` in the new policy."
     cwe: ['CWE-200', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1", "V12.4.1"]
+    owasp_asvs: [V14.2.2, V5.3.1]
     mitre_attack: ['T1530', 'T1580']
     cis_controls: ['CIS-3.3', 'CIS-3.7', 'CIS-11.2']
     nist_controls: ['AC-3', 'AC-6', 'SC-7']
@@ -2047,7 +2047,7 @@ patterns:
     recommendation: "Set `publicAccess = None` (alias: `private`) for all production containers. At the storage-account level, set `allowBlobPublicAccess = false` - this is a HARD block regardless of container setting. Enforce via Azure Policy `Storage accounts should disallow public access` (`id=/providers/Microsoft.Authorization/policyDefinitions/4fa4b6c0-31ca-4c0d-b10d-24b96f62a751`) at Management Group scope with `Deny` effect. For legitimate public content, use Azure Front Door + Private Link origin - the storage stays private. Alert on `Microsoft.Storage/storageAccounts/blobServices/containers/write` Activity Log events where the new `publicAccess` value is not `None`. Audit: `az storage container list --account-name <acct> --query '[].{name:name,public:properties.publicAccess}'`."
     cwe: ['CWE-200', 'CWE-284', 'CWE-306']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V8.1.1"]
+    owasp_asvs: [V6.2.1, V14.2.2]
     mitre_attack: ['T1530', 'T1580']
     cis_controls: ['CIS-3.3', 'CIS-3.7', 'CIS-11.2']
     nist_controls: ['AC-3', 'AC-6', 'SC-7']
@@ -2070,7 +2070,7 @@ patterns:
     recommendation: "Never combine `rw` with `no_root_squash`. For an export that legitimately needs root-write (e.g. a backup target pulling from clients), use `rw,root_squash,all_squash,anonuid=<backup-uid>,anongid=<backup-gid>` - root on clients maps to a low-priv user on the server. Prefer `sec=krb5p` (Kerberos with privacy) over AUTH_SYS for any inter-host NFS - this cryptographically authenticates clients, making UID-spoofing impossible. For shared-compute HPC clusters that need root access to a scratch volume, export `rw,no_root_squash` to specific IP CIDRs only (never `*`), and put the NFS server on a dedicated management VLAN. Audit `/etc/exports` + `exportfs -v` for any `no_root_squash` - treat each as compliance-review required."
     cwe: ['CWE-250', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1021.001', 'T1068', 'T1078.003']
     cis_controls: ['CIS-3.3', 'CIS-4.4', 'CIS-12.6']
     nist_controls: ['AC-3', 'AC-6', 'SC-7']
@@ -2091,7 +2091,7 @@ patterns:
     recommendation: "Set `server min protocol = SMB2_10` (minimum), `SMB3_00` (recommended), or `SMB3_11` (strict) in `/etc/samba/smb.conf`. Also set `server max protocol = SMB3_11`, `server signing = mandatory`, `smb encrypt = required`. Reload: `smbcontrol smbd reload-config`. Disable guest access: `map to guest = Never`, `guest ok = no`. For legacy SMB1-only clients (old scanners/copiers), do NOT weaken the whole server - put the legacy client behind an SMB1 -> SMB3 proxy (e.g. a dedicated Windows-Print-Server VM) or replace the client. Validate: `smbclient -L //localhost -U%  --option='client min protocol = SMB1'` should FAIL on a hardened server."
     cwe: ['CWE-311', 'CWE-326', 'CWE-327']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5", "V8.3.1", "V9.1.1"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1, V14.2.1, V12.2.1]
     mitre_attack: ['T1021.002', 'T1210', 'T1562.001']
     cis_controls: ['CIS-3.10', 'CIS-4.1', 'CIS-12.6']
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-13']
@@ -2115,7 +2115,7 @@ patterns:
     recommendation: "Set `publicly_accessible: false` for every RDS / Aurora / DocumentDB / Redshift instance. Place the DB in a PRIVATE subnet within a VPC with no IGW route. For developer access, use AWS VPN Client / AWS Client VPN / AWS SSM Session Manager port-forward (`aws ssm start-session --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters host=db.internal,portNumber=5432`). For cross-account consumer apps, use VPC Peering or PrivateLink endpoints - never public IP. Enforce via SCP: `rds:CreateDBInstance` / `rds:ModifyDBInstance` denied when `rds:PubliclyAccessible=true` except for a break-glass role. Audit: `aws rds describe-db-instances --query 'DBInstances[?PubliclyAccessible==\\`true\\`].[DBInstanceIdentifier,Endpoint.Address]'`. Rotate master-user credential immediately on any instance that was ever public + review CloudTrail for external IP connection attempts via `rds:DescribeDBInstances` audit trail."
     cwe: ['CWE-200', 'CWE-284', 'CWE-306']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V8.1.1"]
+    owasp_asvs: [V6.2.1, V14.2.2]
     mitre_attack: ['T1078.004', 'T1133', 'T1190']
     cis_controls: ['CIS-3.3', 'CIS-4.4', 'CIS-12.6']
     nist_controls: ['AC-3', 'AC-4', 'SC-7']
@@ -2139,7 +2139,7 @@ patterns:
     recommendation: "Set `encrypted: true` + `kms_key_id: <cmk-arn>` on every EBS volume. Enable account-wide default encryption: `aws ec2 enable-ebs-encryption-by-default --region <r>` + `aws ec2 modify-ebs-default-kms-key-id --kms-key-id <cmk-arn>`. Use a customer-managed KMS key (CMK) - not the AWS-managed default - so you control rotation + grant-policy + audit. For cross-account snapshot sharing, re-encrypt with the consumer account's KMS key: `aws ec2 copy-snapshot --encrypted --kms-key-id <consumer-cmk>`. Enforce via SCP: `ec2:CreateVolume` denied when `ec2:Encrypted=false`. Migrate existing unencrypted volumes: create encrypted snapshot -> restore -> detach old volume -> attach new. Audit: `aws ec2 describe-volumes --filters Name=encrypted,Values=false`."
     cwe: ['CWE-311', 'CWE-312', 'CWE-319']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V6.1.2", "V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.1.1, V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1005', 'T1530']
     cis_controls: ['CIS-3.10', 'CIS-3.11', 'CIS-14.6']
     nist_controls: ['MP-5', 'SC-28', 'SC-28(1)']
@@ -2160,7 +2160,7 @@ patterns:
     recommendation: "Set `AuthType: AWS_IAM` for every Function URL - this requires the caller to present SigV4-signed requests with an IAM principal that has `lambda:InvokeFunctionUrl`. For public APIs, use API Gateway with a Cognito/Lambda authorizer instead of Function URL with AuthType=NONE - it provides rate-limiting, request-validation, WAF integration, and better audit trail. For internal cross-account invoke, use Lambda Invoke API (not Function URL) + resource-based policy with specific principals. If you MUST have unauthenticated public access (e.g. webhook receiver), add AWS WAF in front + strict request validation + DLQ/throttling + X-Ray for post-hoc forensics. Enforce via SCP: `lambda:CreateFunctionUrlConfig` / `lambda:UpdateFunctionUrlConfig` denied when `lambda:FunctionUrlAuthType=NONE`. Audit: `aws lambda list-function-url-configs --function-name <fn> --query 'FunctionUrlConfigs[?AuthType==\\`NONE\\`]'`."
     cwe: ['CWE-284', 'CWE-306', 'CWE-862']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078.004', 'T1133', 'T1190']
     cis_controls: ['CIS-3.3', 'CIS-4.7', 'CIS-12.6']
     nist_controls: ['AC-3', 'AC-6', 'IA-2']
@@ -2181,7 +2181,7 @@ patterns:
     recommendation: "Set `authorization_type: AWS_IAM` (service-to-service) or `COGNITO_USER_POOLS` (user-facing) or `JWT` (HTTP API + OIDC IdP) for every production route. For OPTIONS preflight CORS, NONE is acceptable IF you validate `Origin` server-side. Never leave NONE on POST/PUT/DELETE. Add AWS WAF in front for request-rate-limiting + OWASP rule-set + geo-filtering. Use the API Gateway usage-plan feature with API keys for per-consumer quota. Enforce via AWS Config rule `api-gw-endpoint-authorization-not-none`. Audit: `aws apigatewayv2 get-routes --api-id <id> --query 'Items[?AuthorizationType==\\`NONE\\` && RouteKey!=\\`OPTIONS \\`]'`."
     cwe: ['CWE-284', 'CWE-306', 'CWE-862']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1133', 'T1190']
     cis_controls: ['CIS-3.3', 'CIS-4.7']
     nist_controls: ['AC-3', 'AC-6', 'IA-2']
@@ -2202,7 +2202,7 @@ patterns:
     recommendation: "Never allow 0.0.0.0/0 inbound on 22/3389. For admin access, use Azure Bastion (`Microsoft.Network/bastionHosts`) - TLS-terminated SSH/RDP through the Azure portal with no public IP on the VM. For automation, use Azure Arc + agent-initiated connectivity (no inbound firewall changes). For break-glass, use Just-in-Time VM Access (`Microsoft.Security/locations/jitNetworkAccessPolicies`) which opens the port only for 3 hours with source-IP restriction. Enforce via Azure Policy `[Preview] Management ports should be closed on your virtual machines` (id `22730e10-96f6-4aac-ad84-9383d35b5917`) with `Deny` effect. Audit: `az network nsg rule list --nsg-name <nsg> --query \"[?access=='Allow' && direction=='Inbound' && (sourceAddressPrefix=='*' || sourceAddressPrefix=='0.0.0.0/0' || sourceAddressPrefix=='Internet')]\"`. Rotate any VM admin credentials that were ever exposed + enable Azure AD login for VMs."
     cwe: ['CWE-284', 'CWE-306', 'CWE-862']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078.004', 'T1133', 'T1190']
     cis_controls: ['CIS-3.3', 'CIS-4.4', 'CIS-12.6']
     nist_controls: ['AC-3', 'AC-4', 'SC-7']
@@ -2239,7 +2239,7 @@ patterns:
     recommendation: "Delete or restrict the `default-allow-ssh` / `default-allow-rdp` rules in every new GCP project. For admin access, use Google IAP (Identity-Aware Proxy) TCP forwarding: `gcloud compute ssh <vm> --tunnel-through-iap` - the VM needs no public IP; IAP enforces IAM-based access control + Google-managed TLS. Enforce via Organization Policy `constraints/compute.vmExternalIpAccess = Deny` (no external IPs on VMs) + `constraints/compute.skipDefaultNetworkCreation = Enforce` (no default VPC with permissive rules). For temporary exceptions, scope source_ranges to your corporate egress CIDR only (obtainable via `dig TXT _spf.<yourdomain>` or your VPN egress range). Audit: `gcloud compute firewall-rules list --filter='sourceRanges:0.0.0.0/0 AND (allowed.ports:22 OR allowed.ports:3389)'`. Enable VPC Flow Logs + alert on any unauthenticated SSH auth failure sequence."
     cwe: ['CWE-284', 'CWE-306', 'CWE-862']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078.004', 'T1133', 'T1190']
     cis_controls: ['CIS-3.3', 'CIS-4.4', 'CIS-12.6']
     nist_controls: ['AC-3', 'AC-4', 'SC-7']
@@ -2261,7 +2261,7 @@ patterns:
     cwe: ['CWE-200', 'CWE-284', 'CWE-306']
     cve: ["CVE-2024-42478"]
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V8.1.1"]
+    owasp_asvs: [V6.2.1, V14.2.2]
     mitre_attack: ['T1133', 'T1190', 'T1587.001']
     cis_controls: ['CIS-3.3', 'CIS-4.7', 'CIS-12.6']
     nist_controls: ['AC-3', 'IA-2', 'SC-7']
@@ -2282,7 +2282,7 @@ patterns:
     recommendation: "Enable authentication on every vector DB. Weaviate: set `AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=false` + `AUTHENTICATION_APIKEY_ENABLED=true` + `AUTHENTICATION_APIKEY_ALLOWED_KEYS=<from-vault>` + `AUTHORIZATION_ADMINLIST_ENABLED=true` + `AUTHORIZATION_ADMINLIST_USERS=admin@corp.example.com`. Qdrant: `service.api_key: <from-vault>` + enable TLS (`service.enable_tls: true`). Milvus: `common.security.authorizationEnabled: true` + rotate the default root credential immediately + set `userConfig.rootCoord.tls.enabled: true`. Chroma: `CHROMA_SERVER_AUTHN_PROVIDER=chromadb.auth.basic_authn.BasicAuthenticationServerProvider` + `CHROMA_SERVER_AUTHN_CREDENTIALS_FILE=/etc/chroma/htpasswd`. For all: bind to 127.0.0.1 or a private k8s service + NetworkPolicy, NEVER 0.0.0.0 on a public-IP host. Audit: `curl -s http://<host>:<port>/v1/meta` (Weaviate), `/collections` (Qdrant) - any 2xx without auth is a finding. Rotate API keys + scrub collections if exposure confirmed."
     cwe: ['CWE-200', 'CWE-284', 'CWE-306']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1", "V8.1.1"]
+    owasp_asvs: [V6.2.1, V14.2.2]
     mitre_attack: ['T1133', 'T1190', 'T1530']
     cis_controls: ['CIS-3.3', 'CIS-4.7', 'CIS-14.4']
     nist_controls: ['IA-5', 'AC-3', 'IA-2', 'SC-28']
@@ -2303,7 +2303,7 @@ patterns:
     recommendation: "Default to stdio transport for MCP (in-process, per-user) - the protocol was designed as a per-session local pipe, not a networked service. If you MUST use SSE/HTTP transport (e.g. remote LLM gateway), require authentication: set `MCP_AUTH_TOKEN` to a Vault-sourced high-entropy bearer + validate on every request + bind to `127.0.0.1` or a private k8s service + put an authenticating proxy in front (Authelia/Pomerium/Cloudflare Access with OIDC). Restrict TOOLS exposed: never expose `run_shell`, `execute_sql`, `write_file` over network MCP - scope to read-only + narrow-domain tools. Rate-limit per-caller + log every tool invocation with structured args to a SIEM. For multi-tenant MCP, use per-tenant secrets + audit trail. Review `.cursor/mcp.json`, `claude_desktop_config.json`, `continue/config.json` for any MCP server with a URL (not a local command) - those are network-exposed. Monitor: tcpdump + ja4 signature for MCP traffic on unexpected ports. For servers found vulnerable, rotate `MCP_AUTH_TOKEN` + audit tool-call history for unauthorized invocations."
     cwe: ['CWE-78', 'CWE-284', 'CWE-306']
     owasp_appsec: ["A01:2021", "A03:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1059', 'T1133', 'T1190']
     cis_controls: ['CIS-3.3', 'CIS-4.7', 'CIS-16.2']
     nist_controls: ['AC-3', 'IA-2', 'SC-7']
@@ -2338,7 +2338,7 @@ patterns:
     recommendation: "Never create IAM Users with access keys or LoginProfile via IaC. Use IAM Roles + short-lived STS credentials: `AWS::IAM::Role` with a trust policy for the specific service principal (`ec2.amazonaws.com`, `lambda.amazonaws.com`, `eks.amazonaws.com`) and attach via Instance Profile / ServiceAccount / Service Role. For cross-account access, use `AssumeRole` with `ExternalId` and a ≤1-hour session duration. For CI/CD access, use **GitHub OIDC** / **GitLab OIDC** / **AWS IAM Identity Center** - no long-lived keys ever. For users who MUST have programmatic access (legacy tools), enforce: access-key-rotation via `aws iam update-access-key --status Inactive` + new-key after 90 days, MFA via `aws:MultiFactorAuthPresent = true` condition in all IAM policies. Preventive control: AWS Organizations SCP denying `iam:CreateUser` + `iam:CreateAccessKey` + `iam:CreateLoginProfile` for all member accounts except break-glass. Detective: Config rule `iam-user-no-policies-check` + `iam-user-mfa-enabled` + CloudTrail Insight alerting on `CreateUser`. Audit: `aws iam list-users --query 'Users[?PasswordLastUsed==null]'` - any 'console-enabled-but-unused' user is suspicious."
     cwe: ['CWE-284', 'CWE-732', 'CWE-798']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V12.4.1", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1, V5.3.1]
     mitre_attack: ['T1078.004', 'T1098.001', 'T1136.003']
     cis_controls: ['CIS-3.3', 'CIS-5.2', 'CIS-6.7']
     nist_controls: ['IA-5', 'AC-2', 'AC-2(7)', 'AC-6']
@@ -2367,7 +2367,7 @@ patterns:
     recommendation: "NEVER make AMIs, EBS snapshots, or RDS snapshots public. For legitimate cross-account sharing, share to **specific account IDs only**: `aws ec2 modify-image-attribute --image-id ami-xxx --launch-permission 'Add=[{UserId=\"123456789012\"}]'` (same for snapshots: `UserId` not `Group=all`). If a public AMI is legitimately required (open-source project's official image), pre-validate the AMI has ZERO sensitive contents via `aws ebs list-snapshot-blocks` + downstream scanning pipeline that checks for: SSH private keys, `.aws/credentials`, `.bash_history`, DB files, `shadow` file, Ansible Vault files - block publication if found. Organization-wide preventive control: AWS Organizations SCP denying `ec2:ModifyImageAttribute`, `ec2:ModifySnapshotAttribute`, `rds:ModifyDBSnapshotAttribute` when condition includes `Group=all` or `UserId=all`. Enable AWS Config rule `ec2-image-builder-public-ami` + `rds-snapshot-public-prohibited` + `ebs-snapshot-public-restorable-check`. Scan existing: `aws ec2 describe-images --owners self --executable-users all` + `aws ec2 describe-snapshots --owner-ids self --restorable-by-user-ids all` must return empty per-region. Un-publish any findings via the same modify-*-attribute commands with `Remove` instead of `Add`."
     cwe: ['CWE-200', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1", "V12.4.1"]
+    owasp_asvs: [V14.2.2, V5.3.1]
     mitre_attack: ['T1213', 'T1530', 'T1537']
     cis_controls: ['CIS-3.3', 'CIS-3.11', 'CIS-4.7']
     nist_controls: ['AC-3', 'AC-4', 'AC-24']
@@ -2388,7 +2388,7 @@ patterns:
     recommendation: "Never set `Principal: '*'` in an IAM role trust policy. Scope to the minimum set of trusted principals: a specific AWS account ARN (`arn:aws:iam::123456789012:root`), a specific IAM role/user ARN, or a federated identity provider (OIDC/SAML). If cross-account access is genuinely required with a partner, use a `Condition` with `sts:ExternalId` (a random per-partner secret) AND `aws:SourceAccount` AND (for AWS Organizations) `aws:PrincipalOrgID`. Audit: `aws iam list-roles --query 'Roles[?contains(to_string(AssumeRolePolicyDocument), `\\\"*\\\"`)]'`. Enable AWS IAM Access Analyzer to surface public/cross-account role access continuously."
     cwe: ['CWE-269', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1078.004', 'T1199', 'T1550.001']
     cis_controls: ['CIS-3.3', 'CIS-6.8', 'CIS-16.12']
     nist_controls: ['AC-2', 'AC-3', 'AC-6']
@@ -2409,7 +2409,7 @@ patterns:
     recommendation: "Require MFA on every privileged role trust policy: `Condition: { Bool: { 'aws:MultiFactorAuthPresent': 'true' }, NumericLessThan: { 'aws:MultiFactorAuthAge': '3600' } }`. For break-glass / emergency-access roles, require hardware MFA (`aws:MultiFactorAuthType: 'U2F'` or via SCP). Pair with `aws:PrincipalOrgID` to keep the trust within your organization. Eliminate long-lived IAM user access keys entirely - use IAM Identity Center (SSO) with short-lived credentials + MFA at the identity-provider layer. Audit: `aws iam generate-service-last-accessed-details` + AWS IAM Access Analyzer unused-access findings. Enable CloudTrail event-selector alerting on `sts:AssumeRole` calls without MFA for these role names."
     cwe: ['CWE-287', 'CWE-306', 'CWE-308']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078.004', 'T1556.006', 'T1621']
     cis_controls: ['CIS-6.5', 'CIS-6.8']
     nist_controls: ['AC-6', 'IA-2(1)', 'IA-2(2)']
@@ -2430,7 +2430,7 @@ patterns:
     recommendation: "Issue SAS tokens for ≤ 1 hour whenever possible (never > 7 days), scope to a specific blob/path - NOT an entire container or account - with the minimum permissions required (usually read-only for consumers, write-only for upload endpoints). Pin source IP ranges via `signedIp`. Prefer User Delegation SAS (signed by an Entra ID principal, revocable by disabling the principal) over Account SAS. For automation, use Managed Identity + RBAC role assignments instead of SAS entirely. Enable storage-account diagnostic logging and alert on SAS-signed operations, unusual source IPs, or sudden spikes in anonymous-looking reads. If a long-lived SAS is ever leaked, you MUST rotate both `key1` and `key2` storage-account keys to invalidate it; there is no other revocation mechanism."
     cwe: ['CWE-522', 'CWE-613', 'CWE-798']
     owasp_appsec: ["A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.1", "V2.10.2", "V2.10.4", "V6.2.1", "V14.1.5"]
+    owasp_asvs: [V13.2.1, V13.2.3, V13.3.1, V11.2.5]
     mitre_attack: ['T1078.004', 'T1537', 'T1552.001']
     cis_controls: ['CIS-3.3', 'CIS-6.5']
     nist_controls: ['AC-6', 'AC-12', 'IA-5']
@@ -2449,7 +2449,7 @@ patterns:
     recommendation: "Never embed Storage connection strings. Use Managed Identity + Entra ID RBAC (`Storage Blob Data Contributor`, scoped to the specific container) - no secrets live on disk. For external systems that truly need key-based auth, store the connection string in Azure Key Vault and fetch at runtime via Managed Identity; rotate both `key1` and `key2` at least every 90 days using automated key rotation. If a key is ever committed to git, push a new commit removing it, ROTATE BOTH KEYS IMMEDIATELY (the previous key does not expire on its own), and audit every request in storage diagnostic logs from the commit date forward for unexpected IPs / user-agents. Enable Microsoft Defender for Storage (malware scanning + sensitive-data threat detection) and storage-account firewall with selected-network or private-endpoint access only."
     cwe: ['CWE-312', 'CWE-522', 'CWE-798']
     owasp_appsec: ["A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.1", "V2.10.2", "V2.10.4", "V6.1.2", "V6.2.1", "V8.3.1", "V14.1.5"]
+    owasp_asvs: [V13.2.1, V13.2.3, V13.3.1, V14.1.1, V11.2.5, V14.2.1]
     mitre_attack: ['T1078.004', 'T1537', 'T1552.001']
     cis_controls: ['CIS-3.3', 'CIS-6.5', 'CIS-18.5']
     nist_controls: ['IA-5', 'SC-12', 'SC-28']
@@ -2470,7 +2470,7 @@ patterns:
     recommendation: "Never grant `iam:PassRole` on `Resource: '*'`. Scope it explicitly to the ARNs of pre-approved service roles: `Resource: ['arn:aws:iam::<acct>:role/lambda-exec-*', 'arn:aws:iam::<acct>:role/ecs-task-*']` and add `Condition: { StringEquals: { 'iam:PassedToService': ['lambda.amazonaws.com'] } }` so the role can only be passed to the intended service. Separately, put a permissions-boundary on every developer role that caps the roles they can create/pass (prevents `iam:CreateRole` + `PassRole` chained escalation). Audit existing grants with AWS IAM Access Analyzer 'external access' + 'unused access' findings; detect privilege escalation attempts with CloudTrail + GuardDuty `IAMUser/AnomalousBehavior.PassRoleGrantedAdministrativeAccess`."
     cwe: ['CWE-266', 'CWE-269', 'CWE-732']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1078.004', 'T1098.003', 'T1548.005']
     cis_controls: ['CIS-5.4', 'CIS-6.8']
     nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(5)']
@@ -2493,7 +2493,7 @@ patterns:
     recommendation: "Prefer Workload Identity Federation (for workloads outside GCP - GitHub Actions, AWS, on-prem, Azure) or Workload Identity (for GKE) over user-managed keys - both issue short-lived credentials via OIDC/SAML with no long-lived secret. If you absolutely must use an SA key, enable org policy `iam.disableServiceAccountKeyCreation` scoped to folders where it's not needed, set `iam.serviceAccountKeyExpiry` to ≤ 90 days via Key Access Justifications, store the JSON in Secret Manager (never in git), and rotate quarterly via `gcloud iam service-accounts keys create ... --rotate` + delete-old workflow. Detect existing keys with the `gcloud iam service-accounts keys list --managed-by=user` command and the Recommender API `google.iam.serviceAccountInsight`. Monitor for key usage anomalies with Cloud Audit Logs `serviceAccountKeyData.authenticate` and revoke on any foreign-IP hit."
     cwe: ['CWE-522', 'CWE-798', 'CWE-798']
     owasp_appsec: ["A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.1", "V2.10.2", "V2.10.4", "V6.2.1", "V14.1.5"]
+    owasp_asvs: [V13.2.1, V13.2.3, V13.3.1, V11.2.5]
     mitre_attack: ['T1078.004', 'T1098', 'T1552.001']
     cis_controls: ['CIS-3.3', 'CIS-6.5']
     nist_controls: ['AC-6', 'IA-5', 'SC-12']
@@ -2522,7 +2522,7 @@ patterns:
     recommendation: "Never create Snowflake users with password-only auth. Options: (1) **SSO + MFA** - federate via SAML/SCIM to Okta/Entra/Google, enforce MFA at the IdP, users never get a local Snowflake password; (2) **Key-pair auth** for service accounts - `ALTER USER svc_acct SET RSA_PUBLIC_KEY='<pem>';` and use private-key JWT auth (no passwords, no bearer tokens); (3) if password is unavoidable, IMMEDIATELY set `ALTER USER <u> SET MFA = ENROLL_REQUIRED` and bind a `NETWORK_POLICY` allowlist of CIDRs. At the account level, set `ALTER ACCOUNT SET REQUIRE_MFA_FOR_ALL_USERS = TRUE` (Snowflake 2024.10+). Audit with `SHOW USERS` + `SELECT * FROM snowflake.account_usage.users WHERE has_password AND (mfa_type IS NULL OR disabled)`. Enable Snowflake Trust Center + Anomaly Detection, and monitor `LOGIN_HISTORY` for un-allowlisted client_ip."
     cwe: ['CWE-287', 'CWE-306', 'CWE-308']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078.004', 'T1110', 'T1556.006']
     cis_controls: ['CIS-6.3', 'CIS-6.5']
     nist_controls: ['AC-17(3)', 'IA-2(1)', 'IA-2(2)']
@@ -2543,7 +2543,7 @@ patterns:
     recommendation: "Conditional Access exclusions must be minimal and audited. Allowed exclusions: (1) exactly TWO break-glass cloud-only accounts (stored in a sealed envelope physical safe, MFA-exempt but protected by a long random password + monitored for any sign-in via a Sentinel rule), (2) Microsoft Entra Connect sync account (by specific UPN, never 'All'), (3) named service accounts - each pinned to a single IP in a companion CA network policy. NEVER exclude 'Global Administrator' from an MFA-required policy. Use 'Report-only' mode when testing new policies rather than broad exclusions. Run the Entra ID 'What If' tool and Microsoft 365 Secure Score 'Require MFA for admins' check regularly. Export the policy set with `Get-MgIdentityConditionalAccessPolicy | Export-Clixml` quarterly and diff against a known-good baseline; alert on any exclusion list growth via Microsoft Sentinel + UEBA."
     cwe: ['CWE-284', 'CWE-288', 'CWE-863']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078.004', 'T1484.002', 'T1556.006']
     cis_controls: ['CIS-6.5', 'CIS-6.8']
     nist_controls: ['AC-6', 'IA-2(1)', 'IA-2(2)']
@@ -2567,7 +2567,7 @@ patterns:
     recommendation: "Set `network_mode: awsvpc` on every ECS task definition, combined with a per-task security group scoped to the minimum required ingress (often: only ALB SG), and per-task IAM task role (NOT the instance profile) with a resource-scoped policy. For tasks that genuinely require host networking (high-throughput UDP, BPF programs), require an exception-review ticket and compensating controls (dedicated instance cluster, IMDSv2-required=true, no instance-profile beyond `ec2:DescribeInstances`). See https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/networking.html."
     cwe: ['CWE-668', 'CWE-693', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1040', 'T1210']
     cis_controls: ['CIS-12.2', 'CIS-13.3']
     nist_controls: ['AC-4', 'SC-7', 'SC-7(5)']
@@ -2619,7 +2619,7 @@ patterns:
     recommendation: "Never set `Principal: *` on an ECR repository policy. For cross-account pulls, list the specific AWS account IDs: `Principal: {AWS: [arn:aws:iam::111111111111:root]}` plus an explicit condition (`aws:SourceAccount`). For truly-public images, use ECR Public (`public.ecr.aws`), which has a separate permission model and is monitored for abuse by AWS. Audit with `aws ecr get-repository-policy` across every region + account; combine with `aws ecr describe-registry` to confirm the scanning and replication posture."
     cwe: ['CWE-200', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1", "V12.4.1"]
+    owasp_asvs: [V14.2.2, V5.3.1]
     mitre_attack: ['T1213', 'T1526']
     cis_controls: ['CIS-3.3', 'CIS-12.6']
     nist_controls: ['AC-3', 'AC-4', 'SI-4']
@@ -2640,7 +2640,7 @@ patterns:
     recommendation: "Never grant `Principal: '*'` with write-type actions. For public-read static-website buckets, restrict to `s3:GetObject` only, pair with `aws:SecureTransport=true` condition, and enable S3 Block Public Access at the account level with `BlockPublicPolicy=true` to prevent accidental policy drift. For cross-account write, use explicit account ARNs + `aws:SourceAccount` + `aws:SourceArn` conditions. Enable `s3:ObjectLock` in compliance mode on buckets that cannot tolerate tampering. Run `aws s3api get-bucket-policy --bucket $B` + `aws s3api get-public-access-block --bucket $B` in a scheduled audit; alert via AWS Config rule `s3-bucket-public-write-prohibited`."
     cwe: ['CWE-284', 'CWE-285', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1485', 'T1537', 'T1567.002']
     cis_controls: ['CIS-3.3', 'CIS-3.12']
     nist_controls: ['AC-3', 'AC-6', 'SC-7']
@@ -2664,7 +2664,7 @@ patterns:
     recommendation: "Set `encryption: AES256` (SSE-S3) as the baseline, or `encryption: aws:kms` with `encryption_key_id: arn:aws:kms:...` for regulated workloads. Add a bucket policy that denies `s3:PutObject` without the `x-amz-server-side-encryption` header: `Condition: { StringNotEquals: { 's3:x-amz-server-side-encryption': 'AES256' } }`. Enable `aws s3api put-bucket-encryption` with `BucketKeyEnabled=true` to reduce KMS costs. Enforce organisation-wide via SCP `aws:SourceVPC` + `aws:SecureTransport=true` + `s3:x-amz-server-side-encryption` required."
     cwe: ['CWE-311', 'CWE-312', 'CWE-319']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V6.1.2", "V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.1.1, V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1213', 'T1530']
     cis_controls: ['CIS-3.11', 'CIS-14.8']
     nist_controls: ['MP-4', 'SC-28', 'SC-28(1)']
@@ -2687,7 +2687,7 @@ patterns:
     recommendation: "Enable S3 server access logging on every production bucket to a dedicated log-archive bucket (in a different account, ideally the log-archive account of the AWS Organization) with Object Lock in compliance mode. Alternatively, enable CloudTrail data events for the bucket (`aws cloudtrail put-event-selectors ... --data-resources S3`), which gives structured events and integrates with AWS Config/Security Hub. Enforce via AWS Config rule `s3-bucket-logging-enabled` + organisation SCP that denies `s3:PutBucketLogging` set to disabled. Ansible: add a `community.aws.s3_logging` task immediately after every `amazon.aws.s3_bucket` creation."
     cwe: ['CWE-223', 'CWE-532', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1530', 'T1562.008']
     cis_controls: ['CIS-3.14', 'CIS-8.2']
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -2708,7 +2708,7 @@ patterns:
     recommendation: "Set `authorization_type: AWS_IAM` (for service-to-service calls, signed with SigV4), `COGNITO_USER_POOLS` (for end-user auth), `CUSTOM` (for Lambda authorizer), or `JWT` (HTTP API). For endpoints that genuinely must be public (e.g. `/health`, OAuth callback), scope them narrowly AND require a WAF rule + rate-limit + challenge on unusual patterns. Audit with `aws apigateway get-resources --rest-api-id $ID --query 'items[*].resourceMethods.*.authorizationType'`. Use AWS Config rule `api-gw-endpoint-type-check` and a custom rule for `AuthorizationType != NONE` enforcement."
     cwe: ['CWE-284', 'CWE-306', 'CWE-862']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1133', 'T1190']
     cis_controls: ['CIS-6.1', 'CIS-6.7']
     nist_controls: ['AC-3', 'IA-2', 'IA-8']
@@ -2759,7 +2759,7 @@ patterns:
     recommendation: "When a trust policy allows a foreign AWS account to assume a role, ALWAYS include `Condition: {StringEquals: {'sts:ExternalId': '<unique-random-value-per-integration>'}}`. Generate the ExternalId as a long random UUID per customer and store it outside the role's trust policy (in a shared vault with the customer). Additionally scope the trust `Principal` to the specific IAM user/role ARN (not `:root`) whenever feasible: `Principal: {AWS: 'arn:aws:iam::111111111111:role/CustomerAutomation'}`. See AWS docs: 'The confused deputy problem' + 'How to use an external ID when granting access to your AWS resources to a third party'."
     cwe: ['CWE-284', 'CWE-441', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1078.004', 'T1134.003']
     cis_controls: ['CIS-5.4', 'CIS-6.8']
     nist_controls: ['AC-3', 'AC-6', 'IA-2']
@@ -2782,7 +2782,7 @@ patterns:
     recommendation: "Attach permissions to IAM groups and make users members of groups. For example: `community.aws.iam_group: name: Developers` + `managed_policy: [arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess]` then `community.aws.iam_user: groups: [Developers]`. Migrate existing user-attached policies with: `for u in $(aws iam list-users --query 'Users[*].UserName' --output text); do aws iam list-attached-user-policies --user-name $u; done`. Long-term, migrate IAM human users to AWS Identity Center federation where permissions flow via permission sets tied to groups in the IdP."
     cwe: ['CWE-284', 'CWE-653', 'CWE-732']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1098.001']
     cis_controls: ['CIS-5.4', 'CIS-6.8']
     nist_controls: ['AC-2', 'AC-3', 'AC-6']
@@ -2803,7 +2803,7 @@ patterns:
     recommendation: "Always set a narrow `ip_range_filter:` to specific office / VPN CIDRs + `virtual_network_rules:` for Azure-to-Azure traffic. For zero-trust, disable public network access entirely (`public_network_access: Disabled`) and use Private Link (`public_network_access_from_azure_services: false` + `private_endpoint_connections`). Rotate both primary and secondary keys immediately if the account was ever open. Enforce via Azure Policy built-in `ID: 862e97cf-49fc-4a5c-9de4-40d4e2e7c8eb` (Cosmos DB accounts should use private link). Audit: `az cosmosdb show --name $N --resource-group $RG --query ipRules`."
     cwe: ['CWE-284', 'CWE-668', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1213', 'T1530']
     cis_controls: ['CIS-3.3', 'CIS-12.6']
     nist_controls: ['AC-3', 'SC-7', 'SC-7(3)']
@@ -2830,7 +2830,7 @@ patterns:
     recommendation: "Never create an allow-all firewall rule. List specific corporate / VPN / CI-runner CIDRs instead. Better: use `azure_rm_*serverconfiguration` to configure `virtual_network_rules` for Azure-to-Azure traffic and Private Link for external clients. Enforce via Azure Policy built-in `ID: 1b7aa243-30e4-4c9e-bca8-d0d3022b634a` (SQL Server should use a virtual network service endpoint). Audit: `az sql server firewall-rule list --resource-group $RG --server $S --query '[?startIpAddress==\\`0.0.0.0\\` && endIpAddress==\\`255.255.255.255\\`]'` and delete each hit immediately."
     cwe: ['CWE-284', 'CWE-668', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1133', 'T1190']
     cis_controls: ['CIS-12.2', 'CIS-12.6']
     nist_controls: ['AC-3', 'SC-7', 'SC-7(3)']
@@ -2854,7 +2854,7 @@ patterns:
     recommendation: "Enable Azure Disk Encryption (ADE) with customer-managed keys stored in Azure Key Vault. Concretely: (1) create an `azure_rm_diskencryptionset` tied to a Key Vault Premium SKU with soft-delete and purge-protection on, (2) reference that set in `os_disk.managed_disk.disk_encryption_set.id: /subscriptions/...` on every VM, (3) add `security_profile: {encryption_at_host: true}` for confidential-compute defense against host-level attacks (requires Gen2 VM). Audit with `az vm encryption show --name $VM --resource-group $RG` and enforce via Azure Policy built-in `ID: 0961003e-5a0a-4549-abde-af6a37f2724d` ('Virtual machines should encrypt temp disks, caches, and data flows between Compute and Storage resources')."
     cwe: ['CWE-311', 'CWE-312', 'CWE-922']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V6.1.2", "V8.3.1", "V9.1.1"]
+    owasp_asvs: [V14.1.1, V14.2.1, V12.2.1]
     mitre_attack: ['T1530', 'T1565.001']
     cis_controls: ['CIS-3.11', 'CIS-14.8']
     nist_controls: ['MP-4', 'SC-28', 'SC-28(1)']
@@ -2899,7 +2899,7 @@ patterns:
     recommendation: "Always supply `disk_encryption_key: {kms_key_name: projects/<proj>/locations/<region>/keyRings/<ring>/cryptoKeys/<key>}` on every gcp_compute_disk / instance. Grant the `roles/cloudkms.cryptoKeyEncrypterDecrypter` role to the Compute Engine service-agent (`service-<PROJECT_NUM>@compute-system.iam.gserviceaccount.com`). Enable KMS key-rotation (e.g. `rotation_period: '7776000s'` = 90 days). Enforce org-wide with Organization Policy `constraints/gcp.restrictNonConfidentialComputing` and `constraints/compute.restrictXpnProjectLienRemoval`, plus the CIS-benchmark policy `gcp.resourceLocations`. Audit with `gcloud compute disks list --format=\"table(name, diskEncryptionKey.kmsKeyName)\"`."
     cwe: ['CWE-311', 'CWE-312', 'CWE-922']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V6.1.2", "V8.3.1", "V9.1.1"]
+    owasp_asvs: [V14.1.1, V14.2.1, V12.2.1]
     mitre_attack: ['T1530', 'T1565.001']
     cis_controls: ['CIS-3.11', 'CIS-14.8']
     nist_controls: ['MP-4', 'SC-28', 'SC-28(1)']
@@ -2926,7 +2926,7 @@ patterns:
     recommendation: "Never attach the `cloud-platform` scope to a VM. Instead: (1) create a dedicated service account per workload (`gcloud iam service-accounts create sa-<app>-ro`), (2) grant ONLY the specific IAM roles it needs (e.g. `roles/storage.objectViewer` on one bucket), (3) attach it with minimal scope set `scopes: ['https://www.googleapis.com/auth/devstorage.read_only']` or omit scopes entirely so IAM fully governs. For GKE, use Workload Identity Federation instead of node-pool SA scopes. Enforce via Organization Policy `constraints/iam.disableServiceAccountKeyCreation` + `constraints/compute.vmExternalIpAccess: deny_all` (defense-in-depth against exfil) + Custom Org Policy rejecting the `cloud-platform` scope on instance templates."
     cwe: ['CWE-250', 'CWE-269', 'CWE-272']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1078.004', 'T1098.001', 'T1552.005']
     cis_controls: ['CIS-3.3', 'CIS-5.4']
     nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(5)']
@@ -2949,7 +2949,7 @@ patterns:
     recommendation: "Set `encrypt: true` + `kms_key_id:` to a customer-managed KMS key ARN on every EFS filesystem. For multi-AZ / multi-region DR, use `amazon.aws.backup_plan` to schedule AWS Backup with cross-region copy (destination KMS key in the target region, NOT the source-region key). Enforce via AWS Config rule `efs-encrypted-check` and SCP `Deny efs:CreateFileSystem Unless elasticfilesystem:Encrypted`. Audit inventory with `aws efs describe-file-systems --query 'FileSystems[?Encrypted==`false`].FileSystemId'`."
     cwe: ['CWE-311', 'CWE-312', 'CWE-922']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V6.1.2", "V8.3.1", "V9.1.1"]
+    owasp_asvs: [V14.1.1, V14.2.1, V12.2.1]
     mitre_attack: ['T1005', 'T1530']
     cis_controls: ['CIS-3.11', 'CIS-14.8']
     nist_controls: ['MP-4', 'SC-28', 'SC-28(1)']
@@ -3078,7 +3078,7 @@ patterns:
     recommendation: "Set `assign_public_ip: false` (or omit the key - the default on VPC-deployed subnets is false unless the subnet is flagged auto-assign). For workloads needing inbound access, put them behind an ALB/NLB/CloudFront - never terminate traffic directly on an EC2 instance's public interface. Pair with `aws_vpc_subnet: map_public_ip_on_launch: false`."
     cwe: ['CWE-200', 'CWE-284', 'CWE-668']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1046', 'T1133', 'T1190']
     cis_controls: ['CIS-4.4', 'CIS-13.10']
     nist_controls: ['AC-4', 'SC-7', 'SC-7(3)']
@@ -3108,7 +3108,7 @@ patterns:
     recommendation: "Scope BOTH `source_ip` and `destination_ip` to specific CIDR blocks, address objects, or address groups (e.g. `source_ip: ['10.0.0.0/8', 'addr-jumphosts']`). If a broad allow is truly required (e.g. outbound to internet), scope it to the narrower of the two sides and move it to the bottom of the rulebase. Audit existing rules with `show running security-policy | match any/any`."
     cwe: ['CWE-284', 'CWE-732', 'CWE-1188']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1021', 'T1133', 'T1190']
     cis_controls: ['CIS-4.4', 'CIS-12.2', 'CIS-13.10']
     nist_controls: ['AC-4', 'CM-7', 'SC-7']
@@ -3132,7 +3132,7 @@ patterns:
     recommendation: "Replace `application: any` with explicit App-IDs (e.g. `application: ['ms-ds-smbv3', 'kerberos', 'ldap']`). Replace `service: any` with `service: application-default` (uses each App-ID's well-known port) or named service objects (`service: ['service-tcp-443', 'service-tcp-8443']`). Combine with URL-category and user-group restrictions for zero-trust segmentation."
     cwe: ['CWE-284', 'CWE-732', 'CWE-1188']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1021', 'T1133', 'T1190']
     cis_controls: ['CIS-4.4', 'CIS-13.10']
     nist_controls: ['AC-4', 'CM-7', 'SC-7']
@@ -3156,7 +3156,7 @@ patterns:
     recommendation: "Set `http: false` and `telnet: false`. Enable only `https: true` and `ssh: true` on management profiles. Restrict the profile's `permitted_ip:` list to the admin jumpbox CIDRs. Enforce via a pre-commit hook that rejects any panos_management_profile with a truthy `http`/`telnet` key. Reference PAN-OS hardening: https://docs.paloaltonetworks.com/best-practices/best-practices-for-securing-administrative-access"
     cwe: ['CWE-311', 'CWE-319', 'CWE-326']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1, V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1040', 'T1552.001', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-4.6', 'CIS-12.6']
     nist_controls: ['AC-17(2)', 'IA-2', 'SC-8', 'SC-8(1)']

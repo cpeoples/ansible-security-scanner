@@ -197,10 +197,11 @@ def test_resolver_normalisation_round_trip():
     assert _resolved(resolve_owasp_llm, "LLM01").id == "LLM01"
     assert _resolved(resolve_owasp_llm, "llm-07").id == "LLM07"
     assert _resolved(resolve_owasp_llm, "LLM10").id == "LLM10"
-    # OWASP ASVS v4.0.3 - canonical form is Vx.y.z with no leading zeros.
-    assert _resolved(resolve_owasp_asvs, "V2.4.4").id == "V2.4.4"
-    assert _resolved(resolve_owasp_asvs, "v9.1.1").id == "V9.1.1"
-    assert _resolved(resolve_owasp_asvs, "ASVS-V14.4.5").id == "V14.4.5"
+    # OWASP ASVS v5.0.0 - canonical form is Vx.y.z with no leading zeros.
+    assert _resolved(resolve_owasp_asvs, "V6.2.1").id == "V6.2.1"
+    assert _resolved(resolve_owasp_asvs, "v11.3.1").id == "V11.3.1"
+    assert _resolved(resolve_owasp_asvs, "ASVS-V13.3.1").id == "V13.3.1"
+    assert _resolved(resolve_owasp_asvs, "V17.1.1").id == "V17.1.1"
     # CVE: cataloged ids resolve from cve.yml; valid-but-uncatalogued ids
     # synthesize an NVD deep link so freshly-disclosed CVEs aren't lost
     # before the catalog gets backfilled.
@@ -353,3 +354,21 @@ def test_resolve_nist_builds_cprt_5_2_0_url():
     assert ref is not None and ref.url == base + "SC-18"
     ref = resolve_nist("nist-AC-6(9)")
     assert ref is not None and ref.url == base + "AC-06(09)"
+
+
+def test_resolve_owasp_asvs_builds_v5_chapter_anchor():
+    """Resolved ASVS urls point at the v5.0.0 chapter file with the GitHub
+    anchor for the ``## Vx.y Title`` heading."""
+    base = "https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en"
+    ref = resolve_owasp_asvs("V6.2.1")
+    assert ref is not None
+    assert ref.url == f"{base}/0x15-V6-Authentication.md#v62-password-security"
+    ref = resolve_owasp_asvs("V11.3.1")
+    assert ref is not None
+    assert ref.url == f"{base}/0x20-V11-Cryptography.md#v113-encryption-algorithms"
+    ref = resolve_owasp_asvs("V13.3.1")
+    assert ref is not None
+    assert ref.url == f"{base}/0x22-V13-Configuration.md#v133-secret-management"
+    ref = resolve_owasp_asvs("V17.1.1")
+    assert ref is not None
+    assert ref.url == f"{base}/0x26-V17-WebRTC.md#v171-turn-server"

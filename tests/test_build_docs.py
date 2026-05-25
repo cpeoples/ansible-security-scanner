@@ -78,7 +78,7 @@ def test_render_chips_renders_all_five_claimed_frameworks(build_docs):
             "cwe": ["CWE-78"],
             "mitre_attack": ["T1059.004"],
             "owasp_appsec": ["A03:2021"],
-            "owasp_asvs": ["V5.3.4"],
+            "owasp_asvs": ["V13.3.1"],
             "nist_controls": ["SI-10"],
             "cis_controls": ["CIS-4.1"],
         }
@@ -95,7 +95,7 @@ def test_render_chips_renders_all_five_claimed_frameworks(build_docs):
     cwe_idx = out.index("CWE-78")
     mitre_idx = out.index("T1059.004")
     owasp_idx = out.index("A03:2021")
-    asvs_idx = out.index("V5.3.4")
+    asvs_idx = out.index("V13.3.1")
     nist_idx = out.index("SI-10")
     cis_idx = out.index("CIS-4.1")
     assert cwe_idx < mitre_idx < owasp_idx < asvs_idx < nist_idx < cis_idx

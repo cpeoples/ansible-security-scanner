@@ -91,7 +91,7 @@ _STIG_RE = re.compile(r"^V[-_\s]?(\d{4,7})$", re.IGNORECASE)
 _OWASP_APPSEC_RE = re.compile(r"^A(\d{1,2}):(2017|2021)$", re.IGNORECASE)
 # OWASP LLM Top-10 v1.1 - LLM01..LLM10. Accept "LLM1" too.
 _OWASP_LLM_RE = re.compile(r"^LLM(\d{1,2})$", re.IGNORECASE)
-# OWASP ASVS v4.0.3: Vx.y.z (chapter . section . item), up to 3 segments.
+# OWASP ASVS v5.0.0: Vx.y.z (chapter . section . item), up to 3 segments.
 _OWASP_ASVS_RE = re.compile(r"^V(\d{1,2})(?:\.(\d{1,2}))?(?:\.(\d{1,2}))?$", re.IGNORECASE)
 # CVE: `CVE-YYYY-NNNN+` (4-digit year, 4-7 digit sequence per cve.org).
 _CVE_RE = re.compile(r"^CVE[-_\s]?(\d{4})[-_\s]?(\d{4,7})$", re.IGNORECASE)
@@ -275,22 +275,16 @@ def _normalize_owasp_llm(raw: str) -> str | None:
 
 
 def _normalize_owasp_asvs(raw: str) -> str | None:
-    """Return canonical OWASP ASVS v4.0.3 id (``V2.3.4``) or None.
-
-    Accepts any of ``V2``, ``V2.3``, ``V2.3.4`` - ASVS requirements appear
-    at all three levels of depth in the catalog and in external citations.
-    """
+    """Return canonical OWASP ASVS v5.0.0 id (``V2.3.4``) or None."""
     s = raw.strip().replace(" ", "")
     s = re.sub(r"^(owasp[-_:]?)?(asvs[-_:]?)", "", s, flags=re.IGNORECASE)
-    # Common spelling seen externally: `ASVS-2.3.4` (no leading V); also
-    # tolerate bare numeric like `2.3.4`.
     if not s.upper().startswith("V"):
         s = "V" + s
     m = _OWASP_ASVS_RE.match(s)
     if not m:
         return None
     chapter = int(m.group(1))
-    if not 1 <= chapter <= 14:
+    if not 1 <= chapter <= 17:
         return None
     parts = [f"V{chapter}"]
     if m.group(2) is not None:
@@ -355,7 +349,7 @@ _FRAMEWORKS: tuple[_FrameworkSpec, ...] = (
     _FrameworkSpec("stig", "DISA STIG", "stig.yml", _normalize_stig),
     _FrameworkSpec("owasp_appsec", "OWASP Top 10", "owasp_appsec.yml", _normalize_owasp_appsec),
     _FrameworkSpec("owasp_llm", "OWASP LLM Top 10", "owasp_llm.yml", _normalize_owasp_llm),
-    _FrameworkSpec("owasp_asvs", "OWASP ASVS v4.0.3", "owasp_asvs.yml", _normalize_owasp_asvs),
+    _FrameworkSpec("owasp_asvs", "OWASP ASVS v5.0.0", "owasp_asvs.yml", _normalize_owasp_asvs),
     _FrameworkSpec("cve", "CVE", "cve.yml", _normalize_cve),
 )
 _FRAMEWORKS_BY_SLUG: dict[str, _FrameworkSpec] = {f.slug: f for f in _FRAMEWORKS}
@@ -483,7 +477,7 @@ def resolve_owasp_llm(raw_id: str) -> FrameworkReference | None:
 
 
 def resolve_owasp_asvs(raw_id: str) -> FrameworkReference | None:
-    """Resolve an OWASP ASVS v4.0.3 requirement id. Returns None if unknown."""
+    """Resolve an OWASP ASVS v5.0.0 requirement id. Returns None if unknown."""
     return _resolve("owasp_asvs", raw_id)
 
 

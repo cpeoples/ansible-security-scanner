@@ -20,7 +20,7 @@ patterns:
     recommendation: "Use --ask-become-pass, Vault-encrypted variables, or an external credential store"
     cwe: ['CWE-259', 'CWE-798']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
@@ -39,7 +39,7 @@ patterns:
     recommendation: "Use SSH key-based authentication or Vault-encrypted ansible_ssh_pass"
     cwe: ['CWE-259', 'CWE-798']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
@@ -62,7 +62,7 @@ patterns:
     recommendation: "Use Vault-encrypted variables or Kerberos authentication for WinRM"
     cwe: ['CWE-259', 'CWE-798']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
@@ -81,7 +81,7 @@ patterns:
     recommendation: "Store connection passwords in Vault or use credential plugins"
     cwe: ['CWE-259', 'CWE-798']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
@@ -103,7 +103,7 @@ patterns:
     recommendation: "Use vault-id with script-based lookups or external secret backends instead of plaintext files"
     cwe: ['CWE-522', 'CWE-532']
     owasp_appsec: ["A04:2021", "A09:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V7.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V16.2.5]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AU-9', 'IA-5(7)', 'SC-28']
@@ -125,7 +125,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-259', 'CWE-798']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-4.1', 'CIS-Secrets']
     nist_controls: ['CM-6', 'CM-7', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
@@ -147,7 +147,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
     mitre_attack: ['T1005', 'T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5(7)', 'SC-28']
@@ -206,7 +206,7 @@ patterns:
               line: export KUBECONFIG=/home/splunk/.kube/config
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5(7)', 'SC-28']
@@ -228,7 +228,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-522', 'CWE-532']
     owasp_appsec: ["A04:2021", "A09:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V7.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V16.2.5]
     mitre_attack: ['T1552.004']
     cis_controls: ['CIS-16.1', 'CIS-Secrets']
     nist_controls: ['AU-9', 'IA-5(7)', 'SA-11', 'SA-15', 'SC-28']
@@ -251,7 +251,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-532']
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V8.1.1"]
+    owasp_asvs: [V16.2.5, V14.2.2]
     mitre_attack: ['T1552.004']
     cis_controls: ['CIS-8.2', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AU-2', 'AU-9', 'AU-12', 'IA-5(7)', 'SC-28']
@@ -273,7 +273,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-306']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078']
     cis_controls: ['CIS-4.1', 'CIS-13.1']
     nist_controls: ['CM-6', 'CM-7', 'SI-4']
@@ -292,7 +292,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-306']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078']
     cis_controls: ['CIS-4.1', 'CIS-13.1']
     nist_controls: ['CM-6', 'CM-7', 'SI-4']
@@ -314,7 +314,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-306']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1078']
     cis_controls: ['CIS-4.1', 'CIS-13.1']
     nist_controls: ['CM-6', 'CM-7', 'SI-4']
@@ -335,7 +335,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1059.001', 'T1105']
     cis_controls: ['CIS-Supply-Chain']
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
@@ -407,7 +407,7 @@ patterns:
     recommendation: "Leave the default empty for password-type questions, or reference a Vault-encrypted variable with {{ lookup('env', ...) }}. Never inline a plaintext password into a survey_spec."
     cwe: ['CWE-256', 'CWE-798']
     owasp_appsec: ["A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.1", "V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.1, V13.2.3, V13.3.1]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
@@ -426,7 +426,7 @@ patterns:
     recommendation: "Issue OAuth tokens per-user, store them in Vault, and reference via {{ lookup('env', 'TOWER_OAUTHTOKEN') }}. Rotate any committed token immediately."
     cwe: ['CWE-259', 'CWE-798']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
@@ -445,7 +445,7 @@ patterns:
     recommendation: "Store controller credentials in Vault and read them via lookup('env', ...). Prefer OAuth tokens over username/password for automation."
     cwe: ['CWE-259', 'CWE-798']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1078.004', 'T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
@@ -464,7 +464,7 @@ patterns:
     recommendation: "Reference the secret via {{ lookup('community.hashi_vault.hashi_vault', ...) }} or an encrypted Vault variable; never inline the secret value in the inputs block."
     cwe: ['CWE-522', 'CWE-798']
     owasp_appsec: ["A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.1", "V2.10.2", "V2.10.4", "V6.2.1", "V14.1.5"]
+    owasp_asvs: [V13.2.1, V13.2.3, V13.3.1, V11.2.5]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
@@ -483,7 +483,7 @@ patterns:
     recommendation: "Run EEs with the default rootless runtime. If kernel features are needed, scope capabilities explicitly (CAP_NET_ADMIN etc.) rather than --privileged."
     cwe: ['CWE-250', 'CWE-269']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1611']
     cis_controls: ['CIS-4.6']
     nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)']
@@ -502,7 +502,7 @@ patterns:
     recommendation: "Generate a random webhook signing key, store it in Vault, and reference via {{ lookup('env', ...) }}. Rotate if committed."
     cwe: ['CWE-345', 'CWE-798']
     owasp_appsec: ["A07:2021", "A08:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
@@ -521,7 +521,7 @@ patterns:
     recommendation: "Point inventory sources at private, authenticated repositories pinned to a signed tag. Require signed commits on the inventory branch."
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002']
     cis_controls: ['CIS-16.11', 'CIS-Supply-Chain']
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
@@ -539,7 +539,7 @@ patterns:
     recommendation: "Create the webhook via an integration OAuth flow that keeps the token out of the URL, or use a short-lived token rotated out of Vault."
     cwe: ['CWE-200', 'CWE-598']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'IA-5(7)', 'SC-28']
@@ -582,7 +582,7 @@ patterns:
     recommendation: "Never mount the container runtime socket into a container. If you need Docker-in-Docker for CI, use a sibling pattern (a separate rootless Docker daemon in its own network namespace) or switch to BuildKit / Buildah with userns remapping. For Kubernetes job execution, use a proper controller (Tekton, Argo Workflows) that talks to the kubelet API with a scoped ServiceAccount, not to the node's CRI socket."
     cwe: ['CWE-250', 'CWE-269', 'CWE-732']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1068', 'T1610', 'T1611']
     cis_controls: ['CIS-5.2', 'CIS-K8s-5.2.3']
     nist_controls: ['AC-3', 'AC-6', 'SC-7', 'SI-4']
@@ -603,7 +603,7 @@ patterns:
     recommendation: "Drop `--privileged` entirely. If the workload needs a specific capability, add only that one (`--cap-add=NET_ADMIN` for a VPN container, `--cap-add=SYS_PTRACE` for a debugger) and combine with `--cap-drop=ALL` first. Keep the default seccomp profile; if a syscall is blocked, tighten the profile rather than disabling it (`podman run --security-opt seccomp=/etc/containers/seccomp.json`). Use rootless mode (`podman run --userns=auto`) as the outer boundary."
     cwe: ['CWE-250', 'CWE-269']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1068', 'T1611']
     cis_controls: ['CIS-5.2', 'CIS-K8s-5.2.5']
     nist_controls: ['AC-6', 'AC-6(1)', 'CM-7', 'SI-4']
@@ -631,7 +631,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-250', 'CWE-269']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1611']
     cis_controls: ['CIS-K8s-5.2.5']
     nist_controls: ['AC-6', 'CM-7']

@@ -35,7 +35,7 @@ class SecurityFinding:
     # for LLM Prompt Injection). Additive alongside mitre_attack.
     mitre_atlas: list[str] = field(default_factory=list)
     # OWASP catalogs - app-sec Top 10 (2021 + 2017), LLM Top 10 v1.1, and
-    # ASVS v4.0.3. All additive and optional; default-empty lists preserve
+    # ASVS v5.0.0. All additive and optional; default-empty lists preserve
     # backward compatibility with every existing formatter.
     owasp_appsec: list[str] = field(default_factory=list)
     owasp_llm: list[str] = field(default_factory=list)

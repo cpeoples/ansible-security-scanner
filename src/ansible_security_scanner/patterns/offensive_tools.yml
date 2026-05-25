@@ -608,7 +608,7 @@ patterns:
     recommendation: "Certify/Certipy are offensive ADCS tools. Remove immediately, rotate issued certificates, and audit AD CS template permissions for ESC1-8 misconfigurations (see SpecterOps Certified Pre-Owned)."
     cwe: ['CWE-269', 'CWE-295']
     owasp_appsec: ["A04:2021", "A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
     mitre_attack: ['T1556', 'T1649']
     cis_controls: ['CIS-6.8', 'CIS-12.5']
     nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'AC-6(10)', 'SC-8(1)', 'SC-12']
@@ -645,7 +645,7 @@ patterns:
     recommendation: "DPAPI extraction implies masterkey theft. Rotate user passwords (forces masterkey re-encryption), rotate browser-stored credentials, and investigate the host for lsass dumping or backup-key theft."
     cwe: ['CWE-312', 'CWE-522']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.1.2", "V6.2.1", "V8.3.1"]
+    owasp_asvs: [V13.2.1, V14.1.1, V11.2.5, V14.2.1]
     mitre_attack: ['T1552.001', 'T1555.003', 'T1555.004']
     cis_controls: ['CIS-3.11', 'CIS-6.8']
     nist_controls: ['AC-2', 'AC-3', 'IA-5(7)', 'SC-28']
@@ -664,7 +664,7 @@ patterns:
     recommendation: "SafetyKatz is a credential-theft tool; remove immediately, rotate local and domain credentials that logged on to the host, and investigate for lsass access (enable Credential Guard where possible)."
     cwe: ['CWE-250', 'CWE-522']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V14.2.2"]
+    owasp_asvs: [V13.2.1, V11.2.5, V13.4.5, V15.2.3]
     mitre_attack: ['T1003.001', 'T1555']
     cis_controls: ['CIS-3.11', 'CIS-6.8']
     nist_controls: ['AC-2', 'AC-3', 'AC-6', 'AC-6(1)', 'IA-5(7)', 'SC-28']
@@ -706,7 +706,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-321', 'CWE-347', 'CWE-798']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1552.004', 'T1606.002']
     cis_controls: ['CIS-3.11', 'CIS-6.8']
     nist_controls: ['AC-6', 'AU-12', 'IA-5(2)', 'SC-12', 'SC-13']
@@ -728,7 +728,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-295']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V9.2.1"]
+    owasp_asvs: [V12.3.4]
     mitre_attack: ['T1558.004', 'T1649']
     cis_controls: ['CIS-5.2', 'CIS-6.8']
     nist_controls: ['AC-6', 'AU-12', 'IA-5(2)', 'SC-12']

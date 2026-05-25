@@ -68,12 +68,12 @@ class SecurityPattern:
     # same link_resolver -> formatter pipeline.
     mitre_atlas: list[str] = field(default_factory=list)  # e.g. ["AML.T0010", "AML.T0051"]
     # OWASP catalogs - app-sec Top 10 (2021 + 2017 legacy), LLM Top 10 v1.1
-    # (AI/ML apps), and ASVS v4.0.3 requirements. Additive; resolved by
+    # (AI/ML apps), and ASVS v5.0.0 requirements. Additive; resolved by
     # link_resolver.resolve_owasp_* and surfaced in SARIF / GitLab SAST /
     # CycloneDX the same way other compliance tags are.
     owasp_appsec: list[str] = field(default_factory=list)  # e.g. ["A03:2021", "A07:2021"]
     owasp_llm: list[str] = field(default_factory=list)  # e.g. ["LLM01", "LLM07"]
-    owasp_asvs: list[str] = field(default_factory=list)  # e.g. ["V2.4.4", "V9.1.1"]
+    owasp_asvs: list[str] = field(default_factory=list)  # e.g. ["V13.3.1", "V11.3.1"]
     cve: list[str] = field(default_factory=list)  # e.g. ["CVE-2024-3094"]
     references: list[str] = field(default_factory=list)  # URLs to docs, blog posts, advisories
     help_uri: str = ""  # single canonical URL for help text (SARIF helpUri)

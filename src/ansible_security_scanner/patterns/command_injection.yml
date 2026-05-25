@@ -359,7 +359,7 @@ patterns:
     recommendation: "Replace wget ... | sh with ansible.builtin.get_url (pinned checksum:), then ansible.builtin.command on the downloaded file by absolute path; the integrity check happens in-module before any code runs."
     cwe: ["CWE-78", "CWE-494"]
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1059.004", "T1105"]
     cis_controls: ["CIS-4.1", "CIS-Supply-Chain"]
     nist_controls: ['CM-5', 'CM-6', 'CM-7', 'CM-11', 'SA-10', 'SI-3', 'SI-7', 'SI-10']
@@ -380,7 +380,7 @@ patterns:
     recommendation: "Move the username:password out of curl -u into the calling module: ansible.builtin.uri url_username: / url_password: (or community.general.curl with separate secret args), and source the credential from Ansible Vault."
     cwe: ["CWE-312", "CWE-798"]
     owasp_appsec: ["A04:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V6.1.2", "V8.3.1", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1, V14.1.1, V14.2.1]
     mitre_attack: ["T1552.001"]
     cis_controls: ["CIS-3.1"]
     nist_controls: ['AC-3', 'IA-5', 'IA-5(7)', 'SC-28']
@@ -436,7 +436,7 @@ patterns:
     recommendation: "wget|curl ... | bash means the payload is fetched and executed without ever being on disk for review; replace with ansible.builtin.get_url + checksum:, then run the saved file with ansible.builtin.command on its absolute path."
     cwe: ["CWE-78", "CWE-494"]
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ["T1059.004", "T1105"]
     cis_controls: ["CIS-4.1", "CIS-Supply-Chain"]
     nist_controls: ['CM-5', 'CM-6', 'CM-7', 'CM-11', 'SA-10', 'SI-3', 'SI-7', 'SI-10']
@@ -456,7 +456,7 @@ patterns:
     recommendation: "Tools' -p\"<password>\" appears in /proc/<pid>/cmdline and is readable by other local processes; switch to a credentials file (mode 0600) read with the tool's --defaults-extra-file / --password-file option, with the value sourced from Ansible Vault."
     cwe: ["CWE-214", "CWE-798"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ["T1552.001"]
     cis_controls: ["CIS-3.1", "CIS-5.2"]
     nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
@@ -478,7 +478,7 @@ patterns:
     recommendation: "mysql/psql -p<password> leaks the credential via the process list; supply it via the env (PGPASSWORD), a my.cnf [client] section with mode 0600, or the module-native parameters (community.mysql.mysql_query login_password:, community.postgresql.postgresql_query login_password:) loaded from Vault."
     cwe: ["CWE-214", "CWE-798"]
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ["T1552.001"]
     cis_controls: ["CIS-3.1", "CIS-5.2"]
     nist_controls: ['AC-3', 'IA-5', 'IA-5(1)', 'IA-5(7)', 'SC-28']
@@ -497,7 +497,7 @@ patterns:
     recommendation: "--privileged + --net=host effectively disables container isolation; replace with the minimum capabilities the workload requires (--cap-add=NET_ADMIN), drop the rest (--cap-drop=ALL), and use a user-defined network instead of host networking."
     cwe: ["CWE-250", "CWE-269"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ["T1611"]
     cis_controls: ["CIS-4.1", "CIS-Docker"]
     nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(10)', 'CM-6', 'CM-7']

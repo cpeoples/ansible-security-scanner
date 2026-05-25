@@ -809,12 +809,12 @@ def test_gitlab_sast_owasp_llm_from_structured_field():
 
 def test_gitlab_sast_asvs_uses_dedicated_type():
     """ASVS ids emit a distinct ``owasp_asvs`` identifier type."""
-    f = _gitlab_finding(owasp_asvs=["V2.4.4"])
+    f = _gitlab_finding(owasp_asvs=["V13.3.1"])
     vuln = json.loads(GitLabSastFormatter().format(_make_report([f])))["vulnerabilities"][0]
     asvs_idents = [i for i in vuln["identifiers"] if i["type"] == "owasp_asvs"]
     assert len(asvs_idents) == 1
-    assert asvs_idents[0]["value"] == "V2.4.4"
-    assert asvs_idents[0]["name"].startswith("ASVS V2.4.4")
+    assert asvs_idents[0]["value"] == "V13.3.1"
+    assert asvs_idents[0]["name"].startswith("ASVS V13.3.1")
 
 
 def test_gitlab_sast_unknown_owasp_id_is_dropped_silently():

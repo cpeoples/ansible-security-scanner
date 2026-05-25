@@ -662,7 +662,7 @@ patterns:
     cwe: ['CWE-20', 'CWE-74', 'CWE-502']
     cve: ["CVE-2021-44228", "CVE-2021-45046"]
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.2.1"]
+    owasp_asvs: []
     references:
       - "https://nvd.nist.gov/vuln/detail/CVE-2021-44228"
 
@@ -706,7 +706,7 @@ patterns:
     mitre_attack: ['T1078.004', 'T1528', 'T1552.005']
     cwe: ['CWE-522', 'CWE-918']
     owasp_appsec: ["A04:2021", "A10:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5]
 
   # -- CVE-era exploitation detections (2024-2026) --------------------------
 
@@ -771,7 +771,7 @@ patterns:
     cwe: ['CWE-89', 'CWE-434']
     cve: ["CVE-2023-34362"]
     owasp_appsec: ["A03:2021", "A04:2021"]
-    owasp_asvs: ["V12.2.1", "V12.4.1"]
+    owasp_asvs: [V5.2.2, V5.3.1]
     mitre_attack: ['T1190', 'T1505.003']
     cis_controls: ['CIS-7.1']
 
@@ -789,7 +789,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1105', 'T1140', 'T1218']
     cis_controls: ['CIS-4.8', 'CIS-10.5']
     nist_controls: ['CM-7', 'SI-3', 'SI-4']
@@ -808,7 +808,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1105', 'T1197', 'T1218']
     cis_controls: ['CIS-4.8', 'CIS-10.5']
     nist_controls: ['CM-7', 'SI-4']
@@ -827,7 +827,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-749', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1218.005']
     cis_controls: ['CIS-2.7', 'CIS-10.5']
     nist_controls: ['CM-7', 'SI-3', 'SI-4']
@@ -846,7 +846,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-749', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1218.010']
     cis_controls: ['CIS-2.7', 'CIS-10.5']
     nist_controls: ['CM-7', 'SI-3', 'SI-4']
@@ -865,7 +865,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1", "V12.4.1"]
+    owasp_asvs: [V14.2.2, V5.3.1]
     mitre_attack: ['T1003.003', 'T1218']
     cis_controls: ['CIS-3.11', 'CIS-8.11']
     nist_controls: ['AC-6', 'AU-2', 'AU-12', 'SI-4']
@@ -885,7 +885,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-311', 'CWE-319']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V8.3.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V14.2.1, V12.2.1, V12.3.4]
     mitre_attack: ['T1486', 'T1490']
     cis_controls: ['CIS-3.6', 'CIS-3.11']
     nist_controls: ['CP-9', 'CP-10', 'SC-12', 'SC-28']
@@ -962,7 +962,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1553.005', 'T1562.001', 'T1562.004']
     cis_controls: ['CIS-2.1', 'CIS-2.4', 'CIS-4.8']
     nist_controls: ['CM-7', 'SI-3', 'SI-7']
@@ -985,7 +985,7 @@ patterns:
     cwe: ['CWE-22', 'CWE-78', 'CWE-94']
     cve: ["CVE-2022-1388", "CVE-2023-20198", "CVE-2023-22527", "CVE-2024-23897", "CVE-2024-37080"]
     owasp_appsec: ["A01:2021", "A03:2021"]
-    owasp_asvs: ["V12.3.1", "V12.3.5"]
+    owasp_asvs: [V5.3.2, V1.2.5]
     mitre_attack: ['T1059', 'T1190', 'T1210']
     cis_controls: ['CIS-7.7', 'CIS-13.7', 'CIS-17.3']
     nist_controls: ['IR-4', 'IR-6', 'SI-2', 'SI-3']
@@ -1007,7 +1007,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-94', 'CWE-506', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1059.005', 'T1137.001', 'T1204.002']
     cis_controls: ['CIS-9.6', 'CIS-10.2', 'CIS-10.7']
     nist_controls: ['CM-7', 'SI-3', 'SI-3(8)']
@@ -1029,7 +1029,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-94', 'CWE-506', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1059.005', 'T1127.001', 'T1218']
     cis_controls: ['CIS-2.7', 'CIS-10.5', 'CIS-10.7']
     nist_controls: ['CM-7', 'SI-3', 'SI-7']
@@ -1092,7 +1092,7 @@ patterns:
     cwe: ['CWE-94', 'CWE-502', 'CWE-915']
     cve: ["CVE-2015-4852"]
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.2.1"]
+    owasp_asvs: []
     mitre_attack: ['T1059', 'T1190', 'T1203']
     cis_controls: ['CIS-10.5', 'CIS-16.1', 'CIS-16.11']
     nist_controls: ['SA-11', 'SI-3', 'SI-10']

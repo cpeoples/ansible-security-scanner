@@ -106,7 +106,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-427', 'CWE-494']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1059.006', 'T1574']
     cis_controls: ['CIS-4.1']
     nist_controls: ['CM-5', 'CM-6', 'CM-7', 'SI-7']
@@ -125,7 +125,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-94', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1546']
     cis_controls: ['CIS-Supply-Chain']
     nist_controls: ['CM-11', 'SA-10', 'SI-3', 'SI-7', 'SI-10']
@@ -144,7 +144,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-94', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1546']
     cis_controls: ['CIS-Supply-Chain']
     nist_controls: ['CM-11', 'SA-10', 'SI-3', 'SI-7', 'SI-10']
@@ -181,7 +181,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1046']
     cis_controls: ['CIS-13.1']
     nist_controls: ['AC-3', 'SC-28', 'SI-4']
@@ -201,7 +201,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-427', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1574.006']
     cis_controls: ['CIS-4.1']
     nist_controls: ['CM-6', 'CM-7', 'CM-11', 'SA-10', 'SI-7']
@@ -220,7 +220,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1105', 'T1195']
     cis_controls: ['CIS-Supply-Chain']
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
@@ -239,7 +239,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-522', 'CWE-532']
     owasp_appsec: ["A04:2021", "A09:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V7.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V16.2.5]
     mitre_attack: ['T1552.001']
     cis_controls: ['CIS-3.1', 'CIS-Secrets']
     nist_controls: ['AC-3', 'AU-9', 'IA-5(7)', 'SC-28']
@@ -262,7 +262,7 @@ patterns:
     recommendation: "Use ansible_winrm_transport=kerberos (preferred, domain-joined) or credssp/certificate. Require HTTPS (port 5986) with ansible_winrm_scheme=https and validate the server certificate (ansible_winrm_server_cert_validation=validate)."
     cwe: ['CWE-319', 'CWE-522']
     owasp_appsec: ["A02:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V9.1.1", "V9.2.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V12.2.1, V12.3.4]
     mitre_attack: ['T1021.006', 'T1040', 'T1557.001']
     cis_controls: ['CIS-3.10', 'CIS-13.10']
     nist_controls: ['IA-5(7)', 'SC-8', 'SC-8(1)', 'SC-28']
@@ -282,7 +282,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1021.002', 'T1543.003', 'T1569.002']
     cis_controls: ['CIS-2.3', 'CIS-4.1']
     nist_controls: ['CM-5', 'CM-6', 'CM-7', 'CM-11', 'SA-10', 'SI-7']

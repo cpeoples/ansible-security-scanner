@@ -257,7 +257,7 @@ class SARIFFormatter(OutputFormatter):
         ("mitre_atlas", "ATLAS", "-", ("AML",)),
         # OWASP tags are namespaced to keep the three lists unambiguous when
         # they appear side-by-side in code-scanning UIs (e.g. `OWASP-A03:2021`
-        # vs `OWASP-LLM03` vs `OWASP-ASVS-V2.4.4`).
+        # vs `OWASP-LLM03` vs `OWASP-ASVS-V13.3.1`).
         ("owasp_appsec", "OWASP", "-", ("OWASP",)),
         ("owasp_llm", "OWASP", "-", ("OWASP",)),
         ("owasp_asvs", "OWASP-ASVS", "-", ("OWASP",)),
@@ -409,7 +409,7 @@ class SARIFFormatter(OutputFormatter):
                     {
                         "target": {
                             "id": ref.id,
-                            "toolComponent": {"name": "OWASP ASVS v4.0.3"},
+                            "toolComponent": {"name": "OWASP ASVS v5.0.0"},
                         },
                         "kinds": ["relevant"],
                     }
@@ -556,10 +556,10 @@ class SARIFFormatter(OutputFormatter):
         if used_owasp_asvs:
             taxonomies.append(
                 {
-                    "name": "OWASP ASVS v4.0.3",
+                    "name": "OWASP ASVS v5.0.0",
                     "organization": "OWASP Foundation",
                     "shortDescription": {
-                        "text": "OWASP Application Security Verification Standard v4.0.3"
+                        "text": "OWASP Application Security Verification Standard v5.0.0"
                     },
                     "informationUri": "https://owasp.org/www-project-application-security-verification-standard/",
                     "taxa": [

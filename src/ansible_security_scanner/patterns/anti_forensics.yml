@@ -15,7 +15,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070.006']
     cis_controls: ['CIS-8.2', 'CIS-8.11']
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -71,7 +71,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1562.001', 'T1562.006']
     cis_controls: ['CIS-8.2', 'CIS-8.5']
     nist_controls: ['AU-2', 'AU-3', 'AU-12', 'SC-8', 'SC-8(1)']
@@ -91,7 +91,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070.002', 'T1485']
     cis_controls: ['CIS-8.2', 'CIS-8.10']
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -111,7 +111,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070.002']
     cis_controls: ['CIS-8.2', 'CIS-8.5']
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -131,7 +131,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070', 'T1562.006']
     cis_controls: ['CIS-8.2', 'CIS-8.9']
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -169,7 +169,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-212']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1005', 'T1552']
     cis_controls: ['CIS-3.3', 'CIS-4.1']
     nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7', 'SC-28']
@@ -189,7 +189,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-73', 'CWE-732', 'CWE-1104']
     owasp_appsec: ["A04:2021", "A06:2021"]
-    owasp_asvs: ["V12.3.1", "V12.4.1"]
+    owasp_asvs: [V5.3.2, V5.3.1]
     mitre_attack: ['T1070', 'T1485', 'T1490']
     cis_controls: ['CIS-11.1', 'CIS-11.2', 'CIS-11.3', 'CIS-11.5']
     nist_controls: ['AU-11', 'CP-9', 'CP-10', 'SI-7']
@@ -211,7 +211,7 @@ patterns:
     recommendation: "Never exclude user-writable or broad paths. Legitimate exclusions should be narrow (e.g. a specific SQL server data file `C:\\Program Files\\Microsoft SQL Server\\MSSQL16.MSSQLSERVER\\MSSQL\\DATA\\app.mdf`), read-only for non-admins, and documented with vendor KB references (Microsoft publishes app-specific exclusion lists). Replace path exclusions with **process exclusions** when the goal is performance (`Set-MpPreference -ExclusionProcess sqlservr.exe`). Audit with `Get-MpPreference | Select-Object -ExpandProperty ExclusionPath` + compare against a SCM baseline. Detection: Sysmon Event ID 13 (registry-value set) on `HKLM\\SOFTWARE\\Microsoft\\Windows Defender\\Exclusions`, Defender operational event 5007 (configuration change). Disable tamper protection bypass: enable Intune 'Tamper Protection' + 'Prevent local admins from adding exclusions' (Defender CSP `DisableLocalAdminMerge=1`). If an attacker ever modified exclusions, the host is considered compromised - perform IR, full EDR scan, and restore from backup."
     cwe: ['CWE-73', 'CWE-250', 'CWE-693']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.3.1", "V14.2.2"]
+    owasp_asvs: [V5.3.2, V13.4.5, V15.2.3]
     mitre_attack: ['T1027', 'T1112', 'T1562.001']
     cis_controls: ['CIS-10.1', 'CIS-10.2', 'CIS-10.5']
     nist_controls: ['AU-12', 'CM-7', 'SI-3', 'SI-4']
@@ -233,7 +233,7 @@ patterns:
     recommendation: "Every production Windows 10/11 / Server 2019+ endpoint should run all 16 Microsoft-recommended ASR rules in **Block** mode (`Action=1`), not Audit/Disabled. Deploy via Intune 'Endpoint security -> Attack surface reduction' policy or Defender CSP with full rule-set list at Block. Known-noisy rules (`26190899-1602-49e8-8b27-eb1d0a1ce869` office communication app child processes) should use ASR 'Warn' mode + per-app exclusions rather than Disable. Test with a pilot ring in AuditMode (Action=2) for ≤ 14 days, review `Get-MpPreference | Select-Object -ExpandProperty AttackSurfaceReductionOnlyExclusions` and event 1121-1125 (MITRE ATT&CK: Microsoft-Windows-Windows Defender/Operational), then promote to Block. Monitor ASR rule state monthly via `Get-MpPreference | Select-Object AttackSurfaceReductionRules_Ids, AttackSurfaceReductionRules_Actions` shipped to a SIEM; alert on any downgrade. Protect the config with Tamper Protection + Intune policy conflict resolution."
     cwe: ['CWE-250', 'CWE-693', 'CWE-807']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1112', 'T1562.001', 'T1562.010']
     cis_controls: ['CIS-10.1', 'CIS-10.2', 'CIS-10.5', 'CIS-10.7']
     nist_controls: ['CM-7', 'SI-3', 'SI-4', 'SI-7']
@@ -276,7 +276,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-117', 'CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V8.3.1"]
+    owasp_asvs: [V14.2.1]
     mitre_attack: ['T1070', 'T1562.001', 'T1562.006']
     cis_controls: ['CIS-8.2', 'CIS-8.5', 'CIS-8.11']
     nist_controls: ['AU-2', 'AU-9', 'AU-12', 'SI-4']

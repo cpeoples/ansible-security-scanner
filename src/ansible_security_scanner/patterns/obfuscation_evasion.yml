@@ -155,7 +155,7 @@ patterns:
     recommendation: "Downloaded files should be verified (checksum) before execution"
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1059.004', 'T1105']
     cis_controls: ['CIS-Supply-Chain']
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']

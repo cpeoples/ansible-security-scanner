@@ -35,7 +35,7 @@ patterns:
       - "- chmod 777 /tmp/releases"
     recommendation: "0777 grants write to every local user and is a privilege-escalation primitive; set the most restrictive mode the workload requires (0640 / 0750) and grant additional access via group membership."
     cwe: ['CWE-732']
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1222.002']
     cis_controls: ['CIS-3.3', 'CIS-4.1']
     nist_controls: ['AC-3', 'AC-6', 'CM-6', 'CM-7']
@@ -56,7 +56,7 @@ patterns:
     positive_examples:
       - "chmod 0640 /etc/ldap/localhost.key"
     cwe: ['CWE-250', 'CWE-732']
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1548.001']
     cis_controls: ['CIS-4.1', 'CIS-10.1']
     nist_controls: ['AC-3', 'AC-6', 'AC-6(1)', 'CM-6', 'CM-7', 'SI-3']
@@ -78,7 +78,7 @@ patterns:
       - "- name: Copy /etc/shadow"
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V2.10.1", "V6.2.1", "V8.1.1"]
+    owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
     mitre_attack: ['T1003.008']
     cis_controls: ['CIS-3.3', 'CIS-6.8']
     nist_controls: ['AC-2', 'AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
@@ -122,7 +122,7 @@ patterns:
     positive_examples:
       - "cron_config_path: /etc/cron.d"
     cwe: ['CWE-250']
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1053.003']
     cis_controls: ['CIS-4.1', 'CIS-8.2']
     nist_controls: ['AC-6', 'AC-6(1)', 'AU-2', 'AU-12', 'CM-6', 'CM-7']
@@ -144,7 +144,7 @@ patterns:
     positive_examples:
       - "- modprobe - remove redundant conversions to unicode (https://github.com/ansible-collections/community.general/pull/11098)."
     cwe: ['CWE-250']
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1014', 'T1547.006']
     cis_controls: ['CIS-4.1', 'CIS-10.1']
     nist_controls: ['AC-6', 'AC-6(1)', 'CM-6', 'CM-7', 'SI-3']
@@ -165,7 +165,7 @@ patterns:
     recommendation: "Validate the service name against an allow-list before passing it to ansible.builtin.systemd_service / ansible.builtin.service: use ansible.builtin.assert with a regex like ^[a-zA-Z0-9_.@-]+$ and a known-services set rather than passing {{ var }} straight to systemctl."
     cwe: ['CWE-20', 'CWE-250']
     owasp_appsec: ["A03:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1543.002']
     cis_controls: ['CIS-4.1', 'CIS-8.2']
     nist_controls: ['AC-6', 'AC-6(1)', 'AU-2', 'AU-12', 'CM-6', 'CM-7', 'SI-10']
@@ -241,7 +241,7 @@ patterns:
     recommendation: "Writing executable script files into a webroot is the canonical web-shell deployment pattern; remove the task, audit the webroot for unknown files, and deploy application code via packaged artifacts (RPM/DEB, container image, git checkout) rather than ansible.builtin.copy of loose .php / .jsp files."
     cwe: ['CWE-434', 'CWE-506']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.2.1", "V12.4.1"]
+    owasp_asvs: [V5.2.2, V5.3.1]
     mitre_attack: ['T1505.003']
     cis_controls: ['CIS-4.1', 'CIS-10.1']
     nist_controls: ['CM-6', 'CM-7', 'SI-3', 'SI-7']
@@ -278,7 +278,7 @@ patterns:
     recommendation: "Defender config is managed centrally (Group Policy / Intune / Defender for Endpoint portal). Host-local Set-MpPreference calls bypass that policy. Audit the exclusion list, re-enable real-time protection, and investigate what ran while protection was off."
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1562.001']
     cis_controls: ['CIS-10.1', 'CIS-10.7']
     nist_controls: ['AU-2', 'AU-3', 'AU-12', 'SC-8', 'SC-8(1)', 'SI-3']
@@ -297,7 +297,7 @@ patterns:
     recommendation: "Do not clear event logs from automation. Forward logs to a centralized SIEM (Windows Event Forwarding, Splunk UF, Elastic Beats) so retention is not host-local. If log volume is the concern, adjust retention/size instead of clearing."
     cwe: ['CWE-117', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1", "V7.3.1"]
+    owasp_asvs: [V16.2.5, V16.3.1, V16.4.1]
     mitre_attack: ['T1070.001', 'T1562.002']
     cis_controls: ['CIS-8.2', 'CIS-8.5']
     nist_controls: ['AU-2', 'AU-3', 'AU-12']
@@ -353,7 +353,7 @@ patterns:
     recommendation: "Remove the unit. Legitimate systemd timers place `ExecStart` at a root-owned, non-world-writable path (e.g. `/usr/local/bin/`), reference a file that was provisioned via a signed-and-pinned package or a `copy` task with explicit `owner: root`, `group: root`, `mode: '0755'`, and never inline base64 or `curl | bash`. Audit existing timers with `systemctl list-timers --all` and inspect `ExecStart` for each unit. Monitor `/etc/systemd/system/*.{timer,service}` with auditd."
     cwe: ['CWE-426', 'CWE-506', 'CWE-732']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1053.006', 'T1543.002']
     cis_controls: ['CIS-3.3', 'CIS-4.1', 'CIS-10.5']
     nist_controls: ['AC-6', 'AU-12', 'CM-7', 'SI-4']
@@ -372,7 +372,7 @@ patterns:
     recommendation: "Set `superusers` to a named account and generate the PBKDF2 hash with `grub-mkpasswd-pbkdf2` on an out-of-band admin host, then store the hash in ansible-vault (not plaintext). Remove `--unrestricted` from every `menuentry`. Verify with `grep -E 'set superusers|--unrestricted|password_pbkdf2' /boot/grub2/grub.cfg` (or `/boot/grub/grub.cfg`). For physical-access threat models, also enable BIOS/UEFI admin-password + Secure Boot."
     cwe: ['CWE-287', 'CWE-306', 'CWE-798']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1", "V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V6.2.1, V13.2.3, V13.3.1]
     mitre_attack: ['T1542.003', 'T1543']
     cis_controls: ['CIS-4.5', 'CIS-5.2', 'CIS-6.8']
     nist_controls: ['AC-3', 'CM-6', 'IA-2', 'SC-12']
@@ -392,7 +392,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-347', 'CWE-693', 'CWE-798']
     owasp_appsec: ["A02:2021", "A07:2021"]
-    owasp_asvs: ["V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V13.2.3, V13.3.1]
     mitre_attack: ['T1542.001', 'T1542.003']
     cis_controls: ['CIS-4.5', 'CIS-10.5']
     nist_controls: ['CM-6', 'CM-7', 'SC-12', 'SI-7']
@@ -451,7 +451,7 @@ patterns:
     recommendation: "Never use `COPY ... PROGRAM` from Ansible; replace with `COPY ... FROM '/path/file.csv'` for file ingestion (no shell-out). Revoke the `pg_execute_server_program` role from all app users: `REVOKE pg_execute_server_program FROM app_role;`. For data-loading pipelines, use `\\copy` (client-side, runs as the OS user running psql, far narrower blast radius) or a dedicated ETL process with a purpose-built FDW. Audit existing grants: `SELECT member::regrole, granted_by::regrole FROM pg_auth_members WHERE roleid = 'pg_execute_server_program'::regrole;`."
     cwe: ['CWE-78', 'CWE-250', 'CWE-269']
     owasp_appsec: ["A03:2021", "A04:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1059', 'T1210']
     cis_controls: ['CIS-2.1', 'CIS-5.4', 'CIS-16.11']
     nist_controls: ['AC-6', 'CM-7', 'SI-10']
@@ -473,7 +473,7 @@ patterns:
     cwe: ['CWE-250', 'CWE-269', 'CWE-732']
     cve: ["CVE-2021-4034"]
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1068', 'T1543', 'T1546']
     cis_controls: ['CIS-4.8', 'CIS-5.4', 'CIS-6.8']
     nist_controls: ['AC-6', 'CM-7', 'SI-3']
@@ -516,7 +516,7 @@ patterns:
     cwe: ['CWE-284', 'CWE-732', 'CWE-829']
     cve: ["CVE-2022-1015", "CVE-2023-6932", "CVE-2024-0582", "CVE-2024-1086"]
     owasp_appsec: ["A01:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1068', 'T1562.001', 'T1611']
     cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-5.7']
     nist_controls: ['CM-7', 'SC-39', 'SI-3']
@@ -536,7 +536,7 @@ patterns:
     recommendation: "Remove the `kexec` task unless it is part of a documented kdump / crash-capture flow. For legitimate live kernel patching use `kpatch` (RHEL/CentOS), `livepatch` (Ubuntu Pro), or `kGraft` (SLES) - all of which are signed, audited, and preserve Secure Boot chain. Disable kexec_load host-wide if not needed: `echo 1 > /proc/sys/kernel/kexec_load_disabled` (one-way until reboot), persistent via `kernel.kexec_load_disabled=1` in sysctl. On kernels built with `CONFIG_KEXEC_SIG=y`, require signed kernel images: `kernel.kexec_image_verify_sig=1`. Monitor kexec invocations via auditd: `-a always,exit -F arch=b64 -S kexec_load,kexec_file_load -k kexec_use`."
     cwe: ['CWE-250', 'CWE-345', 'CWE-506']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1014', 'T1542.003', 'T1547']
     cis_controls: ['CIS-4.8', 'CIS-5.4', 'CIS-10.5']
     nist_controls: ['AC-6', 'CM-7', 'SI-7']
@@ -559,7 +559,7 @@ patterns:
     recommendation: "Keep the distro default: `kernel.yama.ptrace_scope = 1` (child-only) for general fleets, `2` (admin-only, requires CAP_SYS_PTRACE) for PCI/HIPAA-scoped hosts, `3` (no ptrace at all) for kiosks / single-app servers. Persist via `/etc/sysctl.d/10-ptrace.conf` and validate at boot via a CIS-baseline Ansible task. If a legitimate debugger needs scope=0 TEMPORARILY, gate it behind a `tags: dev-only` role and never ship it to staging/prod."
     cwe: ['CWE-200', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1", "V12.4.1"]
+    owasp_asvs: [V14.2.2, V5.3.1]
     mitre_attack: ['T1003', 'T1068', 'T1562.001']
     cis_controls: ['CIS-3.3', 'CIS-4.1', 'CIS-4.8']
     nist_controls: ['AC-6', 'CM-7', 'SC-39']
@@ -579,7 +579,7 @@ patterns:
     recommendation: "Set `kernel.dmesg_restrict = 1` in `/etc/sysctl.d/10-kernel-hardening.conf`. Grant `adm` or `systemd-journal` group to ops staff who legitimately need dmesg. Validate via CIS Benchmark L1 rule 1.5.3 (RHEL) / 1.6.3 (Ubuntu). On Kubernetes nodes add an additional kernel commandline arg `dmesg_restrict=1` to harden against runtime sysctl reverts."
     cwe: ['CWE-200', 'CWE-209', 'CWE-497']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1082', 'T1592.002']
     cis_controls: ['CIS-3.3', 'CIS-4.1']
     nist_controls: ['AC-6', 'AU-9', 'SI-11']
@@ -602,7 +602,7 @@ patterns:
     recommendation: "Set `kernel.kptr_restrict = 2` in `/etc/sysctl.d/10-kernel-hardening.conf` (strictest, only violates niche profiler use-cases). `kernel.perf_event_paranoid = 3` should accompany it to close the same leak via perf. Revert to `1` ONLY on hosts running perf/eBPF profilers in prod, not on application servers."
     cwe: ['CWE-200', 'CWE-497', 'CWE-1013']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V8.1.1"]
+    owasp_asvs: [V14.2.2]
     mitre_attack: ['T1082']
     cis_controls: ['CIS-3.3', 'CIS-4.1']
     nist_controls: ['AC-6', 'SI-11']
@@ -625,7 +625,7 @@ patterns:
     recommendation: "Keep ALL of `fs.protected_symlinks=1`, `fs.protected_hardlinks=1`, `fs.protected_fifos=2`, `fs.protected_regular=2` in `/etc/sysctl.d/10-fs-hardening.conf`. These are cost-free - no legitimate workload ever needs them disabled. If a specific app breaks, fix the app to stop following user-supplied symlinks; do not weaken the kernel-wide hardening."
     cwe: ['CWE-59', 'CWE-367', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1068', 'T1548.001']
     cis_controls: ['CIS-3.3', 'CIS-4.8']
     nist_controls: ['AC-6', 'CM-7', 'SI-10']
@@ -646,7 +646,7 @@ patterns:
     cwe: ['CWE-284', 'CWE-668', 'CWE-732']
     cve: ["CVE-2024-1086", "CVE-2024-26808"]
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1068', 'T1611']
     cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-5.7']
     nist_controls: ['AC-6', 'CM-7', 'SC-39']
@@ -666,7 +666,7 @@ patterns:
     recommendation: "Never flip `kernel.modules_disabled` back to 0 in a playbook - the whole point of this one-way sysctl is that it cannot be un-set without a reboot, giving you a forensic signal. If the host legitimately needs a new module at run-time, load it via `/etc/modules-load.d/*.conf` early in boot BEFORE lockdown takes effect. For reactive runs, reboot the host into a maintenance window with `modules_disabled=0`, load the module with Secure-Boot-signed `kmod-*` packages, and immediately re-apply `modules_disabled=1`. Add auditd `-w /proc/sys/kernel/modules_disabled -p wa -k modules_lockdown_flip`."
     cwe: ['CWE-250', 'CWE-284', 'CWE-506']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1014', 'T1547.006', 'T1562.001']
     cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-10.5']
     nist_controls: ['AC-6', 'CM-7', 'SI-7']
@@ -707,7 +707,7 @@ patterns:
     recommendation: "Never grant FILE to application users. If a specific import/export job legitimately needs file I/O, create a dedicated MySQL user restricted to `secure_file_priv` directory: `SET GLOBAL secure_file_priv = '/var/lib/mysql-files/'`, `GRANT FILE ON *.* TO 'etl_user'@'127.0.0.1'` + connection-restricted to loopback. Revoke from existing users: `REVOKE FILE ON *.* FROM '<user>'@'%'`. Audit with `SELECT User, Host, File_priv FROM mysql.user WHERE File_priv='Y'` - every row is a review-required escalation."
     cwe: ['CWE-250', 'CWE-269', 'CWE-732']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1059', 'T1068', 'T1078.003']
     cis_controls: ['CIS-3.3', 'CIS-6.8', 'CIS-16.5']
     nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(5)']
@@ -728,7 +728,7 @@ patterns:
     recommendation: "Use role inheritance with targeted privileges instead of SUPERUSER. For DBA automation, grant specific attributes (`CREATEROLE`, `CREATEDB`, `REPLICATION`) as needed - not the nuclear SUPERUSER bundle. For `COPY` / `pg_read_server_files` specifically, grant `pg_read_server_files` / `pg_write_server_files` predefined roles (Postgres 11+) which are narrower. Audit existing superusers: `SELECT rolname FROM pg_roles WHERE rolsuper = true` - should only contain the `postgres` bootstrap account. Revoke via `ALTER ROLE <user> NOSUPERUSER`. Require dual-control (two DBAs) for any `CREATE ROLE ... SUPERUSER`."
     cwe: ['CWE-250', 'CWE-269', 'CWE-732']
     owasp_appsec: ["A04:2021"]
-    owasp_asvs: ["V12.4.1", "V14.2.2"]
+    owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1059', 'T1068', 'T1078.003']
     cis_controls: ['CIS-3.3', 'CIS-6.8', 'CIS-16.5']
     nist_controls: ['AC-6', 'AC-6(1)', 'AC-6(5)']
@@ -749,7 +749,7 @@ patterns:
     recommendation: "Use the TRUSTED `plpython3` (no `u` suffix - PG 13+) / `plperl` / `pltcl` variants which run in a sandboxed interpreter without direct OS access. If OS-level integration is truly required, move it OUT of the database into a separate service (e.g. trigger a message on a queue consumed by a sandboxed worker). Remove existing untrusted extensions: `DROP EXTENSION plpython3u CASCADE`. Restrict extension creation to the `postgres` role only: `REVOKE CREATE ON DATABASE <db> FROM PUBLIC` (default in PG 15+). Audit with `SELECT extname FROM pg_extension WHERE extname IN ('plpython3u','plperlu','pltclu','plsh')` - every row is a review-required backdoor."
     cwe: ['CWE-78', 'CWE-94', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1"]
+    owasp_asvs: []
     mitre_attack: ['T1059.006', 'T1068', 'T1505']
     cis_controls: ['CIS-3.3', 'CIS-16.5', 'CIS-16.11']
     nist_controls: ['AC-6', 'CM-7', 'SI-10']
@@ -770,7 +770,7 @@ patterns:
     recommendation: "Set `access_management = 0` for all non-DBA users. Maintain a single dedicated admin user (separate from `default`) with `access_management = 1`, reachable only from a management subnet. Enforce authentication on the `default` user: `<users><default><password_sha256_hex>...</password_sha256_hex><networks><ip>10.0.0.0/8</ip></networks></default></users>`. Bind ClickHouse to internal interfaces only (`listen_host` = internal IP, NOT `0.0.0.0`). Audit with `SELECT name, access_management FROM system.users WHERE access_management = 1` - should only contain the designated cluster admin."
     cwe: ['CWE-269', 'CWE-284', 'CWE-732']
     owasp_appsec: ["A01:2021", "A04:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1068', 'T1078', 'T1098']
     cis_controls: ['CIS-3.3', 'CIS-6.8']
     nist_controls: ['AC-3', 'AC-6', 'IA-2']
@@ -791,7 +791,7 @@ patterns:
     recommendation: "Set `authenticator: PasswordAuthenticator` and `authorizer: CassandraAuthorizer` in `cassandra.yaml`. On first boot change the default `cassandra/cassandra` superuser password: `ALTER USER cassandra WITH PASSWORD '$(openssl rand -base64 32)'`. Create a new superuser, then `ALTER USER cassandra NOSUPERUSER` or drop it. Enable inter-node encryption (`server_encryption_options.internode_encryption: all`) and client encryption (`client_encryption_options.enabled: true`). Bind `listen_address` and `rpc_address` to internal interfaces only. Audit Internet-exposure via `nmap -p 9042 --script cassandra-info`."
     cwe: ['CWE-306', 'CWE-521', 'CWE-798']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1", "V2.10.2", "V2.10.4", "V14.1.5"]
+    owasp_asvs: [V6.2.1, V13.2.3, V13.3.1]
     mitre_attack: ['T1078', 'T1078.001']
     cis_controls: ['CIS-3.3', 'CIS-6.5', 'CIS-16.5']
     nist_controls: ['AC-3', 'IA-2', 'IA-5']
@@ -812,7 +812,7 @@ patterns:
     recommendation: "Enable X-Pack Security (free since 7.10): `xpack.security.enabled: true`, `xpack.security.transport.ssl.enabled: true`, `xpack.security.http.ssl.enabled: true`. On first boot run `elasticsearch-setup-passwords auto` and store the generated passwords in a secrets manager. Bind to internal interface only: `network.host: 10.0.0.X` + `discovery.seed_hosts: [internal-es-1, internal-es-2]`. Put Kibana + API behind an authenticated reverse proxy if exposed externally. For OpenSearch: enable `plugins.security` + set `chefClient`-generated admin password. Audit: `curl -s http://<host>:9200/_cluster/health` should return 401; if it returns 200, you're exposed."
     cwe: ['CWE-284', 'CWE-306', 'CWE-668']
     owasp_appsec: ["A01:2021", "A07:2021"]
-    owasp_asvs: ["V2.1.1"]
+    owasp_asvs: [V6.2.1]
     mitre_attack: ['T1133', 'T1210', 'T1530']
     cis_controls: ['CIS-3.3', 'CIS-4.4', 'CIS-6.5']
     nist_controls: ['AC-3', 'IA-2', 'SC-7']
@@ -834,7 +834,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693', 'CWE-778']
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070', 'T1562.001', 'T1562.006']
     cis_controls: ['CIS-8.2', 'CIS-8.5', 'CIS-8.11']
     nist_controls: ['AU-2', 'AU-6', 'AU-9', 'SI-4']
@@ -855,7 +855,7 @@ patterns:
     recommendation: "Set `-f 2` (kernel panic on audit-subsystem failure) on regulated/PCI/HIPAA hosts - if an attacker can exhaust the buffer, the host halts rather than silently drops events. On non-critical fleets use `-f 1` (printk warning visible in dmesg). Increase `-b` (backlog limit) to at least 8192 to absorb bursty workloads: `auditctl -b 8192`. Validate via `auditctl -s | grep -E 'failure|backlog'` and export to your compliance dashboard."
     cwe: ['CWE-693', 'CWE-703', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070', 'T1562.001', 'T1562.006']
     cis_controls: ['CIS-8.2', 'CIS-8.3', 'CIS-8.11']
     nist_controls: ['AU-4', 'AU-5', 'AU-9']
@@ -876,7 +876,7 @@ patterns:
     recommendation: "Set `Storage=persistent` in `/etc/systemd/journald.conf` and ensure `/var/log/journal` exists (`systemd-tmpfiles --create --prefix /var/log/journal`). Size appropriately: `SystemMaxUse=2G`, `SystemKeepFree=4G`, `MaxRetentionSec=3month` for PCI-scoped hosts. Ship journal off-host with `systemd-journal-upload.service` to a central SIEM - that way even if on-host persistence is tampered with, centrally-collected events remain. Alert on `Storage=` changes via auditd `-w /etc/systemd/journald.conf -p wa -k journald_cfg`."
     cwe: ['CWE-284', 'CWE-693', 'CWE-778']
     owasp_appsec: ["A01:2021", "A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1070.002', 'T1562.001', 'T1562.006']
     cis_controls: ['CIS-8.2', 'CIS-8.5', 'CIS-8.10']
     nist_controls: ['AU-4', 'AU-9', 'AU-11']
@@ -901,7 +901,7 @@ patterns:
     recommendation: "Leave journald rate-limiting at the distro default on audit-in-scope systems, OR disable it explicitly with `RateLimitIntervalSec=0` (canonical systemd ≥240 form - unambiguous, no `RateLimitBurst=0` ambiguity). If you must rate-limit on a noisy host, use `RateLimitBurst=10000` + `RateLimitIntervalSec=30s` so legitimate burst storms are absorbed. Forward all events to a central SIEM with `systemd-journal-upload` where rate-limiting can be re-applied centrally without affecting on-host retention. Alert on any change to these two knobs."
     cwe: ['CWE-400', 'CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
-    owasp_asvs: ["V7.1.1", "V7.2.1", "V14.1.3"]
+    owasp_asvs: [V16.2.5, V16.3.1]
     mitre_attack: ['T1562.001', 'T1562.006']
     cis_controls: ['CIS-8.2', 'CIS-8.3']
     nist_controls: ['AU-4', 'AU-5', 'AU-9']
@@ -922,7 +922,7 @@ patterns:
     recommendation: "Never runtime-downgrade MAC (Mandatory Access Control). If SELinux breaks a legitimate app, FIX the policy: `audit2allow -M mymodule -i /var/log/audit/audit.log`, then `semodule -i mymodule.pp` - enforcing mode stays on. For AppArmor, profile adjustments go in `/etc/apparmor.d/local/<name>` (local customization) and are reloaded via `apparmor_parser -r`, not disabled. If a break-glass is genuinely needed, scope to a single binary via `permissive <type>` (SELinux) or `complain` on ONE profile (AppArmor) - never disable the entire LSM. Alert on runtime-mode-change events: auditd `-a always,exit -F arch=b64 -S setxattr -F key=MAC_status_change`."
     cwe: ['CWE-284', 'CWE-693', 'CWE-732']
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1068', 'T1562.001', 'T1562.004']
     cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-10.5']
     nist_controls: ['AC-3', 'AC-6', 'CM-7']
@@ -965,7 +965,7 @@ patterns:
     no_ansible_remediation: true
     cwe: ['CWE-250', 'CWE-272', 'CWE-306']
     owasp_appsec: ["A07:2021"]
-    owasp_asvs: ["V2.1.1", "V14.2.2"]
+    owasp_asvs: [V6.2.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1068', 'T1078.003', 'T1542.003']
     cis_controls: ['CIS-2.3', 'CIS-4.1', 'CIS-10.5']
     nist_controls: ['AC-3', 'IA-2', 'SI-7']
@@ -1007,7 +1007,7 @@ patterns:
     cwe: ['CWE-284', 'CWE-732', 'CWE-1269']
     cve: ["CVE-2022-23222", "CVE-2023-2163"]
     owasp_appsec: ["A01:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1055.009', 'T1068', 'T1562.001']
     cis_controls: ['CIS-3.3', 'CIS-4.1', 'CIS-4.8']
     nist_controls: ['AC-3', 'AC-6', 'CM-6']
@@ -1047,7 +1047,7 @@ patterns:
     recommendation: "Generate modern host keys on every SSH server: `ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ''` (primary - EdDSA 256-bit, immune to bad RNG, fixed-size signatures) + `ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ''` (fallback for legacy clients). Delete any existing `ssh_host_dsa_key*` and `ssh_host_rsa_key*` below 4096 bits. Pin supported algorithms in `/etc/ssh/sshd_config`: `HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256` + `KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,sntrup761x25519-sha512@openssh.com` (post-quantum hybrid). Distribute host keys via SSHFP DNS records (DNSSEC-signed) or SSH Certificate Authority (`ssh-keygen -s ca -I host-cert` + `TrustedUserCAKeys`) so clients verify without TOFU. Audit: `ssh-keyscan <host> | ssh-keygen -l -f -` - reject anything with `(DSA)` or RSA < 4096."
     cwe: ['CWE-326', 'CWE-327', 'CWE-331']
     owasp_appsec: ["A02:2021"]
-    owasp_asvs: ["V6.2.1", "V6.2.3", "V6.2.5"]
+    owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1021.004', 'T1557']
     cis_controls: ['CIS-3.10', 'CIS-4.8', 'CIS-12.6']
     nist_controls: ['SC-8', 'SC-12', 'SC-13']
@@ -1070,7 +1070,7 @@ patterns:
     cwe: ['CWE-94', 'CWE-829', 'CWE-1357']
     cve: ["CVE-2015-2291", "CVE-2018-19320", "CVE-2019-16098", "CVE-2021-21551"]
     owasp_appsec: ["A03:2021", "A08:2021"]
-    owasp_asvs: ["V10.3.1", "V10.3.2"]
+    owasp_asvs: [V15.2.4]
     mitre_attack: ['T1014', 'T1068', 'T1562.001']
     cis_controls: ['CIS-2.7', 'CIS-10.5', 'CIS-10.7']
     nist_controls: ['CM-7', 'SI-3', 'SI-7']
@@ -1091,7 +1091,7 @@ patterns:
     recommendation: "Never write DLLs into Windows system directories or application Program Files directories via Ansible unless absolutely necessary, and ONLY from a signed, hash-verified source. Use the vendor's official installer/updater where possible (MSI with signed catalog, WinGet, Chocolatey signed package). If a custom DLL replacement IS required: (1) verify the DLL's Authenticode signature with `Get-AuthenticodeSignature <file>.dll` before deployment, (2) write to a dedicated vendor directory (`C:\\Program Files\\<YourCompany>\\<app>\\`) with NTFS deny-write for non-Administrators, (3) set `CWDIllegalInDllSearch` policy (Windows 8+) to `0xFFFFFFFF` to remove the current directory from DLL search, (4) enable **Safe DLL Search Mode** (`HKLM\\System\\CurrentControlSet\\Control\\Session Manager\\SafeDllSearchMode = 1`, default on Win10+), (5) use explicit LoadLibraryEx with `LOAD_LIBRARY_SEARCH_SYSTEM32` flag in your own code. Detect hijack attempts: Sysmon Event ID 7 (ImageLoaded) where `SignatureStatus != Valid` or `Signed = false` - this single rule catches nearly every DLL-hijack. Enforce WDAC with a user-mode code integrity policy in Audit or Enforce mode. Audit: Sysinternals `Process Monitor` filtered `Operation is Load Image` + `Path contains .dll` + `Signed is False` - any match is suspicious."
     cwe: ['CWE-426', 'CWE-427', 'CWE-732']
     owasp_appsec: ["A08:2021"]
-    owasp_asvs: ["V12.4.1"]
+    owasp_asvs: [V5.3.1]
     mitre_attack: ['T1543.003', 'T1574.001', 'T1574.002']
     cis_controls: ['CIS-2.7', 'CIS-10.5', 'CIS-16.4']
     nist_controls: ['CM-5', 'SI-3', 'SI-7']
@@ -1133,7 +1133,7 @@ patterns:
     recommendation: "Never disable SIP on a production or user-facing Mac. For the extremely rare case a dev tool requires SIP-off (low-level kernel research, legacy kext development), isolate it to a DEDICATED test Mac that is not on the production network and holds no production data. Enforce SIP-enabled via MDM and alert on any disabled status (`csrutil status` should return `System Integrity Protection status: enabled.` - anything else is a P0 incident). For legitimate kext needs, use the new System Extensions framework (Network, Endpoint Security, DriverKit) which works with SIP enabled. Audit on boot via a LaunchDaemon that invokes `csrutil status` and ships the result to SIEM. Treat `csrutil disable` as equivalent to `rm -rf / --no-preserve-root` for incident-response purposes."
     no_ansible_remediation: true
     cwe: ['CWE-250', 'CWE-693']
-    owasp_asvs: ["V14.2.2"]
+    owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1014', 'T1562.001']
     cis_controls: ['CIS-4.8', 'CIS-10.2', 'CIS-10.5']
     nist_controls: ['AC-6', 'CM-7', 'SI-7']

@@ -196,7 +196,7 @@ through [`link_resolver`](#framework-deep-link-resolvers)):
 | `stig` | DISA STIG Vulnerability IDs — `["V-230221"]` |
 | `owasp_appsec` | OWASP Top 10 (2021/2017) — `["A03:2021"]` |
 | `owasp_llm` | OWASP LLM Top 10 — `["LLM01"]` |
-| `owasp_asvs` | OWASP ASVS v4.0.3 — `["V2.4.4"]` |
+| `owasp_asvs` | OWASP ASVS v5.0.0 — `["V13.3.1"]` |
 | `cve` | CVE — `["CVE-2024-3094"]` |
 
 Other metadata:
