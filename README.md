@@ -1,11 +1,11 @@
-<p align="center">
+<div align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand-mark.svg">
     <img src="docs/assets/brand-mark-light.svg" alt="Ansible Security Scanner" width="560">
   </picture>
-</p>
+</div>
 
-<hr style="margin: 1.5rem 0;">
+<hr>
 
 <!-- BADGES_START - stripped from the Hugo docs build; see .hugo/scripts/build_docs.py -->
 <p align="center">

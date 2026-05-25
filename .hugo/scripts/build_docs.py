@@ -199,9 +199,14 @@ def _rewrite_links_for_hugo(body: str) -> str:
 
 _LEADING_H1_RE = re.compile(r"^#\s+(?P<title>.+?)\s*$\n+", re.MULTILINE)
 _LEADING_HTML_H1_RE = re.compile(
-    r"\A(?:\s*<p\b[^>]*>.*?</p>\s*)?\s*<h1\b[^>]*>(?P<title>.*?)</h1>\s*\n+",
+    r"\A\s*<h1\b[^>]*>(?P<title>.*?)</h1>\s*\n+",
     re.DOTALL | re.IGNORECASE,
 )
+_LEADING_HERO_BLOCK_RE = re.compile(
+    r"\A\s*<(p|div)\b[^>]*>\s*<picture\b.*?</picture>\s*</\1>\s*\n+",
+    re.DOTALL | re.IGNORECASE,
+)
+_LEADING_HR_RE = re.compile(r"\A\s*<hr\b[^>]*/?>\s*\n+", re.IGNORECASE)
 _BADGES_BLOCK_RE = re.compile(
     r"<!--\s*BADGES_START\b.*?-->\n.*?\n<!--\s*BADGES_END\s*-->\n*",
     re.DOTALL,
@@ -255,6 +260,8 @@ def build_index() -> None:
         content = README_FILE.read_text()
 
     content = _strip_readme_badge_block(content)
+    content = _LEADING_HERO_BLOCK_RE.sub("", content, count=1)
+    content = _LEADING_HR_RE.sub("", content, count=1)
     content = re.sub(
         r'(src|href|srcset)="docs/assets/',
         lambda m: f'{m.group(1)}="{ASSET_URL_PREFIX}',
