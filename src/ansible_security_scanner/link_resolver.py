@@ -156,6 +156,39 @@ def _normalize_nist(raw: str) -> str | None:
     return f"{family}-{num}" + (f"({enh.lower()})" if enh else "")
 
 
+# Bump on a new SP 800-53 revision; nothing else here needs to change.
+_NIST_CPRT_VERSION = "SP_800_53_5_2_0"
+_NIST_CPRT_URL = (
+    "https://csrc.nist.gov/projects/cprt/catalog#/cprt/framework/version/"
+    f"{_NIST_CPRT_VERSION}/home?element="
+)
+
+
+def _format_nist_element(canonical_id: str) -> str:
+    """Zero-pad NIST id for CPRT (`AC-3` -> `AC-03`, `IA-5(7)` -> `IA-05(07)`).
+
+    CPRT silently renders the catalog home view when the family suffix or
+    enhancement number is not two digits, so we pad on output.
+    """
+    m = _NIST_RE.match(canonical_id)
+    if not m:
+        return canonical_id
+    family = m.group(1).upper()
+    num = int(m.group(2))
+    enh = m.group(3)
+    base = f"{family}-{num:02d}" if num < 100 else f"{family}-{num}"
+    if enh is None:
+        return base
+    if enh.isdigit():
+        n = int(enh)
+        return f"{base}({n:02d})" if n < 100 else f"{base}({n})"
+    return f"{base}({enh})"
+
+
+def _build_nist_url(canonical_id: str) -> str:
+    return _NIST_CPRT_URL + _format_nist_element(canonical_id)
+
+
 def _normalize_pci(raw: str) -> str | None:
     """Return canonical PCI-DSS form (`3.5.1.2`) or None."""
     s = raw.strip().replace(" ", "")
@@ -292,6 +325,9 @@ class _FrameworkSpec:
     filename: str  # YAML basename inside ``frameworks/``
     normalizer: Callable[[str], str | None]  # raw_id -> canonical id (or None)
     skip_keys: tuple[str, ...] = ()
+    # When set, synthesises the URL from the catalog key and ignores any
+    # ``url:`` field in the YAML, keeping link shape centralised.
+    url_builder: Callable[[str], str] | None = None
 
 
 _FRAMEWORKS: tuple[_FrameworkSpec, ...] = (
@@ -306,7 +342,13 @@ _FRAMEWORKS: tuple[_FrameworkSpec, ...] = (
         # Top-level URL anchors used for YAML aliasing; not real entries.
         skip_keys=("CIS_V8_URL", "CIS_K8S_URL", "CIS_DOCKER_URL"),
     ),
-    _FrameworkSpec("nist_800_53", "NIST 800-53", "nist_800_53.yml", _normalize_nist),
+    _FrameworkSpec(
+        "nist_800_53",
+        "NIST 800-53",
+        "nist_800_53.yml",
+        _normalize_nist,
+        url_builder=_build_nist_url,
+    ),
     _FrameworkSpec("pci_dss", "PCI-DSS v4", "pci_dss.yml", _normalize_pci),
     _FrameworkSpec("hipaa", "HIPAA §164.312", "hipaa.yml", _normalize_hipaa),
     _FrameworkSpec("soc2", "SOC 2 TSC", "soc2.yml", _normalize_soc2),
@@ -322,7 +364,7 @@ _FRAMEWORKS_BY_SLUG: dict[str, _FrameworkSpec] = {f.slug: f for f in _FRAMEWORKS
 @cache
 def _catalog(slug: str) -> dict[str, FrameworkReference]:
     spec = _FRAMEWORKS_BY_SLUG[slug]
-    return _load(_FRAMEWORK_DIR / spec.filename, spec.display, spec.skip_keys)
+    return _load(_FRAMEWORK_DIR / spec.filename, spec)
 
 
 def _resolve(slug: str, raw_id: str) -> FrameworkReference | None:
@@ -348,8 +390,7 @@ def _resolve(slug: str, raw_id: str) -> FrameworkReference | None:
 
 def _load(
     path: Path,
-    framework: str,
-    skip_keys: tuple,
+    spec: _FrameworkSpec,
 ) -> dict[str, FrameworkReference]:
     """Load a catalog YAML and return a map of id -> FrameworkReference."""
     if not path.exists():
@@ -359,7 +400,7 @@ def _load(
     raw = yaml.safe_load(path.read_text()) or {}
     out: dict[str, FrameworkReference] = {}
     for key, value in raw.items():
-        if key in skip_keys:
+        if key in spec.skip_keys:
             continue
         if not isinstance(value, dict):
             continue
@@ -372,11 +413,15 @@ def _load(
                 extras_flat[k] = ", ".join(str(x) for x in v)
             elif v is not None:
                 extras_flat[k] = str(v)
+        if spec.url_builder is not None:
+            url = spec.url_builder(key)
+        else:
+            url = str(value.get("url", ""))
         out[key] = FrameworkReference(
-            framework=framework,
+            framework=spec.display,
             id=key,
             name=str(value.get("name", key)),
-            url=str(value.get("url", "")),
+            url=url,
             extras=extras_flat,
         )
     return out

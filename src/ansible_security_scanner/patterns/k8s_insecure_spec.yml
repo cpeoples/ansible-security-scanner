@@ -250,6 +250,7 @@ patterns:
   # These sit alongside the existing rules above; the structural walker in
   # file_scanner._scan_k8s_specs() enforces them primarily - the regexes are
   # backstops for inline/Helm-values snippets that never parse as a task dict.
+
   - id: "k8s_seccomp_unconfined"
     category: "k8s_insecure_spec"
     severity: "HIGH"
@@ -428,6 +429,7 @@ patterns:
     stig: ['V-242442']
 
   # -- 2024-2026 container-runtime & admission hygiene -----------------------
+
   - id: "k8s_pod_shares_host_namespace"
     category: "k8s_insecure_spec"
     severity: "CRITICAL"
@@ -452,6 +454,7 @@ patterns:
     stig: ['V-254800']
 
   # -- CRI-O / containerd runtime hardening ---------------------------------
+
   - id: "crio_privileged_runtime_default"
     category: "k8s_insecure_spec"
     severity: "HIGH"

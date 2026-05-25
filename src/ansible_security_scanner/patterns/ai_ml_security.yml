@@ -7,6 +7,7 @@ description: >
 
 patterns:
   # -- LLM / AI API Keys ---------------------------------------------------
+
   - id: "openai_api_key"
     category: "ai_ml_security"
     severity: "CRITICAL"
@@ -16,11 +17,11 @@ patterns:
     positive_examples:
       - "OPENAI_API_KEY:sk-aaaaaaaaaaaaaaaaaaaa"
     recommendation: "Store OpenAI API keys in Vault or environment variables; never embed in playbooks"
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['IA-5(7)', 'SC-28', 'SI-4']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0055', 'AML.T0012']
-
     owasp_llm: ["LLM06", "LLM10"]
+
   - id: "anthropic_api_key"
     category: "ai_ml_security"
     severity: "CRITICAL"
@@ -30,11 +31,11 @@ patterns:
     positive_examples:
       - "ANTHROPIC_API_KEY:sk-ant-aaaaaaaaaaaaaaaaaaaa"
     recommendation: "Store Anthropic API keys in Vault or environment variables"
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['IA-5(7)', 'SC-28', 'SI-4']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0055', 'AML.T0012']
-
     owasp_llm: ["LLM06", "LLM10"]
+
   - id: "huggingface_token"
     category: "ai_ml_security"
     severity: "CRITICAL"
@@ -44,11 +45,11 @@ patterns:
     positive_examples:
       - "HF_TOKEN:hf_aaaaaaaaaaaaaaaaaaaa"
     recommendation: "Store Hugging Face tokens in Vault or environment variables"
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['IA-5(7)', 'SC-28', 'SI-4']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0055', 'AML.T0012']
-
     owasp_llm: ["LLM06", "LLM10"]
+
   - id: "google_ai_api_key"
     category: "ai_ml_security"
     severity: "CRITICAL"
@@ -61,11 +62,11 @@ patterns:
     positive_examples:
       - "GOOGLE_AI_API_KEY:AIzaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     recommendation: "Store Google AI keys in Secret Manager; use workload identity for service access"
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['IA-5(7)', 'SC-28', 'SI-4']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0055', 'AML.T0012']
-
     owasp_llm: ["LLM06", "LLM10"]
+
   - id: "azure_openai_key"
     category: "ai_ml_security"
     severity: "CRITICAL"
@@ -78,11 +79,11 @@ patterns:
     positive_examples:
       - "AZURE_OPENAI_KEY:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     recommendation: "Use managed identity for Azure OpenAI; never embed keys in playbooks"
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['IA-5(7)', 'SC-28', 'SI-4']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0055', 'AML.T0012']
-
     owasp_llm: ["LLM06", "LLM10"]
+
   - id: "cohere_api_key"
     category: "ai_ml_security"
     severity: "CRITICAL"
@@ -95,11 +96,11 @@ patterns:
     positive_examples:
       - "COHERE_API_KEY:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     recommendation: "Store Cohere API keys in Vault or environment variables"
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['IA-5(7)', 'SC-28', 'SI-4']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0055', 'AML.T0012']
-
     owasp_llm: ["LLM06", "LLM10"]
+
   - id: "replicate_api_token"
     category: "ai_ml_security"
     severity: "CRITICAL"
@@ -111,11 +112,11 @@ patterns:
     positive_examples:
       - "REPLICATE_API_TOKEN:r8_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     recommendation: "Store Replicate tokens in Vault or environment variables"
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['IA-5(7)', 'SC-28', 'SI-4']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0055', 'AML.T0012']
-
     owasp_llm: ["LLM06", "LLM10"]
+
   - id: "generic_llm_api_key"
     category: "ai_ml_security"
     severity: "HIGH"
@@ -125,13 +126,13 @@ patterns:
     positive_examples:
       - "MISTRAL_API_KEY:"
     recommendation: "Store AI/LLM API keys in Vault or environment variables; never embed in playbooks"
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['IA-5(7)', 'SC-28', 'SI-4']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0055', 'AML.T0012']
-
     owasp_llm: ["LLM06", "LLM10"]
 
   # -- Untrusted Model Downloads --------------------------------------------
+
   - id: "huggingface_model_download"
     category: "ai_ml_security"
     severity: "HIGH"
@@ -141,11 +142,11 @@ patterns:
     positive_examples:
       - "huggingface.co/resolve"
     recommendation: "Pin model downloads to specific revisions with SHA verification; scan models for malicious payloads"
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['CM-11', 'SA-10', 'SI-7']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0010', 'AML.T0011.000', 'AML.T0019']
-
     owasp_llm: ["LLM05"]
+
   - id: "pickle_remote_load"
     category: "ai_ml_security"
     severity: "CRITICAL"
@@ -156,11 +157,11 @@ patterns:
       - "pickle.load"
     recommendation: "Never load pickle files from untrusted sources; use safetensors format for ML models"
     no_ansible_remediation: true
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['SI-3', 'SI-10', 'CM-11']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0011.000', 'AML.T0010']
-
     owasp_llm: ["LLM03", "LLM05"]
+
   - id: "model_from_url"
     category: "ai_ml_security"
     severity: "HIGH"
@@ -175,13 +176,13 @@ patterns:
     window: 10
     recommendation: "Pin model URLs to specific versions and verify SHA256 checksums"
     no_ansible_remediation: true
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['CM-11', 'SA-10', 'SI-7']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0010', 'AML.T0011.000']
-
     owasp_llm: ["LLM05"]
 
   # -- AI Service Provisioning ----------------------------------------------
+
   - id: "aws_sagemaker_access"
     category: "ai_ml_security"
     severity: "HIGH"
@@ -192,11 +193,11 @@ patterns:
       - "aws sagemaker create-"
     recommendation: "SageMaker provisioning should go through approved ML pipelines, not Ansible"
     no_ansible_remediation: true
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['AC-3', 'AC-6', 'AU-12']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0040', 'AML.T0034']
-
     owasp_llm: ["LLM05"]
+
   - id: "aws_bedrock_access"
     category: "ai_ml_security"
     severity: "HIGH"
@@ -207,11 +208,11 @@ patterns:
       - "aws bedrock invoke"
     recommendation: "Bedrock access should go through approved API gateways with cost controls"
     no_ansible_remediation: true
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['AC-3', 'AC-6', 'AU-12']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0040', 'AML.T0034']
-
     owasp_llm: ["LLM05"]
+
   - id: "gcp_vertex_ai_access"
     category: "ai_ml_security"
     severity: "HIGH"
@@ -225,11 +226,11 @@ patterns:
       - "gcloud ai "
     recommendation: "Vertex AI provisioning should go through approved ML pipelines"
     no_ansible_remediation: true
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['AC-3', 'AC-6', 'AU-12']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0040', 'AML.T0034']
-
     owasp_llm: ["LLM05"]
+
   - id: "azure_ml_access"
     category: "ai_ml_security"
     severity: "HIGH"
@@ -240,13 +241,13 @@ patterns:
       - "environment: azureml://registries/azureml/environments/sklearn-1.5/labels/latest"
     recommendation: "Azure ML provisioning should go through approved ML pipelines"
     no_ansible_remediation: true
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['AC-3', 'AC-6', 'AU-12']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0040', 'AML.T0034']
-
     owasp_llm: ["LLM05"]
 
   # -- GPU Compute Abuse ----------------------------------------------------
+
   - id: "gpu_instance_launch"
     category: "ai_ml_security"
     severity: "HIGH"
@@ -257,13 +258,13 @@ patterns:
       - "description: Please enter the AWS instance type to use, e.g. 'g6.2xlarge'."
     recommendation: "GPU instance launches must be approved and tagged with a cost center and expiration"
     no_ansible_remediation: true
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['AC-6', 'CM-7', 'AU-12']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0034']
-
     owasp_llm: ["LLM05"]
 
   # -- Jupyter / Notebook Exposure ------------------------------------------
+
   - id: "jupyter_no_auth"
     category: "ai_ml_security"
     severity: "CRITICAL"
@@ -273,11 +274,11 @@ patterns:
     positive_examples:
       - "jupyter--NotebookApp.token='"
     recommendation: "Always require authentication tokens for Jupyter; never bind to 0.0.0.0 without network controls"
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['AC-3', 'IA-2', 'SC-7']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0049', 'AML.T0050']
-
     owasp_llm: ["LLM06", "LLM08"]
+
   - id: "jupyter_server_start"
     category: "ai_ml_security"
     severity: "MEDIUM"
@@ -288,13 +289,13 @@ patterns:
       - "buildah config --cmd \"jupyter lab --ip=0.0.0.0 --no-browser\" {{ container_id }}"
     recommendation: "Jupyter servers should be deployed through approved platforms with authentication"
     no_ansible_remediation: true
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['AC-3', 'IA-2', 'SC-7']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0049', 'AML.T0050']
-
     owasp_llm: ["LLM06"]
 
   # -- LLM Prompt Injection Vector ------------------------------------------
+
   - id: "template_in_llm_prompt"
     category: "ai_ml_security"
     severity: "HIGH"
@@ -305,13 +306,13 @@ patterns:
       - "wp_cli_completion_url: \"https://raw.githubusercontent.com/wp-cli/wp-cli/v{{ wp_cli_version }}/utils/wp-completion.bash\""
     recommendation: "Sanitize and validate all user input before including in LLM prompts; use input guardrails"
     no_ansible_remediation: true
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['SI-10', 'SI-3']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0051', 'AML.T0051.001']
-
     owasp_llm: ["LLM01"]
 
   # -- ML Pipeline Manipulation ---------------------------------------------
+
   - id: "mlflow_direct_access"
     category: "ai_ml_security"
     severity: "MEDIUM"
@@ -322,11 +323,11 @@ patterns:
       - "mlflow run"
     recommendation: "MLflow access should go through approved ML pipeline orchestration"
     no_ansible_remediation: true
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['AC-3', 'AC-6', 'AU-12']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0010', 'AML.T0018']
-
     owasp_llm: ["LLM06"]
+
   - id: "wandb_api_key"
     category: "ai_ml_security"
     severity: "HIGH"
@@ -339,13 +340,13 @@ patterns:
     positive_examples:
       - "WANDB_API_KEY:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     recommendation: "Store W&B API keys in Vault or environment variables"
-    nist_controls: ['RA-3', 'SA-15', 'SI-4']
+    nist_controls: ['IA-5(7)', 'SC-28', 'SI-4']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0055', 'AML.T0012']
-
     owasp_llm: ["LLM06"]
 
   # -- Model / runtime security (2025-2026) ---------------------------------
+
   - id: "mcp_server_deployed_without_auth"
     category: "ai_ml_security"
     severity: "CRITICAL"

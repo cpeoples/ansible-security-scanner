@@ -109,6 +109,7 @@ patterns:
     soc2: ['CC6.8', 'CC8.1']
 
   # -- Named Webshell Tools -------------------------------------------------
+
   - id: "weevely_webshell"
     category: "webshell_deployment"
     severity: "CRITICAL"

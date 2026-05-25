@@ -4,6 +4,7 @@ description: "Detects patterns indicating credential harvesting, backdoor instal
 
 patterns:
   # Specific command injection patterns (order matters - specific patterns first!)
+
   - id: "shell_command_injection"
     category: "malicious_activity"
     severity: "CRITICAL"
@@ -611,7 +612,7 @@ patterns:
     positive_examples:
       - "psql -U postgres -c \\\"ALTER USER \\\\\\\"{{ awx_postgres_user }}\\\\\\\" WITH PASSWORD '{{ awx_postgres_pass }}';\\\""
     recommendation: "Database CLIs with --password=... / -p'...' on argv leak credentials via /proc and shell history; switch to env (PGPASSWORD), .my.cnf [client] (mode 0600), or community.{mysql,postgresql,mongodb} modules with login_password: loaded from Ansible Vault."
-    nist_controls: ['AU-6', 'IR-4', 'SI-4']
+    nist_controls: ['IA-5(7)', 'SC-28', 'AU-6', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
 
@@ -642,6 +643,7 @@ patterns:
     soc2: ['CC7.3']
 
   # -- 2024-2026 named-CVE exploitation patterns -----------------------------
+
   - id: "log4shell_exploitation_payload"
     category: "malicious_activity"
     severity: "CRITICAL"
@@ -707,6 +709,7 @@ patterns:
     owasp_asvs: ["V2.10.1", "V6.2.1"]
 
   # -- CVE-era exploitation detections (2024-2026) --------------------------
+
   - id: "log4shell_mitigation_disabled"
     category: "malicious_activity"
     severity: "CRITICAL"
@@ -773,6 +776,7 @@ patterns:
     cis_controls: ['CIS-7.1']
 
   # -- Windows LOLBAS (Living-Off-The-Land) post-exploitation (2025-2026) ---
+
   - id: "lolbas_certutil_url_download"
     category: "malicious_activity"
     severity: "CRITICAL"
@@ -910,6 +914,7 @@ patterns:
     soc2: ['CC7.3', 'CC7.4']
 
   # Generic fallback pattern - must be last!
+
   - id: "generic_template_injection"
     category: "malicious_activity"
     severity: "HIGH"

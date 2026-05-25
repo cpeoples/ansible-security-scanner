@@ -49,12 +49,18 @@ ASSET_URL_PREFIX = _BASE_URL + "assets/"
 sys.path.insert(0, str(ROOT_DIR / "src"))
 try:
     from ansible_security_scanner.link_resolver import (  # noqa: E402
+        resolve_cis,
         resolve_cve,
         resolve_cwe,
         resolve_mitre,
+        resolve_nist,
+        resolve_owasp_appsec,
+        resolve_owasp_asvs,
     )
 except Exception:  # pragma: no cover - hugo-only build environment
-    resolve_cve = resolve_cwe = resolve_mitre = None  # type: ignore[assignment]
+    resolve_cve = resolve_cwe = resolve_mitre = resolve_owasp_appsec = resolve_owasp_asvs = (
+        resolve_nist
+    ) = resolve_cis = None  # type: ignore[assignment]
 
 SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
 
@@ -327,15 +333,20 @@ def severity_badge(severity: str) -> str:
 
 
 # Refs-column chip configuration: (yaml_field, resolver, chip_css_class).
-# Order is the triage order rendered in the cell: CVE, then CWE, then
-# MITRE ATT&CK. Other taxonomies (OWASP, ASVS, CIS) ship in JSON/SARIF/
-# comment output but stay out of the docs table to keep it scannable.
+# Order is the triage order rendered in the cell. CVE first when the rule
+# cites a known live vuln, then the structural taxonomies (CWE, MITRE
+# ATT&CK), then the compliance/standards mappings (OWASP, NIST, CIS).
+# Only the first resolvable id per framework renders; the long tail is in
+# JSON / SARIF / comment output and in the rule YAML.
 _CHIP_FRAMEWORKS = (
     ("cve", resolve_cve, "framework-chip-cve"),
     ("cwe", resolve_cwe, "framework-chip-cwe"),
     ("mitre_attack", resolve_mitre, "framework-chip-mitre"),
+    ("owasp_appsec", resolve_owasp_appsec, "framework-chip-owasp"),
+    ("owasp_asvs", resolve_owasp_asvs, "framework-chip-asvs"),
+    ("nist_controls", resolve_nist, "framework-chip-nist"),
+    ("cis_controls", resolve_cis, "framework-chip-cis"),
 )
-_MAX_CHIPS_PER_ROW = 12
 
 
 def _escape_table_cell(text: str) -> str:
@@ -349,18 +360,16 @@ def _escape_table_cell(text: str) -> str:
 
 
 def _render_framework_chips(pattern: dict) -> str:
-    """Render a sparse chip strip of resolvable framework refs for one rule.
+    """Render a one-chip-per-framework strip of resolvable framework refs.
 
     Returns ``""`` when nothing resolves so chip-less rows stay visually
     identical to the pre-chip layout. Unresolvable ids are dropped: the
-    framework-catalog test in ``tests/test_framework_catalog.py`` already
-    fails the build on any rule that cites an unresolvable id, so
-    anything reaching here has a guaranteed deep link.
+    framework-catalog test already fails the build on any rule that cites
+    an unresolvable id, so anything reaching here has a guaranteed link.
     """
     if resolve_cve is None:
         return ""
     chips: list[str] = []
-    overflow = 0
     for field, resolver, css in _CHIP_FRAMEWORKS:
         if resolver is None:
             continue
@@ -368,17 +377,13 @@ def _render_framework_chips(pattern: dict) -> str:
             ref = resolver(raw)
             if ref is None:
                 continue
-            if len(chips) >= _MAX_CHIPS_PER_ROW:
-                overflow += 1
-                continue
             chips.append(
                 f'<a class="framework-chip {css}" href="{ref.url}" '
                 f'target="_blank" rel="noopener">{ref.id}</a>'
             )
+            break
     if not chips:
         return ""
-    if overflow:
-        chips.append(f'<span class="framework-chip-more">+{overflow} more</span>')
     return '<div class="framework-chips">' + "".join(chips) + "</div>"
 
 
@@ -418,7 +423,6 @@ def build_pattern_pages() -> dict:
         category_key = yml_path.stem
         label = _category_label(category_key, data)
         file_desc = data.get("description", "")
-        file_author = data.get("author", "")
 
         sev_counts: dict = {}
         for p in patterns:
@@ -443,8 +447,6 @@ def build_pattern_pages() -> dict:
 
         if file_desc:
             page += f"{file_desc}\n\n"
-        if file_author:
-            page += f"*Author: {file_author}*\n\n"
 
         page += "**" + str(len(patterns)) + "** rules in `" + yml_path.name + "`\n\n"
 

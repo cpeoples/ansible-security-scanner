@@ -183,6 +183,7 @@ patterns:
   # templates (.j2) - template authors often don't think of a template
   # as "code", but a bad {% raw %} / {{ }} / {% set %} choice can leak
   # secrets, skip HTML-escaping, or render attacker-controlled shell.
+
   - id: "jinja2_safe_filter_on_user_input"
     category: "template_injection"
     severity: "HIGH"
@@ -324,6 +325,7 @@ patterns:
   # bombs (billion-laughs), shadow-reserialisation, and python/object tags
   # that pyyaml.full_load would execute. Detection is line-based so it
   # fires BEFORE the yaml parser gets a chance to crash or execute.
+
   - id: "yaml_python_object_tag"
     category: "template_injection"
     severity: "CRITICAL"

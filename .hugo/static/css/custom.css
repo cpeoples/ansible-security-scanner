@@ -119,6 +119,30 @@
   border-color: rgba(168, 85, 247, 0.35);
 }
 
+.framework-chip-owasp {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b !important;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.framework-chip-asvs {
+  background: rgba(20, 184, 166, 0.12);
+  color: #14b8a6 !important;
+  border-color: rgba(20, 184, 166, 0.35);
+}
+
+.framework-chip-nist {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e !important;
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.framework-chip-cis {
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1 !important;
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
 .framework-chip-more {
   display: inline-block;
   padding: 1px 7px;
