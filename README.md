@@ -4,9 +4,6 @@
     <img src="docs/assets/brand-mark-light.svg" alt="Ansible Security Scanner" width="560">
   </picture>
 </div>
-
-<hr>
-
 <!-- BADGES_START - stripped from the Hugo docs build; see .hugo/scripts/build_docs.py -->
 <p align="center">
   <a href="https://github.com/cpeoples/ansible-security-scanner/actions/workflows/scanner-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/cpeoples/ansible-security-scanner/scanner-ci.yml?branch=main&label=CI&style=flat-square" alt="CI" /></a>&nbsp;&nbsp;
