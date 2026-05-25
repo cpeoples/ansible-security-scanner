@@ -13,6 +13,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/.github/workflows/constraints.txt
+
 jobs:
   test:
     name: Tests (${{ matrix.python-version }})

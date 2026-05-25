@@ -22,6 +22,9 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/.github/workflows/constraints.txt
+
 jobs:
   build-docs:
     runs-on: ubuntu-latest

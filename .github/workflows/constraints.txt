@@ -1,0 +1,6 @@
+# Pinned CI tools. Dependabot updates this weekly via .github/dependabot.yml.
+pip==26.1.1
+pre-commit==4.6.0
+build==1.5.0
+twine==6.2.0
+pyyaml==6.0.3

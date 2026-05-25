@@ -39,6 +39,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/.github/workflows/constraints.txt
+
 jobs:
   build:
     name: Build distribution
