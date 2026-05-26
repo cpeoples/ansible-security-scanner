@@ -413,7 +413,11 @@ patterns:
     severity: "LOW"
     title: "Kubernetes Container Missing Resource Limits"
     description: "Container spec omits `resources.limits` (and often `resources.requests`). Without limits, a single compromised or buggy pod can consume all CPU/memory on its node, triggering OOM-kills of co-tenants (noisy-neighbor DoS) and driving the node into NotReady. For memory specifically, missing limits means the container can never be OOM-killed early by cgroup - it keeps growing until it evicts legitimate workloads."
-    regex: "resources:\\s*\\{\\s*\\}"
+    # Require the key to be ``resources:`` exactly (with optional
+    # ``computeResources`` alias and optional list-item dash), not the
+    # tail of a longer Ansible variable name like
+    # ``__nginx_modules_map_resources``.
+    regex: "(?:^|\\s)(?:-\\s+)?(?:resources|computeResources):\\s*\\{\\s*\\}"
     positive_examples:
       - "- computeResources: {}"
     multiline: true

@@ -137,6 +137,23 @@ def _scan_directory_in_process(directory: Path):
 
 
 @pytest.fixture(scope="session")
+def path_scoped_findings_json() -> dict:
+    """Findings from the per-rule fixture directory.
+
+    A handful of rules (``bindep_profile_runs_shell``,
+    ``galaxy_requirements_*``, ``secret_in_comment``) only fire on
+    specific filenames. Their evidence lives in
+    ``tests/playbooks/path_scoped/`` under the canonical filename so
+    the rule's path scope passes; the bad-example coverage test
+    unions these findings with the main bad-example findings.
+    """
+    target_dir = TESTS_DIR / "path_scoped"
+    if not target_dir.exists():
+        return {"findings": []}
+    return _report_to_json_dict(_scan_directory_in_process(target_dir))
+
+
+@pytest.fixture(scope="session")
 def multi_example_clean_report():
     """Scan of ``tests/playbooks/multi_example_clean/`` - a 6-file
     hardened role fixture. Expected to produce zero findings; guards

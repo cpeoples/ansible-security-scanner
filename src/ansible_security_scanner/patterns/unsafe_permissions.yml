@@ -958,7 +958,7 @@ patterns:
     severity: "HIGH"
     title: "template Rendering Executable File to System Path"
     description: "A `template:` task renders content to /etc/, /usr/bin/, /usr/local/bin/, /usr/sbin/, /opt/, or /root/ AND sets an executable mode (0755, 0775, 0777, 4xxx, or anything with the x-bit). That combination is the classic webshell / persistence-hook pattern: a templated script that runs during cron/systemd/PATH lookup, easy to forget in audits because it looks like 'just a config file'."
-    regex: "(?:ansible\\.builtin\\.)?template\\s*:[\\s\\S]{0,300}?dest\\s*:\\s*['\"]?(?:/etc/|/usr/(?:local/)?(?:bin|sbin)/|/opt/|/root/)[^\\n]*[\\s\\S]{0,300}?mode\\s*:\\s*['\"]?0?[4-7]?[0-7]?[1357]\\b|(?:ansible\\.builtin\\.)?template\\s*:[\\s\\S]{0,300}?mode\\s*:\\s*['\"]?0?[4-7]?[0-7]?[1357]\\b[\\s\\S]{0,300}?dest\\s*:\\s*['\"]?(?:/etc/|/usr/(?:local/)?(?:bin|sbin)/|/opt/|/root/)"
+    regex: "(?:ansible\\.builtin\\.)?template\\s*:[^\\n]*\\n(?:(?![ \\t]*-\\s)[ \\t]+[^\\n]*\\n){0,10}?[ \\t]+dest\\s*:\\s*['\"]?(?:/etc/|/usr/(?:local/)?(?:bin|sbin)/|/opt/|/root/)[^\\n]*\\n(?:(?![ \\t]*-\\s)[ \\t]+[^\\n]*\\n){0,10}?[ \\t]+mode\\s*:\\s*['\"]?0?[4-7]?[0-7]?[1357]\\b|(?:ansible\\.builtin\\.)?template\\s*:[^\\n]*\\n(?:(?![ \\t]*-\\s)[ \\t]+[^\\n]*\\n){0,10}?[ \\t]+mode\\s*:\\s*['\"]?0?[4-7]?[0-7]?[1357]\\b[^\\n]*\\n(?:(?![ \\t]*-\\s)[ \\t]+[^\\n]*\\n){0,10}?[ \\t]+dest\\s*:\\s*['\"]?(?:/etc/|/usr/(?:local/)?(?:bin|sbin)/|/opt/|/root/)"
     positive_examples:
       - |2-
         template:

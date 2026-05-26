@@ -128,30 +128,28 @@ def _run_scan(target: Path, *, show_suppressed: bool = False) -> dict:
     return json.loads(result.stdout)
 
 
-def test_bad_example_full_coverage(all_rule_ids, bad_example_json):
-    """Every rule ID must fire at least once on ``bad_example.yml``.
+def test_bad_example_full_coverage(all_rule_ids, bad_example_json, path_scoped_findings_json):
+    """Every rule ID must fire at least once across the fixture corpus.
 
-    ``bad_example.yml`` is the single source of truth for the corpus - every
-    pattern in ``patterns/*.yml`` must be triggered by at least one snippet
-    in that file. Rules that require a specific filename (e.g. a real
-    ``requirements.yml``) are not added to the pattern set and are enforced
-    by dedicated unit tests instead.
+    ``bad_example.yml`` carries the bulk of the corpus. A handful of
+    rules require a specific filename to fire (e.g.
+    ``bindep_profile_runs_shell`` only matches ``bindep.txt``;
+    ``galaxy_requirements_*`` only match ``requirements.yml``). Those
+    rules have evidence in ``tests/playbooks/path_scoped/`` under the
+    canonical filename. We union the two sources for coverage.
 
     Some rules belong to an overlap-suppression group (see
     ``_OVERLAP_SUPPRESSION_GROUPS`` in ``file_scanner.py``): when multiple
     rules in the same group fire on the same line, only the most specific
     one is kept. For coverage purposes, a less-specific rule counts as
-    "triggered" if ANY rule in its group fires on bad_example.yml - the
-    rule IS reachable, it just yields precedence when a tighter rule
-    matches the same line. Dedicated unit tests exercise each
-    overlap-group member's regex in isolation (via ``positive_examples``).
+    "triggered" if ANY rule in its group fires - the rule IS reachable,
+    it just yields precedence when a tighter rule matches the same line.
     """
     from ansible_security_scanner.file_scanner import _OVERLAP_SUPPRESSION_GROUPS
 
     triggered = {f["rule_id"] for f in bad_example_json.get("findings", [])}
+    triggered |= {f["rule_id"] for f in path_scoped_findings_json.get("findings", [])}
 
-    # Expand ``triggered`` so that if any member of an overlap group fires,
-    # every other member of that group is treated as covered.
     expanded = set(triggered)
     for group in _OVERLAP_SUPPRESSION_GROUPS:
         if any(r in triggered for r in group):
@@ -2151,12 +2149,17 @@ def test_scanner_skips_non_utf8_files_without_crashing(tmp_path):
 
 def test_severity_demoted_for_curated_rules_in_test_fixture_paths(tmp_path):
     """``ssl_verification_disabled`` is HIGH in a production playbook but
-    one tier lower (MEDIUM) when it fires from a test-integration fixture.
+    one tier lower (MEDIUM) when it fires from a generic test-fixture
+    path (``tests/foo/`` etc.). Collection integration test trees
+    (``tests/integration/targets/``) suppress it entirely - those
+    fixtures exist to drive the module under test, not deploy code -
+    and that policy is locked in by
+    ``test_curated_rules_suppressed_in_collection_integration_tests``.
 
-    The finding remains visible - we explicitly do NOT exclude test paths -
-    but it stops dominating the severity histogram on repos like
-    ``ansible-core/test/integration/targets/**`` where ``validate_certs:
-    no`` is intentional throw-away rig wiring.
+    The non-integration-targets demote path remains visible - we
+    explicitly do NOT exclude generic test trees - but it stops
+    dominating the severity histogram on repos that vendor
+    ``validate_certs: no`` into throwaway test rig wiring.
     """
     play_body = (
         "- hosts: localhost\n"
@@ -2170,7 +2173,7 @@ def test_severity_demoted_for_curated_rules_in_test_fixture_paths(tmp_path):
     prod.parent.mkdir(parents=True)
     prod.write_text(play_body)
 
-    fixture = tmp_path / "test" / "integration" / "targets" / "uri" / "tasks" / "main.yml"
+    fixture = tmp_path / "tests" / "unit" / "uri_check" / "main.yml"
     fixture.parent.mkdir(parents=True)
     fixture.write_text(play_body)
 
@@ -2185,6 +2188,500 @@ def test_severity_demoted_for_curated_rules_in_test_fixture_paths(tmp_path):
     assert fixture_finding is not None, f"fixture finding missing; got {list(by_path)}"
     assert prod_finding["severity"].upper() == "HIGH", prod_finding["severity"]
     assert fixture_finding["severity"].upper() == "MEDIUM", fixture_finding["severity"]
+
+
+def test_curated_rules_suppressed_in_collection_integration_tests(tmp_path):
+    """Collection integration test fixtures (``tests/integration/targets/``
+    and ``test/integration/targets/``) exist solely to drive the
+    module under test - ``ssl_verification_disabled`` /
+    ``validate_certs: false`` / ``http://`` URLs there are part of
+    the test contract, not a deployment risk. Those rules are
+    suppressed outright in that path so module-collection scans
+    don't drown in test-fixture noise.
+    """
+    play_body = (
+        "- hosts: localhost\n"
+        "  tasks:\n"
+        "    - ansible.builtin.uri:\n"
+        "        url: https://example.invalid\n"
+        "        validate_certs: no\n"
+    )
+
+    fixture = tmp_path / "test" / "integration" / "targets" / "uri" / "tasks" / "main.yml"
+    fixture.parent.mkdir(parents=True)
+    fixture.write_text(play_body)
+
+    from ansible_security_scanner import AnsibleSecurityScanner
+
+    data = _report_as_json(AnsibleSecurityScanner(directory=str(tmp_path)).scan_directory())
+    suppressed = {"ssl_verification_disabled", "uri_module_validate_certs_false"}
+    leaked = [f for f in data["findings"] if f["rule_id"] in suppressed]
+    assert leaked == [], (
+        "rules suppressed in tests/integration/targets/ leaked through: "
+        f"{[(f['rule_id'], f['file_path']) for f in leaked]}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# False-positive regression tests
+# ---------------------------------------------------------------------------
+# Each test below pins a real-world FP shape we've seen scanning popular
+# Ansible repos (kubespray, debops, openstack-helm, community.sap_install,
+# etc.) and asserts both that the FP no longer fires AND that a legitimate
+# matching shape still does. Adding a test here is the first step when
+# triaging a new FP report so the fix doesn't silently regress.
+
+
+def _fp_scan_rule_ids(directory: Path) -> set:
+    from ansible_security_scanner import AnsibleSecurityScanner
+
+    report = AnsibleSecurityScanner(directory=str(directory)).scan_directory()
+    return {f.rule_id for f in report.findings}
+
+
+def test_chmod_0640_does_not_trigger_setuid_rules(tmp_path: Path) -> None:
+    (tmp_path / "play.yml").write_text(
+        "---\n- name: t\n  ansible.builtin.command: chmod 0640 /tmp/foo\n  changed_when: false\n"
+    )
+    rule_ids = _fp_scan_rule_ids(tmp_path)
+    assert "setuid_binary_creation" not in rule_ids
+    assert "setuid_binary_creation_compromise" not in rule_ids
+    assert "post_install_chmod_setuid_or_setgid" not in rule_ids
+
+
+def test_chmod_4755_still_triggers_setuid_rules(tmp_path: Path) -> None:
+    (tmp_path / "play.yml").write_text(
+        "---\n"
+        "- name: t\n"
+        "  ansible.builtin.command: chmod 4755 /usr/local/bin/x\n"
+        "  changed_when: false\n"
+    )
+    assert "setuid_binary_creation_compromise" in _fp_scan_rule_ids(tmp_path)
+
+
+def test_chmod_u_plus_s_still_triggers_setuid_rules(tmp_path: Path) -> None:
+    (tmp_path / "play.yml").write_text(
+        "---\n"
+        "- name: t\n"
+        "  ansible.builtin.command: chmod u+s /usr/local/bin/x\n"
+        "  changed_when: false\n"
+    )
+    assert "setuid_binary_creation_compromise" in _fp_scan_rule_ids(tmp_path)
+
+
+def test_bare_image_key_does_not_trigger_navigator_ee(tmp_path: Path) -> None:
+    (tmp_path / "molecule.yml").write_text(
+        "---\nplatforms:\n  - name: instance\n    image: docker.io/example/x:latest\n"
+    )
+    assert "ansible_navigator_ee_from_public_registry" not in _fp_scan_rule_ids(tmp_path)
+
+
+def test_navigator_ee_image_still_triggers(tmp_path: Path) -> None:
+    (tmp_path / "ansible-navigator.yml").write_text(
+        "---\nansible-navigator:\n"
+        "  execution-environment:\n"
+        "    execution-environment-image: quay.io/example/ee:1\n"
+    )
+    assert "ansible_navigator_ee_from_public_registry" in _fp_scan_rule_ids(tmp_path)
+
+
+def test_var_name_ending_in_path_does_not_trigger_binary_replace(tmp_path: Path) -> None:
+    (tmp_path / "vars.yml").write_text(
+        '---\n__some_internal_path: "/usr/bin/echo"\n__another_path: "/usr/sbin/cron"\n'
+    )
+    assert "binary_replace_system_path" not in _fp_scan_rule_ids(tmp_path)
+
+
+def test_module_path_argument_still_triggers_binary_replace(tmp_path: Path) -> None:
+    (tmp_path / "play.yml").write_text(
+        "---\n- name: t\n  ansible.builtin.copy:\n    src: ./files/x\n    path: /usr/bin/x\n"
+    )
+    assert "binary_replace_system_path" in _fp_scan_rule_ids(tmp_path)
+
+
+def _write_argument_specs_role(root: Path, declared_options: list) -> Path:
+    role = root / "myrole"
+    (role / "meta").mkdir(parents=True)
+    (role / "tasks").mkdir(parents=True)
+    options_yaml = "\n".join(f"        {name}:\n          type: str" for name in declared_options)
+    (role / "meta" / "argument_specs.yml").write_text(
+        "---\nargument_specs:\n  main:\n    options:\n" + options_yaml + "\n"
+    )
+    return role
+
+
+def test_argument_specs_suppresses_assemble_and_fetch(tmp_path: Path) -> None:
+    role = _write_argument_specs_role(tmp_path, ["src_path", "dst_path"])
+    (role / "tasks" / "main.yml").write_text(
+        "---\n"
+        "- name: a\n"
+        "  ansible.builtin.assemble:\n"
+        '    src: "{{ src_path }}"\n'
+        "    dest: /tmp/out\n"
+        "- name: f\n"
+        "  ansible.builtin.fetch:\n"
+        "    src: /tmp/out\n"
+        '    dest: "{{ dst_path }}"\n'
+    )
+    rule_ids = _fp_scan_rule_ids(tmp_path)
+    assert "assemble_module_unsafe" not in rule_ids
+    assert "fetch_module_unsafe_dest" not in rule_ids
+
+
+def test_argument_specs_does_not_suppress_undeclared_variable(tmp_path: Path) -> None:
+    role = _write_argument_specs_role(tmp_path, ["src_path"])
+    (role / "tasks" / "main.yml").write_text(
+        "---\n"
+        "- name: a\n"
+        "  ansible.builtin.assemble:\n"
+        '    src: "{{ undeclared_var }}"\n'
+        "    dest: /tmp/out\n"
+    )
+    assert "assemble_module_unsafe" in _fp_scan_rule_ids(tmp_path)
+
+
+def test_argument_specs_no_role_root_keeps_finding(tmp_path: Path) -> None:
+    (tmp_path / "play.yml").write_text(
+        "---\n"
+        "- name: a\n"
+        "  ansible.builtin.assemble:\n"
+        '    src: "{{ some_var }}"\n'
+        "    dest: /tmp/out\n"
+    )
+    assert "assemble_module_unsafe" in _fp_scan_rule_ids(tmp_path)
+
+
+def test_yum_repository_gpgkey_http_does_not_trigger_insecure_protocol(
+    tmp_path: Path,
+) -> None:
+    """``yum_repository:`` blocks declare ``baseurl: http://...`` and
+    ``gpgkey: http://...`` because the package manager validates the
+    artifact via GPG, not transport. The signed-channel suppression
+    must cover the full task body, including ``gpgkey:`` six lines
+    below the module key.
+    """
+    (tmp_path / "play.yml").write_text(
+        "---\n"
+        "- name: enable epel\n"
+        "  yum_repository:\n"
+        "    name: epel\n"
+        "    file: epel\n"
+        "    description: EPEL\n"
+        "    baseurl: http://download.fedoraproject.org/pub/epel/7/$basearch\n"
+        "    gpgcheck: yes\n"
+        "    gpgkey: http://download.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7\n"
+        "    enabled: yes\n"
+    )
+    assert "insecure_protocol_usage" not in _fp_scan_rule_ids(tmp_path)
+
+
+def test_systemd_documentation_field_does_not_trigger_insecure_protocol(
+    tmp_path: Path,
+) -> None:
+    """systemd unit-file metadata keys (``Documentation=``, ``URL=``,
+    ``Help=``) are operator-facing reference text, not connection
+    targets - the URL is never fetched by systemd.
+    """
+    (tmp_path / "docker.service.j2").write_text(
+        "[Unit]\n"
+        "Description=Docker Application Container Engine\n"
+        "Documentation=http://docs.docker.com\n"
+        "After=network-online.target\n"
+    )
+    assert "insecure_protocol_usage" not in _fp_scan_rule_ids(tmp_path)
+
+
+def test_get_url_http_still_triggers_insecure_protocol(tmp_path: Path) -> None:
+    (tmp_path / "play.yml").write_text(
+        "---\n"
+        "- name: fetch\n"
+        "  ansible.builtin.get_url:\n"
+        "    url: http://files.example.com/payload.tar.gz\n"
+        "    dest: /tmp/p.tgz\n"
+    )
+    assert "insecure_protocol_usage" in _fp_scan_rule_ids(tmp_path)
+
+
+def test_helm_chart_template_files_excluded_from_scan(tmp_path: Path) -> None:
+    """Helm chart templates render to Kubernetes manifests at
+    ``helm install`` time; they're Go-templates, not Ansible. A
+    file under ``<chart>/templates/`` next to a sibling ``Chart.yaml``
+    must be skipped entirely so ``kubernetes_*`` and
+    ``insecure_protocol_usage`` rules don't fire on Apache license
+    headers buried in ``{{/* ... */}}`` blocks.
+    """
+    chart = tmp_path / "mychart"
+    (chart / "templates").mkdir(parents=True)
+    (chart / "Chart.yaml").write_text("apiVersion: v2\nname: mychart\nversion: 0.1.0\n")
+    (chart / "templates" / "deployment.yaml").write_text(
+        "{{/*\nLicensed under the Apache License, Version 2.0\n"
+        "http://www.apache.org/licenses/LICENSE-2.0\n*/}}\n"
+        "apiVersion: apps/v1\n"
+        "kind: Deployment\n"
+        "metadata:\n"
+        "  name: {{ .Release.Name }}\n"
+        "spec:\n"
+        "  template:\n"
+        "    spec:\n"
+        "      automountServiceAccountToken: true\n"
+        "      containers:\n"
+        "      - name: app\n"
+        "        image: nginx:latest\n"
+    )
+    rule_ids = _fp_scan_rule_ids(tmp_path)
+    assert "insecure_protocol_usage" not in rule_ids
+    assert "kubernetes_sa_token_automount_not_disabled" not in rule_ids
+
+
+def test_block_with_ignore_errors_on_failable_task_is_suppressed(
+    tmp_path: Path,
+) -> None:
+    """A ``block:`` whose only failable task already declares
+    ``ignore_errors:`` (or ``failed_when:``) has explicit failure
+    semantics; demanding a sibling ``rescue:`` is redundant.
+    """
+    (tmp_path / "play.yml").write_text(
+        "---\n"
+        "- name: check installed\n"
+        "  block:\n"
+        "    - name: list packages\n"
+        "      ansible.builtin.shell: yum list installed foo\n"
+        "      register: pkg_result\n"
+        "      ignore_errors: true\n"
+        "      changed_when: false\n"
+        "    - name: assert installed\n"
+        "      ansible.builtin.assert:\n"
+        "        that: pkg_result.rc == 0\n"
+    )
+    assert "ansible_block_without_rescue_or_always" not in _fp_scan_rule_ids(tmp_path)
+
+
+def test_block_without_ignore_errors_on_shell_still_triggers(tmp_path: Path) -> None:
+    (tmp_path / "play.yml").write_text(
+        "---\n"
+        "- name: install and start\n"
+        "  block:\n"
+        "    - name: install\n"
+        "      ansible.builtin.apt:\n"
+        "        name: nginx\n"
+        "        state: present\n"
+        "    - name: start\n"
+        "      ansible.builtin.shell: systemctl start nginx\n"
+    )
+    assert "ansible_block_without_rescue_or_always" in _fp_scan_rule_ids(tmp_path)
+
+
+def test_template_mode_executable_does_not_cross_task_boundary(tmp_path: Path) -> None:
+    """The ``template_mode_executable_to_system_path`` regex must not
+    span two tasks: a ``template:`` task with ``mode: 0644`` followed
+    later by an unrelated ``copy:`` with ``mode: 0755`` is two
+    separate, both-correct tasks.
+    """
+    (tmp_path / "play.yml").write_text(
+        "---\n"
+        "- name: install config\n"
+        "  ansible.builtin.template:\n"
+        "    src: app.conf.j2\n"
+        "    dest: /etc/app/app.conf\n"
+        "    mode: '0644'\n"
+        "  register: config\n"
+        "\n"
+        "- name: install binary\n"
+        "  ansible.builtin.copy:\n"
+        "    src: bin/app\n"
+        "    dest: /usr/local/bin/app\n"
+        "    mode: '0755'\n"
+    )
+    assert "template_mode_executable_to_system_path" not in _fp_scan_rule_ids(tmp_path)
+
+
+def test_template_to_facts_d_path_does_not_trigger_executable_rule(
+    tmp_path: Path,
+) -> None:
+    """``/etc/ansible/facts.d/<name>.fact`` MUST be executable -
+    Ansible runs them at fact gather and parses stdout as JSON. The
+    canonical 0755 deployment to that path is not a finding.
+    """
+    (tmp_path / "play.yml").write_text(
+        "---\n"
+        "- name: ship local fact\n"
+        "  ansible.builtin.template:\n"
+        "    src: facts.d/app.fact.j2\n"
+        "    dest: /etc/ansible/facts.d/app.fact\n"
+        "    owner: root\n"
+        "    group: root\n"
+        "    mode: '0755'\n"
+    )
+    assert "template_mode_executable_to_system_path" not in _fp_scan_rule_ids(tmp_path)
+
+
+def test_template_to_usr_local_bin_executable_still_triggers(tmp_path: Path) -> None:
+    (tmp_path / "play.yml").write_text(
+        "---\n"
+        "- name: ship templated script\n"
+        "  ansible.builtin.template:\n"
+        "    src: scripts/run.sh.j2\n"
+        "    dest: /usr/local/bin/run.sh\n"
+        "    owner: root\n"
+        "    group: root\n"
+        "    mode: '0755'\n"
+    )
+    assert "template_mode_executable_to_system_path" in _fp_scan_rule_ids(tmp_path)
+
+
+def test_galaxy_info_with_license_below_short_window_does_not_trigger(
+    tmp_path: Path,
+) -> None:
+    """``role_meta_galaxy_info_missing_license`` must look ahead far
+    enough to find ``license:`` even when ``galaxy_info:`` lives 10+
+    lines into the file. Window 30 covers the SPDX-header-on-top
+    convention used by debops, dev-sec.hardening, etc.
+    """
+    role = tmp_path / "myrole"
+    (role / "meta").mkdir(parents=True)
+    (role / "meta" / "main.yml").write_text(
+        "---\n"
+        "# Copyright (C) 2024 Example <example@example.com>\n"
+        "# Copyright (C) 2024 Example <https://example.com/>\n"
+        "# SPDX-License-Identifier: GPL-3.0-only\n"
+        "\n"
+        "# Ensure that custom plugins are available\n"
+        "collections: ['example.example']\n"
+        "\n"
+        "dependencies: []\n"
+        "\n"
+        "galaxy_info:\n"
+        "\n"
+        "  author: 'Example'\n"
+        "  description: 'Example role'\n"
+        "  company: 'Example Co'\n"
+        "  license: 'GPL-3.0-only'\n"
+        "  min_ansible_version: '2.10'\n"
+    )
+    assert "role_meta_galaxy_info_missing_license" not in _fp_scan_rule_ids(tmp_path)
+
+
+def test_galaxy_info_actually_missing_license_still_triggers(tmp_path: Path) -> None:
+    role = tmp_path / "myrole"
+    (role / "meta").mkdir(parents=True)
+    (role / "meta" / "main.yml").write_text(
+        "---\n"
+        "galaxy_info:\n"
+        "  author: example\n"
+        "  description: example role\n"
+        "  min_ansible_version: '2.10'\n"
+        "  platforms:\n"
+        "    - name: Ubuntu\n"
+        "      versions: ['all']\n"
+    )
+    assert "role_meta_galaxy_info_missing_license" in _fp_scan_rule_ids(tmp_path)
+
+
+def test_raw_key_in_defaults_does_not_trigger_raw_module_usage(tmp_path: Path) -> None:
+    """``raw:`` as a YAML dict key inside ``defaults/main.yml`` is
+    role-author-defined data (e.g. a ``divert``/``raw`` config
+    schema), not the Ansible ``raw:`` MODULE. The rule's path scope
+    keeps it out of ``defaults/`` / ``vars/`` / ``meta/``.
+    """
+    role = tmp_path / "myrole"
+    (role / "defaults").mkdir(parents=True)
+    (role / "defaults" / "main.yml").write_text(
+        "---\n"
+        "myrole_diversions:\n"
+        "  security:\n"
+        "    type: 'divert'\n"
+        "    raw: |\n"
+        "      # Diverted content for /etc/foo.conf\n"
+        "      key = value\n"
+    )
+    assert "raw_module_usage" not in _fp_scan_rule_ids(tmp_path)
+
+
+def test_raw_module_in_tasks_still_triggers(tmp_path: Path) -> None:
+    role = tmp_path / "myrole"
+    (role / "tasks").mkdir(parents=True)
+    (role / "tasks" / "main.yml").write_text(
+        "---\n- name: bootstrap python\n  ansible.builtin.raw: apt-get install -y python3\n"
+    )
+    assert "raw_module_usage" in _fp_scan_rule_ids(tmp_path)
+
+
+def test_command_with_ampersand_inside_awk_quotes_does_not_trigger(
+    tmp_path: Path,
+) -> None:
+    """``command:`` does not go through ``/bin/sh`` so quoted shell
+    metacharacters are passed verbatim to the embedded interpreter.
+    ``awk 'BEGIN{a=0}/foo/&&/bar/{print}'`` has ``&&`` inside a
+    single-quoted span; ``command:`` never sees it as an operator.
+    """
+    (tmp_path / "play.yml").write_text(
+        "---\n"
+        "- name: scan\n"
+        "  ansible.builtin.command: awk 'BEGIN{a=0}/foo/&&/bar/{print}' /etc/hosts\n"
+        "  changed_when: false\n"
+    )
+    assert "command_module_with_shell" not in _fp_scan_rule_ids(tmp_path)
+
+
+def test_command_with_ampersand_inside_multiline_awk_quotes_does_not_trigger(
+    tmp_path: Path,
+) -> None:
+    """When the opening ``'`` is on the same line as ``command:`` but
+    the closing ``'`` is on a continuation line, the rest of the
+    matched line is still inside the quoted span from the shell's
+    perspective.
+    """
+    (tmp_path / "play.yml").write_text(
+        "---\n"
+        "- name: scan\n"
+        "  ansible.builtin.command: awk 'BEGIN{a=0}!/^#/&&(/^foo/||\n"
+        "                /\\sfoo\\s/){a++}END{print a}' /etc/hosts\n"
+        "  changed_when: false\n"
+    )
+    assert "command_module_with_shell" not in _fp_scan_rule_ids(tmp_path)
+
+
+def test_command_with_unquoted_pipe_still_triggers(tmp_path: Path) -> None:
+    (tmp_path / "play.yml").write_text(
+        "---\n- name: pipe\n  ansible.builtin.command: echo hello | grep h\n  changed_when: false\n"
+    )
+    assert "command_module_with_shell" in _fp_scan_rule_ids(tmp_path)
+
+
+def test_facts_d_static_root_owned_does_not_trigger_injection(tmp_path: Path) -> None:
+    """A facts.d deploy with a static role-relative ``src:``,
+    ``owner: root``, and a non-world-writable ``mode:`` is the
+    canonical safe pattern - the role IS the source-of-truth.
+    """
+    role = tmp_path / "myrole"
+    (role / "tasks").mkdir(parents=True)
+    (role / "tasks" / "main.yml").write_text(
+        "---\n"
+        "- name: ship local fact\n"
+        "  ansible.builtin.template:\n"
+        "    src: facts.d/myrole.fact.j2\n"
+        "    dest: /etc/ansible/facts.d/myrole.fact\n"
+        "    owner: root\n"
+        "    group: root\n"
+        "    mode: '0755'\n"
+    )
+    assert "facts_d_injection" not in _fp_scan_rule_ids(tmp_path)
+
+
+def test_facts_d_world_writable_still_triggers_injection(tmp_path: Path) -> None:
+    role = tmp_path / "myrole"
+    (role / "tasks").mkdir(parents=True)
+    (role / "tasks" / "main.yml").write_text(
+        "---\n"
+        "- name: world-writable fact\n"
+        "  ansible.builtin.template:\n"
+        "    src: facts.d/myrole.fact.j2\n"
+        "    dest: /etc/ansible/facts.d/myrole.fact\n"
+        "    owner: root\n"
+        "    group: root\n"
+        "    mode: '0777'\n"
+    )
+    assert "facts_d_injection" in _fp_scan_rule_ids(tmp_path)
 
 
 def main():

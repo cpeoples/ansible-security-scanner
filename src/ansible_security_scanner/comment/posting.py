@@ -25,7 +25,7 @@ def _httpx() -> Any:
     Routed through the parent package so ``patch.object(comment.httpx,
     ...)`` swaps in the test double for everything below.
     """
-    from . import httpx as _h  # noqa: PLC0415 — late binding by design
+    from . import httpx as _h  # noqa: PLC0415 - late binding by design
 
     return _h
 

@@ -16,12 +16,32 @@ from typing import Any
 
 import yaml
 
-from .file_scanner import DependencyCollector, FileScanner, FixProposer, ParsedFile, TaintTracker
+from .file_scanner import (
+    DependencyCollector,
+    FileScanner,
+    FixProposer,
+    ParsedFile,
+    TaintTracker,
+)
 from .models import ScanReport, SecurityScore
+from .path_scopes import (
+    SUPPRESS_IN_INTEGRATION_TESTS,
+    SUPPRESS_IN_MOLECULE,
+    is_helm_template_file,
+    is_integration_test_fixture_path,
+    is_molecule_path,
+    is_test_fixture_path,
+)
 from .patterns_manager import known_rule_ids, resolve_rule_specs
 from .score_calculator import ScoreCalculator
 
 logger = logging.getLogger(__name__)
+
+
+# ``cross_file_taint`` findings are emitted by ``TaintTracker`` after
+# ``FileScanner`` returns and bypass the per-file demotion pipeline,
+# so apply test-fixture demotion here for parity.
+_DEMOTE_IN_TEST_FIXTURES_TAINT: frozenset[str] = frozenset({"cross_file_taint"})
 
 
 # Ansible playbooks frequently use ``!vault`` and ``!unsafe`` tags that
@@ -37,7 +57,7 @@ class _AnsibleTagTolerantLoader(yaml.SafeLoader):
     """
 
 
-def _construct_untagged(loader, tag_suffix, node):  # noqa: D401 - yaml API shape
+def _construct_untagged(loader, tag_suffix, node):
     if isinstance(node, yaml.ScalarNode):
         return loader.construct_scalar(node)
     if isinstance(node, yaml.SequenceNode):
@@ -201,6 +221,18 @@ class AnsibleSecurityScanner:
             yml_files = [
                 f for f in all_candidate_files if not f.name.startswith(".") and f.is_file()
             ]
+            # Helm chart templates are Go-templates rendered by
+            # ``helm install`` / ``helm template``; they don't parse as
+            # Ansible YAML and are reviewed by ``kubeconform`` /
+            # ``kube-linter`` instead. Filter them out before scanning.
+            helm_files = {f for f in yml_files if is_helm_template_file(f)}
+            if helm_files:
+                logger.info(
+                    "Excluded %d Helm chart template file(s) from scan "
+                    "(rendered by ``helm template``, not Ansible)",
+                    len(helm_files),
+                )
+                yml_files = [f for f in yml_files if f not in helm_files]
             # Stable order for deterministic reporting.
             yml_files.sort()
 
@@ -255,7 +287,7 @@ class AnsibleSecurityScanner:
                 # the existing "data=None" degraded path so line-based
                 # scans still run.
                 try:
-                    data = yaml.load(raw, Loader=_AnsibleTagTolerantLoader)  # noqa: S506  (tolerant loader is SafeLoader + unknown-tag passthrough)
+                    data = yaml.load(raw, Loader=_AnsibleTagTolerantLoader)
                 except yaml.YAMLError:
                     logger.debug("YAML parse failed for %s: %s", yml_file, e)
                     data = None
@@ -345,7 +377,20 @@ class AnsibleSecurityScanner:
             for yml_file, pf in parsed_files.items():
                 if pf.data is None:
                     continue
-                findings.extend(tracker.scan_sinks(yml_file, pf.data, pf.lines))
+                taint_findings = tracker.scan_sinks(yml_file, pf.data, pf.lines)
+                if is_molecule_path(yml_file):
+                    taint_findings = [
+                        f for f in taint_findings if f.rule_id not in SUPPRESS_IN_MOLECULE
+                    ]
+                if is_integration_test_fixture_path(yml_file):
+                    taint_findings = [
+                        f for f in taint_findings if f.rule_id not in SUPPRESS_IN_INTEGRATION_TESTS
+                    ]
+                if is_test_fixture_path(yml_file):
+                    for tf in taint_findings:
+                        if tf.rule_id in _DEMOTE_IN_TEST_FIXTURES_TAINT:
+                            tf.severity = "LOW"
+                findings.extend(taint_findings)
 
         # Opt-in git-history sweep: rescan every tracked file at each of
         # the last N commits that touched it, looking for secrets that

@@ -28,9 +28,12 @@ patterns:
     severity: "CRITICAL"
     title: "SetUID Binary Creation"
     description: "Creating or modifying setuid binaries for privilege escalation"
-    regex: "chmod.*[0-7]*4[0-7]*|chmod.*u\\+s"
+    # Require an actual setuid mode (leading 4/5/6/7 in a 4-digit octal) or
+    # the symbolic ``u+s``. The previous regex matched any chmod containing
+    # a ``4`` digit, so benign ``chmod 0640`` triggered it.
+    regex: "chmod\\s+(?:0?[4567][0-7]{3}|u\\+s)\\b"
     positive_examples:
-      - "chmod 0640 /etc/ldap/localhost.key"
+      - "chmod 4755 /usr/local/bin/foo"
     recommendation: "Setuid binaries are an enduring privilege-escalation surface; prefer filesystem capabilities (setcap cap_net_bind_service+ep) or a systemd unit with the appropriate User= / AmbientCapabilities= directives instead of setting the suid bit."
     cwe: ['CWE-250', 'CWE-732']
     owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]

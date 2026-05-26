@@ -624,6 +624,7 @@ class TaintTracker:
                 if f"name: {task_name}" in line or f'name: "{task_name}"' in line:
                     line_num = i
                     break
+        match_line = lines[line_num - 1].rstrip() if 0 < line_num <= len(lines) else ""
         return SecurityFinding(
             file_path=rel,
             line_number=line_num,
@@ -646,6 +647,7 @@ class TaintTracker:
                 "Jinja-templated string."
             ),
             code_snippet=snippet.strip(),
+            match_line=match_line,
             remediation_example=self._remediator.generate_taint_flow_fix(
                 rule_id="cross_file_taint",
                 code_snippet=snippet.strip(),

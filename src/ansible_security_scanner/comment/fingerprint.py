@@ -34,7 +34,7 @@ _MARKER_SUFFIX = "-->"
 _MARKER_RULE_SAMPLE = 12
 
 # Per-finding fingerprint cap. Each fingerprint is a 16-hex-char
-# truncated SHA-256 of "rule_id|file_path|line_number" — enough entropy
+# truncated SHA-256 of "rule_id|file_path|line_number" - enough entropy
 # to make collisions vanishingly unlikely on realistic scans without
 # bloating the marker. The full set is also digested so the next run
 # can detect "did anything change" in O(1) bytes even when the
@@ -56,8 +56,8 @@ _RESOLVED_RULES_HEADLINE_CAP = 8
 def _finding_fingerprint(finding: Any) -> str:
     """Stable per-finding identity hash.
 
-    Combines ``rule_id``, ``file_path``, and ``line_number`` — the same
-    triple the scanner uses to dedup across files — so the same finding
+    Combines ``rule_id``, ``file_path``, and ``line_number`` - the same
+    triple the scanner uses to dedup across files - so the same finding
     on the same line in two consecutive scans hashes to the same value.
     Truncated to ``_FINGERPRINT_LEN`` hex chars to keep marker payload
     small.
@@ -88,20 +88,20 @@ def _encode_marker(
 
     Schema (v2):
 
-    * ``version`` — schema version, bumped when fields change.
-    * ``findings_count`` — total finding count this run.
-    * ``commit_sha`` — head SHA the scan was run against.
-    * ``open_rule_ids`` — at most ``_MARKER_RULE_SAMPLE`` ids, used to
+    * ``version`` - schema version, bumped when fields change.
+    * ``findings_count`` - total finding count this run.
+    * ``commit_sha`` - head SHA the scan was run against.
+    * ``open_rule_ids`` - at most ``_MARKER_RULE_SAMPLE`` ids, used to
       cite cleared rules in the resolved banner.
-    * ``open_rule_ids_total`` / ``open_rule_ids_digest`` — full-set
+    * ``open_rule_ids_total`` / ``open_rule_ids_digest`` - full-set
       cardinality and SHA-256 digest of the sorted ids, so the next
       run can detect *any* change to the rule surface in O(1) bytes.
-    * ``finding_fingerprints`` — at most ``_MARKER_FINGERPRINT_SAMPLE``
+    * ``finding_fingerprints`` - at most ``_MARKER_FINGERPRINT_SAMPLE``
       truncated fingerprints. Optional.
     * ``finding_fingerprints_total`` / ``finding_fingerprints_digest``
-      — same shape as the rule-id pair, used by ``_compute_delta`` to
+      - same shape as the rule-id pair, used by ``_compute_delta`` to
       know when the truncated sample understates the real diff.
-    * ``finding_rule_ids`` — ``{fingerprint: rule_id}`` over the same
+    * ``finding_rule_ids`` - ``{fingerprint: rule_id}`` over the same
       sample as ``finding_fingerprints``. Inline-mapped (not a parallel
       list) so JSON corruption can't desync the two arrays.
 
@@ -153,7 +153,7 @@ def _decode_marker(body: str) -> dict[str, Any] | None:
 
     Returns ``None`` when no marker is present or parseable. Deliberately
     tolerant: a malformed marker (future version, hand-edited body)
-    returns ``None`` and the caller treats this run as a fresh post —
+    returns ``None`` and the caller treats this run as a fresh post -
     better than crashing mid-pipeline.
     """
     m = _MARKER_RE.search(body or "")
@@ -187,7 +187,7 @@ class _Delta:
     without fingerprints fall back to rule-id deltas.
 
     ``approximate=True`` signals that the previous truncated fingerprint
-    sample understated the real diff — the renderer flags the line so
+    sample understated the real diff - the renderer flags the line so
     reviewers don't read exact counts that are actually lower bounds.
 
     ``resolved_rule_ids`` / ``new_rule_ids`` are family-level: a rule
@@ -274,7 +274,7 @@ def _compute_delta(
 
 
 def _format_rule_ids_suffix(label: str, rule_ids: tuple[str, ...]) -> str:
-    """Format a ``<label>: \\`rule_a\\`, \\`rule_b\\`, …`` continuation
+    """Format a ``<label>: \\`rule_a\\`, \\`rule_b\\`, ...`` continuation
     following the delta headline.
 
     Caller appends two trailing spaces + ``\\n`` to produce a Markdown

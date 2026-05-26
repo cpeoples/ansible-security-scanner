@@ -1,6 +1,6 @@
 """Platform detection and request-context dataclasses for MR/PR comments.
 
-Pure env probing — no network I/O. Tokens read from environment variables
+Pure env probing - no network I/O. Tokens read from environment variables
 only; never logged, echoed, or persisted. Every code path that could
 surface a token routes through :func:`_redact` first.
 """
@@ -26,7 +26,7 @@ class PlatformContext:
     """Everything the commenter needs to talk to GitHub or GitLab.
 
     Populated by :func:`detect_platform` from CI environment variables.
-    ``token`` is the only sensitive field — it must never be logged,
+    ``token`` is the only sensitive field - it must never be logged,
     echoed, or written to disk.
     """
 

@@ -71,12 +71,13 @@ patterns:
     # Matches both inline form (`include_vars: "{{ x }}"`) and block form
     # (`include_vars:` followed by `file: "{{ x }}"` on the next line) so
     # authors can't evade the rule by splitting the key/value.
-    regex: "include(?:_vars|_tasks)?:(?:\\s*\\{\\{[^}]+\\}\\}|[\\s\\S]{0,100}?(?:file|name):\\s*['\"]?\\{\\{[^}]+\\}\\})"
+    regex: "include(?:_vars|_tasks)?:(?:\\s*['\"]?\\{\\{[^}]+\\}\\}|(?:[ \\t]*\\n[ \\t]+){1,3}(?:file|name):\\s*['\"]?\\{\\{[^}]+\\}\\})"
     positive_examples:
       - |2-
-        include_tasks: create_device.yml
-          vars:
-            image_file: '{{ remote_tmp_dir }}
+        include_tasks: "{{ user_supplied_path }}"
+      - |2-
+        include_tasks:
+          file: "{{ user_supplied_path }}"
     multiline: true
     window: 6
     recommendation: "Drive ansible.builtin.include_tasks / include_vars from a controller-defined variable resolved against an allow-list (loop with when: var in known_set), and place the included files in a controller-owned directory to prevent path traversal."

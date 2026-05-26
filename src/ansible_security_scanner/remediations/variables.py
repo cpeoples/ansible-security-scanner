@@ -30,12 +30,13 @@ class VariableInjectionRemediationGenerator(BaseRemediationGenerator):
 {code_snippet}
 ```
 
-**✅ Minimal Fix (Validate input):**
+**✅ Validate and reject (preferred):**
 ```yaml
 - name: Validate {var_match}
-  assert:
+  ansible.builtin.assert:
     that:
       - {var_match} is defined
+      - {var_match} is string
       - {var_match} is match("^[a-zA-Z0-9._-]+$")
     fail_msg: "Invalid or undefined {var_match}"
 
@@ -43,26 +44,29 @@ class VariableInjectionRemediationGenerator(BaseRemediationGenerator):
   # Your original task here with the validated variable
 ```
 
-**✅ Best Practice Fix (Sanitize and validate):**
-```yaml
-- name: Sanitize {var_match}
-  set_fact:
-    validated_{var_match}: "{{{{ {var_match} | regex_replace('[^a-zA-Z0-9._-]', '') }}}}"
-  when:
-    - {var_match} is defined
-    - {var_match} | length > 0
+**✅ Constrain at the role boundary (recommended for roles):**
+Define the variable in `meta/argument_specs.yml` so Ansible enforces the
+type and pattern before the role runs:
 
-- name: Use sanitized variable
-  # Your original task here with validated_{var_match}
-  when: validated_{var_match} is defined
+```yaml
+# meta/argument_specs.yml
+argument_specs:
+  main:
+    options:
+      {var_match}:
+        type: str
+        required: true
+        # restrict to the exact shape you accept
+        # (see: https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_reuse_roles.html#specification-format)
 ```
 
-**🔐 Variable Security Best Practices:**
-- Always validate input variables
-- Use the `quote` filter for shell variables
-- Sanitize variables before use
-- Use `assert` tasks to validate assumptions
-- Implement proper error handling
+**🔐 Notes:**
+- Reject invalid input with `assert`. Do not silently strip characters with
+  `regex_replace` - silent rewriting can mask attempted injection and turn
+  a clear failure into a hard-to-debug success.
+- Use the `quote` filter when interpolating any variable into shell/command.
+- Prefer `meta/argument_specs.yml` for role inputs; it runs before the role
+  and gives a single, declarative validation point.
 """
 
         return template

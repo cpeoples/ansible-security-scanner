@@ -13,9 +13,13 @@ patterns:
     severity: "MEDIUM"
     title: "Credential Visible in Comment"
     description: "A commented-out line contains what appears to be a hardcoded credential. Even in comments, credentials are visible in version control history."
-    regex: "^\\s*#.*(?:password|passwd|pwd|secret|token|api_key|apikey)\\s*[:=]\\s*[\"']?(?!\\{\\{)[A-Za-z0-9!@#$%^&*()_+=./-]{6,}[\"']?"
+    # Match when the value either (a) is quoted, or (b) contains a digit
+    # or symbol that lifts it above plain prose. Reject Ansible state
+    # keywords (``always|never|on_create|...``) and bare identifiers that
+    # are obviously variable refs (``token=consul_management_token``).
+    regex: "^\\s*#.*(?:password|passwd|pwd|secret|token|api_key|apikey)\\s*[:=]\\s*(?:[\"'](?!\\{\\{)[A-Za-z0-9!@#$%^&*()_+=./-]{6,}[\"']|(?!\\{\\{)(?!(?:always|never|on_create|present|absent|latest|default|yes|no|true|false|none)\\b)[A-Za-z0-9._-]*[0-9!@#$%^&*()+=/-][A-Za-z0-9!@#$%^&*()_+=./-]{4,})"
     positive_examples:
-      - "# truststore_password: cassandra"
+      - "# truststore_password: \"cassandra\""
     recommendation: "Remove hardcoded credentials from comments; use placeholders like <REDACTED> or {{ vault_variable }}"
     cwe: ['CWE-540', 'CWE-798']
     owasp_appsec: ["A01:2021", "A07:2021"]

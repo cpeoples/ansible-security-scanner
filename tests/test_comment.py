@@ -701,7 +701,7 @@ class TestFingerprintsAndDelta:
         assert "Progress" not in body
         assert "since last scan" not in body
 
-    # ---- Receipts continuation: "Resolved rules: …" ----
+    # ---- Receipts continuation: "Resolved rules: ..." ----
     # Marker carries a {fingerprint: rule_id} mapping so the next scan
     # can name which rule families disappeared. Tests pin: round-trip,
     # _compute_delta surfaces the ids, _render_delta_line prints them,
@@ -2200,7 +2200,7 @@ class TestScanRootPathResolution:
 
     def test_render_body_decorates_snippet_when_source_resolvable(self, tmp_path, monkeypatch):
         """``scan_root`` lets ``_decorate_snippet`` actually read the
-        source file, which produces the ripgrep-style ``> 3 | …``
+        source file, which produces the ripgrep-style ``> 3 | ...``
         context window. Without it the renderer silently fell back
         to the bare offending line.
         """
@@ -3179,7 +3179,7 @@ class TestCliIntegration:
         )
 
     def test_post_mr_comment_passes_previous_marker_to_renderer(self, tmp_path, monkeypatch):
-        """Regression: the delta header (``📈 Progress: N resolved …``)
+        """Regression: the delta header (``📈 Progress: N resolved ...``)
         only renders when ``render_comment_body`` receives a
         ``previous=`` payload. The CLI MUST fetch the prior comment's
         marker BEFORE rendering and pass it through. Without this

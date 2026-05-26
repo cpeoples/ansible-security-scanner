@@ -17,8 +17,42 @@ import yaml
 
 from ._ast_helpers import extract_all_tasks, extract_deep_strings
 from ._secrets import redact_secrets
+from .argument_specs import get_default_registry as get_argument_specs_registry
 from .models import SecurityFinding
+from .path_scopes import (
+    SUPPRESS_IN_GITHUB_ACTIONS as _SUPPRESS_IN_GITHUB_ACTIONS,
+)
+from .path_scopes import (
+    SUPPRESS_IN_INTEGRATION_TESTS as _SUPPRESS_IN_INTEGRATION_TESTS,
+)
+from .path_scopes import (
+    SUPPRESS_IN_MOLECULE as _SUPPRESS_IN_MOLECULE,
+)
+from .path_scopes import (
+    is_github_actions_path as _is_github_actions_path,
+)
+from .path_scopes import (
+    is_integration_test_fixture_path as _is_integration_test_fixture_path,
+)
+from .path_scopes import (
+    is_molecule_path as _is_molecule_path,
+)
+from .path_scopes import (
+    is_test_fixture_path as _is_test_fixture_path,
+)
+from .path_scopes import (
+    is_vendor_collection_path as _is_vendor_collection_path,
+)
+from .path_scopes import (
+    rule_path_scope_allows as _rule_path_scope_allows,
+)
 from .patterns_manager import patterns_manager
+from .project_classification import (
+    DEMOTE_IN_HARDENING_PROJECT as _DEMOTE_IN_HARDENING_PROJECT,
+)
+from .project_classification import (
+    is_security_hardening_project as _is_security_hardening_project,
+)
 from .remediations import RemediationGenerator
 from .suppressions import (
     SuppressionDirective,
@@ -106,14 +140,206 @@ _COMMENT_SCAN_RULES: frozenset[str] = frozenset(
     }
 )
 
+# Variable-related rules that should be suppressed when every
+# ``{{ var }}`` reference on the matched line is declared (and therefore
+# validated) in the enclosing role's ``meta/argument_specs.yml``. The
+# argument-specs contract runs before the role and enforces type, required,
+# regex, and choices, so a downstream usage of a validated variable is no
+# longer attacker-controlled in the way these regex rules assume.
+_ARGUMENT_SPECS_AWARE_RULE_IDS: frozenset[str] = frozenset(
+    {
+        "assemble_module_unsafe",
+        "fetch_module_unsafe_dest",
+        "dynamic_include_injection",
+        "hostvars_injection",
+        "groupvars_injection",
+        "vars_lookup_injection",
+    }
+)
+
+# Ansible-injected magic variables. These are populated by Ansible at
+# play execution from controller-trusted state (the directory layout,
+# the inventory file, the active hostname) and are not user-influenceable
+# from inside the playbook. A ``{{ role_path }}/tasks/main.yml`` include
+# is the canonical Ansible idiom for parameterised includes, so treat
+# these names as already-validated for argument-specs-aware rules.
+_ANSIBLE_MAGIC_VARS: frozenset[str] = frozenset(
+    {
+        "role_path",
+        "role_name",
+        "ansible_role_name",
+        "ansible_collection_name",
+        "playbook_dir",
+        "inventory_dir",
+        "inventory_file",
+        "inventory_hostname",
+        "inventory_hostname_short",
+        "ansible_play_name",
+        "ansible_play_hosts",
+        "ansible_search_path",
+        "ansible_config_file",
+        # Facts gathered by ``setup``: controller-trusted, surfaced as
+        # the standard idiom for OS-conditional includes
+        # (``include_vars: "{{ ansible_facts.distribution }}.yml"``).
+        "ansible_facts",
+        "ansible_distribution",
+        "ansible_distribution_major_version",
+        "ansible_distribution_version",
+        "ansible_distribution_release",
+        "ansible_os_family",
+        "ansible_system",
+        "ansible_architecture",
+        "ansible_pkg_mgr",
+        "ansible_service_mgr",
+        "ansible_kernel",
+        "ansible_python_version",
+    }
+)
+
+# Extracts ``{{ var }}`` / ``{{ var.attr }}`` / ``{{ var | filter }}`` and
+# returns the base variable name (pre-dot, pre-pipe).
+_TEMPLATED_VAR_RE = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)")
+
+
+_INCLUDE_PATH_BLOCKER_KEYWORDS: tuple[str, ...] = (
+    "vars:",
+    "loop:",
+    "loop_control:",
+    "when:",
+    "register:",
+    "tags:",
+    "with_items:",
+    "with_dict:",
+)
+
+
+def _extract_templated_vars_until_blocker(text: str) -> list[str]:
+    """Extract templated var names from ``text``, stopping at the first
+    line whose stripped form starts with an Ansible directive keyword
+    that scopes a different value (``loop:`` / ``vars:`` / ``when:`` etc).
+
+    Used to focus argument-specs validation on the include path itself,
+    ignoring loop iterables, sibling-vars expressions, and similar
+    siblings that don't flow into the rule's sink.
+    """
+    names: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if any(stripped.startswith(kw) for kw in _INCLUDE_PATH_BLOCKER_KEYWORDS):
+            break
+        names.extend(_extract_templated_var_names(line))
+    return names
+
+
+def _extract_templated_var_names(line: str) -> list[str]:
+    """Return the base names of every ``{{ var ... }}`` expression in ``line``."""
+    if "{{" not in line:
+        return []
+    return _TEMPLATED_VAR_RE.findall(line)
+
+
 # Detects a YAML block-scalar opener: ``key: |``, ``key: >``, ``key: |-``,
 # ``key: |+``, ``key: >-``, ``key: >+``. Used by ``_is_inside_block_scalar``
 # to decide whether a ``#`` on the anchor line is a YAML comment (suppress)
 # or a character inside a block-scalar string body (e.g. PowerShell
 # comment inside ``win_shell: |``, shell comment inside ``shell: |``).
 _BLOCK_SCALAR_OPENER_RE = re.compile(
-    r"^(?P<indent>\s*)(?:-\s+)?[a-z][a-z0-9_.]*\s*:\s*[|>][+-]?\s*$",
+    r"^(?P<indent>\s*)(?:-\s+)?(?P<key>[a-z][a-z0-9_.]*)\s*:\s*[|>][+-]?\s*$",
     re.IGNORECASE,
+)
+
+# Block-scalar keys whose body is human-prose documentation, not Ansible
+# task content. URLs, ``ssl_ciphers aNULL`` examples, ``http://`` man-page
+# references inside one of these belong to the prose, not to a runtime
+# connection or cipher config, so the regex rules that match production
+# code (insecure_protocol_usage, tls_*, etc.) should not fire there.
+_DOC_BLOCK_KEYS: frozenset[str] = frozenset(
+    {
+        "description",
+        "short_description",
+        "long_description",
+        "summary",
+        "notes",
+        "comment",
+        "comments",
+        "doc",
+        "docs",
+        "documentation",
+        "help",
+        "info",
+        # Ansible plugin metadata block scalars. Filter / module YAML
+        # files document themselves via ``DOCUMENTATION: |``,
+        # ``EXAMPLES: |``, ``RETURN: |`` blocks containing usage
+        # snippets - those are reference text, not executable
+        # configuration.
+        "examples",
+        "return",
+    }
+)
+_DOC_BLOCK_OPENER_RE = re.compile(
+    r"^(?P<indent>\s*)(?:-\s+)?(?P<key>[a-z][a-z0-9_]*)\s*:"
+    r"(?:\s*[|>][+-]?\s*$|\s*$)",
+    re.IGNORECASE,
+)
+
+_REGEX_TEST_FILTER_RE = re.compile(
+    r"(?:is\s+(?:ansible\.builtin\.)?(?:search|match|regex|contains)\b"
+    r"|\bregex_(?:search|replace|findall)\s*\(|"
+    r"\bsearch\s*\(\s*['\"])"
+)
+
+# Rules whose regex matches literal substrings (URLs, cipher names,
+# config snippets, package install lines, etc) that legitimately appear
+# inside human-prose documentation block scalars (``description: |``,
+# ``notes: |``, etc). Suppress these rules when the matched line is
+# inside one of those blocks.
+_SUPPRESS_IN_DOC_BLOCKS: frozenset[str] = frozenset(
+    {
+        "insecure_protocol_usage",
+        "ip_address_url",
+        "tls_min_version_below_1_2_nginx_apache_haproxy",
+        "tls_legacy_protocol_tlsv1_0_or_1_1_enabled",
+        "tls_weak_cipher_suite_rc4_3des_null_export",
+        "null_or_anon_cipher_suite_allowed",
+        "yaml_duplicate_key_suppression",
+        "bindep_profile_runs_shell",
+        "bindep_unpinned_package",
+        "user_input_template",
+        "dynamic_include_injection",
+        "unquoted_template_variable",
+        "set_fact_injection",
+        "register_variable_injection",
+        "unsafe_tag_bypass",
+        "jinja_in_assert_msg",
+    }
+)
+
+# Rules whose regex assumes a non-shell grammar (bindep package list,
+# YAML structure, etc.) and so cannot legitimately match a line inside
+# a shell-module block scalar (``shell: |``, ``command: |``, ``raw: |``,
+# ``win_shell: |``).
+_SUPPRESS_IN_SHELL_BLOCKS: frozenset[str] = frozenset(
+    {
+        "bindep_profile_runs_shell",
+        "bindep_unpinned_package",
+        "yaml_duplicate_key_suppression",
+    }
+)
+
+# Rules whose regex sees a literal substring inside a Jinja
+# ``regex_search``/``is search``/``regex_replace`` argument. The
+# substring is a *test pattern*, not a deployed config value, so the
+# finding is always a false positive. Same set as the doc-block
+# suppression - rules that match raw config strings.
+_SUPPRESS_INSIDE_REGEX_TEST_FILTER: frozenset[str] = frozenset(
+    {
+        "insecure_protocol_usage",
+        "ip_address_url",
+        "tls_min_version_below_1_2_nginx_apache_haproxy",
+        "tls_legacy_protocol_tlsv1_0_or_1_1_enabled",
+        "tls_weak_cipher_suite_rc4_3des_null_export",
+        "null_or_anon_cipher_suite_allowed",
+    }
 )
 
 
@@ -145,6 +371,79 @@ def _is_inside_block_scalar(lines: list[str], line_num: int) -> bool:
         # (uncommon but valid when the scalar content itself contains a
         # nested ``key: |``). Ignore and keep walking.
     return False
+
+
+def _is_inside_keyed_block_scalar(
+    lines: list[str],
+    line_num: int,
+    opener_re: re.Pattern[str],
+    keys: frozenset[str],
+) -> bool:
+    """True iff ``lines[line_num-1]`` is inside a block-scalar whose
+    opener key (e.g. ``description: |``, ``shell: |``) is in ``keys``.
+
+    ``opener_re`` must expose a ``key`` named group; the walk stops at
+    the first line shallower than the anchor that matches it.
+    """
+    if not 1 <= line_num <= len(lines):
+        return False
+    anchor = lines[line_num - 1]
+    seen_indent = len(anchor) - len(anchor.lstrip())
+    for idx in range(line_num - 2, -1, -1):
+        raw = lines[idx]
+        if not raw.strip():
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if indent >= seen_indent:
+            continue
+        m = opener_re.match(raw)
+        if m:
+            return m.group("key").lower() in keys
+        seen_indent = indent
+    return False
+
+
+def _is_inside_documentation_block(lines: list[str], line_num: int) -> bool:
+    """True iff ``lines[line_num-1]`` is inside a doc-style block-scalar
+    body (``description:``, ``short_description:``, ``notes:``, ...).
+    """
+    return _is_inside_keyed_block_scalar(lines, line_num, _DOC_BLOCK_OPENER_RE, _DOC_BLOCK_KEYS)
+
+
+# Block-scalar keys whose body is shell-language source (POSIX shell,
+# bash, PowerShell, Python). Lines inside one of these bodies must not
+# be matched by rules whose regex assumes a different grammar
+# (``bindep_profile_runs_shell``, which expects bindep package-list
+# grammar).
+_SHELL_BLOCK_KEYS: frozenset[str] = frozenset(
+    {
+        "shell",
+        "ansible.builtin.shell",
+        "command",
+        "ansible.builtin.command",
+        "raw",
+        "ansible.builtin.raw",
+        "win_shell",
+        "ansible.windows.win_shell",
+        "win_command",
+        "ansible.windows.win_command",
+        "script",
+        "ansible.builtin.script",
+        "cmd",
+        "expect",
+        "ansible.builtin.expect",
+    }
+)
+
+
+def _is_inside_shell_block(lines: list[str], line_num: int) -> bool:
+    """True iff ``lines[line_num-1]`` is inside a shell-module
+    block-scalar body (``shell: |``, ``command: |``, ``raw: |``,
+    ``win_shell: |``).
+    """
+    return _is_inside_keyed_block_scalar(
+        lines, line_num, _BLOCK_SCALAR_OPENER_RE, _SHELL_BLOCK_KEYS
+    )
 
 
 # Key-side of an Ansible module invocation. Accepts the bare ``key:``
@@ -227,22 +526,15 @@ _INSECURE_PROTOCOL_URL_RE: re.Pattern[str] = re.compile(
 )
 
 
-# Severity demotion for findings inside test-fixture trees (e.g.
-# ``ansible-core/test/integration/targets/**``, ``community.*/tests/**``).
-# In those trees ``validate_certs: no``, unhashed pip installs, and S3
-# buckets without access logging are intentional -- the playbook is
-# provisioning a throw-away environment.
+# Severity demotion for findings inside test-fixture trees (see
+# ``path_scopes.TEST_FIXTURE_PATH_RE`` for the path policy). In those
+# trees ``validate_certs: no``, unhashed pip installs, and S3 buckets
+# without access logging are intentional -- the playbook is provisioning
+# a throw-away environment.
 #
-# We do NOT exclude these findings (today's test fixture is tomorrow's
-# copy-pasted production playbook); we knock the severity down by one
-# tier so the finding stays visible without crowding higher-confidence
-# signal in production paths.
-_TEST_FIXTURE_PATH_RE: re.Pattern[str] = re.compile(
-    r"(?:^|/)(?:test|tests|molecule|integration_tests)(?:/|$)|"
-    r"(?:^|/)integration/targets/|"
-    r"(?:^|/)\.github/workflows/(?:test|ci|integration)",
-    re.IGNORECASE,
-)
+# Today's test fixture is tomorrow's copy-pasted production playbook,
+# so we knock the severity down one tier rather than excluding the
+# finding outright.
 _DEMOTE_IN_TEST_FIXTURES: frozenset[str] = frozenset(
     {
         "ssl_verification_disabled",
@@ -259,42 +551,21 @@ _DEMOTE_IN_TEST_FIXTURES: frozenset[str] = frozenset(
         "azure_redis_non_ssl_port_enabled",
         "ignore_errors_security_task",
         "ansible_galaxy_untrusted",
+        "cross_file_taint",
+        # Test fixtures that *verify* SSH-hardening assertions (e.g.
+        # ``- 'PermitRootLogin yes' in config.content | b64decode``)
+        # naturally contain the same literals the rule looks for. The
+        # role being tested is the right scope to evaluate, not the
+        # assertion that exercises it.
+        "ssh_config_manipulation",
     }
 )
-# Files under a vendor device-management collection - vSphere, iDRAC,
-# F5, Junos, Palo Alto, NetApp, Pure Storage, Cisco IOS, etc. These
+# Severity demotion for findings inside vendor device-management
+# collections (see ``path_scopes.VENDOR_COLLECTION_PATH_RE``). These
 # collections target an internal management plane that ships with
-# self-signed certs by default and requires the operator to configure
-# trust roots before ``validate_certs: yes`` will work. Until that's
-# done, ``validate_certs: false`` is the documented bootstrap shape.
-# Same logic for ``no_log`` on ``*_user`` / ``*_password`` task args:
-# these collections set ``no_log`` on the parameter spec at the module
-# level (Ansible enforces it) so requiring the role author to ALSO
-# write ``no_log: true`` on the task is duplicate work the user can't
-# act on.
-#
-# Detection is path-based against the canonical collection layout:
-# ``<namespace>.<name>/`` at any depth, or the corpus-clone aliases
-# (``community.vmware``, ``dell-openmanage``, etc.). Same demotion
-# semantics as test fixtures: knock severity down one tier so the
-# finding stays visible but doesn't drown out generic-cloud-API
-# findings against the same vocabulary.
-_VENDOR_COLLECTION_PATH_RE: re.Pattern[str] = re.compile(
-    r"(?:^|/)(?:"
-    r"community\.vmware|community\.network|"
-    r"dell(?:emc)?[-.](?:openmanage|powerflex|powerstore|powerscale|unity|networking)|"
-    r"f5networks?[-.](?:f5_modules|f5os|f5_bigip)|"
-    r"juniper[-.]?(?:device|junos)|"
-    r"paloaltonetworks[-.]panos|"
-    r"netapp[-.](?:ontap|elementsw|aws|azure|cloudmanager|um_info)|"
-    r"purestorage[-.](?:flasharray|flashblade|fusion)|"
-    r"cisco[-.](?:ios|iosxr|nxos|asa|aci|meraki|intersight|ucs)|"
-    r"check_point[-.](?:gaia|mgmt)|"
-    r"fortinet[-.](?:fortios|fortimanager|fortianalyzer)|"
-    r"vyos[-.]vyos"
-    r")(?:/|$)",
-    re.IGNORECASE,
-)
+# self-signed certs by default and ``no_log`` is enforced at the module
+# parameter spec, so duplicate task-level ``no_log: true`` requirements
+# are noise the user cannot act on.
 _DEMOTE_IN_VENDOR_COLLECTIONS: frozenset[str] = frozenset(
     {
         "ssl_verification_disabled",
@@ -315,14 +586,6 @@ _SEVERITY_DEMOTE: dict[str, str] = {
     "MEDIUM": "LOW",
     "LOW": "LOW",
 }
-
-
-def _is_test_fixture_path(file_path: Path) -> bool:
-    return bool(_TEST_FIXTURE_PATH_RE.search(file_path.as_posix()))
-
-
-def _is_vendor_collection_path(file_path: Path) -> bool:
-    return bool(_VENDOR_COLLECTION_PATH_RE.search(file_path.as_posix()))
 
 
 # Module names whose presence inside a ``- block:`` body makes the
@@ -383,14 +646,22 @@ _BLOCK_FAILABLE_MODULES: frozenset[str] = frozenset(
 
 def _block_contains_failable_task(block_tasks: list) -> bool:
     """Return True if any task inside ``block_tasks`` uses a module from
-    ``_BLOCK_FAILABLE_MODULES``. Recurses into nested ``block:`` bodies
-    so a block-wrapping-a-block pattern still counts.
+    ``_BLOCK_FAILABLE_MODULES`` AND that task does not already declare
+    its own failure-handling semantics (``ignore_errors:`` /
+    ``failed_when:``). When every failable task in the block has
+    explicit failure semantics, the author has consciously chosen not
+    to halt on failure - adding a ``rescue:`` would be redundant.
+
+    Recurses into nested ``block:`` bodies so a block-wrapping-a-block
+    pattern still counts.
     """
     for t in block_tasks:
         if not isinstance(t, dict):
             continue
         for key in t:
             if key in _BLOCK_FAILABLE_MODULES:
+                if "ignore_errors" in t or "failed_when" in t:
+                    break
                 return True
         nested = t.get("block")
         if isinstance(nested, list) and _block_contains_failable_task(nested):
@@ -398,27 +669,18 @@ def _block_contains_failable_task(block_tasks: list) -> bool:
     return False
 
 
-def _demote_severity_if_eligible(finding):
-    """Knock severity down one tier when the finding belongs to the curated
-    allowlist and the surrounding file lives in a known test-fixture path.
+def _demote_severity(finding, eligible_rule_ids: frozenset[str]):
+    """Knock severity down one tier when ``finding.rule_id`` is in
+    ``eligible_rule_ids``. Mutates ``finding`` in place AND returns it
+    so callers can use this in a list comprehension.
 
-    Operates on the finding object in place AND returns it, so the caller
-    can use the function in a list comprehension when we're rewriting
-    ``scan_file``'s result list.
+    The eligible set encodes the *why*: rules in
+    ``_DEMOTE_IN_TEST_FIXTURES`` are intentionally-insecure CI shapes;
+    ``_DEMOTE_IN_VENDOR_COLLECTIONS`` covers device-management
+    self-signed-cert defaults; ``_DEMOTE_IN_HARDENING_PROJECT`` covers
+    CIS/STIG roles whose job is to touch PAM/GRUB/kernel surfaces.
     """
-    if finding.rule_id in _DEMOTE_IN_TEST_FIXTURES and isinstance(finding.severity, str):
-        finding.severity = _SEVERITY_DEMOTE.get(finding.severity.upper(), finding.severity)
-    return finding
-
-
-def _demote_severity_in_vendor_path(finding):
-    """Same shape as ``_demote_severity_if_eligible`` but for the vendor-
-    collection allowlist. Kept separate from the test-fixture demotion
-    because the rule-allowlists are different (vendor paths legitimately
-    use ``validate_certs: false`` and ``register: cli_output`` patterns
-    that test fixtures don't, and vice versa).
-    """
-    if finding.rule_id in _DEMOTE_IN_VENDOR_COLLECTIONS and isinstance(finding.severity, str):
+    if finding.rule_id in eligible_rule_ids and isinstance(finding.severity, str):
         finding.severity = _SEVERITY_DEMOTE.get(finding.severity.upper(), finding.severity)
     return finding
 
@@ -1089,6 +1351,11 @@ class FileScanner:
         # FileScanner is shared across threads (see scan_file docstring).
         self._task_line_index_cache: dict[int, dict[str, int]] = {}
         self._task_line_index_lock = threading.Lock()
+        # One-shot project-level classification: hardening roles
+        # (CIS / STIG / dev-sec) legitimately manipulate PAM / GRUB /
+        # kernel modules, so a curated rule set gets demoted across
+        # the whole tree rather than firing as MEDIUM/HIGH risk.
+        self._is_hardening_project = _is_security_hardening_project(self.directory)
 
     def scan_file(
         self,
@@ -1135,7 +1402,7 @@ class FileScanner:
                             _AnsibleTagTolerantLoader,  # local import to avoid cycle
                         )
 
-                        yaml_data = yaml.load(content, Loader=_AnsibleTagTolerantLoader)  # noqa: S506
+                        yaml_data = yaml.load(content, Loader=_AnsibleTagTolerantLoader)
                     except yaml.YAMLError:
                         logger.debug(
                             "YAML parsing failed for %s, continuing with line-based scanning: %s",
@@ -1502,10 +1769,20 @@ class FileScanner:
             ], suppression_warnings
 
         findings = _apply_overlap_suppression(findings)
+        findings = self._apply_argument_specs_filter(findings, file_path, lines)
+        if _is_molecule_path(file_path):
+            findings = [f for f in findings if f.rule_id not in _SUPPRESS_IN_MOLECULE]
+        if _is_integration_test_fixture_path(file_path):
+            findings = [f for f in findings if f.rule_id not in _SUPPRESS_IN_INTEGRATION_TESTS]
+        if _is_github_actions_path(file_path):
+            findings = [f for f in findings if f.rule_id not in _SUPPRESS_IN_GITHUB_ACTIONS]
+        findings = [f for f in findings if _rule_path_scope_allows(f.rule_id, file_path)]
         if _is_test_fixture_path(file_path):
-            findings = [_demote_severity_if_eligible(f) for f in findings]
+            findings = [_demote_severity(f, _DEMOTE_IN_TEST_FIXTURES) for f in findings]
         if _is_vendor_collection_path(file_path):
-            findings = [_demote_severity_in_vendor_path(f) for f in findings]
+            findings = [_demote_severity(f, _DEMOTE_IN_VENDOR_COLLECTIONS) for f in findings]
+        if self._is_hardening_project:
+            findings = [_demote_severity(f, _DEMOTE_IN_HARDENING_PROJECT) for f in findings]
         if self.active_rule_ids is not None:
             # Final ``--ignore`` gate. Runs AFTER ``_apply_overlap_suppression``
             # so that ignoring the most-specific rule of an overlap group
@@ -3639,13 +3916,166 @@ class FileScanner:
             line = all_lines[line_num - 1].lstrip()
             if line.startswith(("#", "*", "<", "//")):
                 return True
-        start = max(0, line_num - 6)
+        # Look 12 lines back so deeply-indented repo configs (full
+        # ``yum_repository:`` blocks reach this far between the
+        # module key and the ``gpgkey:`` argument).
+        start = max(0, line_num - 12)
         block = "\n".join(all_lines[start:line_num])
         return bool(
             re.search(
-                r"\b(?:apt_key|apt_repository|rpm_key|yum_repository|zypper_repository)\s*:", block
+                r"\b(?:apt_key|apt_repository|rpm_key|yum_repository|zypper_repository|"
+                r"ansible\.builtin\.(?:apt_key|apt_repository|rpm_key|yum_repository))"
+                r"\s*:",
+                block,
             )
         )
+
+    # Open-source license SPDX header URLs. The Apache, GPL, MPL, BSD,
+    # and Creative Commons license texts are all served from these
+    # domains over plain HTTP; the URL is canonical SPDX boilerplate
+    # (vendored into license headers across millions of files), not a
+    # protocol choice the user can change. ``http://`` is what the
+    # SPDX identifier resolves to and any other URL would not be the
+    # license text.
+    _LICENSE_HEADER_URL_RE: re.Pattern[str] = re.compile(
+        r"\bhttps?://(?:www\.)?(?:"
+        r"apache\.org/licenses/|"
+        r"gnu\.org/licenses/|"
+        r"creativecommons\.org/licenses/|"
+        r"opensource\.org/licenses/|"
+        r"mozilla\.org/MPL/|"
+        r"eclipse\.org/legal/|"
+        r"spdx\.org/licenses/|"
+        r"unlicense\.org|"
+        r"www\.boost\.org/LICENSE|"
+        r"opensource\.org/osd"
+        r")",
+        re.IGNORECASE,
+    )
+
+    # Debian / Ubuntu / Devuan / RHEL / CentOS / Fedora / SUSE official
+    # package mirrors. These ship Release.gpg / repomd.xml.asc alongside
+    # every metadata index; the package manager validates those
+    # signatures before installing, so plain HTTP transport is the
+    # documented and recommended shape (HTTPS is fine but adds nothing).
+    # PPA / launchpad URLs are in the same category.
+    _SIGNED_PACKAGE_MIRROR_RE: re.Pattern[str] = re.compile(
+        r"\bhttps?://(?:"
+        r"(?:deb|archive|ports|security|cdn|ftp|httpredir)\."
+        r"(?:debian|devuan|ubuntu|kali)\.org|"
+        r"(?:archive|old-releases)\.ubuntu\.com|"
+        r"(?:mirror|mirrors|cdn|download)\.(?:centos|fedora|rockylinux|"
+        r"almalinux|rhel|opensuse|suse)\.org|"
+        r"(?:[a-z0-9-]+\.)?fedoraproject\.org/pub|"
+        r"download\.opensuse\.org|"
+        r"ppa\.launchpad\.net|"
+        r"ppa\.launchpadcontent\.net"
+        r")/",
+        re.IGNORECASE,
+    )
+
+    # Debian apt-secure ``deb [signed-by=...]`` / ``[trusted=yes]``
+    # source lines. The ``signed-by=/etc/apt/keyrings/foo.gpg`` clause
+    # tells apt to verify package signatures with that explicit key,
+    # which is the modern, recommended replacement for the deprecated
+    # ``apt-key add``. Plain HTTP transport here is part of the
+    # design - integrity is guaranteed by GPG, not TLS.
+    _APT_SIGNED_SOURCE_RE: re.Pattern[str] = re.compile(
+        r"\bdeb\s+\[[^\]]*(?:signed-by|trusted=yes)[^\]]*\]\s+https?://",
+        re.IGNORECASE,
+    )
+
+    # systemd unit-file metadata keys (``Documentation=http://...``,
+    # ``URL=http://...``, ``Help=http://...`` ...). The URL is operator-
+    # facing reference text written into the unit file; systemd never
+    # opens it.
+    _SYSTEMD_DOC_FIELD_RE: re.Pattern[str] = re.compile(
+        r"^\s*(?:Documentation|URL|Help|HomePage|"
+        r"BugReportURL|SupportURL|UpstreamURL)\s*=",
+        re.IGNORECASE,
+    )
+
+    # XML namespace and JSON-Schema ``$schema`` URL bindings. The
+    # parser uses these as identifier strings, never as fetch targets.
+    _XML_NAMESPACE_URL_RE: re.Pattern[str] = re.compile(
+        r"(?:xmlns(?::[A-Za-z][\w.-]*)?|"
+        r"\$schema|targetNamespace|"
+        r"schemaLocation|xsi:noNamespaceSchemaLocation)\s*=\s*"
+        r"['\"]?https?://",
+        re.IGNORECASE,
+    )
+
+    # Filesystem paths whose contents are dispatched by exec - mode
+    # 0755 is the canonical, required shape there:
+    #
+    #   * ``/etc/ansible/facts.d/<name>.fact`` - Ansible runs each
+    #     fact at gather time and parses stdout as JSON.
+    #   * ``/etc/cron.{hourly,daily,weekly,monthly,d}/<name>`` -
+    #     run-parts dispatches by exec.
+    #   * ``/etc/profile.d/<name>.sh`` and
+    #     ``/etc/bash_completion.d/<name>`` - sourced by login shell.
+    #   * ``/etc/init.d/<name>`` and ``/etc/rc.d/init.d/<name>`` -
+    #     SysV init scripts.
+    #   * ``/etc/network/if-up.d/`` & friends, dhclient hooks,
+    #     ``/etc/X11/xinit/xinitrc.d/`` - dispatch dirs.
+    _EXEC_DISPATCH_PATH_RE: re.Pattern[str] = re.compile(
+        r"dest\s*:\s*['\"]?"
+        r"(?:/etc/ansible/facts\.d/|"
+        r"/etc/cron\.(?:hourly|daily|weekly|monthly|d)/|"
+        r"/etc/profile\.d/|"
+        r"/etc/bash_completion\.d/|"
+        r"/etc/init\.d/|"
+        r"/etc/rc\.d/init\.d/|"
+        r"/etc/network/if-(?:up|down|pre-up|post-down)\.d/|"
+        r"/etc/dhcp/dhclient-(?:enter|exit)-hooks\.d/|"
+        r"/etc/X11/xinit/xinitrc\.d/|"
+        r"/etc/apt/apt\.conf\.d/[0-9]+[A-Za-z0-9_-]+)"
+    )
+
+    # facts_d_injection post-filter: a static role-relative ``src:``,
+    # ``owner: root``, and a non-world-writable ``mode:`` together
+    # describe the canonical safe shape (the role itself is the source
+    # of truth). World-writable means the last octal digit has the
+    # ``2`` bit set - i.e. one of 2/3/6/7.
+    _FACTS_D_STATIC_SRC_RE: re.Pattern[str] = re.compile(
+        r"^\s*src\s*:\s*['\"]?[A-Za-z0-9_./-]+(?:\.j2)?['\"]?\s*(?:#|$)",
+        re.MULTILINE,
+    )
+    _FACTS_D_ROOT_OWNER_RE: re.Pattern[str] = re.compile(r"owner\s*:\s*['\"]?root\b")
+    _FACTS_D_WORLD_WRITABLE_MODE_RE: re.Pattern[str] = re.compile(
+        r"mode\s*:\s*['\"]?0?[0-7]?[0-7]?[2367]\b"
+    )
+
+    # ``command_module_with_shell`` re-test: the rule's regex catches
+    # ``command:`` lines containing shell metacharacters. Quoted spans
+    # inside the argv (``awk '...'``, ``sh -c "..."``, ...) are part of the
+    # embedded interpreter's args, not seen by ``command:`` itself.
+    _COMMAND_SHELL_META_RE: re.Pattern[str] = re.compile(
+        r"^\s*(?:ansible\.builtin\.)?command:.*[|;&`$()]"
+    )
+
+    # Helm / Go-template comment block ``{{/* ... */}}`` and
+    # ``{{- /* ... */ -}}`` openers/closers. These wrap entire SPDX
+    # license headers in OpenStack-Helm chart templates. A line is
+    # inside the comment if a ``{{/*`` (with optional ``-``) opens
+    # somewhere above and no matching ``*/}}`` has closed it yet.
+    _GO_TMPL_COMMENT_OPEN_RE: re.Pattern[str] = re.compile(r"\{\{-?\s*/\*")
+    _GO_TMPL_COMMENT_CLOSE_RE: re.Pattern[str] = re.compile(r"\*/\s*-?\}\}")
+
+    @staticmethod
+    def _is_inside_go_template_comment(all_lines: list, line_num: int) -> bool:
+        """True iff ``all_lines[line_num-1]`` is inside a Helm /
+        Go-template ``{{/* ... */}}`` comment block.
+
+        Walks the file from the top, tracking opens/closes; cheap
+        because Helm templates are short and the regex is fast.
+        """
+        if not 1 <= line_num <= len(all_lines):
+            return False
+        text = "\n".join(all_lines[:line_num])
+        opens = len(FileScanner._GO_TMPL_COMMENT_OPEN_RE.findall(text))
+        closes = len(FileScanner._GO_TMPL_COMMENT_CLOSE_RE.findall(text))
+        return opens > closes
 
     @staticmethod
     def _pip_task_has_hash_lock(all_lines: list, line_num: int) -> bool:
@@ -3897,6 +4327,45 @@ class FileScanner:
                             if pat.id in _nested_rules:
                                 if _url_matches_are_all_nested_json(
                                     variant, url_re=_nested_rules[pat.id]
+                                ):
+                                    continue
+
+                            # Mirror of the url_encoded_credentials
+                            # post-filter (see _emit_finding_if_allowed).
+                            # OpenSSL X.509 -addext flags and DB config
+                            # knobs (password_encryption=scram-sha-256,
+                            # auth_method=trust, etc.) match the
+                            # credential shape but are not credentials.
+                            if pat.id == "url_encoded_credentials":
+                                if re.search(
+                                    r"-addext\s+['\"]?(?:keyUsage|"
+                                    r"extendedKeyUsage|subjectAltName|"
+                                    r"basicConstraints|"
+                                    r"authorityKeyIdentifier|"
+                                    r"subjectKeyIdentifier|"
+                                    r"crlDistributionPoints|"
+                                    r"authorityInfoAccess|"
+                                    r"nameConstraints|nsCertType)=",
+                                    variant,
+                                ):
+                                    continue
+                                if re.search(
+                                    r"\bgpgkey\s*=\s*(?:file|https?|ftp)://",
+                                    variant,
+                                    re.IGNORECASE,
+                                ):
+                                    continue
+                                if re.search(
+                                    r"\b(?:password_encryption|"
+                                    r"ssl_passphrase_command|"
+                                    r"auth_method|password_command|"
+                                    r"auth_param|crypto_policy)"
+                                    r"\s*=\s*['\"]?(?:scram-sha-256|"
+                                    r"md5|sha256|sha512|trust|peer|"
+                                    r"ident|reject|cert|password|gss|"
+                                    r"sspi|ldap|radius|pam|bsd)\b",
+                                    variant,
+                                    re.IGNORECASE,
                                 ):
                                     continue
 
@@ -4539,6 +5008,154 @@ class FileScanner:
 
         return findings
 
+    def _apply_argument_specs_filter(
+        self,
+        findings: list[SecurityFinding],
+        file_path: Path,
+        lines: list[str],
+    ) -> list[SecurityFinding]:
+        """Drop findings on argument-specs-aware rules whose every templated
+        variable is already validated.
+
+        A variable is considered validated when it is either:
+
+          * declared in the enclosing role's ``meta/argument_specs.yml``
+            (Ansible's own argument-validation runs before the role and
+            enforces type / required / regex / choices on declared
+            options), or
+          * an Ansible-injected magic variable like ``role_path`` /
+            ``playbook_dir`` / ``inventory_hostname`` (controller-trusted,
+            not user-influenceable), or
+          * bound by a sibling ``vars:`` block on the same task, or
+            declared as the task's ``loop_var`` / ``loop_control``
+            iterator (the include path is computed from a literal
+            expression that the playbook author controls).
+        """
+        if not findings:
+            return findings
+        registry = get_argument_specs_registry()
+
+        kept: list[SecurityFinding] = []
+        for f in findings:
+            if f.rule_id not in _ARGUMENT_SPECS_AWARE_RULE_IDS:
+                kept.append(f)
+                continue
+            templated = self._templated_vars_for_finding(f, lines)
+            if not templated:
+                kept.append(f)
+                continue
+            local_vars = self._task_local_vars(lines, f.line_number)
+            if all(
+                v in _ANSIBLE_MAGIC_VARS
+                or v in local_vars
+                or registry.is_validated_variable(file_path, v)
+                for v in templated
+            ):
+                logger.debug(
+                    "Suppressing %s at %s:%d via argument_specs/magic-vars (vars=%s)",
+                    f.rule_id,
+                    file_path,
+                    f.line_number,
+                    templated,
+                )
+                continue
+            kept.append(f)
+        return kept
+
+    @staticmethod
+    def _templated_vars_for_finding(finding: SecurityFinding, lines: list[str]) -> list[str]:
+        """Return every ``{{ var }}`` base name relevant to ``finding``.
+
+        For include-style findings, only the include path itself matters
+        - templated values inside ``loop:`` / ``when:`` / sibling ``vars:``
+        blocks are not the rule's sink. We extract from the snippet, the
+        match line, and (when the anchor is a multi-line task header) the
+        next few argument lines, stopping at the first sibling block
+        directive.
+        """
+        names: list[str] = []
+        names.extend(_extract_templated_vars_until_blocker(finding.code_snippet or ""))
+        names.extend(_extract_templated_vars_until_blocker(finding.match_line or ""))
+        if 1 <= finding.line_number <= len(lines):
+            anchor = lines[finding.line_number - 1]
+            anchor_indent = len(anchor) - len(anchor.lstrip())
+            for offset, src_line in enumerate(
+                lines[finding.line_number - 1 : finding.line_number + 6]
+            ):
+                stripped = src_line.strip()
+                if any(stripped.startswith(kw) for kw in _INCLUDE_PATH_BLOCKER_KEYWORDS):
+                    break
+                # A new task at the same or shallower indent ends the
+                # current task body. ``offset == 0`` is the anchor line
+                # itself - which IS a ``- name:`` line for tasks - so
+                # never treat that as a body terminator.
+                if (
+                    offset > 0
+                    and stripped.startswith("- ")
+                    and (len(src_line) - len(src_line.lstrip())) <= anchor_indent
+                ):
+                    break
+                names.extend(_extract_templated_var_names(src_line))
+        return [n for n in names if n]
+
+    @staticmethod
+    def _task_local_vars(lines: list[str], anchor_line: int) -> set[str]:
+        """Return variable names bound locally to the task at ``anchor_line``.
+
+        Includes:
+
+          * names defined under a sibling ``vars:`` block, and
+          * the iterator name from ``loop_control: { loop_var: name }``,
+            which Ansible scopes to the task body.
+
+        Implements the standard parameterised-include idiom::
+
+            - ansible.builtin.include_tasks:
+                file: "{{ __task_file }}"
+              vars:
+                __task_file: "{{ role_path }}/tasks/foo.yml"
+              loop_control:
+                loop_var: __task_file
+        """
+        if not (1 <= anchor_line <= len(lines)):
+            return set()
+        names: set[str] = set()
+        anchor = lines[anchor_line - 1]
+        anchor_indent = len(anchor) - len(anchor.lstrip())
+        block_kind: str | None = None
+        block_indent = -1
+        for idx in range(anchor_line - 1, min(len(lines), anchor_line + 30)):
+            raw = lines[idx]
+            stripped = raw.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            indent = len(raw) - len(raw.lstrip())
+            if block_kind is None:
+                if indent < anchor_indent and stripped.startswith("- "):
+                    break
+                if stripped == "vars:" and indent <= anchor_indent:
+                    block_kind = "vars"
+                    block_indent = indent
+                elif stripped == "loop_control:" and indent <= anchor_indent:
+                    block_kind = "loop_control"
+                    block_indent = indent
+                continue
+            if indent <= block_indent:
+                block_kind = None
+                block_indent = -1
+                if stripped.startswith("- "):
+                    break
+                continue
+            if block_kind == "vars":
+                m = re.match(r"([A-Za-z_][A-Za-z0-9_]*)\s*:", stripped)
+                if m:
+                    names.add(m.group(1))
+            elif block_kind == "loop_control":
+                m = re.match(r"loop_var\s*:\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)", stripped)
+                if m:
+                    names.add(m.group(1))
+        return names
+
     # Suppression helpers
     # Short list of indicators that, if present on a line that's being
     # suppressed, almost always mean something sketchy is being smuggled
@@ -5034,6 +5651,19 @@ class FileScanner:
         ):
             return
 
+        # ``meta/argument_specs.yml`` awareness: when the matched line uses a
+        # templated variable that the enclosing role validates via
+        # argument_specs (type / required / regex / choices), Ansible itself
+        # enforces the contract before the role runs. Suppress the variable-
+        # injection-family findings in that case so well-validated role
+        # inputs do not produce noise.
+        if pattern_obj.id in _ARGUMENT_SPECS_AWARE_RULE_IDS:
+            templated_vars = _extract_templated_var_names(line)
+            if templated_vars:
+                registry = get_argument_specs_registry()
+                if all(registry.is_validated_variable(file_path, v) for v in templated_vars):
+                    return
+
         # Hardcoded-credentials plausibility heuristic: only the generic,
         # shape-free rules (hardcoded_password / _api_key / _secret / _token,
         # base64/hex/uuid shape) need a secondary check that the matched
@@ -5129,10 +5759,84 @@ class FileScanner:
             ):
                 return
 
-        if pattern_obj.id == "insecure_protocol_usage" and self._is_signed_package_channel(
+        if pattern_obj.id == "url_encoded_credentials" and 1 <= line_num <= len(all_lines):
+            raw = all_lines[line_num - 1]
+            # OpenSSL X.509 extension flags (``-addext 'keyUsage=...'``,
+            # ``-addext 'extendedKeyUsage=...'``, ``-addext
+            # 'subjectAltName=...'``) match the credential-shape regex
+            # because their names contain ``key`` / ``auth``. They are
+            # certificate-attribute declarations, not credential
+            # literals, so suppress when the matched line uses them.
+            if re.search(
+                r"-addext\s+['\"]?(?:keyUsage|extendedKeyUsage|"
+                r"subjectAltName|basicConstraints|authorityKeyIdentifier|"
+                r"subjectKeyIdentifier|crlDistributionPoints|"
+                r"authorityInfoAccess|nameConstraints|nsCertType)=",
+                raw,
+            ):
+                return
+            # Package-repository signing key references
+            # (``gpgkey=file:///etc/pki/...``, ``gpgkey=https://...``)
+            # match the credential shape because the param name is
+            # ``gpgkey``. The value points at a public signing
+            # certificate, never a credential.
+            if re.search(
+                r"\bgpgkey\s*=\s*(?:file|https?|ftp)://",
+                raw,
+                re.IGNORECASE,
+            ):
+                return
+            # Database / server config knobs whose ``=value`` pair
+            # matches the credential shape (``password_encryption=...``,
+            # ``ssl_passphrase_command=...``, ``auth_method=...``) but
+            # whose value is a hash-algorithm identifier or a known
+            # config token, not a credential. Suppress when the value
+            # is one of those identifiers.
+            if re.search(
+                r"\b(?:password_encryption|ssl_passphrase_command|"
+                r"auth_method|password_command|auth_param|crypto_policy)"
+                r"\s*=\s*['\"]?(?:scram-sha-256|md5|sha256|sha512|"
+                r"trust|peer|ident|reject|cert|password|gss|sspi|ldap|"
+                r"radius|pam|bsd)\b",
+                raw,
+                re.IGNORECASE,
+            ):
+                return
+
+        if pattern_obj.id == "lookup_env_leak" and 1 <= line_num <= len(all_lines):
+            # Canonical pattern: ``my_secret: "{{ ... | default(lookup('env',
+            # 'MY_SECRET'), true) }}"``. The variable being assigned
+            # carries a credential by design, and ``lookup('env', ...)`` is
+            # the recommended way to seed it without hardcoding. The
+            # rule's intent is to catch *unintentional* exposure of
+            # controller env into the play scope; when the receiving
+            # variable is itself credential-named, the user has named
+            # the secret a secret.
+            raw = all_lines[line_num - 1]
+            if re.search(
+                r"(?:^|\s|-)\s*(?:[A-Za-z0-9_-]*"
+                r"(?:secret|token|password|passwd|api[_-]?key|access[_-]?key|"
+                r"private[_-]?key|client[_-]?secret|credential|"
+                r"oauth|bearer|auth)[A-Za-z0-9_-]*)\s*:",
+                raw,
+                re.IGNORECASE,
+            ):
+                return
+
+        if pattern_obj.id in _SUPPRESS_IN_DOC_BLOCKS and _is_inside_documentation_block(
             all_lines, line_num
         ):
             return
+
+        if pattern_obj.id in _SUPPRESS_IN_SHELL_BLOCKS and _is_inside_shell_block(
+            all_lines, line_num
+        ):
+            return
+
+        if pattern_obj.id in _SUPPRESS_INSIDE_REGEX_TEST_FILTER and 1 <= line_num <= len(all_lines):
+            raw = all_lines[line_num - 1]
+            if _REGEX_TEST_FILTER_RE.search(raw):
+                return
 
         # Jinja test-filter usage: ``{{ 'http://x' is uri }}`` / ``is url``
         # is a STATIC test fixture exercising the test plugin, not a
@@ -5141,6 +5845,65 @@ class FileScanner:
         if pattern_obj.id == "insecure_protocol_usage" and 1 <= line_num <= len(all_lines):
             raw = all_lines[line_num - 1]
             if re.search(r"['\"]https?://[^'\"]*['\"]\s+is\s+(?:uri|url)\b", raw):
+                return
+            # SPDX license header URL - canonical license-identifier
+            # text, not a protocol choice.
+            if self._LICENSE_HEADER_URL_RE.search(raw):
+                return
+            # Distro mirror or ``deb [signed-by=...] http://...`` source -
+            # GPG validates the package, not TLS.
+            if self._SIGNED_PACKAGE_MIRROR_RE.search(raw) or self._APT_SIGNED_SOURCE_RE.search(raw):
+                return
+            # Helm ``{{/* ... */}}`` comment block - SPDX header in
+            # OpenStack-Helm charts lives entirely inside one.
+            if self._is_inside_go_template_comment(all_lines, line_num):
+                return
+            # Repository-management module key above the matched line
+            # (``yum_repository:`` / ``apt_key:`` / etc.) - the
+            # package manager validates the URL via GPG.
+            if self._is_signed_package_channel(all_lines, line_num):
+                return
+            # systemd unit-file metadata key, XML namespace, or JSON
+            # ``$schema`` - identifier text, never fetched.
+            if self._SYSTEMD_DOC_FIELD_RE.match(raw) or self._XML_NAMESPACE_URL_RE.search(raw):
+                return
+
+        if pattern_obj.id == "facts_d_injection" and 1 <= line_num <= len(all_lines):
+            # The rule flags *untrusted* facts.d deployments. A
+            # static role-relative ``src:`` + ``owner: root`` + a
+            # non-world-writable ``mode:`` is the canonical safe
+            # shape; templated ``src:`` or world-writable mode still
+            # fire.
+            window = "\n".join(all_lines[max(0, line_num - 12) : min(len(all_lines), line_num + 8)])
+            if (
+                self._FACTS_D_STATIC_SRC_RE.search(window)
+                and self._FACTS_D_ROOT_OWNER_RE.search(window)
+                and not self._FACTS_D_WORLD_WRITABLE_MODE_RE.search(window)
+            ):
+                return
+
+        if pattern_obj.id == "template_mode_executable_to_system_path" and 1 <= line_num <= len(
+            all_lines
+        ):
+            # Suppress when ``dest:`` points at a known exec-dispatch
+            # directory where mode 0755 is the canonical, required
+            # shape (see ``_EXEC_DISPATCH_PATH_RE`` for the list).
+            window = "\n".join(all_lines[max(0, line_num - 1) : min(len(all_lines), line_num + 18)])
+            if self._EXEC_DISPATCH_PATH_RE.search(window):
+                return
+
+        if pattern_obj.id == "command_module_with_shell" and 1 <= line_num <= len(all_lines):
+            # ``command:`` does not go through ``/bin/sh`` - quoted
+            # shell metacharacters are passed verbatim to the
+            # embedded interpreter (``awk '...&&...'``, ``sh -c '...|...'``).
+            # Strip balanced and trailing-unmatched quoted spans, then
+            # re-test for the meta-character set.
+            raw = all_lines[line_num - 1]
+            stripped = re.sub(r"'[^']*'", "''", raw)
+            stripped = re.sub(r'"[^"]*"', '""', stripped)
+            stripped = re.sub(r"'[^'\n]*$", "", stripped)
+            stripped = re.sub(r'"[^"\n]*$', "", stripped)
+            if not self._COMMAND_SHELL_META_RE.search(stripped):
                 return
 
         if (

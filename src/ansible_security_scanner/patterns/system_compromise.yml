@@ -52,9 +52,9 @@ patterns:
         textbook persistence/privesc primitive on Linux.
     recommendation: |
       Avoid creating new setuid/setgid binaries. Most legitimate privilege escalation needs are met by `sudo` rules, capabilities (`setcap cap_net_bind_service+ep`), systemd `User=`/`Group=` units, or polkit. If a setuid binary is genuinely required, ship it from a trusted package (rpm/deb) so the file is owned by `root:root`, mode `4755`, and tracked by the package manager - never `chmod u+s` an arbitrary script or copy from a playbook. Audit existing setuid binaries on every host with `find / -perm -4000 -type f -xdev -ls` and remove anything not in your distro's setuid baseline.
-    regex: "chmod\\s+[0-7]*[4][0-7]*\\s+|chmod\\s+u\\+s"
+    regex: "chmod\\s+(?:0?[4567][0-7]{3}|u\\+s|g\\+s)\\b"
     positive_examples:
-      - "chmod 0640 /etc/ldap/localhost.key"
+      - "chmod 4755 /usr/local/bin/foo"
     cwe: ['CWE-250', 'CWE-732']
     owasp_asvs: [V5.3.1, V13.4.5, V15.2.3]
     mitre_attack: ['T1548.001']
