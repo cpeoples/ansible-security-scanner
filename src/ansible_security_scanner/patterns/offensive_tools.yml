@@ -88,7 +88,13 @@ patterns:
     severity: "CRITICAL"
     title: "Password Cracking Tool"
     description: "Installs or runs password cracking tools like hashcat or John the Ripper"
-    regex: "\\b(?:hashcat|john(?:theripper)?|hydra|medusa|ncrack|ophcrack|cewl|crunch)\\b(?!.*(?:doe|smith|user))"
+    # Anchor the tool name to a package-install / command-execution
+    # shape so plain prose ("John Smith", "john-westcott-iv",
+    # ``value: John``) cannot match. Accepts:
+    #   * package-install module args (``name: john``, ``- john``)
+    #   * command/shell/script lines invoking the binary
+    #   * apt/yum/dnf/pacman/brew CLI install lines
+    regex: "(?:^|\\s)(?:-\\s+|name:\\s+|cmd:\\s+|command:\\s+|shell:\\s+|script:\\s+|/(?:usr/)?(?:s?bin|local/(?:s?bin|opt))/|(?:apt(?:-get)?|yum|dnf|zypper|pacman|brew|apk|emerge)\\s+(?:-\\S+\\s+)*install\\s+(?:[\\w.-]+\\s+)*)['\"]?(?:hashcat|john(?:theripper|-the-ripper)?|hydra|medusa|ncrack|ophcrack|cewl|crunch)['\"]?\\b"
     positive_examples:
       - "- john-the-ripper"
     recommendation: "Password cracking tools should never appear in production playbooks"

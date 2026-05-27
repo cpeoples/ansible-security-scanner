@@ -8,9 +8,12 @@ patterns:
     severity: "CRITICAL"
     title: "System Binary Replacement"
     description: "Copies or writes a file to system binary directories, potentially replacing a legitimate binary"
-    regex: "(?:dest|path):\\s*['\"]?/(?:usr/)?(?:s?bin|local/s?bin)/(?!README|LICENSE)\\w+['\"]?\\s*$"
+    # Anchor the YAML key so variable assignments whose names happen to end in
+    # ``_path`` / ``_dest`` (e.g. ``__some_internal_path: /usr/bin/foo``) do
+    # not get mistaken for a ``path:`` / ``dest:`` module argument.
+    regex: "(?:^|\\s)(?:dest|path):\\s*['\"]?/(?:usr/)?(?:s?bin|local/s?bin)/(?!README|LICENSE)\\w+['\"]?\\s*$"
     positive_examples:
-      - "path: '/usr/bin/dummy1'"
+      - "  path: '/usr/bin/dummy1'"
     recommendation: "System binaries should only be installed via package managers; audit this write carefully"
     cwe: ['CWE-506', 'CWE-732']
     owasp_asvs: [V5.3.1]

@@ -472,7 +472,7 @@ patterns:
           author: example
           description: example
     multiline: true
-    window: 15
+    window: 30
     recommendation: "Add `license: MIT` (or an SPDX identifier matching your repo's LICENSE file) to galaxy_info."
     cis_controls: ["CIS-Supply-Chain"]
     nist_controls: ['CM-11', 'SA-10', 'SI-7']
@@ -1005,9 +1005,9 @@ patterns:
     severity: "HIGH"
     title: "ansible-navigator Pulls Execution Environment From Public Registry"
     description: "An `ansible-navigator.yml` / `ansible-navigator.yaml` config (or `--execution-environment-image` CLI flag) references an EE image from `quay.io/`, `docker.io/`, `ghcr.io/`, or `registry.hub.docker.com/` without a SHA pin, and `pull.policy` is `always` or unset. Every `ansible-navigator run` then pulls whatever the public tag currently points at - a single registry-side retag (accidental or malicious) silently changes the Ansible runtime, collections, and Python dependencies for every operator."
-    regex: "(?:execution-environment-image|ee-image|execution_environment_image|image)\\s*:\\s*[\"']?(?:quay\\.io|docker\\.io|ghcr\\.io|registry\\.hub\\.docker\\.com)/[A-Za-z0-9][A-Za-z0-9._/-]*(?::[A-Za-z0-9._-]+)?[\"']?(?!\\s*@sha256:)"
+    regex: "(?:execution-environment-image|ee-image|execution_environment_image)\\s*:\\s*[\"']?(?:quay\\.io|docker\\.io|ghcr\\.io|registry\\.hub\\.docker\\.com)/[A-Za-z0-9][A-Za-z0-9._/-]*(?::[A-Za-z0-9._-]+)?[\"']?(?!\\s*@sha256:)"
     positive_examples:
-      - "image: quay.io/coreos/etcd:v3.1.10"
+      - "execution-environment-image: quay.io/coreos/etcd:v3.1.10"
     multiline: false
     recommendation: "Mirror the EE image into your organisation's registry (Quay on-prem, Harbor, GitLab Container Registry) and pin by digest: `image: registry.example.com/ee/aap:2.14@sha256:abc...`. Set `pull.policy: missing` (pull only when absent) rather than `always`. Automate digest updates via Renovate so a human reviews every EE rotation in PR form."
     cis_controls: ["CIS-Supply-Chain"]
