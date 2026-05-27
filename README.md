@@ -33,6 +33,7 @@ Static SAST scanner for Ansible playbooks, roles, collections, task files, vars,
 - [Project Structure](#project-structure)
 - [Documentation](#documentation)
 - [Requirements](#requirements)
+- [FAQ](#faq)
 - [Contributing](#contributing)
 - [Security](#security)
 - [License & Attribution](#license--attribution)
@@ -263,6 +264,33 @@ For development work from source:
 pip install -e ".[dev]"
 ```
 
+## FAQ
+
+**What does Ansible Security Scanner scan?**
+
+Ansible playbooks, roles, collections, task files, vars, and inventories. It
+detects malicious code, RCE, command and template injection, hardcoded
+credentials, supply-chain risk, unauthorized cloud access, lateral movement,
+and reverse shells.
+
+**How is this different from `ansible-lint`?**
+
+`ansible-lint` focuses on style and best practices. Ansible Security Scanner
+is a SAST tool focused on security signals: dataflow taint tracking,
+supply-chain risk, secrets, and known attack patterns mapped to OWASP, CWE,
+NIST, CIS, and MITRE ATT&CK.
+
+**Does it run in CI/CD?**
+
+Yes. It outputs SARIF, CycloneDX SBOM, GitLab SAST, JUnit, JSON, HTML, and
+Markdown. GitHub Actions, GitLab CI, and Jenkins are all supported, and
+PR/MR comments can be posted automatically.
+
+**Is it free to use?**
+
+Yes. Ansible Security Scanner is Apache-2.0 licensed and free to use
+commercially.
+
 ## Contributing
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full dev-environment
@@ -363,3 +391,13 @@ In plain English:
 
 See [`NOTICE`](NOTICE) for the full attribution terms and
 [`LICENSE`](LICENSE) for the Apache-2.0 text.
+
+## AI-assistance disclosure
+
+This project follows the
+[Ansible community AI policy](https://docs.ansible.com/projects/ansible/latest/community/ai_policy.html).
+LLM tooling has helped with scaffolding, refactoring, test generation,
+and documentation. All of it is reviewed, edited, and tested by a human
+before being committed. The rules, threat models, and design decisions
+are mine, and every PR runs the full test, lint, and security gate
+before merge.

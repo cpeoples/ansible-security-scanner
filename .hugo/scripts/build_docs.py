@@ -71,6 +71,7 @@ SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
 # sidebar order (lower = higher in the nav). Gaps of 10 leave room to
 # insert new pages without renumbering everything below them.
 DOC_PAGES: dict[str, dict[str, object]] = {
+    "about": {"title": "About", "weight": 10},
     "cli": {"title": "CLI Reference", "weight": 20},
     "environment": {"title": "Environment", "weight": 30},
     "api": {"title": "Python API", "weight": 40},
@@ -287,9 +288,20 @@ def build_index() -> None:
         'style="vertical-align:middle;margin-right:0.6rem;" />'
     )
 
+    description = (
+        "Static SAST scanner for Ansible playbooks, roles, collections, and "
+        "inventories. Detects malicious code, RCE, command and template "
+        "injection, hardcoded credentials, supply-chain risk, unauthorized "
+        "cloud access, lateral movement, and reverse shells. Outputs SARIF, "
+        "CycloneDX SBOM, GitLab SAST, JUnit, JSON, HTML, and Markdown reports "
+        "with remediation guidance. Findings map to CWE, OWASP Top 10, OWASP "
+        "ASVS, MITRE ATT&CK, NIST, and CIS."
+    )
+
     frontmatter = (
         f"---\n"
         f'title: "{title}"\n'
+        f'description: "{description}"\n'
         f"weight: 1\n"
         f"alwaysopen: true\n"
         f"headingPre: '{heading_pre}'\n"
