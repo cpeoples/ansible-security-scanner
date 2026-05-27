@@ -354,6 +354,15 @@ required corpora that look exactly like real secrets:
 Both surfaces are excluded via [`.github/secret_scanning.yml`](.github/secret_scanning.yml),
 where each entry is annotated with the structural reason it's there.
 
+### Privacy
+
+The scanner runs locally and does not phone home. There is no
+telemetry, no analytics, no usage pings, and no remote rule fetch.
+Comment posting is the only outbound network call, and it only
+fires when you pass `--mr-comment` (or the equivalent) with an
+explicit token; the target host is the GitLab or GitHub instance
+you point it at.
+
 ### Reporting a vulnerability
 
 Open a private security advisory via the
