@@ -4,8 +4,17 @@ title = "Ansible Security Scanner"
 theme = "hugo-theme-relearn"
 
 uglyURLs = false
+enableGitInfo = true
+
+[sitemap]
+  changefreq = "weekly"
+  priority = 0.5
+  filename = "sitemap.xml"
 
 [params]
+  author = "Chris Peoples"
+  description = "Static SAST scanner for Ansible playbooks, roles, collections, and inventories. Detects malicious code, RCE, command and template injection, hardcoded credentials, supply-chain risk, unauthorized cloud access, lateral movement, and reverse shells. Outputs SARIF, CycloneDX SBOM, GitLab SAST, JUnit, JSON, HTML, and Markdown reports with remediation guidance. Findings map to CWE, OWASP Top 10, OWASP ASVS, MITRE ATT&CK, NIST, and CIS."
+
   themeVariant = ["relearn-dark", "relearn-light"]
   themeVariantAuto = ["relearn-dark", "relearn-light"]
   themeVariantDefault = "relearn-dark"

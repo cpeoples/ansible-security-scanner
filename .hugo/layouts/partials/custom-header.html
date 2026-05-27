@@ -1,5 +1,38 @@
 <meta name="google-site-verification" content="ZwtXu4I3Awbxnd1dDpGjRBlCxxOHHW5Eplsw6rG8ujs" />
 
+<link rel="canonical" href="{{ .Permalink }}" />
+
+{{- if .IsHome }}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Ansible Security Scanner",
+  "description": "Static SAST scanner for Ansible playbooks, roles, collections, task files, vars, and inventories. Detects malicious code, RCE, command and template injection, hardcoded credentials, supply-chain risk, unauthorized cloud access, lateral movement, and reverse shells. Outputs SARIF, CycloneDX SBOM, GitLab SAST, JUnit, JSON, HTML, and Markdown reports with remediation guidance.",
+  "url": "https://cpeoples.github.io/ansible-security-scanner/",
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "SecurityApplication",
+  "operatingSystem": "Linux, macOS, Windows",
+  "softwareVersion": "0.1.16",
+  "programmingLanguage": "Python",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "codeRepository": "https://github.com/cpeoples/ansible-security-scanner",
+  "downloadUrl": "https://pypi.org/project/ansible-security-scanner/",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "author": {
+    "@type": "Person",
+    "name": "Chris Peoples",
+    "url": "https://github.com/cpeoples"
+  },
+  "keywords": "ansible, security, sast, static analysis, playbook, role, collection, devsecops, sarif, cyclonedx, sbom, supply chain, rce, injection, secrets, owasp, cwe, nist, cis, mitre att&ck"
+}
+</script>
+{{- end }}
+
 <!-- compat way of adding custom scripts in old Hugo documentation -->
 {{- $assetBusting := partialCached "assetbusting.gotmpl" site.Home }}
 
