@@ -4,3 +4,4 @@ pre-commit
 build
 twine
 pyyaml
+cyclonedx-bom
