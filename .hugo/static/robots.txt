@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cpeoples.github.io/ansible-security-scanner/sitemap.xml

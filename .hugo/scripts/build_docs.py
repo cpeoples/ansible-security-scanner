@@ -23,6 +23,7 @@ import os
 import re
 import shutil
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -42,6 +43,8 @@ _BASE_URL = os.environ.get("HUGO_BASEURL", "/").strip()
 if not _BASE_URL.endswith("/"):
     _BASE_URL = _BASE_URL + "/"
 ASSET_URL_PREFIX = _BASE_URL + "assets/"
+
+BUILD_TIMESTAMP = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 # Make the in-repo package importable so chip rendering uses the same
 # resolvers as the scanner runtime. Failure leaves resolvers as None and
@@ -290,6 +293,7 @@ def build_index() -> None:
         f"weight: 1\n"
         f"alwaysopen: true\n"
         f"headingPre: '{heading_pre}'\n"
+        f'lastmod: "{BUILD_TIMESTAMP}"\n'
         f"---\n\n"
     )
     CONTENT_DIR.mkdir(parents=True, exist_ok=True)
@@ -321,7 +325,7 @@ def build_doc_pages() -> None:
         body = _rewrite_links_for_hugo(src_path.read_text())
         body = _inject_code_break_opportunities(body)
         body, _ = _strip_leading_h1(body)
-        front = f'---\ntitle: "{meta["title"]}"\nweight: {meta["weight"]}\n---\n\n'
+        front = f'---\ntitle: "{meta["title"]}"\nweight: {meta["weight"]}\nlastmod: "{BUILD_TIMESTAMP}"\n---\n\n'
         (CONTENT_DIR / f"{slug}.md").write_text(front + body)
         print(f"  Created content/{slug}.md")
 
@@ -404,6 +408,7 @@ def build_pattern_pages() -> dict:
         "weight: 200\n"
         "collapsibleMenu: true\n"
         "alwaysopen: false\n"
+        f'lastmod: "{BUILD_TIMESTAMP}"\n'
         "---\n\n"
     )
     index_body = (
@@ -443,7 +448,7 @@ def build_pattern_pages() -> dict:
             ),
         )
 
-        page = f'---\ntitle: "{label}"\nweight: {weight_idx * 10}\n---\n\n'
+        page = f'---\ntitle: "{label}"\nweight: {weight_idx * 10}\nlastmod: "{BUILD_TIMESTAMP}"\n---\n\n'
 
         if file_desc:
             page += f"{file_desc}\n\n"
@@ -493,7 +498,7 @@ def build_summary_page(all_stats: dict) -> None:
         for sev, cnt in stats["severity_counts"].items():
             global_sev[sev] = global_sev.get(sev, 0) + cnt
 
-    page = '---\ntitle: "Dashboard"\nweight: 10\n---\n\n'
+    page = f'---\ntitle: "Dashboard"\nweight: 10\nlastmod: "{BUILD_TIMESTAMP}"\n---\n\n'
     page += "## Scanner Overview\n\n"
     page += "| Metric | Value |\n"
     page += "|--------|-------|\n"
