@@ -60,6 +60,23 @@ and have dedicated regression tests in
 [`tests/`](https://github.com/cpeoples/ansible-security-scanner/tree/main/tests)
 to make sure they stay fixed.
 
+## Privacy
+
+The scanner is offline by default. There is no telemetry, no
+analytics, no usage pings, and no remote rule fetch. Rules ship in
+the package, are loaded from disk, and run entirely on your
+machine.
+
+The only outbound network call is PR/MR comment posting, and it
+only happens when you opt in with `--gh-comment` or `--mr-comment`
+and pass an explicit token. The target is the GitHub or GitLab
+host you point it at, and the request body is the same Markdown
+report you would see in CI logs.
+
+If you spot anything in the codebase that looks like it talks to
+the network outside of that path, please open an issue. That kind
+of report is exactly the kind of contribution this project wants.
+
 ## AI-assistance disclosure
 
 This project follows the

@@ -6,6 +6,8 @@ theme = "hugo-theme-relearn"
 uglyURLs = false
 enableGitInfo = true
 
+disableKinds = ["taxonomy", "term"]
+
 [sitemap]
   changefreq = "weekly"
   priority = 0.5

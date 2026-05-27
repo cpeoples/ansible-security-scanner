@@ -52,6 +52,7 @@ nosetests.xml
 .hugo/resources/
 .hugo/static/assets/
 .hugo/static/images/
+.hugo/data/
 .hugo/.hugo_build.lock
 
 # -- Editors / IDEs ----------------------------------------------------------

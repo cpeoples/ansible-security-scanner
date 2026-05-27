@@ -19,9 +19,11 @@ drift.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,6 +40,7 @@ CONTENT_DIR = HUGO_DIR / "content"
 DOCS_ASSETS_DIR = DOCS_DIR / "assets"
 STATIC_ASSETS_DIR = HUGO_DIR / "static" / "assets"
 STATIC_IMAGES_DIR = HUGO_DIR / "static" / "images"
+DATA_DIR = HUGO_DIR / "data"
 
 _BASE_URL = os.environ.get("HUGO_BASEURL", "/").strip()
 if not _BASE_URL.endswith("/"):
@@ -45,6 +48,65 @@ if not _BASE_URL.endswith("/"):
 ASSET_URL_PREFIX = _BASE_URL + "assets/"
 
 BUILD_TIMESTAMP = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+# Stable Knowledge Graph @id for the site author. Mirrors the partial
+# template in custom-header.html so TechArticle/Article schemas can
+# reference the same Person entity by @id rather than re-declaring it.
+_AUTHOR_ID = _BASE_URL + "about/#author"
+
+
+def _resolve_version() -> str:
+    """Return the latest released version string, never a dev build.
+
+    Source-of-truth chain:
+    1. ``git describe --tags --abbrev=0 --match='v*'`` -- the shipped
+       tag, identical to what PyPI publishes from the release workflow.
+    2. ``ANSIBLE_SCANNER_VERSION`` env override -- escape hatch for
+       offline / shallow-clone CI runs that have no tags.
+    3. Hard fallback to ``"0.0.0"`` so the build never crashes.
+
+    The runtime ``_version.py`` is intentionally NOT consulted: between
+    releases it carries dev-suffix strings (``0.1.16.dev21+...``) that
+    would leak into JSON-LD and confuse Search Console.
+    """
+    override = os.environ.get("ANSIBLE_SCANNER_VERSION", "").strip()
+    if override:
+        return override.lstrip("v")
+    try:
+        result = subprocess.run(
+            ["git", "describe", "--tags", "--abbrev=0", "--match=v*"],
+            cwd=ROOT_DIR,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "0.0.0"
+    tag = result.stdout.strip()
+    if not tag or result.returncode != 0:
+        return "0.0.0"
+    return tag.lstrip("v")
+
+
+def write_release_data() -> None:
+    """Persist resolved release info to ``data/release.toml``.
+
+    Hugo exposes ``data/`` files as ``site.Data.<filename>`` in
+    every template, so ``custom-header.html`` can pull
+    ``site.Data.release.version`` without re-running git logic in
+    Go-template land.
+    """
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    version = _resolve_version()
+    payload = (
+        f'version = "{version}"\n'
+        f'release_notes_url = "https://github.com/cpeoples/ansible-security-scanner/releases/tag/v{version}"\n'
+        f'releases_url = "https://github.com/cpeoples/ansible-security-scanner/releases"\n'
+    )
+    (DATA_DIR / "release.toml").write_text(payload)
+    print(f"  Wrote data/release.toml (version={version})")
+
 
 # Make the in-repo package importable so chip rendering uses the same
 # resolvers as the scanner runtime. Failure leaves resolvers as None and
@@ -282,6 +344,7 @@ def build_index() -> None:
 
     content, raw_title = _strip_leading_h1(content)
     title = raw_title or "Ansible Security Scanner"
+    seo_title = "Ansible Security Scanner: SAST for Playbooks, Roles, Collections"
 
     heading_pre = (
         f'<img src="{ASSET_URL_PREFIX}ansible.svg" alt="" height="40" '
@@ -300,7 +363,8 @@ def build_index() -> None:
 
     frontmatter = (
         f"---\n"
-        f'title: "{title}"\n'
+        f'title: "{seo_title}"\n'
+        f'linkTitle: "{title}"\n'
         f'description: "{description}"\n'
         f"weight: 1\n"
         f"alwaysopen: true\n"
@@ -311,6 +375,101 @@ def build_index() -> None:
     CONTENT_DIR.mkdir(parents=True, exist_ok=True)
     (CONTENT_DIR / "_index.md").write_text(frontmatter + content)
     print("  Created content/_index.md")
+
+
+def _render_jsonld(data: dict) -> str:
+    """Emit a Hugo-safe JSON-LD ``<script>`` block.
+
+    Compact JSON keeps the page payload small and Hugo's HTML
+    minifier preserves it verbatim because it sits inside a
+    ``<script type="application/ld+json">`` tag. The trailing
+    newlines stop the next Markdown line from getting glued onto
+    the closing tag.
+    """
+    return (
+        '<script type="application/ld+json">'
+        + json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+        + "</script>\n"
+    )
+
+
+def _doc_page_jsonld(slug: str, title: str) -> str:
+    """TechArticle JSON-LD for a curated ``docs/<slug>.md`` page."""
+    page_url = f"{_BASE_URL}{slug}/"
+    return _render_jsonld(
+        {
+            "@context": "https://schema.org",
+            "@type": "TechArticle",
+            "headline": title,
+            "name": title,
+            "url": page_url,
+            "mainEntityOfPage": page_url,
+            "inLanguage": "en",
+            "datePublished": BUILD_TIMESTAMP,
+            "dateModified": BUILD_TIMESTAMP,
+            "author": {"@id": _AUTHOR_ID},
+            "publisher": {"@id": _AUTHOR_ID},
+            "about": "Ansible Security Scanner",
+        }
+    )
+
+
+def _pattern_page_jsonld(category_key: str, label: str, patterns: list[dict]) -> str:
+    """Article JSON-LD for a pattern category page.
+
+    The ``citation`` array surfaces the highest-confidence resolved
+    framework references for the page. Pulling them through the same
+    resolvers used for the on-page chips keeps the schema and the
+    visible UI in lockstep.
+    """
+    page_url = f"{_BASE_URL}patterns/{category_key}/"
+    citations = _collect_citations(patterns)
+    payload: dict = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": f"{label} - Ansible Security Scanner",
+        "name": label,
+        "url": page_url,
+        "mainEntityOfPage": page_url,
+        "inLanguage": "en",
+        "datePublished": BUILD_TIMESTAMP,
+        "dateModified": BUILD_TIMESTAMP,
+        "author": {"@id": _AUTHOR_ID},
+        "publisher": {"@id": _AUTHOR_ID},
+        "about": "Ansible Security Scanner",
+        "articleSection": "Security Patterns",
+    }
+    if citations:
+        payload["citation"] = citations
+    return _render_jsonld(payload)
+
+
+def _collect_citations(patterns: list[dict]) -> list[str]:
+    """Aggregate unique resolved framework URLs across all rules.
+
+    Walks every rule in the category, hits the same resolvers used
+    for the framework chips, and returns the deduplicated list of
+    URLs in resolver order. Capped at 30 to keep the JSON payload
+    small (Google ignores beyond a couple of dozen citations and
+    larger payloads slow page parse time).
+    """
+    if resolve_cve is None:
+        return []
+    seen: set[str] = set()
+    urls: list[str] = []
+    for pattern in patterns:
+        for field, resolver, _ in _CHIP_FRAMEWORKS:
+            if resolver is None:
+                continue
+            for raw in pattern.get(field) or []:
+                ref = resolver(raw)
+                if ref is None or ref.url in seen:
+                    continue
+                seen.add(ref.url)
+                urls.append(ref.url)
+                if len(urls) >= 30:
+                    return urls
+    return urls
 
 
 def build_doc_pages() -> None:
@@ -338,7 +497,11 @@ def build_doc_pages() -> None:
         body = _inject_code_break_opportunities(body)
         body, _ = _strip_leading_h1(body)
         front = f'---\ntitle: "{meta["title"]}"\nweight: {meta["weight"]}\nlastmod: "{BUILD_TIMESTAMP}"\n---\n\n'
-        (CONTENT_DIR / f"{slug}.md").write_text(front + body)
+        # ``about`` already gets a ProfilePage schema (in custom-header.html)
+        # plus the global Person block, so layering TechArticle on top would
+        # muddy the entity model for that page only.
+        suffix = "" if slug == "about" else "\n" + _doc_page_jsonld(slug, str(meta["title"]))
+        (CONTENT_DIR / f"{slug}.md").write_text(front + body + suffix)
         print(f"  Created content/{slug}.md")
 
 
@@ -490,6 +653,7 @@ def build_pattern_pages() -> dict:
             page += f"| {rid_html} | {severity_badge(sev)} | {title} | {desc} | {chips} |\n"
 
         page += "\n</div>\n"
+        page += "\n" + _pattern_page_jsonld(category_key, label, sorted_patterns)
 
         child_path = patterns_content_dir / f"{category_key}.md"
         child_path.write_text(page)
@@ -548,6 +712,7 @@ def main() -> None:
 
     clean_content_dir()
     copy_docs_assets()
+    write_release_data()
 
     build_index()
     build_doc_pages()

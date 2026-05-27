@@ -3,8 +3,50 @@
 <link rel="canonical" href="{{ .Permalink }}" />
 
 {{- $authorId := printf "%sabout/#author" site.BaseURL }}
+{{- $orgId := printf "%s#organization" site.BaseURL }}
+{{- $siteId := printf "%s#website" site.BaseURL }}
+{{- $logoUrl := printf "%simages/logo.svg" site.BaseURL }}
+{{- $version := "0.0.0" }}
+{{- with site.Data.release }}{{ $version = .version }}{{ end }}
+{{- $releaseNotesUrl := printf "https://github.com/cpeoples/ansible-security-scanner/releases/tag/v%s" $version }}
+{{- with site.Data.release }}{{ with .release_notes_url }}{{ $releaseNotesUrl = . }}{{ end }}{{ end }}
+
+<meta property="og:image" content="{{ $logoUrl }}" />
+<meta property="og:image:type" content="image/svg+xml" />
+<meta property="og:image:width" content="256" />
+<meta property="og:image:height" content="256" />
+<meta property="og:image:alt" content="Ansible Security Scanner logo" />
+<meta name="twitter:image" content="{{ $logoUrl }}" />
+<meta name="twitter:image:alt" content="Ansible Security Scanner logo" />
 
 {{- if .IsHome }}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": "{{ $siteId }}",
+  "url": "{{ site.BaseURL }}",
+  "name": "Ansible Security Scanner",
+  "description": "Static SAST scanner for Ansible. Detects malicious code, RCE, command and template injection, hardcoded credentials, supply-chain risk, unauthorized cloud access, lateral movement, and reverse shells.",
+  "inLanguage": "en",
+  "publisher": { "@id": "{{ $orgId }}" }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "@id": "{{ $orgId }}",
+  "name": "Ansible Security Scanner",
+  "url": "{{ site.BaseURL }}",
+  "logo": "{{ $logoUrl }}",
+  "founder": { "@id": "{{ $authorId }}" },
+  "sameAs": [
+    "https://github.com/cpeoples/ansible-security-scanner",
+    "https://pypi.org/project/ansible-security-scanner/"
+  ]
+}
+</script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -15,11 +57,13 @@
   "applicationCategory": "DeveloperApplication",
   "applicationSubCategory": "SecurityApplication",
   "operatingSystem": "Linux, macOS, Windows",
-  "softwareVersion": "0.1.16",
+  "softwareVersion": "{{ $version }}",
+  "releaseNotes": "{{ $releaseNotesUrl }}",
   "programmingLanguage": "Python",
   "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "codeRepository": "https://github.com/cpeoples/ansible-security-scanner",
   "downloadUrl": "https://pypi.org/project/ansible-security-scanner/",
+  "image": "{{ $logoUrl }}",
   "offers": {
     "@type": "Offer",
     "price": "0",
@@ -27,6 +71,9 @@
   },
   "author": {
     "@id": "{{ $authorId }}"
+  },
+  "publisher": {
+    "@id": "{{ $orgId }}"
   },
   "keywords": "ansible, security, sast, static analysis, playbook, role, collection, devsecops, sarif, cyclonedx, sbom, supply chain, rce, injection, secrets, owasp, cwe, nist, cis, mitre att&ck"
 }
