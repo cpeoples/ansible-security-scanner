@@ -789,6 +789,7 @@ patterns:
     multiline: true
     window: 2
     recommendation: "Pin every third-party action to a full 40-character commit SHA: `uses: tj-actions/changed-files@a284dc1814e3fe7ab40ebf11b00c5ad83d5c9b74  # v45.0.4`. Keep the tag in a trailing comment for readability. Automate SHA updates with Dependabot (`updates.directory: /.github/workflows` + `open-pull-requests-limit`) - the pin is updated in PR form, not by a mutable tag lookup."
+    cve: ["CVE-2025-30066"]
     cis_controls: ["CIS-Supply-Chain"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
     pci_dss: ['6.3.2', '6.3.3']
@@ -1357,6 +1358,7 @@ patterns:
       - "uses: felixfontein/ansible-test-gh-action@main"
     recommendation: "Pin every third-party action to a full 40-char commit SHA and add a trailing comment with the semver tag for readability: `uses: owner/action@a1b2c3d4e5f6...  # v2.4.1`. Automate updates with Dependabot's `version-updates` for the `github-actions` ecosystem, which will open PRs that bump SHA + comment atomically. For maximum assurance, host a private mirror of critical actions via `actions/checkout` to an internal registry."
     cwe: ['CWE-494', 'CWE-829', 'CWE-1357']
+    cve: ["CVE-2025-30066"]
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]
     mitre_attack: ['T1195.002', 'T1199']

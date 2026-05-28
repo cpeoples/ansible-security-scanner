@@ -24,9 +24,21 @@
 # Note: this catalog is intentionally a hand-curated subset, not a mirror of
 # NVD. Entries exist iff some rule has a reason to cite the CVE.
 
+CVE-2008-5161:
+  name: "OpenSSH / SSH Tectia CBC-mode plaintext recovery"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2008-5161"
+
+CVE-2014-3566:
+  name: "POODLE - SSLv3 CBC padding-oracle plaintext recovery"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2014-3566"
+
 CVE-2015-2291:
   name: "Intel iqvw64e.sys driver privilege escalation"
   url: "https://nvd.nist.gov/vuln/detail/CVE-2015-2291"
+
+CVE-2015-4000:
+  name: "Logjam - TLS DHE_EXPORT downgrade to weak Diffie-Hellman"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2015-4000"
 
 CVE-2015-4852:
   name: "Oracle WebLogic T3 Java deserialization RCE"
@@ -35,6 +47,18 @@ CVE-2015-4852:
 CVE-2016-2183:
   name: "SWEET32 - 3DES/Blowfish 64-bit block cipher birthday attack"
   url: "https://nvd.nist.gov/vuln/detail/CVE-2016-2183"
+
+CVE-2017-0144:
+  name: "EternalBlue - Microsoft SMBv1 srv.sys remote code execution"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2017-0144"
+
+CVE-2017-7494:
+  name: "SambaCry - Samba writable share is_known_pipename arbitrary library RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2017-7494"
+
+CVE-2017-8563:
+  name: "Microsoft Windows LDAPS NTLM credential-relay elevation of privilege"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2017-8563"
 
 CVE-2018-1000531:
   name: "jjwt JWT alg:none signature bypass"
@@ -140,9 +164,17 @@ CVE-2023-34362:
   name: "Progress MOVEit Transfer SQL injection RCE (Cl0p campaign)"
   url: "https://nvd.nist.gov/vuln/detail/CVE-2023-34362"
 
+CVE-2023-36258:
+  name: "LangChain PALChain python-exec arbitrary code execution"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-36258"
+
 CVE-2023-40424:
   name: "macOS TCC.framework local privacy bypass"
   url: "https://nvd.nist.gov/vuln/detail/CVE-2023-40424"
+
+CVE-2023-44467:
+  name: "LangChain PALChain __import__ sandbox-bypass arbitrary code execution"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2023-44467"
 
 CVE-2023-46805:
   name: "Ivanti Connect Secure / Policy Secure web component authentication bypass"
@@ -171,6 +203,10 @@ CVE-2024-1086:
 CVE-2024-10976:
   name: "PostgreSQL row-security replication RCE"
   url: "https://nvd.nist.gov/vuln/detail/CVE-2024-10976"
+
+CVE-2024-12029:
+  name: "InvokeAI /api/v2/models/install torch.load deserialization RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-12029"
 
 CVE-2024-1708:
   name: "ConnectWise ScreenConnect path traversal"
@@ -228,6 +264,10 @@ CVE-2024-3400:
   name: "Palo Alto PAN-OS GlobalProtect arbitrary file creation RCE"
   url: "https://nvd.nist.gov/vuln/detail/CVE-2024-3400"
 
+CVE-2024-3568:
+  name: "huggingface/transformers TFPreTrainedModel pickle deserialization RCE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2024-3568"
+
 CVE-2024-37080:
   name: "VMware vCenter Server DCERPC heap-overflow RCE"
   url: "https://nvd.nist.gov/vuln/detail/CVE-2024-37080"
@@ -275,3 +315,7 @@ CVE-2025-1974:
 CVE-2025-30066:
   name: "tj-actions/changed-files retroactive tag-rewrite supply-chain compromise"
   url: "https://nvd.nist.gov/vuln/detail/CVE-2025-30066"
+
+CVE-2025-49596:
+  name: "Anthropic MCP Inspector unauthenticated stdio RCE via CSRF / DNS rebinding"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2025-49596"

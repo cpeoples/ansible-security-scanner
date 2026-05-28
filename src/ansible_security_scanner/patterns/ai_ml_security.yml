@@ -157,6 +157,7 @@ patterns:
       - "pickle.load"
     recommendation: "Never load pickle files from untrusted sources; use safetensors format for ML models"
     no_ansible_remediation: true
+    cve: ["CVE-2024-12029", "CVE-2024-3568"]
     nist_controls: ['SI-3', 'SI-10', 'CM-11']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0011.000', 'AML.T0010']
@@ -428,6 +429,7 @@ patterns:
     window: 10
     recommendation: "Pin every HF download by commit SHA: `AutoModel.from_pretrained('org/model', revision='5a4e...')`. Set `trust_remote_code=False` (the default in transformers 4.x) and review every `*.py` file that ships with a model before enabling remote code. Mirror critical models into an internal Artifactory / HF-cache and apply the same SHA pinning discipline as PyPI / npm."
     cwe: ["CWE-345", "CWE-494"]
+    cve: ["CVE-2024-3568"]
     owasp_appsec: ["A08:2021"]
     owasp_llm: ["LLM05"]
     owasp_asvs: [V15.2.4]
@@ -451,6 +453,7 @@ patterns:
     recommendation: "Never `pickle.load` attacker-controlled data; prefer safetensors (`safetensors.torch.load_file`) which is pure data. If you must use pickle for a model, compute the SHA-256 against a known-good value first and fail the task on mismatch. Run the loader as an unprivileged user (`become: false` for this task) inside a restricted container with `readOnlyRootFilesystem: true`."
     no_ansible_remediation: true
     cwe: ["CWE-250", "CWE-502"]
+    cve: ["CVE-2024-12029", "CVE-2024-3568"]
     owasp_appsec: ["A08:2021"]
     owasp_llm: ["LLM05"]
     owasp_asvs: [V13.4.5, V15.2.3]
@@ -496,6 +499,7 @@ patterns:
     recommendation: "Never bind an unconstrained shell tool to an LLM agent. If shell capability is required, wrap it in an allowlist+argv-validation shim: `Tool(name='ls_project', func=lambda _: subprocess.run(['ls', PROJECT_DIR], check=True, capture_output=True).stdout)`. Run all tool executions in a locked-down sandbox (gVisor, Firecracker, or a per-request disposable container with no secrets and no outbound network). Apply guardrails (NeMo Guardrails, Llama Guard 3) before the tool-dispatch step."
     no_ansible_remediation: true
     cwe: ['CWE-78', 'CWE-94', 'CWE-1427']
+    cve: ["CVE-2023-36258", "CVE-2023-44467"]
     owasp_appsec: ["A03:2021"]
     owasp_llm: ["LLM07", "LLM08"]
     mitre_attack: ['T1059', 'T1204']
@@ -560,6 +564,7 @@ patterns:
     recommendation: "NEVER expose a generic `shell` / `exec` tool through MCP. Define narrow, parameterised tools per operation (e.g., `git_status(repo: str)`, `read_file(path: str)` constrained to an allowlisted root). If a shell-style tool is unavoidable (operator-only diagnostic MCP): (a) run the MCP server in a throw-away container with a read-only rootfs, no network, non-root UID, dropped capabilities, seccomp strict, (b) apply an allowlist of commands + argument patterns (argparse + enum, not regex), (c) require the MCP client to pass a fresh per-invocation OAuth/PAT bound to the current user, never a long-lived shared secret, (d) log every tool call with full arguments to an append-only audit sink, (e) run an adversarial prompt-injection test suite (PromptBench, Garak) before exposing the tool to an end-user LLM. Review Anthropic MCP security guidance (Nov 2024) and disable any community MCP server with `shell`/`exec`/`eval` sinks by default."
     no_ansible_remediation: true
     cwe: ['CWE-77', 'CWE-78', 'CWE-94', 'CWE-1427']
+    cve: ["CVE-2025-49596"]
     owasp_appsec: ["A03:2021"]
     owasp_llm: ["LLM07", "LLM08"]
     mitre_attack: ['T1059', 'T1059.004', 'T1609']

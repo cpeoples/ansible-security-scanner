@@ -1649,6 +1649,7 @@ patterns:
     recommendation: "Disable SMBv1 everywhere: `Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force` + `Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol`. For stragglers that need SMBv1 (legacy scanners, NAS), isolate them on a dedicated VLAN with no route to user endpoints or servers, and explicitly ACL only those IP pairs that need SMB1. Enforce fleet-wide via GPO `Computer Configuration\\Policies\\Administrative Templates\\MS Security Guide\\Configure SMBv1 client / server driver = Disabled`. Audit via `Get-SmbServerConfiguration | Select EnableSMB1Protocol` - must be `False`. Alert on Windows EID 2000 (SMB1 access attempt)."
     no_ansible_remediation: true
     cwe: ['CWE-326', 'CWE-327', 'CWE-693']
+    cve: ["CVE-2017-0144"]
     owasp_appsec: ["A02:2021"]
     owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1]
     mitre_attack: ['T1021.002', 'T1210', 'T1562.001']
@@ -1670,6 +1671,7 @@ patterns:
     window: 25
     recommendation: "Set `LDAPServerIntegrity = 2` (REQUIRED) and `LdapEnforceChannelBinding = 2` (REQUIRED) on every Domain Controller. Enforce via GPO `Default Domain Controllers Policy` -> Security Options -> `Domain controller: LDAP server signing requirements = Require signing` and `LDAP server channel binding token requirements = Always`. Test impact with Microsoft's LDAP Channel Binding And Signing Health Check tool BEFORE enforcing. Rotate affected service accounts to use LDAPS (636) with cert-based auth. Audit Windows EID 2886, 2887, 2888, 2889 on DCs - presence of 2889 (clear-text bind) indicates clients still at risk."
     cwe: ['CWE-287', 'CWE-295', 'CWE-308']
+    cve: ["CVE-2017-8563"]
     owasp_appsec: ["A07:2021"]
     owasp_asvs: [V6.2.1, V12.3.4]
     mitre_attack: ['T1078', 'T1550.002', 'T1557.001']
