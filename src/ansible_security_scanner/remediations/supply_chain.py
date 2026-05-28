@@ -585,8 +585,8 @@ collections:
     version: "9.0.1"            # exact version
   - name: ansible.posix
     version: "1.5.4"
-  - name: mycorp.internal
-    source: git+ssh://git@github.com/mycorp/ansible-collection-internal.git
+  - name: myorg.internal
+    source: git+ssh://git@github.com/myorg/ansible-collection-internal.git
     type: git
     version: "e3a1f2b9c4d5e6f708192a3b4c5d6e7f8091a2b3"   # commit SHA, not a branch
 roles:
@@ -719,7 +719,7 @@ FROM registry.redhat.io/.../ee-minimal-rhel9:latest
 # Secret is available ONLY during this RUN, never baked into a layer:
 RUN --mount=type=secret,id=pypi_token,target=/run/secrets/pypi_token \\
     pip config set global.index-url \\
-      "https://__token__:$(cat /run/secrets/pypi_token)@pypi.mycorp.com/simple/" \\
+      "https://__token__:$(cat /run/secrets/pypi_token)@pypi.example.com/simple/" \\
  && pip install --no-cache-dir -r requirements.txt
 ```
 

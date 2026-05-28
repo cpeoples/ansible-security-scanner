@@ -165,9 +165,9 @@ patterns:
       - "    msg: \"hostname: $(hostname {{ arg }})\""
       - "    raw: result=`echo {{ input }} | sha256sum`"
     negative_examples:
-      - "    shell: echo \"$(sha512sum splunk-edge.tar.gz)\" | cut -d ' ' -f 1"
+      - "    shell: echo \"$(sha512sum myapp.tar.gz)\" | cut -d ' ' -f 1"
       - "    shell: for f in *; do name=$(basename $(dirname \"$f\")); done"
-      - "    msg: \"currently installed: $(rpm -q splunk)\""
+      - "    msg: \"currently installed: $(rpm -q myapp)\""
       - "    shell: ts=$(date +%Y%m%d)"
     recommendation: "Replace $(...) / backticks containing {{ var }} with a register: from a preceding ansible.builtin.command (or a set_fact: built from a module result), so the inner shell never re-parses templated bytes."
     cwe: ["CWE-78", "CWE-1336"]

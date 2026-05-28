@@ -68,3 +68,7 @@ ansible-sast:
 ```
 
 For per-PR/MR comment posting, see [PR/MR Comments](mr-pr-comments.md).
+That page also documents the **`concurrency:` (GitHub) and
+`resource_group:` (GitLab)** settings that prevent two scans on the
+same PR/MR from racing to update the comment - required reading if you
+enable `--gh-comment` / `--gl-comment` on a busy repo.

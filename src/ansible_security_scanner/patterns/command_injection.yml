@@ -54,7 +54,7 @@ patterns:
       - "    shell: id=$(curl https://api/{{ name }} | jq -r .id)"
       - "    shell: result=`sha256sum {{ file_var }}`"
     negative_examples:
-      - "    shell: echo \"$(sha512sum splunk-edge.tar.gz)\" | cut -d ' ' -f 1"
+      - "    shell: echo \"$(sha512sum myapp.tar.gz)\" | cut -d ' ' -f 1"
       - "    shell: podman exec cloud-ide bash -c 'for f in /root/.cursor/skills/*/SKILL.md; do name=$(basename $(dirname \"$f\")); done'"
       - "    command: /usr/bin/tool --arg $(hostname)"
       - "    shell: date=$(date +%Y%m%d)"

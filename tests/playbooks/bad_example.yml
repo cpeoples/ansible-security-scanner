@@ -662,7 +662,7 @@
 
     # --- environment_hijacking.yml ---
     - name: Etc hosts manipulation
-      lineinfile: {dest: /etc/hosts, line: "10.0.0.1 internal.corp.com"}  # etc_hosts_manipulation
+      lineinfile: {dest: /etc/hosts, line: "10.0.0.1 internal.example.com"}  # etc_hosts_manipulation
     - name: Resolv conf manipulation
       ansible.builtin.copy:
         dest: /etc/resolv.conf
@@ -2351,7 +2351,7 @@
 
     - name: trigger container image pulled over plaintext http registry
       community.docker.docker_image:
-        name: http://registry.internal.lan/myapp:prod
+        name: http://registry.internal.example.com/myapp:prod
         source: pull
 
     - name: trigger container image pulled by mutable tag (no digest)
@@ -3790,7 +3790,7 @@
       ansible.builtin.shell: rpm -ivh --nodigest --nosignature /tmp/custom.rpm
 
     - name: trigger pip index-url http
-      ansible.builtin.shell: pip install --index-url http://internal-pypi.corp/simple requests
+      ansible.builtin.shell: pip install --index-url http://internal-pypi.example.com/simple requests
 
     - name: trigger gem source add http
       ansible.builtin.shell: gem sources -a http://gems.corp.example.com/
@@ -4442,7 +4442,7 @@
           docs = loader.load()
 
     - name: "trigger: npm_install_runs_postinstall_scripts_from_untrusted_registry"
-      ansible.builtin.shell: npm install --registry=http://mirror.internal/npm
+      ansible.builtin.shell: npm install --registry=http://mirror.internal.example.com/npm
 
     - name: "trigger: github_actions_uses_unpinned_branch_or_main_ref"
       ansible.builtin.copy:
@@ -5368,7 +5368,7 @@
     # --- ai_ml_security.yml: ollama_registry_pull_insecure_true_or_http ---
     - name: trigger insecure ollama pull
       ansible.builtin.shell: |
-        ollama pull private.registry.local/llama3.1:70b --insecure
+        ollama pull private.registry.example.com/llama3.1:70b --insecure
       environment:
         OLLAMA_INSECURE: "1"
 

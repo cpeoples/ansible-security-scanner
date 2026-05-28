@@ -440,7 +440,7 @@ This command contains a hardcoded FTP password that should never be stored in pl
 ```yaml
 # In your playbook:
 shell: >-
-  lftp -c "open -u deploy,{{{{ {vault_var} }}}} ftp://files.company.com;; mirror -R /opt/app /production/"
+  lftp -c "open -u deploy,{{{{ {vault_var} }}}} ftp://files.example.com;; mirror -R /opt/app /production/"
 
 # In group_vars/all/vault.yml (encrypted):
 {vault_var}: "your_secure_ftp_password_here"
@@ -449,7 +449,7 @@ shell: >-
 **✅ Alternative Fix (environment variables):**
 ```yaml
 shell: >-
-  lftp -c "open -u deploy,{{{{ lookup('env', 'DEPLOY_FTP_PASSWORD') }}}} ftp://files.company.com;; mirror -R /opt/app /production/"
+  lftp -c "open -u deploy,{{{{ lookup('env', 'DEPLOY_FTP_PASSWORD') }}}} ftp://files.example.com;; mirror -R /opt/app /production/"
 ```
 
 **✅ Best Fix (Use Ansible synchronize module):**
@@ -463,7 +463,7 @@ shell: >-
       - "--password-file={{{{ ftp_password_file }}}}"
   delegate_to: "{{{{ ftp_server }}}}"
   vars:
-    ftp_server: "files.company.com;"
+    ftp_server: "files.example.com;"
     ftp_password_file: "/tmp/.ftp_password"
 
 # Create password file securely:
@@ -513,7 +513,7 @@ This rsync command contains a hardcoded password in the password-file option.
 
 - name: Sync backups with password file
   shell: >-
-    rsync -av /var/backups/ backup@backup.company.com:/backups/ --password-file=/tmp/.backup_password
+    rsync -av /var/backups/ backup@backup.example.com:/backups/ --password-file=/tmp/.backup_password
 
 - name: Remove password file
   file:
@@ -535,7 +535,7 @@ This rsync command contains a hardcoded password in the password-file option.
 
 - name: Sync backups
   shell: >-
-    rsync -av /var/backups/ backup@backup.company.com:/backups/ --password-file=/tmp/.backup_password
+    rsync -av /var/backups/ backup@backup.example.com:/backups/ --password-file=/tmp/.backup_password
 ```
 
 **✅ Best Fix (Use Ansible synchronize module):**
@@ -544,7 +544,7 @@ This rsync command contains a hardcoded password in the password-file option.
 - name: Sync backups securely
   synchronize:
     src: /var/backups/
-    dest: backup@backup.company.com:/backups/
+    dest: backup@backup.example.com:/backups/
     rsync_opts:
       - "--password-file={{{{ backup_password_file }}}}"
   vars:
@@ -589,7 +589,7 @@ This command contains a hardcoded SSH password that should never be stored in pl
 ```yaml
 # In your playbook - but consider using SSH keys instead:
 shell: >-
-  sshpass -p "{{{{ {vault_var} }}}}" scp -o StrictHostKeyChecking=no /var/log/*.log admin@fileserver.company.com:/logs/
+  sshpass -p "{{{{ {vault_var} }}}}" scp -o StrictHostKeyChecking=no /var/log/*.log admin@fileserver.example.com:/logs/
 
 # In group_vars/all/vault.yml (encrypted):
 {vault_var}: "your_secure_ssh_password_here"
@@ -598,7 +598,7 @@ shell: >-
 **✅ Alternative Fix (environment variables):**
 ```yaml
 shell: >-
-  sshpass -p "{{{{ lookup('env', 'SSH_PASSWORD') }}}}" scp -o StrictHostKeyChecking=no /var/log/*.log admin@fileserver.company.com:/logs/
+  sshpass -p "{{{{ lookup('env', 'SSH_PASSWORD') }}}}" scp -o StrictHostKeyChecking=no /var/log/*.log admin@fileserver.example.com:/logs/
 ```
 
 **✅ Best Fix (Use SSH keys and Ansible modules):**
@@ -608,7 +608,7 @@ shell: >-
   copy:
     src: "{{{{ item }}}}"
     dest: "/logs/"
-  delegate_to: "fileserver.company.com"
+  delegate_to: "fileserver.example.com"
   with_fileglob:
     - "/var/log/*.log"
   vars:
@@ -646,7 +646,7 @@ This expect script contains a hardcoded SFTP password that should never be store
 ```yaml
 # In your playbook:
 shell: >-
-  expect -c "spawn sftp files@secure.company.com; expect password; send '{{{{ {vault_var} }}}}\\n'; interact"
+  expect -c "spawn sftp files@secure.example.com; expect password; send '{{{{ {vault_var} }}}}\\n'; interact"
 
 # In group_vars/all/vault.yml (encrypted):
 {vault_var}: "your_secure_sftp_password_here"
@@ -655,7 +655,7 @@ shell: >-
 **✅ Alternative Fix (environment variables):**
 ```yaml
 shell: >-
-  expect -c "spawn sftp files@secure.company.com; expect password; send '{{{{ lookup('env', 'SFTP_PASSWORD') }}}}\\n'; interact"
+  expect -c "spawn sftp files@secure.example.com; expect password; send '{{{{ lookup('env', 'SFTP_PASSWORD') }}}}\\n'; interact"
 ```
 
 **✅ Best Fix (Use SSH keys and Ansible modules):**
@@ -663,7 +663,7 @@ shell: >-
 # Much better: Use SSH keys and native Ansible modules
 - name: Transfer files via SFTP
   sftp:
-    host: "secure.company.com"
+    host: "secure.example.com"
     username: "files"
     private_key: "{{{{ ssh_private_key_path }}}}"
     src: "{{{{ local_file }}}}"

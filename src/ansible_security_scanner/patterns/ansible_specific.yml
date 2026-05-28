@@ -195,15 +195,15 @@ patterns:
     negative_examples:
       - |2-
             environment:
-              KUBECONFIG: /home/splunk/.kube/config
+              KUBECONFIG: /home/appuser/.kube/config
       - |2-
             ansible.builtin.file:
-              path: /home/splunk/.kube/config
-              owner: splunk
+              path: /home/appuser/.kube/config
+              owner: appuser
       - |2-
             ansible.builtin.lineinfile:
               path: ~/.bashrc
-              line: export KUBECONFIG=/home/splunk/.kube/config
+              line: export KUBECONFIG=/home/appuser/.kube/config
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
     owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
