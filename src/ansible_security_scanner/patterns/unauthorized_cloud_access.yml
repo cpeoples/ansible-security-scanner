@@ -2090,6 +2090,7 @@ patterns:
     window: 5
     recommendation: "Set `server min protocol = SMB2_10` (minimum), `SMB3_00` (recommended), or `SMB3_11` (strict) in `/etc/samba/smb.conf`. Also set `server max protocol = SMB3_11`, `server signing = mandatory`, `smb encrypt = required`. Reload: `smbcontrol smbd reload-config`. Disable guest access: `map to guest = Never`, `guest ok = no`. For legacy SMB1-only clients (old scanners/copiers), do NOT weaken the whole server - put the legacy client behind an SMB1 -> SMB3 proxy (e.g. a dedicated Windows-Print-Server VM) or replace the client. Validate: `smbclient -L //localhost -U%  --option='client min protocol = SMB1'` should FAIL on a hardened server."
     cwe: ['CWE-311', 'CWE-326', 'CWE-327']
+    cve: ["CVE-2017-7494", "CVE-2017-0144"]
     owasp_appsec: ["A02:2021", "A04:2021"]
     owasp_asvs: [V11.2.5, V11.3.1, V11.3.2, V11.4.1, V14.2.1, V12.2.1]
     mitre_attack: ['T1021.002', 'T1210', 'T1562.001']
@@ -2114,6 +2115,7 @@ patterns:
     window: 25
     recommendation: "Set `publicly_accessible: false` for every RDS / Aurora / DocumentDB / Redshift instance. Place the DB in a PRIVATE subnet within a VPC with no IGW route. For developer access, use AWS VPN Client / AWS Client VPN / AWS SSM Session Manager port-forward (`aws ssm start-session --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters host=db.internal,portNumber=5432`). For cross-account consumer apps, use VPC Peering or PrivateLink endpoints - never public IP. Enforce via SCP: `rds:CreateDBInstance` / `rds:ModifyDBInstance` denied when `rds:PubliclyAccessible=true` except for a break-glass role. Audit: `aws rds describe-db-instances --query 'DBInstances[?PubliclyAccessible==\\`true\\`].[DBInstanceIdentifier,Endpoint.Address]'`. Rotate master-user credential immediately on any instance that was ever public + review CloudTrail for external IP connection attempts via `rds:DescribeDBInstances` audit trail."
     cwe: ['CWE-200', 'CWE-284', 'CWE-306']
+    cve: ["CVE-2024-10976"]
     owasp_appsec: ["A01:2021", "A07:2021"]
     owasp_asvs: [V6.2.1, V14.2.2]
     mitre_attack: ['T1078.004', 'T1133', 'T1190']
