@@ -65,14 +65,12 @@ jobs:
         run: twine check --strict dist/*
 
       - name: Generate CycloneDX SBOM
-        # Outside dist/ so the PyPI publish step does not see it as a
-        # candidate upload.
         run: |
           mkdir -p sbom
           python -m venv /tmp/sbom-venv
           /tmp/sbom-venv/bin/pip install --upgrade pip
           /tmp/sbom-venv/bin/pip install dist/*.whl
-          /tmp/sbom-venv/bin/python -m cyclonedx_py environment \
+          python -m cyclonedx_py environment \
             --of JSON \
             --output-reproducible \
             --pyproject pyproject.toml \
