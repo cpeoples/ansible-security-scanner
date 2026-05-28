@@ -46,6 +46,15 @@ forms and exist because CI YAML tends to be long enough already.
 on:
   pull_request:
 
+# Cancel an in-flight scan when a new push arrives on the same PR.
+# Without this, two pushes ~30s apart can race to PATCH the same
+# comment, and the inline-thread resolver may operate on a stale
+# finding set from the older run. We do NOT cancel runs on `main`
+# (workflow_dispatch / schedule) - those should always finish.
+concurrency:
+  group: ansible-security-scan-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   security:
     runs-on: ubuntu-latest
@@ -76,6 +85,14 @@ jobs:
 ansible-security-scan:
   stage: test
   image: python:3.12-slim
+  # Serialize scans per-MR. GitLab's resource_group ensures only one
+  # job in this group runs at a time across the project; we key it on
+  # the MR IID so different MRs still scan in parallel but two pushes
+  # to the SAME MR queue rather than race. Without this the inline-
+  # thread resolver from an older run can fight a freshly-posted
+  # thread from a newer run, and the summary comment can ping-pong
+  # between two truths within seconds.
+  resource_group: ansible-security-scan-mr-${CI_MERGE_REQUEST_IID}
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
@@ -102,6 +119,37 @@ posting MR comments on most projects. Use a project access token
 > default `before_script` working directory) - if you `cd` elsewhere
 > before invoking the scanner, deep links will resolve against the wrong
 > tree.
+
+### Why serialize per-MR / per-PR?
+
+The scanner posts a single sticky comment per MR/PR and (optionally)
+inline review threads keyed by finding fingerprint. Two scans for the
+same MR/PR posting concurrently can:
+
+- POST a duplicate top-level comment when both runs see the same
+  "no existing comment" state at fetch time.
+- Resolve an inline thread (older run) just as the newer run is
+  re-posting the same finding, producing a "resolved" thread next to
+  an "open" thread for the same fingerprint.
+- Produce contradictory summary text for a few seconds while both
+  PATCH-ers race - the last writer wins, but reviewers see flicker.
+
+The scanner is idempotent within a single run; it does not coordinate
+across runs. Concurrency control is the CI's responsibility:
+
+- **GitHub:** [`concurrency:`][gh-concurrency] with
+  `cancel-in-progress: true` on `pull_request` events. Cancelling the
+  in-flight scan on a new push is the right semantic - the older
+  scan's comment is now stale code anyway.
+- **GitLab:** [`resource_group:`][gl-resource-group] keyed on
+  `CI_MERGE_REQUEST_IID` queues subsequent runs rather than running
+  them in parallel. Use `resource_group` (not `interruptible: true`)
+  because the scanner runs fast enough that a queued run usually
+  finishes before reviewers care, and queueing preserves the audit
+  trail of every push being scanned.
+
+[gh-concurrency]: https://docs.github.com/en/actions/using-jobs/using-concurrency
+[gl-resource-group]: https://docs.gitlab.com/ee/ci/yaml/#resource_group
 
 ## Resolved-state example
 

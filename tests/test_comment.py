@@ -1668,6 +1668,25 @@ class TestSnippetRedaction:
         assert "eyJhbGci" not in out
         assert "Bearer ***" in out
 
+    def test_redacts_url_encoded_form_body_per_field(self):
+        """A URL-encoded form body packs multiple fields separated by
+        ``&``. The redactor must mask the ``password=`` value alone and
+        leave neighbouring fields like ``realname=...`` intact - else
+        the rendered snippet loses meaningful context and can read as
+        if a non-secret value were also a credential.
+        """
+        line = (
+            'body: "user=alice&password=PLACEHOLDER&roles=read'
+            '&displayname=Example User&force-change-pass=false"'
+        )
+        out = comment._redact_snippet(line)
+        assert "PLACEHOLDER" not in out
+        assert "password=***" in out
+        assert "user=alice" in out
+        assert "roles=read" in out
+        assert "displayname=Example User" in out
+        assert "force-change-pass=false" in out
+
     def test_preserves_multiline_yaml_context(self):
         """The scanner's ``code_snippet`` for module-level rules is
         often a 3-line view (task header + ``# ...`` ellipsis + the
@@ -1691,7 +1710,7 @@ class TestSnippetRedaction:
 
     def test_truncation_keeps_prefix_and_offending_flag(self):
         """Real-world regression: a long shell task like
-        ``curl -d '<12KB JSON>' -k -u "splunker:..."`` would
+        ``curl -d '<12KB JSON>' -k -u "admin:..."`` would
         previously truncate after the harmless ``curl -d`` prefix
         and lop off the ``-k`` that made the rule fire -- reviewers
         saw a snippet that didn't seem to match the rule's claim.
@@ -1704,7 +1723,7 @@ class TestSnippetRedaction:
         we have to pick what to show.
         """
         long_payload = "x" * 600
-        line = f"curl -d '{long_payload}' -k -u \"splunker:secret\" https://api/x"
+        line = f"curl -d '{long_payload}' -k -u \"admin:secret\" https://api/x"
         out = comment._redact_snippet(line)
         assert "-k" in out, (
             "the trailing ``-k`` flag must remain visible after truncation, "

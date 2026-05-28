@@ -265,7 +265,7 @@ to begin with - but it:
 **✅ Secure Fix (plain YAML for non-secrets):**
 ```yaml
 # group_vars/prod.yml - plain, reviewable, diff-friendly
-api_url: "https://api.internal.corp/v2"
+api_url: "https://api.internal.example.com/v2"
 api_port: 8443
 api_timeout: 30
 ```

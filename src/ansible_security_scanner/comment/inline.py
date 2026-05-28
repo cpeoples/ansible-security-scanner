@@ -22,7 +22,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
-from .context import PlatformContext, _redact
+from .context import PlatformContext, _file_deep_link, _redact
 from .fingerprint import _finding_fingerprint
 from .rendering import (
     _SEVERITY_EMOJI,
@@ -37,12 +37,24 @@ _INLINE_MARKER_PREFIX = "<!-- ansible-security-scanner:inline:v1:"
 _INLINE_MARKER_SUFFIX = " -->"
 _INLINE_MARKER_RE = re.compile(r"<!--\s*ansible-security-scanner:inline:v1:([0-9a-f]{16})\s*-->")
 
+_INLINE_HEADER_RE = re.compile(r"\*\*(?:CRITICAL|HIGH|MEDIUM|LOW|INFO)\*\*\s+\u00b7\s+(`[^`]+`)")
+
+# Sentinel embedded in resolved-thread bodies so subsequent runs can
+# tell "I closed this" from "this is still open". Kept separate from
+# the fingerprint marker so the dedup index keeps working unchanged.
+_INLINE_RESOLVED_SENTINEL = "<!-- ansible-security-scanner:inline:state:resolved -->"
+
 # Beyond this cap, the summary comment is a saner read than 50+ threads.
 _MAX_INLINE_COMMENTS = 50
 
 _RESOLUTION_DISCLAIMER = (
     "_Resolving this thread does not unblock the pipeline. The scan re-runs "
     "on every push and will close fixed-finding threads automatically._"
+)
+
+_RESOLVED_DISCLAIMER_TEMPLATE = (
+    "_Closed automatically by the scanner because this finding is no longer "
+    "present in commit `{sha}`._"
 )
 
 # Inline-thread breadcrumb appears only when the run's resolved policy
@@ -98,6 +110,22 @@ def _decode_inline_marker(body: str) -> str | None:
     return m.group(1) if m else None
 
 
+@dataclass(frozen=True)
+class _ThreadRecord:
+    """Existing-thread index entry: thread id + first-note id + body.
+
+    All three fields are needed so the resolve loop can edit the
+    user-visible note before closing the thread. ``note_id`` is the
+    first non-system note (GitLab) or first review-comment node id
+    (GitHub) - the one whose body the reviewer sees at the top of the
+    thread.
+    """
+
+    thread_id: str
+    note_id: str
+    body: str
+
+
 def _is_4xx(exc: Any) -> bool:
     """True if ``exc`` is an httpx HTTPStatusError with a 4xx status."""
     resp = getattr(exc, "response", None)
@@ -135,7 +163,44 @@ def _log_summary(ctx: PlatformContext, result: InlinePostResult) -> None:
     )
 
 
-def _render_inline_body(finding: Any, *, anchored: bool, breadcrumb: bool = False) -> str:
+def _render_inline_location(finding: Any, file_link: str | None) -> str | None:
+    """Render a one-line ``<file>:<line>`` reference under the severity
+    header.
+
+    Anchored inline threads are attached to the diff hunk and the
+    platform shows the file/line in the gutter, but we still want a
+    machine-greppable, copy-pasteable reference inside the body so
+    reviewers can quote the location into Slack/Linear/etc. without
+    losing it. File-level threads (anchor failed) get the same line so
+    reviewers know which line fired even though the platform didn't
+    pin the comment.
+
+    ``file_link`` is the deep-link to the blob viewer at the run's
+    commit SHA; when present we render the path as a Markdown link so
+    one click jumps to the offending line. When the link can't be
+    built (no ``commit_sha`` / unknown CI server) we fall back to a
+    plain ``code`` reference.
+    """
+    file_path = (getattr(finding, "file_path", "") or "").strip()
+    line_number = getattr(finding, "line_number", 0) or 0
+    if not file_path:
+        return None
+    if line_number > 0:
+        label = f"{file_path}:{line_number}"
+    else:
+        label = file_path
+    if file_link:
+        return f"\U0001f4cd [`{label}`]({file_link})"
+    return f"\U0001f4cd `{label}`"
+
+
+def _render_inline_body(
+    finding: Any,
+    *,
+    anchored: bool,
+    breadcrumb: bool = False,
+    file_link: str | None = None,
+) -> str:
     """Render an inline-thread body for ``finding``.
 
     ``anchored=True`` skips the YAML code fence: the platform renders
@@ -150,6 +215,11 @@ def _render_inline_body(finding: Any, *, anchored: bool, breadcrumb: bool = Fals
     ``--ignore`` or ``--select`` list exceeds
     ``_INLINE_BREADCRUMB_THRESHOLD``; below that the summary's flat
     list is small enough to spot at a glance.
+
+    ``file_link`` is the platform-specific blob-viewer URL pinned to
+    ``commit_sha#L<line>``. When present a ``<file>:<line>`` location
+    line is rendered immediately under the severity header so reviewers
+    have one-click navigation away from the diff context.
     """
     severity = (getattr(finding, "severity", "") or "LOW").upper()
     emoji = _SEVERITY_EMOJI.get(severity, "\u26aa")
@@ -161,6 +231,9 @@ def _render_inline_body(finding: Any, *, anchored: bool, breadcrumb: bool = Fals
     parts: list[str] = [
         f"{emoji} **{severity}** \u00b7 `{rule_id}` \u2014 {title}",
     ]
+    location = _render_inline_location(finding, file_link)
+    if location:
+        parts.append(location)
     if description:
         parts.append(description)
 
@@ -188,6 +261,76 @@ def _render_inline_body(finding: Any, *, anchored: bool, breadcrumb: bool = Fals
         parts.append(_INLINE_BREADCRUMB)
     parts.append(_inline_marker(_finding_fingerprint(finding)))
     return "\n\n".join(parts)
+
+
+def _short_sha(sha: str) -> str:
+    return (sha or "").strip()[:7] or "unknown"
+
+
+def _finding_file_link(ctx: PlatformContext, finding: Any) -> str | None:
+    """Return the platform deep-link for ``finding`` or ``None``.
+
+    Centralises the ``finding.file_path`` / ``finding.line_number``
+    coercion so the two post_one paths can't drift on edge cases like
+    ``None`` line numbers or missing ``file_path``.
+    """
+    return _file_deep_link(
+        ctx,
+        getattr(finding, "file_path", "") or "",
+        int(getattr(finding, "line_number", 0) or 0),
+    )
+
+
+def _render_resolved_inline_body(original_body: str, commit_sha: str) -> str:
+    """Rewrite ``original_body`` to its closed-state form.
+
+    Replaces the leading severity header with a green ``RESOLVED`` line
+    and swaps the open-state disclaimer for the closed variant.
+    Preserves the body's marker (so dedup still works) and embeds an
+    HTML sentinel so future runs can tell open from closed at a glance.
+    """
+    fingerprint = _decode_inline_marker(original_body)
+    short = _short_sha(commit_sha)
+    blocks = original_body.split("\n\n")
+
+    rule_id = "this rule"
+    header_idx: int | None = None
+    for i, block in enumerate(blocks):
+        match = _INLINE_HEADER_RE.search(block)
+        if match:
+            header_idx = i
+            rule_id = match.group(1)
+            break
+    if header_idx is not None:
+        blocks[header_idx] = (
+            f"\u2705 **RESOLVED** \u00b7 {rule_id} \u2014 no longer found in `{short}`"
+        )
+
+    closed_disclaimer = _RESOLVED_DISCLAIMER_TEMPLATE.format(sha=short)
+    rebuilt: list[str] = []
+    for block in blocks:
+        if block.strip() == _RESOLUTION_DISCLAIMER:
+            rebuilt.append(closed_disclaimer)
+        elif block.strip() == _INLINE_BREADCRUMB:
+            continue
+        else:
+            rebuilt.append(block)
+
+    if not any(block.strip() == closed_disclaimer for block in rebuilt):
+        marker_idx = next(
+            (i for i, b in enumerate(rebuilt) if _INLINE_MARKER_PREFIX in b),
+            len(rebuilt),
+        )
+        rebuilt.insert(marker_idx, closed_disclaimer)
+
+    body = "\n\n".join(rebuilt)
+    if _INLINE_RESOLVED_SENTINEL not in body:
+        if fingerprint:
+            marker = _inline_marker(fingerprint)
+            body = body.replace(marker, f"{_INLINE_RESOLVED_SENTINEL}\n\n{marker}", 1)
+        else:
+            body = f"{body.rstrip()}\n\n{_INLINE_RESOLVED_SENTINEL}"
+    return body
 
 
 def _split_findings(
@@ -359,7 +502,7 @@ def _gitlab_post_inline(
                 headers,
                 base,
                 finding,
-                ctx.token,
+                ctx,
                 diff_refs,
                 try_anchor=try_anchor,
                 breadcrumb=breadcrumb,
@@ -368,12 +511,21 @@ def _gitlab_post_inline(
             if posted_one:
                 posted += 1
 
-        for fp, disc_id in existing_index.items():
+        for fp, record in existing_index.items():
             if fp in wanted_fps:
                 continue
+            if _INLINE_RESOLVED_SENTINEL in record.body:
+                continue
+            new_body = _render_resolved_inline_body(record.body, ctx.commit_sha)
             try:
+                if record.note_id:
+                    client.put(
+                        f"{base}/discussions/{record.thread_id}/notes/{record.note_id}",
+                        headers=headers,
+                        json={"body": new_body},
+                    )
                 client.put(
-                    f"{base}/discussions/{disc_id}",
+                    f"{base}/discussions/{record.thread_id}",
                     headers=headers,
                     json={"resolved": True},
                 )
@@ -394,7 +546,7 @@ def _gitlab_post_one(
     headers: dict[str, str],
     base: str,
     finding: Any,
-    token: str,
+    ctx: PlatformContext,
     diff_refs: dict[str, str] | None,
     *,
     try_anchor: bool,
@@ -407,12 +559,16 @@ def _gitlab_post_one(
     file-level body. 5xx and network errors are not retried.
     """
     httpx = _httpx()
+    token = ctx.token
     file_path = getattr(finding, "file_path", "?")
     line_number = getattr(finding, "line_number", "?")
+    file_link = _finding_file_link(ctx, finding)
 
     if try_anchor and diff_refs is not None:
         payload = {
-            "body": _render_inline_body(finding, anchored=True, breadcrumb=breadcrumb),
+            "body": _render_inline_body(
+                finding, anchored=True, breadcrumb=breadcrumb, file_link=file_link
+            ),
             "position": _gitlab_position(finding, diff_refs),
         }
         try:
@@ -436,7 +592,11 @@ def _gitlab_post_one(
                 _response_body(exc, token),
             )
 
-    payload = {"body": _render_inline_body(finding, anchored=False, breadcrumb=breadcrumb)}
+    payload = {
+        "body": _render_inline_body(
+            finding, anchored=False, breadcrumb=breadcrumb, file_link=file_link
+        )
+    }
     try:
         resp = client.post(f"{base}/discussions", headers=headers, json=payload)
         resp.raise_for_status()
@@ -451,8 +611,10 @@ def _gitlab_post_one(
         return False, False
 
 
-def _gitlab_existing_discussions(client: Any, headers: dict[str, str], base: str) -> dict[str, str]:
-    out: dict[str, str] = {}
+def _gitlab_existing_discussions(
+    client: Any, headers: dict[str, str], base: str
+) -> dict[str, _ThreadRecord]:
+    out: dict[str, _ThreadRecord] = {}
     for page in range(1, 11):
         resp = client.get(
             f"{base}/discussions?per_page=100&page={page}",
@@ -469,9 +631,14 @@ def _gitlab_existing_discussions(client: Any, headers: dict[str, str], base: str
             for note in disc.get("notes") or []:
                 if note.get("system"):
                     continue
-                fp = _decode_inline_marker(note.get("body") or "")
+                body = note.get("body") or ""
+                fp = _decode_inline_marker(body)
                 if fp:
-                    out[fp] = disc_id
+                    out[fp] = _ThreadRecord(
+                        thread_id=str(disc_id),
+                        note_id=str(note.get("id") or ""),
+                        body=body,
+                    )
                     break
         if len(chunk) < 100:
             break
@@ -521,7 +688,7 @@ query Threads($owner: String!, $name: String!, $number: Int!, $cursor: String) {
       reviewThreads(first: 100, after: $cursor) {
         nodes {
           id
-          comments(first: 1) { nodes { body } }
+          comments(first: 1) { nodes { id body } }
         }
         pageInfo { hasNextPage endCursor }
       }
@@ -542,6 +709,14 @@ _GH_GRAPHQL_MUTATION_RESOLVE = """
 mutation Resolve($threadId: ID!) {
   resolveReviewThread(input: { threadId: $threadId }) {
     thread { id }
+  }
+}
+"""
+
+_GH_GRAPHQL_MUTATION_UPDATE_COMMENT = """
+mutation Update($id: ID!, $body: String!) {
+  updatePullRequestReviewComment(input: { pullRequestReviewCommentId: $id, body: $body }) {
+    pullRequestReviewComment { id }
   }
 }
 """
@@ -603,7 +778,7 @@ def _github_post_inline(
                 graphql_url,
                 pr_id,
                 finding,
-                ctx.token,
+                ctx,
                 try_anchor=try_anchor,
                 breadcrumb=breadcrumb,
             )
@@ -613,16 +788,28 @@ def _github_post_inline(
                 if url:
                     result.thread_urls.append(url)
 
-        for fp, thread_id in existing_index.items():
+        for fp, record in existing_index.items():
             if fp in wanted_fps:
                 continue
+            if _INLINE_RESOLVED_SENTINEL in record.body:
+                continue
+            new_body = _render_resolved_inline_body(record.body, ctx.commit_sha)
             try:
+                if record.note_id:
+                    client.post(
+                        graphql_url,
+                        headers=headers,
+                        json={
+                            "query": _GH_GRAPHQL_MUTATION_UPDATE_COMMENT,
+                            "variables": {"id": record.note_id, "body": new_body},
+                        },
+                    )
                 client.post(
                     graphql_url,
                     headers=headers,
                     json={
                         "query": _GH_GRAPHQL_MUTATION_RESOLVE,
-                        "variables": {"threadId": thread_id},
+                        "variables": {"threadId": record.thread_id},
                     },
                 )
                 result.resolved += 1
@@ -643,7 +830,7 @@ def _github_post_one(
     graphql_url: str,
     pr_id: str,
     finding: Any,
-    token: str,
+    ctx: PlatformContext,
     *,
     try_anchor: bool,
     breadcrumb: bool = False,
@@ -655,10 +842,14 @@ def _github_post_one(
     field (e.g. "pull_request_review_thread.line must be part of the
     diff"), retries with ``subjectType: FILE``.
     """
+    token = ctx.token
+    file_link = _finding_file_link(ctx, finding)
     if try_anchor:
         anchored_input = {
             "pullRequestId": pr_id,
-            "body": _render_inline_body(finding, anchored=True, breadcrumb=breadcrumb),
+            "body": _render_inline_body(
+                finding, anchored=True, breadcrumb=breadcrumb, file_link=file_link
+            ),
             "path": getattr(finding, "file_path", "") or "",
             "line": int(getattr(finding, "line_number", 0) or 0),
             "side": "RIGHT",
@@ -676,7 +867,9 @@ def _github_post_one(
 
     file_level_input = {
         "pullRequestId": pr_id,
-        "body": _render_inline_body(finding, anchored=False, breadcrumb=breadcrumb),
+        "body": _render_inline_body(
+            finding, anchored=False, breadcrumb=breadcrumb, file_link=file_link
+        ),
         "path": getattr(finding, "file_path", "") or "",
         "subjectType": "FILE",
     }
@@ -765,8 +958,8 @@ def _github_existing_threads(
     owner: str,
     name: str,
     pr_number: int,
-) -> dict[str, str]:
-    out: dict[str, str] = {}
+) -> dict[str, _ThreadRecord]:
+    out: dict[str, _ThreadRecord] = {}
     cursor: str | None = None
     for _ in range(10):
         resp = client.post(
@@ -792,9 +985,15 @@ def _github_existing_threads(
             comments = (node.get("comments") or {}).get("nodes") or []
             if not (tid and comments):
                 continue
-            fp = _decode_inline_marker(comments[0].get("body") or "")
+            first = comments[0] or {}
+            body = first.get("body") or ""
+            fp = _decode_inline_marker(body)
             if fp:
-                out[fp] = tid
+                out[fp] = _ThreadRecord(
+                    thread_id=str(tid),
+                    note_id=str(first.get("id") or ""),
+                    body=body,
+                )
         page_info = rt.get("pageInfo") or {}
         if not page_info.get("hasNextPage"):
             break

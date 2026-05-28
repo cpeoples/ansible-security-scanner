@@ -180,6 +180,33 @@ class TestRenderInlineBody:
         body = comment.inline._render_inline_body(finding, anchored=True)
         assert body.rstrip().endswith("-->")
 
+    def test_location_line_renders_under_header_when_no_link(self):
+        finding = _Finding("rule_a", "HIGH", "roles/web/tasks/main.yml", 42)
+        body = comment.inline._render_inline_body(finding, anchored=True)
+        assert "`roles/web/tasks/main.yml:42`" in body
+        header_idx = body.index("**HIGH**")
+        loc_idx = body.index("roles/web/tasks/main.yml:42")
+        assert header_idx < loc_idx
+        assert "\U0001f4cd" in body
+
+    def test_location_line_uses_markdown_link_when_file_link_provided(self):
+        finding = _Finding("rule_a", "HIGH", "roles/web/tasks/main.yml", 42)
+        link = "https://github.com/owner/repo/blob/abc123/roles/web/tasks/main.yml#L42"
+        body = comment.inline._render_inline_body(finding, anchored=True, file_link=link)
+        assert f"[`roles/web/tasks/main.yml:42`]({link})" in body
+
+    def test_location_line_omitted_when_file_path_missing(self):
+        finding = _Finding("rule_a", "HIGH", "", 0)
+        body = comment.inline._render_inline_body(finding, anchored=True)
+        assert "\U0001f4cd" not in body
+
+    def test_location_line_drops_line_suffix_when_unknown(self):
+        finding = _Finding("rule_a", "HIGH", "roles/web/tasks/main.yml", 0)
+        body = comment.inline._render_inline_body(finding, anchored=True)
+        assert "`roles/web/tasks/main.yml`" in body
+        assert "main.yml:0" not in body
+        assert "main.yml:" not in body
+
 
 class TestSplitFindings:
     def test_no_changed_files_treats_all_as_anchor_candidates(self):
@@ -288,6 +315,230 @@ class TestGitLabInline:
         with patch.object(comment.httpx, "Client", return_value=cm):
             r = comment.post_inline_comments([], ctx)
         assert r.resolved == 1
+
+
+class TestResolvedBodyRendering:
+    def test_replaces_severity_header_with_resolved_line(self):
+        finding = _Finding("commented_out_auth_block", "MEDIUM", "a.yml", 5)
+        original = comment.inline._render_inline_body(finding, anchored=False)
+        rewritten = comment.inline._render_resolved_inline_body(original, "abc1234def567890")
+        assert "**RESOLVED**" in rewritten
+        assert "`commented_out_auth_block`" in rewritten
+        assert "`abc1234`" in rewritten
+        assert "**MEDIUM**" not in rewritten
+
+    def test_swaps_disclaimer_for_closed_variant(self):
+        finding = _Finding("r", "HIGH", "a.yml", 5)
+        original = comment.inline._render_inline_body(finding, anchored=False)
+        rewritten = comment.inline._render_resolved_inline_body(original, "abc1234")
+        assert "Resolving this thread does not unblock" not in rewritten
+        assert "Closed automatically by the scanner" in rewritten
+
+    def test_drops_inline_breadcrumb(self):
+        finding = _Finding("r", "HIGH", "a.yml", 5)
+        original = comment.inline._render_inline_body(finding, anchored=False, breadcrumb=True)
+        assert "see the summary comment for the policy" in original
+        rewritten = comment.inline._render_resolved_inline_body(original, "abc1234")
+        assert "see the summary comment for the policy" not in rewritten
+
+    def test_preserves_marker_for_dedup(self):
+        finding = _Finding("r", "HIGH", "a.yml", 5)
+        original = comment.inline._render_inline_body(finding, anchored=False)
+        rewritten = comment.inline._render_resolved_inline_body(original, "abc1234")
+        assert comment.inline._decode_inline_marker(rewritten) == (
+            comment.inline._finding_fingerprint(finding)
+        )
+
+    def test_embeds_resolved_state_sentinel(self):
+        finding = _Finding("r", "HIGH", "a.yml", 5)
+        original = comment.inline._render_inline_body(finding, anchored=False)
+        rewritten = comment.inline._render_resolved_inline_body(original, "abc1234")
+        assert comment.inline._INLINE_RESOLVED_SENTINEL in rewritten
+
+    def test_idempotent_on_already_resolved_body(self):
+        finding = _Finding("r", "HIGH", "a.yml", 5)
+        original = comment.inline._render_inline_body(finding, anchored=False)
+        once = comment.inline._render_resolved_inline_body(original, "abc1234")
+        twice = comment.inline._render_resolved_inline_body(once, "abc1234")
+        assert once.count(comment.inline._INLINE_RESOLVED_SENTINEL) == 1
+        assert twice.count(comment.inline._INLINE_RESOLVED_SENTINEL) == 1
+        assert twice.count("**RESOLVED**") == 1
+
+    def test_short_sha_handles_missing_value(self):
+        finding = _Finding("r", "HIGH", "a.yml", 5)
+        original = comment.inline._render_inline_body(finding, anchored=False)
+        rewritten = comment.inline._render_resolved_inline_body(original, "")
+        assert "`unknown`" in rewritten
+
+
+class TestResolvedThreadEdit:
+    """Validate that the bot edits an inline thread's first comment to a
+    clearly-closed body before resolving. Without this the GitLab/GitHub
+    UI shows a stale severity badge next to a green resolved badge,
+    which reads as a contradiction."""
+
+    def test_gitlab_edits_note_then_resolves(self):
+        ctx = _ctx("gitlab")
+        stale_finding = _Finding("commented_out_auth_block", "MEDIUM", "a.yml", 9)
+        original_body = comment.inline._render_inline_body(stale_finding, anchored=False)
+        existing = {
+            "id": "disc-stale",
+            "notes": [{"id": 99, "system": False, "body": original_body}],
+        }
+        # Override commit_sha so the rewritten body cites it.
+        ctx_with_sha = comment.PlatformContext(
+            platform=ctx.platform,
+            api_url=ctx.api_url,
+            project_ref=ctx.project_ref,
+            mr_number=ctx.mr_number,
+            commit_sha="abc1234def567890",
+            token=ctx.token,
+            run_url=ctx.run_url,
+        )
+
+        captured: list[dict[str, Any]] = []
+
+        def _put(url, *, headers=None, json=None):
+            captured.append({"url": url, "json": json})
+            return _resp({"resolved": True})
+
+        cm = _routed_client(
+            get=lambda *a, **k: _resp(
+                [existing]
+                if "/discussions" in (a[0] if a else "")
+                else {"diff_refs": {"base_sha": "B", "start_sha": "S", "head_sha": "H"}}
+            ),
+            put=_put,
+        )
+        with patch.object(comment.httpx, "Client", return_value=cm):
+            r = comment.post_inline_comments([], ctx_with_sha)
+
+        assert r.resolved == 1
+        assert len(captured) == 2, f"expected note-edit + resolve, got {captured}"
+        edit_call, resolve_call = captured
+        assert edit_call["url"].endswith("/discussions/disc-stale/notes/99")
+        assert "**RESOLVED**" in edit_call["json"]["body"]
+        assert "`abc1234`" in edit_call["json"]["body"]
+        assert resolve_call["url"].endswith("/discussions/disc-stale")
+        assert resolve_call["json"] == {"resolved": True}
+
+    def test_gitlab_skips_already_resolved_threads(self):
+        ctx = _ctx("gitlab")
+        stale_finding = _Finding("r", "HIGH", "a.yml", 9)
+        stale_marker = comment.inline._inline_marker(
+            comment.inline._finding_fingerprint(stale_finding)
+        )
+        already_resolved_body = (
+            f"\u2705 **RESOLVED**\n\n{comment.inline._INLINE_RESOLVED_SENTINEL}\n\n{stale_marker}"
+        )
+        existing = {
+            "id": "disc-stale",
+            "notes": [{"id": 99, "system": False, "body": already_resolved_body}],
+        }
+        captured: list[dict[str, Any]] = []
+
+        def _put(url, *, headers=None, json=None):
+            captured.append({"url": url, "json": json})
+            return _resp({"resolved": True})
+
+        cm = _routed_client(
+            get=lambda *a, **k: _resp(
+                [existing]
+                if "/discussions" in (a[0] if a else "")
+                else {"diff_refs": {"base_sha": "B", "start_sha": "S", "head_sha": "H"}}
+            ),
+            put=_put,
+        )
+        with patch.object(comment.httpx, "Client", return_value=cm):
+            r = comment.post_inline_comments([], ctx)
+
+        assert r.resolved == 0
+        assert captured == []
+
+    def test_github_updates_review_comment_then_resolves(self):
+        ctx = _ctx("github")
+        stale_finding = _Finding("commented_out_auth_block", "MEDIUM", "a.yml", 9)
+        original_body = comment.inline._render_inline_body(stale_finding, anchored=True)
+        ctx_with_sha = comment.PlatformContext(
+            platform=ctx.platform,
+            api_url=ctx.api_url,
+            project_ref=ctx.project_ref,
+            mr_number=ctx.mr_number,
+            commit_sha="abc1234def567890",
+            token=ctx.token,
+            run_url=ctx.run_url,
+        )
+        captured: list[dict[str, Any]] = []
+
+        def _post(url, *, headers=None, json=None):
+            q = (json or {}).get("query") or ""
+            captured.append({"query_first_line": q.strip().splitlines()[0], "json": json})
+            if "PRId" in q:
+                return _resp({"data": {"repository": {"pullRequest": {"id": "PR_1"}}}})
+            if "Threads" in q:
+                return _resp(
+                    {
+                        "data": {
+                            "repository": {
+                                "pullRequest": {
+                                    "reviewThreads": {
+                                        "nodes": [
+                                            {
+                                                "id": "T_stale",
+                                                "comments": {
+                                                    "nodes": [
+                                                        {
+                                                            "id": "C_stale",
+                                                            "body": original_body,
+                                                        }
+                                                    ]
+                                                },
+                                            }
+                                        ],
+                                        "pageInfo": {
+                                            "hasNextPage": False,
+                                            "endCursor": None,
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    }
+                )
+            if "updatePullRequestReviewComment" in q:
+                return _resp(
+                    {
+                        "data": {
+                            "updatePullRequestReviewComment": {
+                                "pullRequestReviewComment": {"id": "C_stale"}
+                            }
+                        }
+                    }
+                )
+            if "resolveReviewThread" in q:
+                return _resp({"data": {"resolveReviewThread": {"thread": {"id": "T_stale"}}}})
+            return _resp({})
+
+        with patch.object(comment.httpx, "Client", return_value=_routed_client(post=_post)):
+            r = comment.post_inline_comments([], ctx_with_sha)
+
+        assert r.resolved == 1
+        update_calls = [
+            c
+            for c in captured
+            if "updatePullRequestReviewComment" in (c["json"] or {}).get("query", "")
+        ]
+        resolve_calls = [
+            c for c in captured if "resolveReviewThread" in (c["json"] or {}).get("query", "")
+        ]
+        assert len(update_calls) == 1
+        assert len(resolve_calls) == 1
+        update_vars = update_calls[0]["json"]["variables"]
+        assert update_vars["id"] == "C_stale"
+        assert "**RESOLVED**" in update_vars["body"]
+        assert "`abc1234`" in update_vars["body"]
+        resolve_vars = resolve_calls[0]["json"]["variables"]
+        assert resolve_vars["threadId"] == "T_stale"
 
 
 class TestGitHubInline:

