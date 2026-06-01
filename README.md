@@ -66,9 +66,17 @@ pip install ansible-security-scanner
 
 Requires Python 3.11+. Installs an `ansible-security-scanner` command on your PATH.
 
+### Homebrew
+
+```bash
+brew install cpeoples/tap/ansible-security-scanner
+```
+
+Available via the [`cpeoples/homebrew-tap`](https://github.com/cpeoples/homebrew-tap) Homebrew tap.
+
 ## Quick Start
 
-After `pip install ansible-security-scanner`, try one of these:
+After installing, try one of these:
 
 ```bash
 # 1. Scan the current directory, print a Markdown report to the terminal
