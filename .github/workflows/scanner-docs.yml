@@ -41,7 +41,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Python dependencies
-        run: pip install --require-hashes -c .github/workflows/constraints.txt pyyaml
+        run: pip install --require-hashes -c .github/constraints.txt pyyaml
 
       - name: Configure GitHub Pages
         id: pages

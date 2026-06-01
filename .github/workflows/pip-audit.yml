@@ -31,7 +31,7 @@ jobs:
 
       - name: Install package with dev extras
         run: |
-          pip install --require-hashes -c .github/workflows/constraints.txt pip
+          pip install --require-hashes -c .github/constraints.txt pip
           pip install -e ".[dev]"
 
       - uses: pypa/gh-action-pip-audit@1220774d901786e6f652ae159f7b6bc8fea6d266  # v1.1.0

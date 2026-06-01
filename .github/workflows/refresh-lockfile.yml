@@ -26,7 +26,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install pip-tools
-        run: pip install --require-hashes -c .github/workflows/constraints.txt pip pip-tools
+        run: pip install --require-hashes -c .github/constraints.txt pip pip-tools
 
       - name: Recompile lockfile
         run: |
@@ -34,8 +34,8 @@ jobs:
             --generate-hashes \
             --strip-extras \
             --allow-unsafe \
-            --output-file=.github/workflows/constraints.txt \
-            .github/workflows/constraints.in
+            --output-file=.github/constraints.txt \
+            .github/constraints.in
 
       - name: Open PR if lockfile changed
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
@@ -43,8 +43,8 @@ jobs:
           commit-message: "Refresh CI tooling lockfile"
           title: "Refresh CI tooling lockfile"
           body: |
-            Weekly regeneration of `.github/workflows/constraints.txt` from
-            `.github/workflows/constraints.in` via `pip-compile`.
+            Weekly regeneration of `.github/constraints.txt` from
+            `.github/constraints.in` via `pip-compile`.
           branch: refresh-ci-lockfile
           delete-branch: true
-          add-paths: .github/workflows/constraints.txt
+          add-paths: .github/constraints.txt
