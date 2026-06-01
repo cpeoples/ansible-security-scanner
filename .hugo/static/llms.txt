@@ -1,0 +1,40 @@
+# Ansible Security Scanner
+
+> Static security scanner (SAST) for Ansible playbooks, roles, collections, task files, vars, and inventories. Detects malicious code, RCE, command and template injection, hardcoded credentials, supply-chain risk, unauthorized cloud access, lateral movement, and reverse shells. Apache-2.0 licensed and free for commercial use.
+
+Ansible Security Scanner is a static analyzer purpose-built for Ansible content. It outputs SARIF, CycloneDX SBOM, GitLab SAST, JUnit, JSON, HTML, and Markdown reports with remediation guidance. Findings map to CWE, OWASP Top 10, OWASP ASVS, MITRE ATT&CK, NIST, and CIS. Releases ship with SLSA Build Level 3 provenance and CycloneDX SBOMs, and release artifacts are Sigstore-signed.
+
+## Install
+
+- [PyPI package](https://pypi.org/project/ansible-security-scanner/): pip install ansible-security-scanner
+- [Source code](https://github.com/cpeoples/ansible-security-scanner): GitHub repository (Apache-2.0)
+- [Documentation](https://cpeoples.github.io/ansible-security-scanner/): full docs site
+
+## Quick start
+
+- [Quick Start](https://cpeoples.github.io/ansible-security-scanner/#quick-start): scan a directory, emit SARIF, post a PR/MR comment, run autofix
+- [What it detects](https://cpeoples.github.io/ansible-security-scanner/#what-it-detects): rule categories with examples
+- [CI/CD integration](https://cpeoples.github.io/ansible-security-scanner/dashboard/): GitHub Actions, GitLab CI, Jenkins
+- [Limitations](https://cpeoples.github.io/ansible-security-scanner/limitations/): what this layer of defense does and does not cover
+
+## Distribution and supply-chain
+
+- License: Apache-2.0
+- Python: 3.11, 3.12, 3.13
+- Provenance: [SLSA Build Level 3](https://slsa.dev/spec/v1.0/levels#build-l3)
+- SBOM: CycloneDX, attached to every GitHub release
+- Signing: Sigstore-verified release artifacts
+
+## Output formats
+
+- SARIF (GitHub Advanced Security, GitHub Code Scanning)
+- GitLab SAST JSON (GitLab Security Dashboard)
+- CycloneDX SBOM
+- JUnit XML
+- JSON, HTML, Markdown, YAML, CSV
+
+## Project links
+
+- [Issues](https://github.com/cpeoples/ansible-security-scanner/issues)
+- [Releases and changelog](https://github.com/cpeoples/ansible-security-scanner/releases)
+- [Author](https://github.com/cpeoples)
