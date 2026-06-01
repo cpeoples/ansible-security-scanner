@@ -261,3 +261,65 @@ jobs:
             sbom/*.cdx.json \
             sbom/*.sigstore.json \
             --clobber
+
+  bump-tap:
+    name: Bump Homebrew tap
+    runs-on: ubuntu-latest
+    needs: publish-pypi
+    if: github.event_name == 'release'
+    environment:
+      name: homebrew-tap
+      url: https://github.com/cpeoples/homebrew-tap/pulls
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ github.event.release.tag_name }}
+      FORMULA_PATH: Formula/ansible-security-scanner.rb
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          repository: cpeoples/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          persist-credentials: false
+
+      - name: Resolve sdist URL and sha256 from PyPI
+        id: pypi
+        run: |
+          version="${VERSION#v}"
+          payload=$(curl -fsSL "https://pypi.org/pypi/ansible-security-scanner/${version}/json")
+          sdist=$(echo "$payload" | python3 -c "import json,sys; d=json.load(sys.stdin); s=next(u for u in d['urls'] if u['packagetype']=='sdist'); print(s['url']); print(s['digests']['sha256'])")
+          {
+            echo "url=$(echo "$sdist" | sed -n 1p)"
+            echo "sha=$(echo "$sdist" | sed -n 2p)"
+            echo "version=${version}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update Formula
+        env:
+          URL: ${{ steps.pypi.outputs.url }}
+          SHA: ${{ steps.pypi.outputs.sha }}
+        run: |
+          python3 - <<'PY'
+          import os, re, pathlib
+          path = pathlib.Path(os.environ["FORMULA_PATH"])
+          src = path.read_text()
+          src = re.sub(r'^(\s*url\s+)"[^"]*ansible_security_scanner-[^"]+"',
+                       rf'\1"{os.environ["URL"]}"', src, count=1, flags=re.M)
+          src = re.sub(r'^(\s*sha256\s+)"[^"]+"',
+                       rf'\1"{os.environ["SHA"]}"', src, count=1, flags=re.M)
+          path.write_text(src)
+          PY
+
+      - name: Open pull request on tap
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          commit-message: "ansible-security-scanner ${{ steps.pypi.outputs.version }}"
+          title: "ansible-security-scanner ${{ steps.pypi.outputs.version }}"
+          body: |
+            Automated bump triggered by ${{ env.VERSION }} on cpeoples/ansible-security-scanner.
+          branch: bump-${{ steps.pypi.outputs.version }}
+          delete-branch: true
+          add-paths: ${{ env.FORMULA_PATH }}
+          sign-commits: true
