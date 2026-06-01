@@ -156,7 +156,28 @@
   "name": "About",
   "dateModified": "{{ with .Lastmod }}{{ .Format "2006-01-02T15:04:05Z07:00" }}{{ else }}{{ now.Format "2006-01-02T15:04:05Z07:00" }}{{ end }}",
   "mainEntity": {
-    "@id": "{{ $authorId }}"
+    "@type": "Person",
+    "@id": "{{ $authorId }}",
+    "name": "Chris Peoples",
+    "url": "https://cpeoples.github.io",
+    "image": "https://avatars.githubusercontent.com/u/699389?v=4",
+    "jobTitle": "Software Engineer",
+    "knowsAbout": [
+      "Ansible",
+      "DevSecOps",
+      "Static Application Security Testing",
+      "Supply Chain Security",
+      "Software Composition Analysis",
+      "Mobile Forensics",
+      "Security Research",
+      "Full-Stack Development"
+    ],
+    "sameAs": [
+      "https://github.com/cpeoples",
+      "https://cpeoples.github.io",
+      "https://forum.ansible.com/u/cpeoples",
+      "https://www.linkedin.com/in/chrispeoples"
+    ]
   }
 }
 </script>
