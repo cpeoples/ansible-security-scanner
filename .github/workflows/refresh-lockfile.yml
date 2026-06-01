@@ -48,3 +48,4 @@ jobs:
           branch: refresh-ci-lockfile
           delete-branch: true
           add-paths: .github/constraints.txt
+          sign-commits: true
