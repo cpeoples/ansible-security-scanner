@@ -1,0 +1,19 @@
+- id: ansible-security-scanner
+  name: ansible-security-scanner
+  description: Static security scanner for Ansible playbooks, roles, and collections.
+  entry: ansible-security-scanner --files
+  language: python
+  types_or: [yaml]
+  files: \.(ya?ml|j2|cfg)$
+  exclude: ^(\.github/|\.hugo/themes/)
+  require_serial: true
+
+- id: ansible-security-scanner-all
+  name: ansible-security-scanner (full repository)
+  description: Scan the full repository tree (slower; useful in CI or pre-push hooks).
+  entry: ansible-security-scanner --directory .
+  language: python
+  pass_filenames: false
+  always_run: true
+  require_serial: true
+  stages: [manual, pre-push]
