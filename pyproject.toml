@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ansible-security-scanner"
-description = "Security scanner for Ansible playbooks - detects malicious code, credential exposure, offensive tooling, data exfiltration, and 500+ other security anti-patterns."
+description = "Static security scanner for Ansible playbooks, roles, and collections. 1,091 rules across 31 categories detecting malicious code, RCE, command and template injection, hardcoded credentials, supply-chain risk, and unauthorized cloud access. Outputs SARIF, CycloneDX SBOM, and GitLab SAST."
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
@@ -36,6 +36,7 @@ classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
+    "Intended Audience :: Information Technology",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
@@ -44,7 +45,10 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Security",
     "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Systems Administration",
+    "Topic :: Utilities",
 ]
 dependencies = [
     "PyYAML>=6.0",
@@ -71,8 +75,11 @@ dev = [
 Homepage = "https://github.com/cpeoples/ansible-security-scanner"
 Documentation = "https://cpeoples.github.io/ansible-security-scanner/"
 Repository = "https://github.com/cpeoples/ansible-security-scanner"
+Source = "https://github.com/cpeoples/ansible-security-scanner"
 Issues = "https://github.com/cpeoples/ansible-security-scanner/issues"
+Tracker = "https://github.com/cpeoples/ansible-security-scanner/issues"
 Changelog = "https://github.com/cpeoples/ansible-security-scanner/releases"
+Releases = "https://github.com/cpeoples/ansible-security-scanner/releases"
 
 [project.scripts]
 ansible-security-scanner = "ansible_security_scanner.cli:main"
