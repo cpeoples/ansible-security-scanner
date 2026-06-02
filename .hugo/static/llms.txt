@@ -22,7 +22,7 @@ Ansible Security Scanner is a static analyzer purpose-built for Ansible content.
 ## Distribution and supply-chain
 
 - License: Apache-2.0
-- Python: 3.11, 3.12, 3.13
+- Python: 3.11, 3.12, 3.13, 3.14
 - Provenance: [SLSA Build Level 3](https://slsa.dev/spec/v1.0/levels#build-l3)
 - SBOM: CycloneDX, attached to every GitHub release
 - Signing: Sigstore-verified release artifacts
