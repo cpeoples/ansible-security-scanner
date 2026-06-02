@@ -68,7 +68,7 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.6",
     "twine>=5.0",
-    "types-PyYAML>=6.0",
+    "types-PyYAML>=6.0.12.20260518",
     "yamllint>=1.35",
 ]
 
