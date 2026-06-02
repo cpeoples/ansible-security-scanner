@@ -430,11 +430,11 @@ CIS-2.4:
 
 CIS-2.5:
   name: Allowlist Authorized Software
-  url: https://www.cisecurity.org/controls/v8#2.5
+  url: *cis_v8_url
 
 CIS-2.6:
   name: Allowlist Authorized Software Libraries
-  url: https://www.cisecurity.org/controls/v8#2.6
+  url: *cis_v8_url
 
 CIS-3.6:
   name: "Encrypt Data on End-User Devices"
@@ -443,7 +443,7 @@ CIS-3.6:
 
 CIS-3.7:
   name: Establish and Maintain a Data Classification Scheme
-  url: https://www.cisecurity.org/controls/v8#3.7
+  url: *cis_v8_url
 CIS-3.12:
   name: "Segment Data Processing and Storage Based on Sensitivity"
   url: "https://www.cisecurity.org/controls/data-protection"
@@ -451,25 +451,25 @@ CIS-3.12:
 CIS-4.4:
   name: "Implement and Manage a Firewall on Servers"
   control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
-  url: "https://www.cisecurity.org/controls/v8"
+  url: *cis_v8_url
 
 CIS-4.5:
   name: "Implement and Manage a Firewall on End-User Devices"
   control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
-  url: "https://www.cisecurity.org/controls/v8"
+  url: *cis_v8_url
 
 CIS-4.7:
   name: Manage Default Accounts on Enterprise Assets and Software
-  url: https://www.cisecurity.org/controls/v8#4.7
+  url: *cis_v8_url
 CIS-4.8:
   name: "Uninstall or Disable Unnecessary Services on Enterprise Assets and Software"
   control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
-  url: "https://www.cisecurity.org/controls/v8"
+  url: *cis_v8_url
 
 CIS-4.11:
   name: "Enforce Remote Wipe Capability on Portable End-User Devices"
   control: "CIS Control 4: Secure Configuration of Enterprise Assets and Software"
-  url: "https://www.cisecurity.org/controls/cis-controls-list"
+  url: *cis_v8_url
 
 CIS-5.7:
   name: "Centralize Access Control"
@@ -478,20 +478,20 @@ CIS-5.7:
 
 CIS-6.3:
   name: Require MFA for Externally-Exposed Applications
-  url: https://www.cisecurity.org/controls/v8#6.3
+  url: *cis_v8_url
 
 CIS-6.5:
   name: "Require MFA for Administrative Access"
   control: "CIS Control 6: Access Control Management"
-  url: "https://www.cisecurity.org/controls/v8"
+  url: *cis_v8_url
 
 CIS-6.7:
   name: Centralize Access Control
-  url: https://www.cisecurity.org/controls/v8#6.7
+  url: *cis_v8_url
 CIS-7.1:
   name: "Establish and Maintain a Vulnerability Management Process"
   control: "CIS Control 7: Continuous Vulnerability Management"
-  url: "https://www.cisecurity.org/controls/v8"
+  url: *cis_v8_url
 
 CIS-7.3:
   name: "Perform Automated Operating System Patch Management"
@@ -510,14 +510,14 @@ CIS-8.1:
 
 CIS-8.3:
   name: Ensure Adequate Audit Log Storage
-  url: https://www.cisecurity.org/controls/v8#8.3
+  url: *cis_v8_url
 CIS-8.8:
   name: Collect Command-Line Audit Logs
-  url: https://www.cisecurity.org/controls/v8#8.8
+  url: *cis_v8_url
 
 CIS-9.1:
   name: Ensure Use of Only Fully Supported Browsers and Email Clients
-  url: https://www.cisecurity.org/controls/v8#9.1
+  url: *cis_v8_url
 
 CIS-9.2:
   name: "Use DNS Filtering Services"
@@ -526,17 +526,17 @@ CIS-9.2:
 
 CIS-9.4:
   name: Restrict Unnecessary or Unauthorized Browser and Email Client Extensions
-  url: https://www.cisecurity.org/controls/v8#9.4
+  url: *cis_v8_url
 CIS-9.5:
   name: Implement DMARC
-  url: https://www.cisecurity.org/controls/v8#9.5
+  url: *cis_v8_url
 
 CIS-9.6:
   name: Block Unnecessary File Types
-  url: https://www.cisecurity.org/controls/v8#9.6
+  url: *cis_v8_url
 CIS-10.2:
   name: Configure Automatic Anti-Malware Signature Updates
-  url: https://www.cisecurity.org/controls/v8#10.2
+  url: *cis_v8_url
 CIS-10.5:
   name: "Enable Anti-Exploitation Features"
   control: "CIS Control 10: Malware Defenses"
@@ -544,27 +544,27 @@ CIS-10.5:
 
 CIS-11.5:
   name: Test Data Recovery
-  url: https://www.cisecurity.org/controls/v8#11.5
+  url: *cis_v8_url
 CIS-12.1:
   name: Ensure Network Infrastructure is Up-to-Date
-  url: https://www.cisecurity.org/controls/v8#12.1
+  url: *cis_v8_url
 
 CIS-13.3:
   name: Deploy a Network Intrusion Detection Solution
-  url: https://www.cisecurity.org/controls/v8#13.3
+  url: *cis_v8_url
 
 CIS-13.4:
   name: "Perform Traffic Filtering Between Network Segments"
   control: "CIS Control 13: Network Monitoring and Defense"
-  url: "https://www.cisecurity.org/controls/v8"
+  url: *cis_v8_url
 
 CIS-13.5:
   name: Manage Access Control for Remote Assets
-  url: https://www.cisecurity.org/controls/v8#13.5
+  url: *cis_v8_url
 
 CIS-13.6:
   name: Collect Network Traffic Flow Logs
-  url: https://www.cisecurity.org/controls/v8#13.6
+  url: *cis_v8_url
 CIS-13.7:
   name: "Deploy a Host-Based Intrusion Prevention Solution"
   control: "CIS Control 13: Network Monitoring and Defense"
@@ -573,22 +573,22 @@ CIS-13.7:
 CIS-13.11:
   name: "Tune Security Event Alerting Thresholds"
   control: "CIS Control 13: Network Monitoring and Defense"
-  url: "https://www.cisecurity.org/controls/cis-controls-list"
+  url: *cis_v8_url
 
 CIS-14.4:
   name: Train Workforce on Data Handling Best Practices
-  url: https://www.cisecurity.org/controls/v8#14.4
+  url: *cis_v8_url
 CIS-14.8:
   name: Train Workforce on Causes of Unintentional Data Exposure
-  url: https://www.cisecurity.org/controls/v8#14.8
+  url: *cis_v8_url
 
 CIS-15.4:
   name: Ensure Service Providers Support Secure Disposal of Enterprise Data
-  url: https://www.cisecurity.org/controls/v8#15.4
+  url: *cis_v8_url
 
 CIS-16.2:
   name: Establish and Maintain a Process to Accept and Address Software Vulnerabilities
-  url: https://www.cisecurity.org/controls/v8#16.2
+  url: *cis_v8_url
 CIS-16.5:
   name: "Use Up-to-Date and Trusted Third-Party Software Components"
   control: "CIS Control 16: Application Software Security"
@@ -596,7 +596,7 @@ CIS-16.5:
 
 CIS-16.6:
   name: Establish and Maintain a Severity Rating System and Process for Application Vulnerabilities
-  url: https://www.cisecurity.org/controls/v8#16.6
+  url: *cis_v8_url
 
 CIS-16.9:
   name: "Train Developers in Application Security Concepts and Secure Coding"
@@ -610,15 +610,15 @@ CIS-17.3:
 
 CIS-18.3:
   name: Remediate Penetration Test Findings
-  url: https://www.cisecurity.org/controls/v8#18.3
+  url: *cis_v8_url
 CIS-18.5:
   name: Perform Periodic Internal Penetration Tests
-  url: https://www.cisecurity.org/controls/v8#18.5
+  url: *cis_v8_url
 
 CIS-Change-Management:
   name: "Change management processes for infrastructure code"
   control: "Informal category token"
-  url: "https://www.cisecurity.org/controls/v8"
+  url: *cis_v8_url
 
 CIS-Docker:
   name: "Docker Benchmark (general)"
