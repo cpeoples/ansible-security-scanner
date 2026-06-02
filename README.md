@@ -74,6 +74,23 @@ brew install cpeoples/tap/ansible-security-scanner
 
 Available via the [`cpeoples/homebrew-tap`](https://github.com/cpeoples/homebrew-tap) Homebrew tap.
 
+### pre-commit
+
+Add to your `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/cpeoples/ansible-security-scanner
+    rev: v0.1.18
+    hooks:
+      - id: ansible-security-scanner
+```
+
+Two hook IDs are exposed:
+
+- `ansible-security-scanner` — scans only the staged YAML / `*.j2` / `*.cfg` files. Runs on every commit.
+- `ansible-security-scanner-all` — scans the full repository tree. Wired to the `pre-push` and `manual` stages so it doesn't fire on every commit; trigger it with `pre-commit run --hook-stage pre-push ansible-security-scanner-all` or in CI.
+
 ## Quick Start
 
 After installing, try one of these:

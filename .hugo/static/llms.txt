@@ -9,6 +9,7 @@ Ansible Security Scanner is a static analyzer purpose-built for Ansible content.
 - [Installation](https://cpeoples.github.io/ansible-security-scanner/#installation): pip install ansible-security-scanner, or brew install cpeoples/tap/ansible-security-scanner
 - [PyPI package](https://pypi.org/project/ansible-security-scanner/): pip install ansible-security-scanner
 - [Homebrew tap](https://github.com/cpeoples/homebrew-tap): brew install cpeoples/tap/ansible-security-scanner
+- [pre-commit hook](https://pre-commit.com/): add `repo: https://github.com/cpeoples/ansible-security-scanner` with hook id `ansible-security-scanner`
 - [Source code](https://github.com/cpeoples/ansible-security-scanner): GitHub repository (Apache-2.0)
 - [Documentation](https://cpeoples.github.io/ansible-security-scanner/): full docs site
 
