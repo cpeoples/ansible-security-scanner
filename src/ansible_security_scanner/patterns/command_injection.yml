@@ -464,6 +464,37 @@ patterns:
     hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
     soc2: ['C1.1', 'CC6.1']
 
+  - id: "secret_var_in_command_argv"
+    category: "command_injection"
+    severity: "HIGH"
+    title: "Secret-Shaped Shell Variable Interpolated Into Command Argv"
+    description: >-
+        A shell task interpolates a shell variable whose name suggests
+        secret material into an argv-revealing flag (-p, --patch, --data,
+        --from-literal, --password, --token, --key, --secret-string,
+        --set). Argv lands in /proc/<pid>/cmdline, ps output, shell
+        history, and audit logs - readable by every local user regardless
+        of the source file's mode bits.
+    regex: "(?:^|[\\s\"'])(?:-p|--patch|--data(?:-binary|-urlencode)?|--from-literal|--password|--token|--key|--secret(?:-string)?|--set(?:-string|-file)?)[\\s=][^\\n]{0,200}\\$\\{?(?:[A-Z][A-Z0-9_]*_(?:KEY|PASSWORD|PASSWD|PASS|PW|TOKEN|SECRET|API_KEY|PRIVATE_KEY|CREDENTIAL)|TLS_KEY|TLS_PRIVATE_KEY|API_TOKEN|API_KEY|AUTH_TOKEN|ACCESS_TOKEN|BEARER_TOKEN|VAULT_TOKEN|CLIENT_SECRET|PRIVATE_KEY)\\}?\\b"
+    multiline: true
+    window: 6
+    positive_examples:
+      - 'shell:kubectl patch secret foo -p "{\"data\":{\"tls.key\":\"$TLS_KEY\"}}"'
+      - 'shell:helm upgrade app --set creds.password=$DB_PASSWORD'
+    negative_examples:
+      - 'shell:kubectl apply -f - <<<"$MANIFEST"'
+      - 'shell:curl -H "Authorization: Bearer $TOKEN" https://api.example.com'
+    recommendation: "Stream the secret via stdin (`kubectl apply -f -`, `helm upgrade -f -`), pass it through an env var the tool reads natively, or point a `--*-file` flag at a mode-0600 file rendered from Ansible Vault. Never put the value on argv - `no_log` does not redact /proc/<pid>/cmdline."
+    cwe: ["CWE-214", "CWE-522", "CWE-532"]
+    owasp_appsec: ["A04:2021", "A07:2021", "A09:2021"]
+    owasp_asvs: [V13.2.3, V13.3.1, V14.3.2]
+    mitre_attack: ["T1552.001", "T1552.006"]
+    cis_controls: ["CIS-3.1", "CIS-3.11", "CIS-Secrets"]
+    nist_controls: ['AC-3', 'AC-6', 'IA-5', 'IA-5(7)', 'SC-28', 'AU-9']
+    pci_dss: ['3.5.1', '8.3.6', '8.6.2', '10.3.1']
+    hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
+    soc2: ['C1.1', 'CC6.1', 'CC6.7']
+
   - id: "database_with_embedded_password"
     category: "command_injection"
     severity: "HIGH"

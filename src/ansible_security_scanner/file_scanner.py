@@ -160,6 +160,36 @@ _CRED_HEADER_NAMES: frozenset[str] = frozenset(
     {"authorization", "x-api-key", "x-auth-token", "x-vault-token"}
 )
 
+# Modules that materialise a destination file. Used by
+# ``credential_file_missing_mode`` to flag credential paths created
+# without an explicit mode (umask fallback is typically 0644).
+_FILE_WRITE_MODULES: frozenset[str] = frozenset(
+    {
+        "copy",
+        "ansible.builtin.copy",
+        "template",
+        "ansible.builtin.template",
+        "get_url",
+        "ansible.builtin.get_url",
+    }
+)
+
+# Destination paths that hold credentials, key material, TLS private
+# keys, kube/cluster configs, or vault tokens.
+_CREDENTIAL_DEST_PATH_RE: re.Pattern[str] = re.compile(
+    r"(?:"
+    r"\.(?:key|pem|pfx|p12|jks|keystore|p8|asc|kdbx|ovpn)\b"
+    r"|/\.ssh/(?:id_[a-z0-9_]+|authorized_keys)\b"
+    r"|/\.kube/config\b"
+    r"|/etc/kubernetes/(?:admin|kubelet)\.conf\b"
+    r"|/etc/(?:ssl|pki|tls)/private/"
+    r"|/etc/letsencrypt/(?:archive|live)/"
+    r"|(?:^|/)(?:credentials?|secrets?|vault[-_]token)"
+    r"(?:\.(?:ya?ml|json|env|conf|cfg|ini|txt))?$"
+    r")",
+    re.IGNORECASE,
+)
+
 # Rules whose entire purpose is to find things INSIDE YAML comments
 # (e.g. `# API_TOKEN=abc123` left in a review artefact). The universal
 # comment-line suppression in ``_emit_finding_if_allowed`` must not
@@ -2247,6 +2277,36 @@ class FileScanner:
                         snippet,
                     )
                 )
+
+            # File-write to a credential path with no explicit mode
+            if task_line:
+                for module_name in _FILE_WRITE_MODULES:
+                    block = task.get(module_name)
+                    if not isinstance(block, dict):
+                        continue
+                    dest = block.get("dest") or block.get("path")
+                    if not isinstance(dest, str) or not dest:
+                        continue
+                    if not _CREDENTIAL_DEST_PATH_RE.search(dest):
+                        continue
+                    if block.get("mode") not in (None, ""):
+                        break
+                    snippet = (
+                        self._ast_task_snippet(lines, task_line) if task_line <= len(lines) else ""
+                    )
+                    findings.append(
+                        self._make_finding(
+                            file_path,
+                            task_line,
+                            "credential_file_missing_mode",
+                            "HIGH",
+                            "Credential File Created Without Explicit Mode",
+                            "copy/template/get_url writes to a credential path without setting mode: - falls back to the remote's umask (typically 0644)",
+                            "Set mode: '0600' on the task; pair with owner: and group:.",
+                            snippet,
+                        )
+                    )
+                    break
 
             # GPU instance launch
             task_str = str(task)
