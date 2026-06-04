@@ -156,6 +156,7 @@ rules_by_category:
     - powershell_encoded_command
     - process_substitution
     - raw_encoded_powershell
+    - secret_var_in_command_argv
     - shell_pipe_to_interpreter
     - shell_inline_compound_command
     - subshell_execution
@@ -1130,6 +1131,7 @@ rules_by_category:
     - become_without_explicit_become_method_for_windows
     - connection_local_with_privilege_sensitive_module
     - copy_unsafe_writes_true
+    - credential_file_missing_mode
     - delegate_to_dynamic_host
     - delegate_to_localhost_run_as_remote
     - file_follow_true_with_become

@@ -134,6 +134,22 @@
         cat /etc/ssl/private/server.key | base64 -w 0
       register: tls_material
 
+    # --- structural: credential_file_missing_mode ---
+    - name: write tls private key without explicit mode
+      ansible.builtin.copy:
+        dest: /etc/ssl/private/example.key
+        content: "{{ vault_tls_private_key }}"
+        owner: root
+        group: root
+
+    # --- structural: secret_var_in_command_argv ---
+    - name: patch secret via kubectl with key on argv
+      ansible.builtin.shell: |
+        TLS_KEY=$(cat /etc/ssl/private/example.key | base64 -w 0)
+        kubectl patch secret example -n default \
+          -p "{\"data\":{\"tls.key\":\"$TLS_KEY\"}}"
+      no_log: true
+
     # --- webhook_exposure.yml ---
     - name: Send to Slack webhook
       ansible.builtin.uri:
