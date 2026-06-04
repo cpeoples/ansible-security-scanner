@@ -113,6 +113,27 @@
       ansible.builtin.shell: iptables -A INPUT -s 10.0.0.0/8 -j ACCEPT
       ignore_errors: true
 
+    # --- structural: ignore_errors_security_task (body-shape) ---
+    - name: configure remote service via api
+      ansible.builtin.uri:
+        url: "https://service.example.invalid/api/users/admin"
+        method: PUT
+        user: "admin"
+        password: "{{ admin_pw }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          username: admin
+          password: "{{ new_pw }}"
+        status_code: [200, 201]
+      ignore_errors: true
+
+    # --- structural: missing_no_log (key-path) ---
+    - name: read tls material into a fact
+      ansible.builtin.shell: |
+        cat /etc/ssl/private/server.key | base64 -w 0
+      register: tls_material
+
     # --- webhook_exposure.yml ---
     - name: Send to Slack webhook
       ansible.builtin.uri:

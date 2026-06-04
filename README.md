@@ -13,7 +13,7 @@
   <a href="https://github.com/cpeoples/ansible-security-scanner/actions/workflows/pip-audit.yml"><img src="https://img.shields.io/github/actions/workflow/status/cpeoples/ansible-security-scanner/pip-audit.yml?branch=main&label=pip-audit&style=flat-square&logo=python&logoColor=white" alt="pip-audit" /></a>&nbsp;&nbsp;
   <a href="https://owasp.org/www-community/Source_Code_Analysis_Tools"><img src="https://img.shields.io/badge/OWASP-Listed-000000?style=flat-square&logo=owasp&logoColor=white" alt="OWASP Listed" /></a>&nbsp;&nbsp;
   <a href="https://github.com/ansible-community/awesome-ansible#tools"><img src="https://img.shields.io/badge/Awesome-Ansible-fc60a8?style=flat-square&logo=awesomelists&logoColor=white" alt="Listed on Awesome Ansible" /></a>&nbsp;&nbsp;
-  <a href="src/ansible_security_scanner/patterns"><img src="https://img.shields.io/badge/Rules-1091-blue?style=flat-square&logo=ansible&logoColor=white" alt="Rules" /></a>&nbsp;&nbsp;
+  <a href="src/ansible_security_scanner/patterns"><img src="https://img.shields.io/badge/Rules-1092-blue?style=flat-square&logo=ansible&logoColor=white" alt="Rules" /></a>&nbsp;&nbsp;
   <a href="https://pypi.org/project/ansible-security-scanner/"><img src="https://img.shields.io/pypi/v/ansible-security-scanner?style=flat-square&logo=pypi&logoColor=white&label=PyPI" alt="PyPI" /></a>&nbsp;&nbsp;
   <a href="https://github.com/cpeoples/ansible-security-scanner/releases/latest"><img src="https://img.shields.io/badge/SLSA-Level%203-success?style=flat-square&logo=slsa&logoColor=white" alt="SLSA Build Level 3" /></a>&nbsp;&nbsp;
   <a href="https://github.com/cpeoples/ansible-security-scanner/releases/latest"><img src="https://img.shields.io/badge/SBOM-CycloneDX-success?style=flat-square&logo=cyclonedx&logoColor=white" alt="CycloneDX SBOM" /></a>&nbsp;&nbsp;
@@ -23,9 +23,9 @@
 
 Static SAST scanner for Ansible playbooks, roles, collections, task files, vars, and inventories. Detects malicious code, RCE, command and template injection, hardcoded credentials, supply-chain risk, unauthorized cloud access, lateral movement, and reverse shells. Outputs SARIF, CycloneDX SBOM, GitLab SAST, JUnit, JSON, HTML, and Markdown reports with remediation guidance. Findings map to CWE, OWASP Top 10, OWASP ASVS, MITRE ATT&CK, NIST, and CIS. CI-native, autofix-capable, DevSecOps-ready.
 
-**<!--RULES-->1091<!--/RULES--> rules** across **<!--CATS-->31<!--/CATS--> categories** -- all auto-discovered from YAML pattern plugins.
+**<!--RULES-->1092<!--/RULES--> rules** across **<!--CATS-->31<!--/CATS--> categories** -- all auto-discovered from YAML pattern plugins.
 
-**<!--CRIT-->412<!--/CRIT--> critical**, <!--HIGH-->528<!--/HIGH--> high, <!--MED-->131<!--/MED--> medium, <!--LOW-->19<!--/LOW--> low. [Per-category breakdown on the dashboard.](https://cpeoples.github.io/ansible-security-scanner/dashboard/)
+**<!--CRIT-->412<!--/CRIT--> critical**, <!--HIGH-->529<!--/HIGH--> high, <!--MED-->131<!--/MED--> medium, <!--LOW-->19<!--/LOW--> low. [Per-category breakdown on the dashboard.](https://cpeoples.github.io/ansible-security-scanner/dashboard/)
 
 > [!NOTE]
 > **Scope.** This is a *static, pattern-based* scanner - one layer in a defense-in-depth strategy. Pair it with the runtime controls you already trust (AAP/AWX approval gates, execution-environment lockdown, network egress policy, code review) for full coverage. See [Limitations](docs/limitations.md) for the specific classes of issue this layer cannot catch on its own.
@@ -144,7 +144,7 @@ installed CLI - it's a thin shim around the same entry point.
 
 ## What it detects
 
-The scanner ships <!--RULES-->1091<!--/RULES--> rules across <!--CATS-->31<!--/CATS--> auto-discovered categories. Highlights:
+The scanner ships <!--RULES-->1092<!--/RULES--> rules across <!--CATS-->31<!--/CATS--> auto-discovered categories. Highlights:
 
 **Malicious code and post-exploitation**
 

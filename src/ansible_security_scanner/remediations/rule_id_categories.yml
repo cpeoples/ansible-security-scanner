@@ -285,6 +285,7 @@ rules_by_category:
     - okta_api_token_literal
     - openai_api_key_credential
     - paypal_braintree_token
+    - plaintext_credential_key_var
     - plaintext_password_should_be_vaulted
     - portainer_admin_password_hash_default_or_inline
     - postgresql_password_command

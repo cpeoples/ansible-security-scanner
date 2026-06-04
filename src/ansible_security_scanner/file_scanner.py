@@ -127,6 +127,39 @@ _DISK_SINK_MODULES: frozenset[str] = frozenset(
     }
 )
 
+# HTTP-fetch modules whose body carries credential fields. Used by
+# ``_is_security_task`` to flag ``ignore_errors`` on tasks whose name
+# isn't security-keyword-bearing but whose body shape is.
+_HTTP_FETCH_MODULES: frozenset[str] = frozenset(
+    {
+        "uri",
+        "ansible.builtin.uri",
+        "get_url",
+        "ansible.builtin.get_url",
+        "win_uri",
+        "ansible.windows.win_uri",
+    }
+)
+_CRED_FIELD_NAMES: frozenset[str] = frozenset(
+    {
+        "password",
+        "passwd",
+        "url_password",
+        "token",
+        "auth_token",
+        "api_key",
+        "apikey",
+        "secret",
+        "client_secret",
+        "private_key",
+        "force_basic_auth",
+    }
+)
+_CRED_FIELD_SUFFIXES: tuple[str, ...] = ("_password", "_token", "_secret", "_key")
+_CRED_HEADER_NAMES: frozenset[str] = frozenset(
+    {"authorization", "x-api-key", "x-auth-token", "x-vault-token"}
+)
+
 # Rules whose entire purpose is to find things INSIDE YAML comments
 # (e.g. `# API_TOKEN=abc123` left in a review artefact). The universal
 # comment-line suppression in ``_emit_finding_if_allowed`` must not
@@ -964,6 +997,50 @@ _OVERLAP_SUPPRESSION_GROUPS: tuple[tuple[str, ...], ...] = (
         "google_api_key",
         "youtube_api_key",
     ),
+    # SSH host-key bypass family. A single inventory line of
+    # ``ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o
+    # UserKnownHostsFile=/dev/null"`` matches all three. Keep the
+    # inventory-scoped framing; the bare-flag rules are strict
+    # subsets of the same evidence.
+    (
+        "ssh_args_disable_host_key",
+        "ssh_stricthostkey_disabled",
+        "ssh_userknownhosts_devnull",
+    ),
+    # Root authorized_keys writes. ``root_ssh_key_modification``
+    # is the CRITICAL root-specific framing with persistence-
+    # primitive remediation; ``ssh_authorized_keys_write`` fires
+    # on ANY authorized_keys write.
+    (
+        "root_ssh_key_modification",
+        "ssh_authorized_keys_write",
+    ),
+    # ``plaintext_credential_key_var`` is the generic ``*_key:
+    # "<literal>"`` rule meant to plug the long-tail gap. When any
+    # narrower rule co-fires (vendor-specific token rules, the
+    # ``api_key:`` / ``private_key:`` regexes, or the broader
+    # plaintext-password rule), keep the targeted framing - it
+    # carries provider-tailored rotation guidance.
+    (
+        "stripe_api_key",
+        "anthropic_api_key_credential",
+        "openai_api_key_credential",
+        "twitter_api_key",
+        "google_api_key",
+        "youtube_api_key",
+        "github_token",
+        "github_personal_access_token_literal",
+        "slack_bot_or_app_token_literal",
+        "heroku_api_key",
+        "mailchimp_api_key",
+        "mailgun_api_key",
+        "sendgrid_api_key",
+        "aws_access_key",
+        "aws_secret_key",
+        "hardcoded_api_key",
+        "plaintext_password_should_be_vaulted",
+        "plaintext_credential_key_var",
+    ),
 )
 
 
@@ -1644,6 +1721,11 @@ class FileScanner:
                 # Same relationship for yum/dnf's validate_certs.
                 "yum_validate_certs_false": {"ssl_verification_disabled"},
                 "dnf_validate_certs_false": {"ssl_verification_disabled"},
+                # `ssrf_to_cloud_metadata_service` anchors on the
+                # module/curl/wget token and carries IMDSv2 context;
+                # `cloud_instance_metadata` is the bare-IP regex that
+                # also fires on the same task.
+                "ssrf_to_cloud_metadata_service": {"cloud_instance_metadata"},
             }
             # Maximum line gap between the module-header anchor and the
             # offending argument line that still counts as "the same task".
@@ -3895,12 +3977,18 @@ class FileScanner:
             "ansible.builtin.raw",
         ):
             cmd = task.get(mod)
-            if isinstance(cmd, str) and cred_pattern.search(cmd):
-                return True
-            if isinstance(cmd, dict):
+            if isinstance(cmd, str):
+                cmd_str = cmd
+            elif isinstance(cmd, dict):
                 cmd_str = str(cmd.get("cmd", "")) + " " + str(cmd.get("argv", ""))
-                if cred_pattern.search(cmd_str):
-                    return True
+            else:
+                continue
+            if cred_pattern.search(cmd_str):
+                return True
+            # Reading key material into a register without `no_log`
+            # leaks the bytes via stdout / callback plugins.
+            if self._CRED_FILE_READ_RE.search(cmd_str):
+                return True
 
         vars_block = task.get("vars", {})
         if isinstance(vars_block, dict):
@@ -4002,6 +4090,42 @@ class FileScanner:
         r"\$schema|targetNamespace|"
         r"schemaLocation|xsi:noNamespaceSchemaLocation)\s*=\s*"
         r"['\"]?https?://",
+        re.IGNORECASE,
+    )
+
+    # Cloud instance-metadata-service endpoints. Plaintext is
+    # mandated by spec - the hypervisor terminates the request
+    # so no TLS handshake is possible. The actionable risk is
+    # caught by ``ssrf_to_cloud_metadata_service``; suppress
+    # ``insecure_protocol_usage`` on these URLs.
+    _CLOUD_METADATA_URL_RE: re.Pattern[str] = re.compile(
+        r"\b(?:http|ftp)://(?:"
+        r"169\.254\.169\.254|"
+        r"\[?fd00:ec2::254\]?|"
+        r"100\.100\.100\.200|"
+        r"metadata\.google\.internal|"
+        r"metadata\.goog|"
+        r"metadata\.azure\.com|"
+        r"169\.254\.170\.2"
+        r")(?::|/|$)",
+        re.IGNORECASE,
+    )
+
+    # Shell commands reading credential material into a register.
+    # Used by ``_task_handles_credentials`` so ``register:`` of a
+    # private-key / TLS / kube / SSH file fires ``missing_no_log``
+    # even when the command line carries no ``password=`` token.
+    _CRED_FILE_READ_RE: re.Pattern[str] = re.compile(
+        r"(?:cat|openssl|base64|gpg|head|tail|less|more|pbcopy|xclip)\s+"
+        r"(?:[^|;&\n]*?\s)?(?:"
+        r"[\w./~-]*?\.(?:key|pem|pfx|p12|jks|keystore|truststore|ovpn|kdbx|asc)\b|"
+        r"/etc/(?:ssl|pki|tls|kubernetes|docker)/[^\s|;&]*|"
+        r"/etc/letsencrypt/[^\s|;&]*|"
+        r"~?/?\.ssh/(?:id_[a-z0-9_]+|authorized_keys|known_hosts|config)\b|"
+        r"/var/lib/(?:rancher|kubelet)/[^\s|;&]*\.(?:key|pem|crt)|"
+        r"/root/\.kube/config|"
+        r"/etc/kubernetes/admin\.conf"
+        r")",
         re.IGNORECASE,
     )
 
@@ -4112,7 +4236,26 @@ class FileScanner:
             "secret",
         ]
         task_name = str(task.get("name", "")).lower()
-        return any(kw in task_name for kw in security_keywords)
+        if any(kw in task_name for kw in security_keywords):
+            return True
+
+        # Body-shape fallback: a uri/get_url task carrying credential
+        # fields or auth headers is security-critical even when the
+        # task name is generic.
+        for module_name in _HTTP_FETCH_MODULES:
+            block = task.get(module_name)
+            if not isinstance(block, dict):
+                continue
+            for k in block:
+                lk = str(k).lower()
+                if lk in _CRED_FIELD_NAMES or lk.endswith(_CRED_FIELD_SUFFIXES):
+                    return True
+            headers = block.get("headers")
+            if isinstance(headers, dict) and any(
+                str(hk).lower() in _CRED_HEADER_NAMES for hk in headers
+            ):
+                return True
+        return False
 
     def _task_has_hardcoded_credential(self, task: dict) -> bool:
         """Check if a credential-handling task has hardcoded (non-variable) credential values"""
@@ -4329,6 +4472,14 @@ class FileScanner:
                                     variant, url_re=_nested_rules[pat.id]
                                 ):
                                     continue
+
+                            # Mirror of the cloud-metadata-URL post-filter
+                            # (see ``_emit_finding_if_allowed``).
+                            if (
+                                pat.id == "insecure_protocol_usage"
+                                and self._CLOUD_METADATA_URL_RE.search(variant)
+                            ):
+                                continue
 
                             # Mirror of the url_encoded_credentials
                             # post-filter (see _emit_finding_if_allowed).
@@ -5845,6 +5996,11 @@ class FileScanner:
         if pattern_obj.id == "insecure_protocol_usage" and 1 <= line_num <= len(all_lines):
             raw = all_lines[line_num - 1]
             if re.search(r"['\"]https?://[^'\"]*['\"]\s+is\s+(?:uri|url)\b", raw):
+                return
+            # Cloud instance-metadata-service endpoint - plaintext-
+            # only by spec; ``ssrf_to_cloud_metadata_service`` is the
+            # actionable finding, this regex would just be noise.
+            if self._CLOUD_METADATA_URL_RE.search(raw):
                 return
             # SPDX license header URL - canonical license-identifier
             # text, not a protocol choice.
