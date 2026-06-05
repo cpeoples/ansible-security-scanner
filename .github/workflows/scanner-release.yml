@@ -339,9 +339,9 @@ jobs:
           path = pathlib.Path(os.environ["FORMULA_PATH"])
           src = path.read_text()
           src = re.sub(r'^(\s*url\s+)"[^"]*ansible_security_scanner-[^"]+"',
-                       rf'\1"{os.environ["URL"]}"', src, count=1, flags=re.M)
+                       lambda m: f'{m.group(1)}"{os.environ["URL"]}"', src, count=1, flags=re.M)
           src = re.sub(r'^(\s*sha256\s+)"[^"]+"',
-                       rf'\1"{os.environ["SHA"]}"', src, count=1, flags=re.M)
+                       lambda m: f'{m.group(1)}"{os.environ["SHA"]}"', src, count=1, flags=re.M)
           path.write_text(src)
           PY
 
