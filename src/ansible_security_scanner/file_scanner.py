@@ -174,6 +174,27 @@ _FILE_WRITE_MODULES: frozenset[str] = frozenset(
     }
 )
 
+# Modules that schedule a recurring command. Used by
+# ``cron_job_with_secret_in_argv``.
+_CRON_MODULES: frozenset[str] = frozenset(
+    {
+        "cron",
+        "ansible.builtin.cron",
+    }
+)
+
+# Jinja expression naming a secret-shaped variable
+# (``{{ db_password }}``, ``{{ service_token }}``, ``{{ api_key }}``).
+_SECRET_SHAPED_JINJA_RE: re.Pattern[str] = re.compile(
+    r"\{\{\s*[^}\n]*?"
+    r"(?:password|passwd|secret|token|apikey|api[-_]key|"
+    r"private[-_]?key|secret[-_]?key|access[-_]?key|"
+    r"secret[-_]?token|bearer[-_]?token|auth[-_]?token|"
+    r"_pw|_pass|_key|_creds?|credentials?)"
+    r"\b[^}\n]*?\}\}",
+    re.IGNORECASE,
+)
+
 # Destination paths that hold credentials, key material, TLS private
 # keys, kube/cluster configs, or vault tokens.
 _CREDENTIAL_DEST_PATH_RE: re.Pattern[str] = re.compile(
@@ -2374,6 +2395,36 @@ class FileScanner:
                             "Private Key Or TLS Secret Written To A Non-Canonical Path",
                             "copy/template/get_url writes private-key-shaped material (id_rsa, *.key, *.pem, privatekey) to a world-readable or non-canonical path (/tmp, /var/tmp, /dev/shm, /home/root, /srv, /opt, /mnt, /data, /var/log, /var/cache).",
                             "Move the dest under the canonical home for the key type (`~/.ssh/` for SSH keys, `/etc/ssl/private/`, `/etc/pki/tls/private/`, or `/etc/letsencrypt/live/` for TLS), set `mode: '0600'`, `owner:`, and `group:` to the consuming service account.",
+                            snippet,
+                        )
+                    )
+                    break
+
+            # cron module with a secret-shaped Jinja expression in
+            # the ``job:`` field; the rendered value persists on disk
+            # and appears on argv of every scheduled invocation.
+            if task_line:
+                for module_name in _CRON_MODULES:
+                    block = task.get(module_name)
+                    if not isinstance(block, dict):
+                        continue
+                    job = block.get("job")
+                    if not isinstance(job, str) or not job:
+                        continue
+                    if not _SECRET_SHAPED_JINJA_RE.search(job):
+                        continue
+                    snippet = (
+                        self._ast_task_snippet(lines, task_line) if task_line <= len(lines) else ""
+                    )
+                    findings.append(
+                        self._make_finding(
+                            file_path,
+                            task_line,
+                            "cron_job_with_secret_in_argv",
+                            "HIGH",
+                            "Cron Job Embeds Secret-Shaped Variable On argv",
+                            "ansible.builtin.cron job interpolates a secret-shaped variable (password/token/secret/key/creds/apikey) into the scheduled command. The rendered value persists in /var/spool/cron/crontabs/<user> and appears in /proc/<pid>/cmdline, ps, and audit logs every run.",
+                            "Render the secret to a root-owned 0600 env file (`/etc/<service>.env`) consumed by the scheduled script with `set -a; . /etc/<service>.env; set +a`, or wrap the script so it pulls the secret from a secret manager at run time. Keep the cron entry's command argv free of credentials.",
                             snippet,
                         )
                     )

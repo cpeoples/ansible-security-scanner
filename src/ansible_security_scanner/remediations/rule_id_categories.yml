@@ -141,6 +141,7 @@ rules_by_category:
 
   command_injection:
     - command_chaining
+    - cron_job_with_secret_in_argv
     - curl_with_credentials
     - curl_with_multiple_variables
     - database_with_embedded_password
