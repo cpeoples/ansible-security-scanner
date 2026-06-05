@@ -180,6 +180,22 @@
     - name: stage tls key in world-readable temp
       ansible.builtin.shell: aws s3 cp s3://bucket/server.key /tmp/server.key
 
+    # --- command_injection: cron_job_with_secret_in_argv ---
+    - name: schedule data sync with token on argv
+      ansible.builtin.cron:
+        name: nightly sync
+        minute: "0"
+        hour: "0"
+        job: "/usr/local/bin/sync.sh --token {{ api_token }} >> /var/log/sync.log"
+
+    # --- supply_chain: s3_download_no_integrity_check ---
+    - name: download artifact from s3 without integrity check
+      amazon.aws.s3_object:
+        bucket: example-artifacts
+        object: /releases/installer.tgz
+        dest: /usr/local/lib/installer.tgz
+        mode: get
+
     # --- webhook_exposure.yml ---
     - name: Send to Slack webhook
       ansible.builtin.uri:

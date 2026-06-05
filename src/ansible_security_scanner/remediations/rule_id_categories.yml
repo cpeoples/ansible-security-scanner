@@ -141,6 +141,7 @@ rules_by_category:
 
   command_injection:
     - command_chaining
+    - cron_job_with_secret_in_argv
     - curl_with_credentials
     - curl_with_multiple_variables
     - database_with_embedded_password
@@ -854,6 +855,7 @@ rules_by_category:
     - role_meta_galaxy_info_missing_license
     - rpm_install_no_digest_no_signature_flags
     - rpm_install_nosignature_or_nogpg
+    - s3_download_no_integrity_check
     - sccm_client_push_installation_account_plaintext
     - self_modifying_ci_config
     - selfhosted_runner_untrusted_event
