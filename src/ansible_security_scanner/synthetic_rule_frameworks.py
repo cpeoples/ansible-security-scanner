@@ -101,6 +101,17 @@ SYNTHETIC_RULE_FRAMEWORKS: dict[str, FrameworkTags] = {
         "owasp_appsec": ["A04:2021", "A09:2021"],
         "owasp_asvs": ["V13.2.3", "V14.3.2"],
     },
+    "s3_download_no_integrity_check": {
+        "cwe": ["CWE-345", "CWE-494", "CWE-829"],
+        "mitre_attack": ["T1195.002"],
+        "cis_controls": ["CIS-Supply-Chain"],
+        "nist_controls": ["SI-7", "SI-7(1)", "CM-11", "SR-11"],
+        "pci_dss": ["6.3.2", "11.5.1"],
+        "hipaa": ["164.312(c)(1)", "164.312(c)(2)"],
+        "soc2": ["CC7.1", "CC8.1"],
+        "owasp_appsec": ["A06:2021", "A08:2021"],
+        "owasp_asvs": ["V14.2.1", "V14.2.4"],
+    },
     # Supply-chain: dynamic includes, URL-based pulls
     "include_role_from_url": {
         "cwe": ["CWE-829", "CWE-494"],

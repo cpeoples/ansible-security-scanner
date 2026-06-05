@@ -188,6 +188,14 @@
         hour: "0"
         job: "/usr/local/bin/sync.sh --token {{ api_token }} >> /var/log/sync.log"
 
+    # --- supply_chain: s3_download_no_integrity_check ---
+    - name: download artifact from s3 without integrity check
+      amazon.aws.s3_object:
+        bucket: example-artifacts
+        object: /releases/installer.tgz
+        dest: /usr/local/lib/installer.tgz
+        mode: get
+
     # --- webhook_exposure.yml ---
     - name: Send to Slack webhook
       ansible.builtin.uri:
