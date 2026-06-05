@@ -2607,12 +2607,25 @@ patterns:
     severity: "HIGH"
     title: "ansible.builtin.yum With validate_certs: false (Disables Mirror TLS Validation)"
     description: "An `ansible.builtin.yum` / `yum` task sets `validate_certs: false`. Yum will fetch repo metadata and RPM packages from the configured mirror URLs without verifying the mirror's TLS certificate chain. Any on-path attacker (rogue WiFi, ARP-spoof, compromised CDN edge, malicious VPN gateway) can swap out RPMs for trojanized versions before they reach the target host - especially dangerous because RPMs execute pre/post install scriptlets as root."
-    regex: "(?ms)(?:ansible\\.builtin\\.yum|^[\\t ]*yum)\\s*:[\\s\\S]{0,800}?\\bvalidate_certs\\s*:\\s*(?:false|False|no|No|0)\\b"
+    regex: "(?ms)(?:ansible\\.builtin\\.yum|^[\\t ]*yum)\\s*:[\\s\\S]{0,800}?\\bvalidate_certs\\s*:\\s*['\"]?(?:false|no|0|off|n)['\"]?(?:\\s|$|#)"
     positive_examples:
       - |2-
         yum:
                 # ...
                 validate_certs: false
+      - |2-
+        yum:
+                name: foo
+                validate_certs: 'no'
+      - |2-
+        ansible.builtin.yum:
+                name: foo
+                validate_certs: "false"
+    negative_examples:
+      - |2-
+        yum:
+                name: foo
+                validate_certs: true
     multiline: true
     window: 30
     recommendation: "Remove `validate_certs: false` from every yum task. If your internal mirror genuinely uses a self-signed cert, distribute the CA bundle via `ansible.builtin.copy` into `/etc/pki/ca-trust/source/anchors/` + `ansible.builtin.command: update-ca-trust` - never disable validation. Pair with GPG validation (`disable_gpg_check: false`, which is the default) and pin repos with `gpgcheck=1` + `repo_gpgcheck=1` in the `.repo` file."
@@ -2631,12 +2644,25 @@ patterns:
     severity: "HIGH"
     title: "ansible.builtin.yum With sslverify: false (Disables Repo-Level SSL Verification)"
     description: "An `ansible.builtin.yum` / `yum` task sets `sslverify: false`. This writes `sslverify=0` into the repo config, disabling SSL verification of the mirror URLs at the yum-daemon level (lower in the stack than `validate_certs:`, and harder to audit after the fact because it persists in `/etc/yum.repos.d/*.repo`). Equivalent to making every subsequent `yum install` vulnerable to mirror-swap attacks, not just this one task."
-    regex: "(?ms)(?:ansible\\.builtin\\.yum|^[\\t ]*yum)\\s*:[\\s\\S]{0,800}?\\bsslverify\\s*:\\s*(?:false|False|no|No|0)\\b"
+    regex: "(?ms)(?:ansible\\.builtin\\.yum|^[\\t ]*yum)\\s*:[\\s\\S]{0,800}?\\bsslverify\\s*:\\s*['\"]?(?:false|no|0|off|n)['\"]?(?:\\s|$|#)"
     positive_examples:
       - |2-
         ansible.builtin.yum:
                     # ...
                     sslverify: False
+      - |2-
+        yum:
+                    name: foo
+                    sslverify: 'no'
+      - |2-
+        ansible.builtin.yum:
+                    name: foo
+                    sslverify: "false"
+    negative_examples:
+      - |2-
+        yum:
+                    name: foo
+                    sslverify: true
     multiline: true
     window: 30
     recommendation: "Remove `sslverify: false` from yum tasks. For self-signed internal mirrors: distribute the CA bundle to `/etc/pki/ca-trust/source/anchors/` and run `update-ca-trust`. Audit existing hosts with `ansible -m shell -a 'grep -rE \"^sslverify\\s*=\\s*0\" /etc/yum.repos.d/'`."
@@ -2680,12 +2706,25 @@ patterns:
     severity: "HIGH"
     title: "ansible.builtin.dnf With validate_certs: false (Disables Mirror TLS Validation)"
     description: "An `ansible.builtin.dnf` / `dnf` task sets `validate_certs: false`. DNF fetches repo metadata and RPMs without TLS certificate-chain validation on the configured mirror URLs. Equivalent risk to `yum_validate_certs_false` - MITM-mirror-swap attacks deliver trojanized packages that execute root-level scriptlets on install."
-    regex: "(?ms)(?:ansible\\.builtin\\.dnf|^[\\t ]*dnf)\\s*:[\\s\\S]{0,800}?\\bvalidate_certs\\s*:\\s*(?:false|False|no|No|0)\\b"
+    regex: "(?ms)(?:ansible\\.builtin\\.dnf|^[\\t ]*dnf)\\s*:[\\s\\S]{0,800}?\\bvalidate_certs\\s*:\\s*['\"]?(?:false|no|0|off|n)['\"]?(?:\\s|$|#)"
     positive_examples:
       - |2-
         ansible.builtin.dnf:
                 # ...
                 validate_certs: false
+      - |2-
+        dnf:
+                name: foo
+                validate_certs: 'no'
+      - |2-
+        ansible.builtin.dnf:
+                name: foo
+                validate_certs: "false"
+    negative_examples:
+      - |2-
+        dnf:
+                name: foo
+                validate_certs: true
     multiline: true
     window: 30
     recommendation: "Remove `validate_certs: false`. For self-signed internal mirrors: distribute the CA to `/etc/pki/ca-trust/source/anchors/` + run `update-ca-trust`. Pair with `disable_gpg_check: false` (default) and `repo_gpgcheck=1` in the repo config."

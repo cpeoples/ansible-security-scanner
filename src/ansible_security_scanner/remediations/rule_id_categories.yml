@@ -156,6 +156,7 @@ rules_by_category:
     - powershell_encoded_command
     - process_substitution
     - raw_encoded_powershell
+    - secret_piped_to_text_processor
     - secret_var_in_command_argv
     - shell_pipe_to_interpreter
     - shell_inline_compound_command
@@ -254,6 +255,7 @@ rules_by_category:
     - elastic_apm_secret_token_or_api_key_literal
     - entra_client_secret_literal
     - facebook_access_token
+    - factory_default_credential_in_basic_auth
     - gcp_service_account_private_key_inline
     - github_personal_access_token_literal
     - github_token
@@ -369,6 +371,7 @@ rules_by_category:
     - redis_no_auth_protected_mode_disabled
     - saml_acs_or_oidc_issuer_plaintext_http
     - saml_assertion_no_signature_verify
+    - shell_ssh_scp_strict_host_key_disabled
     - sshd_weak_ciphers_3des_arcfour_cbc_or_hmac_md5
     - ssl_verification_disabled
     - telnet_usage
@@ -675,6 +678,7 @@ rules_by_category:
     - otel_collector_grpc_or_http_listener_bound_to_wildcard_interface
     - package_gpg_check_disabled
     - pam_module_manipulation
+    - password_expiry_disabled
     - powershell_execution_policy_set_localmachine_bypass
     - print_spooler_service_enabled_on_domain_controller
     - proc_sysrq_trigger
@@ -914,6 +918,7 @@ rules_by_category:
     - runc_leaky_vessels_vulnerable_install
     - setuid_binary_creation_compromise
     - shadow_file_access
+    - ssh_keygen_empty_passphrase_privileged_key
     - sshd_weak_hostkey_dsa_or_rsa_under_2048
     - system_service_manipulation
     - systemd_timer_persistence_world_writable_unit
@@ -1145,6 +1150,8 @@ rules_by_category:
     - inventory_winrm_ignore_cert_validation
     - legitimate_config_permissions
     - lineinfile_no_backup_on_sensitive_file
+    - private_key_copied_outside_dot_ssh
+    - private_key_written_outside_canonical_dir_ast
     - raw_module_with_become
     - recursive_permission_change
     - setfacl_mass_permission_grant
@@ -1158,6 +1165,7 @@ rules_by_category:
     - ssh_weak_hostkey_algorithms_reenabled
     - sticky_bit_removal
     - template_mode_executable_to_system_path
+    - tls_secret_downloaded_to_world_dir
     - winrm_cert_validation_ignore
     - world_readable_sensitive
     - world_writable_files

@@ -652,6 +652,32 @@ patterns:
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
 
+  # -- Password Expiry Disabled -----------------------------------------------
+
+  - id: "password_expiry_disabled"
+    category: "operational_security"
+    severity: "HIGH"
+    title: "Account Password Expiry Disabled"
+    description: "A task disables password aging on a Linux account: `chage -M -1`, `chage -M 99999`, `chage -E -1`, `passwd -x -1`, `passwd -x 99999`, `usermod -e ''`, or `usermod -e 1`. Removing expiry on a privileged or service account defeats periodic-rotation controls and is a common persistence move after credential theft."
+    regex: "(?:chage\\s+[^\\n]*?(?:-[ME][\\s=]+(?:-1|9{4,5}\\b)|--(?:maxdays|expiredate)[\\s=]+(?:-1|9{4,5}\\b))|passwd\\s+[^\\n]*?-x[\\s=]+(?:-1|9{4,5}\\b)|usermod\\s+[^\\n]*?-e[\\s=]+(?:''|\"\"|-1|1\\b))"
+    positive_examples:
+      - "chage -M 99999 svc_user"
+      - "passwd -x -1 svc"
+      - "usermod -e '' svc"
+    negative_examples:
+      - "chage -M 90 svc_user"
+      - "passwd -x 90 svc"
+    recommendation: "Keep aging enabled. For human accounts pin `PASS_MAX_DAYS` to a policy value (commonly 90) in `/etc/login.defs`; for service accounts use short-lived credentials from a secret manager or a CA-signed-key flow rather than disabling expiry. Audit with `chage -l <user>` and `awk -F: '($5==\"\" || $5>365)' /etc/shadow` (root-only)."
+    cwe: ['CWE-262', 'CWE-521']
+    mitre_attack: ['T1098', 'T1098.004']
+    cis_controls: ['CIS-5.2', 'CIS-5.3']
+    nist_controls: ['IA-5', 'AC-2']
+    pci_dss: ['8.3.9']
+    hipaa: ['164.308(a)(5)(ii)(D)']
+    soc2: ['CC6.1', 'CC6.2']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: [V2.1.1, V2.1.2]
+
   # -- Proxy Credential Exposure ----------------------------------------------
 
   - id: "proxy_credential_exposure"
