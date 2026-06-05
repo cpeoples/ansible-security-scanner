@@ -81,6 +81,8 @@ jobs:
         run: twine check --strict dist/*
 
       - name: Generate CycloneDX SBOM
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || 'sbom' }}
         run: |
           mkdir -p sbom
           python -m venv /tmp/sbom-venv
@@ -91,7 +93,7 @@ jobs:
             --output-reproducible \
             --pyproject pyproject.toml \
             --mc-type application \
-            -o "sbom/${{ github.event.release.tag_name || 'sbom' }}.cdx.json" \
+            -o "sbom/${RELEASE_TAG}.cdx.json" \
             /tmp/sbom-venv
 
       - name: Generate sha256 subjects for SLSA provenance
@@ -279,8 +281,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          gh release upload "${{ github.event.release.tag_name }}" \
+          gh release upload "${RELEASE_TAG}" \
             dist/*.tar.gz \
             dist/*.whl \
             dist/*.sigstore.json \

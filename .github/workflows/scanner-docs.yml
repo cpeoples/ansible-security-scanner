@@ -15,8 +15,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -25,6 +23,8 @@ concurrency:
 jobs:
   build-docs:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
@@ -76,8 +76,9 @@ jobs:
         working-directory: .hugo
         env:
           HUGO_ENVIRONMENT: production
+          HUGO_BASEURL: ${{ steps.pages.outputs.base_url || '/' }}
         run: |
-          hugo --minify --baseURL "${{ steps.pages.outputs.base_url || '/' }}"
+          hugo --minify --baseURL "${HUGO_BASEURL}"
 
           if [ ! -f public/index.html ]; then
             echo "ERROR: Hugo build failed - no index.html generated"
@@ -93,6 +94,10 @@ jobs:
     needs: build-docs
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
