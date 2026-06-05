@@ -18,6 +18,8 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Harden Runner

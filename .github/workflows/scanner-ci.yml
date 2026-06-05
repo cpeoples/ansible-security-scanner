@@ -17,6 +17,8 @@ jobs:
   test:
     name: Tests (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -52,6 +54,8 @@ jobs:
     name: Build distribution (dry run)
     runs-on: ubuntu-latest
     needs: test
+    permissions:
+      contents: read
 
     steps:
       - name: Harden Runner
