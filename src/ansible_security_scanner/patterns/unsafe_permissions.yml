@@ -8,12 +8,31 @@ patterns:
     severity: "HIGH"
     title: "World Writable Files"
     description: >-
-        mode: '0777' is set on a file resource, or chmod 777 is invoked. Any local
-        user can rewrite the path's contents, defeating integrity assumptions of
-        every later task.
-    regex: "mode:\\s*[\"']?0?777[\"']?|chmod.*777"
+        mode: '0777' is set on a file resource, or chmod 777 / chmod a+w / chmod o+w
+        is invoked. Any local user can rewrite the path's contents, defeating
+        integrity assumptions of every later task.
+    regex: "mode\\s*:\\s*['\"]?(?:0?[0-7]{2}[2367]|[2367])['\"]?(?=\\s|$|#|,)|chmod\\s+(?:-[A-Za-z]+\\s+)*['\"]?(?:0?[0-7]{2}[2367]|[2367])\\b|(?:mode\\s*:\\s*['\"]?|chmod\\s+(?:-[A-Za-z]+\\s+)*)(?:(?=[ugoa]*[oa])[ugoa]+\\+w|(?<![ugoa])\\+w(?=[\\s'\"]))|(?:mode\\s*:\\s*['\"]?|chmod\\s+(?:-[A-Za-z]+\\s+)*)(?:(?=[ugoa]*[oa])[ugoa]+=[rxw]*w[rxw]*)|setfacl\\s+[^\\n]*?-m\\s+[^\\n]*?o:[rxw]*w[rxw]*"
     positive_examples:
       - "mode: \"0777\""
+      - "mode: '0666'"
+      - "mode: '0773'"
+      - "mode: 0666"
+      - "mode: 'a+w'"
+      - "mode: 'o+w'"
+      - "mode: 'ugo+w'"
+      - "chmod 777 /etc/foo"
+      - "chmod -R 666 /var/data"
+      - "chmod a+w /opt/secret"
+      - "chmod o=rwx /etc/x"
+      - "setfacl -m o:rwx /etc/x"
+    negative_examples:
+      - "mode: '0775'"
+      - "mode: '0700'"
+      - "mode: '0640'"
+      - "mode: 'g+w'"
+      - "mode: 'u+w'"
+      - "chmod g+w /etc/x"
+      - "chmod u+x /usr/local/bin/x"
     recommendation: "Replace mode: '0777' / chmod 777 with the most restrictive mode that satisfies the workload (typically 0640 for files, 0750 for directories) and use group ownership rather than world-writability to share access."
     cwe: ["CWE-732"]
     owasp_asvs: [V5.3.1]
@@ -684,6 +703,54 @@ patterns:
     cwe: ["CWE-522", "CWE-732"]
     owasp_appsec: ["A04:2021"]
     owasp_asvs: [V13.2.1, V11.2.5, V5.3.1]
+
+  - id: "private_key_copied_outside_dot_ssh"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "Private Key Copied Or Linked Outside ~/.ssh"
+    description: "A shell task uses `cp`, `mv`, `ln`, or `install` on a path matching `id_rsa`, `id_ed25519`, `id_ecdsa`, `*.pem`, or `*.key` whose destination is NOT a `.ssh/` directory. Common destinations are `/home/root/.ssh/` (which is not root's real home on standard Linux), `/tmp`, `/var/tmp`, `/srv`, `/opt`, or shared directories. Off-`.ssh/` private keys typically inherit the surrounding directory's umask (often 0755) and bypass tooling that audits `~/.ssh/` for mode 0600."
+    regex: "(?m)^\\s*(?:-\\s+)?(?:ansible\\.builtin\\.)?(?:shell|command):\\s*(?=[|>]|\\S)[\\s\\S]{0,400}?(?:\\b(?:cp|mv|install|ln(?:\\s+-s)?|rsync(?:\\s+-[avzrlpt]+)?)\\s+[^\\n]*?(?:id_(?:rsa|ed25519|ecdsa|dsa)|\\.pem|\\.key)\\b[^\\n]*?\\s+(?:/home/root\\b|/tmp\\b|/var/tmp\\b|/srv\\b|/opt\\b|/mnt\\b|/media\\b|/data\\b|/var/log\\b)[^\\n]*|\\bcat\\s+[^\\n]*?(?:id_(?:rsa|ed25519|ecdsa|dsa)|\\.pem|\\.key)\\b[^\\n]*?>\\s*(?:/home/root/|/tmp/|/var/tmp/|/srv/|/opt/|/mnt/|/media/|/data/|/var/log/)|\\bdd\\s+[^\\n]*?if=[^\\n]*?(?:id_(?:rsa|ed25519|ecdsa|dsa)|\\.pem|\\.key)\\b[^\\n]*?of=(?:/home/root/|/tmp/|/var/tmp/|/srv/|/opt/|/mnt/|/media/|/data/|/var/log/)|\\btar\\s+[^\\n]*?(?:-c[^\\n]*?-f|cf|czf|cjf|cJf|cvf|czvf)\\s+(?:/home/root/|/tmp/|/var/tmp/|/srv/|/opt/|/mnt/|/media/|/data/|/var/log/)[^\\n]*?(?:\\.ssh\\b|id_(?:rsa|ed25519|ecdsa|dsa)|\\.pem|\\.key))"
+    multiline: true
+    window: 10
+    positive_examples:
+      - "shell: cp /root/.ssh/id_rsa /home/root/.ssh/id_rsa"
+      - "shell: cp /etc/ssl/private/server.key /tmp/server.key"
+    negative_examples:
+      - "shell: cp /root/.ssh/id_rsa /home/svc/.ssh/id_rsa"
+    recommendation: "Keep private keys under the owning user's `~/.ssh/` directory with mode 0700 on the directory and 0600 on the key. If a tool requires a non-standard path, render the key at runtime with `ansible.builtin.copy: mode='0600'` and remove it in an `always:` block. Note that on standard Linux, root's home is `/`, not `/home/root` - tools that hard-code `/home/root` should be configured to read `/root/.ssh` instead."
+    cwe: ["CWE-276", "CWE-522", "CWE-732"]
+    owasp_appsec: ["A01:2021"]
+    owasp_asvs: [V13.2.1, V11.2.5]
+    mitre_attack: ["T1552.004"]
+    cis_controls: ["CIS-3.3", "CIS-Secrets"]
+    nist_controls: ['AC-3', 'AC-6', 'IA-5(7)', 'SC-28']
+    pci_dss: ['3.5.1', '7.2.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(iv)']
+    soc2: ['CC6.1']
+
+  - id: "tls_secret_downloaded_to_world_dir"
+    category: "unsafe_permissions"
+    severity: "HIGH"
+    title: "Private Key Or TLS Secret Downloaded Into A World-Readable Directory"
+    description: "A shell task runs `aws s3 cp`, `gcloud storage cp`, `az storage blob download`, `curl`, or `wget` and writes a file whose name suggests a private key or TLS secret (`*.key`, `*.pem`, `*privatekey*`, `*secret*`) into `/tmp`, `/var/tmp`, `/dev/shm`, or `/srv/<world-readable>`. The destination directory is world-readable on every standard distribution, and the downloader does not enforce a restrictive `mode:` the way `ansible.builtin.copy` would; the secret is exposed for the entire interval before it is moved or removed."
+    regex: "(?m)^\\s*(?:-\\s+)?(?:ansible\\.builtin\\.)?(?:shell|command):\\s*(?=[|>]|\\S)[\\s\\S]{0,600}?(?:(?:aws\\s+s3\\s+cp|aws\\s+s3api\\s+get-object|gcloud\\s+storage\\s+cp|gsutil\\s+cp|az\\s+storage\\s+blob\\s+download|oci\\s+os\\s+object\\s+get|rclone\\s+(?:copy|copyto)|curl\\s+[^\\n]*?(?:-o|--output)\\s+|wget\\s+[^\\n]*?(?:-O\\s+|--output-document[\\s=]+))[^\\n]*?(?:/tmp/|/var/tmp/|/dev/shm/)[^\\n]*?(?:\\.key\\b|\\.pem\\b|privatekey|private_key|secret\\.[A-Za-z0-9]+)|(?:curl|wget)\\s+[^\\n]*?\\b(?:\\.key\\b|\\.pem\\b|privatekey|private_key)[^\\n]*?>\\s*(?:/tmp/|/var/tmp/|/dev/shm/))"
+    multiline: true
+    window: 10
+    positive_examples:
+      - "shell: aws s3 cp s3://bucket/server.key /tmp/server.key"
+      - "shell: curl -sSL https://internal/secret.pem -o /var/tmp/secret.pem"
+    negative_examples:
+      - "shell: aws s3 cp s3://bucket/server.key /etc/ssl/private/server.key"
+    recommendation: "Download the secret directly into its final mode-0600 location (`/etc/ssl/private/`, `/etc/pki/tls/private/`) or stream it into a `umask 077`-protected directory under `/run/<service>` (tmpfs, root-owned). When using `ansible.builtin.get_url` or `ansible.builtin.copy`, set `mode: '0600'` and `owner:`/`group:` to the consuming service account. Avoid staging private keys in `/tmp` even briefly."
+    cwe: ["CWE-276", "CWE-732"]
+    owasp_appsec: ["A01:2021", "A04:2021"]
+    owasp_asvs: [V13.2.1, V11.2.5]
+    mitre_attack: ["T1552.004"]
+    cis_controls: ["CIS-3.3", "CIS-Secrets"]
+    nist_controls: ['AC-3', 'AC-6', 'SC-28']
+    pci_dss: ['3.5.1', '7.2.2']
+    hipaa: ['164.312(a)(1)', '164.312(a)(2)(iv)']
+    soc2: ['CC6.1']
 
   - id: "ansible_cfg_callback_whitelist_unpinned"
     category: "unsafe_permissions"

@@ -1055,6 +1055,31 @@ patterns:
     hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)']
     soc2: ['CC6.7']
 
+  - id: "ssh_keygen_empty_passphrase_privileged_key"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "ssh-keygen Generates Privileged Key With Empty Passphrase"
+    description: "A task runs `ssh-keygen` with `-N ''` (empty passphrase) AND a destination under `/root/.ssh/`, `/home/root/.ssh/`, or a system-account home (`-f /etc/...`, `-f /var/...`). An at-rest passphraseless private key for a privileged account becomes a one-shot lateral-movement primitive: any host-level read (backup theft, container layer leak, snapshot mount, or a follow-on file-disclosure CVE) yields a usable login credential against every host the corresponding public key has been distributed to. Server host keys (which need to be passphraseless to start sshd unattended) are covered by the existing weak-hostkey rule and explicitly excluded here."
+    regex: "ssh-keygen\\s+[^\\n]*?-[NP]\\s+(?:''|\"\")[^\\n]*?-f\\s+(?:/root/\\.ssh/|/home/root/\\.ssh/|/etc/(?!ssh/ssh_host_)|/var/lib/|/opt/|/srv/|/data/)|ssh-keygen\\s+[^\\n]*?-f\\s+(?:/root/\\.ssh/|/home/root/\\.ssh/|/etc/(?!ssh/ssh_host_)|/var/lib/|/opt/|/srv/|/data/)[^\\n]*?-[NP]\\s+(?:''|\"\")"
+    multiline: true
+    window: 6
+    positive_examples:
+      - "ssh-keygen -t ed25519 -N '' -f /root/.ssh/id_ed25519"
+      - "ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ''"
+    negative_examples:
+      - "ssh-keygen -t ed25519 -N '' -f /etc/ssh/ssh_host_ed25519_key"
+      - "ssh-keygen -t ed25519 -N '$PASSPHRASE' -f /root/.ssh/id_ed25519"
+    recommendation: "Avoid generating long-lived passphraseless private keys for privileged accounts. Use SSH certificates signed by a short-TTL CA (`ssh-keygen -s ca -I host-cert -V +1h`) so individual keys are not persistent secrets, or use agent-forwarded keys protected by an OS keyring. If a passphraseless key is unavoidable for a service account, isolate it in a dedicated unprivileged user, restrict the matching `authorized_keys` entry with `from=`, `command=`, `no-port-forwarding`, and rotate it on a short cadence."
+    cwe: ['CWE-321', 'CWE-522', 'CWE-798']
+    owasp_appsec: ["A07:2021"]
+    owasp_asvs: [V2.4.1]
+    mitre_attack: ['T1098.004', 'T1552.004']
+    cis_controls: ['CIS-3.11', 'CIS-5.2']
+    nist_controls: ['IA-5', 'SC-12', 'SC-28']
+    pci_dss: ['3.5.1', '8.6.2']
+    hipaa: ['164.312(a)(2)(iv)']
+    soc2: ['CC6.1']
+
   - id: "byovd_known_vulnerable_kernel_driver_install"
     category: "system_compromise"
     severity: "CRITICAL"

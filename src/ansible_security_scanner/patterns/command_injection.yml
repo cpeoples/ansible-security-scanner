@@ -371,12 +371,29 @@ patterns:
     severity: "HIGH"
     title: "Curl with Hardcoded Credentials"
     description: >-
-        Task invokes curl -u 'user:password' with the credentials baked into the
-        playbook. The pair is visible in process listings and Ansible's verbose
-        output, defeating any vault elsewhere.
-    regex: "^(?!\\s*#)\\s*(?:ansible\\.builtin\\.)?(?:shell|command|raw):\\s*.*curl.*-u\\s+[\"'][^\"']*:[^\"']*[\"']"
+        Task invokes curl/wget/HTTPie with hardcoded basic-auth credentials, a
+        netrc file, or a -K config file containing user:password. The pair is
+        visible in process listings and Ansible's verbose output, defeating any
+        vault elsewhere.
+    regex: "^(?!\\s*#)\\s*(?:-\\s+)?(?:name\\s*:[^\\n]*\\n\\s*(?:-\\s+)?)?(?:ansible\\.builtin\\.)?(?:shell|command|raw|win_shell|win_command):[\\s\\S]{0,200}?(?:curl|wget|http(?:ie)?)\\s+[^\\n]*?(?:-u|--user|-a|--auth)(?:\\s+|=)['\"]?[A-Za-z0-9._@%+-]+:[^\\s'\"\\n{=][^\\s'\"\\n{]*['\"]?|^(?!\\s*#)\\s*(?:-\\s+)?(?:name\\s*:[^\\n]*\\n\\s*(?:-\\s+)?)?(?:ansible\\.builtin\\.)?(?:shell|command|raw|win_shell|win_command):[\\s\\S]{0,300}?wget\\s+[^\\n]*?--user(?:\\s+|=)['\"]?[A-Za-z0-9._@%+-]+['\"]?[^\\n]*?--password(?:\\s+|=)['\"]?[^\\s'\"\\n{=][^\\s'\"\\n{]*['\"]?|^(?!\\s*#)\\s*(?:-\\s+)?(?:name\\s*:[^\\n]*\\n\\s*(?:-\\s+)?)?(?:ansible\\.builtin\\.)?(?:shell|command|raw):[\\s\\S]{0,200}?curl\\s+[^\\n]*?(?:-K\\s+[^\\s'\"\\n{=]\\S*|--netrc(?:-file)?\\b)"
     positive_examples:
-      - 'shell:curl-u ":"'
+      - "shell: curl -u \"admin:secret\" https://example.com/"
+      - "shell: curl -u admin:secret https://example.com/"
+      - "shell: curl --user admin:secret https://example.com/"
+      - "shell: curl --user=admin:secret https://example.com/"
+      - "shell: curl -K /etc/curl-creds.cfg https://example.com/"
+      - "shell: curl --netrc https://example.com/"
+      - "shell: curl --netrc-file /tmp/netrc https://example.com/"
+      - "shell: http -a admin:secret https://example.com/"
+      - "shell: wget --user=admin --password=secret https://example.com/"
+      - "shell: wget --user admin --password secret https://example.com/"
+      - "command: curl --user=admin:secret https://example.com/"
+    negative_examples:
+      - "shell: curl -u \"{{ user }}:{{ pw }}\" https://example.com/"
+      - "shell: curl -u \"admin:{{ vault_pw }}\" https://example.com/"
+      - "shell: curl https://example.com/"
+      - "shell: wget --user=admin --password={{ vault_pw }} https://example.com/"
+      - "shell: curl -K {{ creds_file }} https://example.com/"
     recommendation: "Move the username:password out of curl -u into the calling module: ansible.builtin.uri url_username: / url_password: (or community.general.curl with separate secret args), and source the credential from Ansible Vault."
     cwe: ["CWE-312", "CWE-798"]
     owasp_appsec: ["A04:2021", "A07:2021"]
@@ -494,6 +511,41 @@ patterns:
     pci_dss: ['3.5.1', '8.3.6', '8.6.2', '10.3.1']
     hipaa: ['164.312(a)(2)(i)', '164.312(a)(2)(iv)', '164.312(d)']
     soc2: ['C1.1', 'CC6.1', 'CC6.7']
+
+  - id: "secret_piped_to_text_processor"
+    category: "command_injection"
+    severity: "MEDIUM"
+    title: "Secret Manager Output Piped Through External Text Processor"
+    description: >-
+        A shell task fetches material from a secret store
+        (`aws secretsmanager get-secret-value`, `gcloud secrets versions
+        access`, `az keyvault secret show`, `vault kv get`, `op read`,
+        `bw get password`) and pipes the result through `jq`, `awk`,
+        `sed`, `grep`, `cut`, or `tr`. Even with `no_log: true`, the
+        secret crosses argv and process memory of every command in the
+        pipe; auditd `execve` records, `bash -x`, `set -x`, and
+        `strace -f` all capture the value. Use the corresponding lookup
+        plugin or query syntax built into the CLI so the value never
+        leaves the privileged process.
+    regex: "(?:(?:aws\\s+secretsmanager\\s+get-secret-value|gcloud\\s+secrets\\s+versions\\s+access|az\\s+keyvault\\s+secret\\s+show|vault\\s+kv\\s+get|vault\\s+read|op\\s+read|bw\\s+get\\s+password|kubectl\\s+get\\s+secret\\s+[^\\n]*?-o\\s*(?:json|yaml|jsonpath))[\\s\\S]{0,400}\\|\\s*(?:jq|awk|sed|grep|cut|tr|head|tail|tee|xargs|xxd|base32|base64|od|python3?\\s+-c)\\b|(?:aws\\s+secretsmanager\\s+get-secret-value|gcloud\\s+secrets\\s+versions\\s+access|az\\s+keyvault\\s+secret\\s+show|vault\\s+kv\\s+get|vault\\s+read|op\\s+read|bw\\s+get\\s+password|kubectl\\s+get\\s+secret\\s+[^\\n]*?-o\\s*(?:json|yaml|jsonpath))[\\s\\S]{0,400}>\\s*(?:/tmp/|/var/tmp/|/dev/shm/)[\\s\\S]{0,200}?(?:jq|awk|sed|grep|cut|python3?\\s+-c)\\b)"
+    multiline: true
+    window: 6
+    positive_examples:
+      - "shell: aws secretsmanager get-secret-value --secret-id app | jq -r '.SecretString'"
+      - "shell: vault kv get -format=json secret/app | jq -r .data.data.password"
+      - "shell: kubectl get secret app -o jsonpath='{.data.password}' | base64 -d"
+    negative_examples:
+      - "shell: aws secretsmanager get-secret-value --secret-id app --query SecretString --output text"
+    recommendation: "Use the native query/format option of the secret-store CLI (`--query`, `--format=value(...)`, `-field=`, `-o jsonpath`) and route the value into stdin / an env var of the consuming process. For Ansible, prefer the matching lookup plugin (`community.aws.aws_secret`, `community.hashi_vault.vault_kv2_get`, `community.general.onepassword`) so the secret never crosses a shell pipeline."
+    cwe: ["CWE-214", "CWE-532"]
+    owasp_appsec: ["A09:2021"]
+    owasp_asvs: [V13.2.3, V14.3.2]
+    mitre_attack: ["T1552.001"]
+    cis_controls: ["CIS-3.11", "CIS-Secrets"]
+    nist_controls: ['AU-9', 'IA-5', 'SC-28']
+    pci_dss: ['8.6.2', '10.3.1']
+    hipaa: ['164.312(a)(2)(i)']
+    soc2: ['CC6.1', 'CC7.2']
 
   - id: "database_with_embedded_password"
     category: "command_injection"

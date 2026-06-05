@@ -53,8 +53,8 @@ patterns:
     category: "insecure_communication"
     severity: "MEDIUM"
     title: "Insecure Protocol Usage"
-    description: "An Ansible task value (url, dest, repo, src) references http://, ftp://, or telnet:// for content that is not signature-validated. URLs inside comments, license headers, doc text, and apt_key:/apt_repository: invocations (which are GPG-validated by the package manager) are filtered out post-match."
-    regex: "\\b(?:http|ftp|telnet)://(?!(?:localhost|127\\.0\\.0\\.1|\\[::1\\])(?::|/))"
+    description: "An Ansible task value (url, dest, repo, src) references http://, ftp://, telnet://, tftp://, or rsync:// for content that is not signature-validated. None of these schemes encrypt traffic; tftp and rsync (the rsync:// daemon protocol, not rsync-over-ssh) additionally have no built-in authentication. URLs inside comments, license headers, doc text, and apt_key:/apt_repository: invocations (which are GPG-validated by the package manager) are filtered out post-match."
+    regex: "\\b(?:http|ftp|telnet|tftp|rsync)://(?!(?:localhost|127\\.0\\.0\\.1|\\[::1\\])(?::|/))"
     positive_examples:
       - |2-
             - name: fetch config
@@ -65,6 +65,14 @@ patterns:
               ansible.builtin.get_url:
                 url: http://files.example.com/payload.tar.gz
                 dest: /tmp/p.tgz
+      - |2-
+            - name: tftp boot image (no auth, no encryption)
+              ansible.builtin.get_url:
+                url: tftp://boot.example.com/img.bin
+                dest: /var/lib/img.bin
+      - |2-
+            - name: rsync daemon (no encryption)
+              ansible.builtin.shell: rsync -av rsync://mirror.example.com/repo /srv/repo
     negative_examples:
       - |2-
             - name: fetch via https
@@ -93,9 +101,19 @@ patterns:
         verify_ssl / ssl_verify / check_ssl / validate_certs is set to false/no/0.
         Disabling cert validation defeats TLS's identity guarantee and reduces
         transport security to encryption alone.
-    regex: "(?:verify_ssl|ssl_verify|check_ssl|validate_certs):\\s*(?:false|no|0)"
+    regex: "(?:verify_ssl|ssl_verify|check_ssl|validate_certs)\\s*:\\s*['\"]?(?:false|no|0|off|n)['\"]?(?:\\s|$|#)"
     positive_examples:
       - "validate_certs: false"
+      - "validate_certs: 'no'"
+      - "validate_certs: \"false\""
+      - "validate_certs: 0"
+      - "validate_certs: off"
+      - "verify_ssl: No"
+      - "ssl_verify: false  # legacy"
+    negative_examples:
+      - "validate_certs: true"
+      - "validate_certs: 'true'"
+      - "validate_certs: yes"
     recommendation: "Remove validate_certs: false / verify_ssl: false; if the endpoint uses an internal CA, distribute that CA bundle to the controller and pass it via ca_path: rather than disabling verification."
     cwe: ["CWE-295", "CWE-297"]
     owasp_appsec: ["A07:2021"]
@@ -344,7 +362,7 @@ patterns:
     # and also hit a local admin endpoint later. Anchor on ``helm repo
     # add`` / ``helm_repository`` and allow only a short
     # same-line / args-block window to the insecure token.
-    regex: "helm\\s+repo\\s+add\\s+[^\\n]*?(?:\\s+http://|--insecure-skip-tls-verify)|kubernetes\\.core\\.helm_repository:[^\\n]*\\n(?:[ \\t]+[^\\n]*\\n){0,8}?[ \\t]+(?:url\\s*:\\s*['\"]?http://|validate_certs\\s*:\\s*(?:false|no))"
+    regex: "helm\\s+repo\\s+add\\s+[^\\n]*?(?:\\s+http://|--insecure-skip-tls-verify)|kubernetes\\.core\\.helm_repository:[^\\n]*\\n(?:[ \\t]+[^\\n]*\\n){0,8}?[ \\t]+(?:url\\s*:\\s*['\"]?http://|validate_certs\\s*:\\s*['\"]?(?:false|no|0|off|n)['\"]?(?:\\s|$|#))"
     multiline: true
     window: 10
     positive_examples:
@@ -692,6 +710,30 @@ patterns:
     mitre_attack: ['T1557', 'T1557.002']
     cis_controls: ['CIS-3.10', 'CIS-12.6']
     nist_controls: ['SC-8', 'SC-8(1)']
+    pci_dss: ['4.2.1']
+    hipaa: ['164.312(e)(1)']
+    soc2: ['CC6.7']
+
+  - id: "shell_ssh_scp_strict_host_key_disabled"
+    category: "insecure_communication"
+    severity: "HIGH"
+    title: "shell ssh / scp / sftp Invoked With StrictHostKeyChecking=no"
+    description: "An `ansible.builtin.shell` or `ansible.builtin.command` task runs `ssh`, `scp`, `sftp`, or `rsync -e ssh` with `-o StrictHostKeyChecking=no` (or `=accept-new`/`=off`), or sets `UserKnownHostsFile=/dev/null`. This bypasses SSH host-identity verification and accepts whatever key the remote sends - any on-path attacker can sit between the controller and the target and read or modify every byte of the session, including private-key transfers. The existing `ssh_args_disable_host_key` rule only catches the Ansible `ansible_ssh_common_args` variable; this catches the shell-level invocation that Ansible's SSH layer never sees."
+    regex: "(?m)^\\s*(?:-\\s+)?(?:ansible\\.builtin\\.)?(?:shell|command):\\s*(?=[|>]|\\S)[\\s\\S]{0,600}?(?:ssh|scp|sftp|rsync\\s+[^\\n]*?-e\\s+['\"]?ssh)\\s+[^\\n]*?(?:-o\\s*StrictHostKeyChecking\\s*=\\s*(?:no|off|accept-new|0|false)|-o\\s*UserKnownHostsFile\\s*=\\s*/dev/null|-F\\s+(?:/tmp/|/var/tmp/|/dev/shm/))\\b"
+    multiline: true
+    window: 10
+    positive_examples:
+      - "shell: scp -o StrictHostKeyChecking=no /etc/ssl/private/server.key root@host:/etc/ssl/private/server.key"
+      - "shell: ssh -o StrictHostKeyChecking=no root@host 'systemctl restart app'"
+    negative_examples:
+      - "shell: ssh -o UserKnownHostsFile=/etc/ssh/ssh_known_hosts root@host 'uptime'"
+    recommendation: "Pre-populate `~/.ssh/known_hosts` (or `/etc/ssh/ssh_known_hosts`) from a trusted source (`ssh-keyscan` over a side channel, SSHFP DNS records under DNSSEC, or a configuration-management distribution) before the playbook runs, then leave `StrictHostKeyChecking=yes` (the default). For ephemeral fleets, use SSH certificates with `@cert-authority` lines so individual host keys do not need to be pre-known."
+    cwe: ['CWE-295', 'CWE-322']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: [V9.2.1, V9.2.3]
+    mitre_attack: ['T1557']
+    cis_controls: ['CIS-3.10', 'CIS-12.6']
+    nist_controls: ['SC-8', 'SC-8(1)', 'SC-23']
     pci_dss: ['4.2.1']
     hipaa: ['164.312(e)(1)']
     soc2: ['CC6.7']
@@ -1307,13 +1349,34 @@ patterns:
     severity: "HIGH"
     title: "ansible.builtin.uri With validate_certs: false (Disables TLS Certificate Validation)"
     description: "An `ansible.builtin.uri` / `uri` task sets `validate_certs: false`. Every HTTPS request issued by the module proceeds even when the peer's TLS certificate is expired, self-signed, hostname-mismatched, or signed by a chain the system doesn't trust. Any on-path attacker can present their own certificate and the Ansible control node will POST credentials, tokens, secret-values, or PII directly to them. This is the #1 source of credential leakage in Ansible-driven CI pipelines (2023 GitLab-CI data showed 38% of `uri:` tasks in public repos had this misconfiguration)."
-    regex: "(?ms)(?:ansible\\.builtin\\.uri|^[\\t ]*uri)\\s*:[\\s\\S]{0,1500}?\\bvalidate_certs\\s*:\\s*(?:false|False|no|No|0)\\b"
+    regex: "(?ms)(?:ansible\\.builtin\\.uri|^[\\t ]*uri)\\s*:[\\s\\S]{0,1500}?\\bvalidate_certs\\s*:\\s*['\"]?(?:false|no|0|off|n)['\"]?(?:\\s|$|#)"
     positive_examples:
       - |2-
         uri:
             url: "{{ url }}/admin/"
             status_code: 200
             validate_certs: false
+      - |2-
+        uri:
+            url: "{{ url }}/admin/"
+            validate_certs: 'no'
+      - |2-
+        ansible.builtin.uri:
+            url: "{{ url }}/admin/"
+            validate_certs: "false"
+      - |2-
+        uri:
+            url: "{{ url }}/api"
+            validate_certs: 0
+    negative_examples:
+      - |2-
+        uri:
+            url: "{{ url }}/admin/"
+            validate_certs: true
+      - |2-
+        uri:
+            url: "{{ url }}/admin/"
+            validate_certs: 'true'
     multiline: true
     window: 40
     recommendation: "Remove `validate_certs: false`. For genuine self-signed endpoints (internal CAs), pass `ca_path: /etc/pki/ca-trust/source/anchors/internal.crt` instead; for test endpoints, use `--tags test` gating rather than permanently disabling validation. Audit with `grep -rn 'validate_certs:\\s*false' playbooks/ roles/`."

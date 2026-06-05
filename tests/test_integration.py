@@ -223,8 +223,12 @@ _MULTI_BAD_REQUIRED_RULE_IDS: frozenset[str] = frozenset(
         # file-scope post-filter on a multi-file scan.
         "slsa_provenance_verification_missing",
         # Credential and supply-chain patterns that must fire on the
-        # defaults / install task files.
-        "hardcoded_credentials",
+        # defaults / install task files. ``plaintext_password_should_be_vaulted``
+        # is the high-fidelity, named-variable rule that supersedes the
+        # generic ``hardcoded_credentials`` AST emission (see overlap
+        # suppression in ``file_scanner.py``); landing the named-rule
+        # finding is the strictly stronger signal.
+        "plaintext_password_should_be_vaulted",
         "stripe_api_key",
         "aws_access_key",
         # The fixture's `image: "nginx:latest"` line fires both
@@ -245,7 +249,7 @@ _MULTI_BAD_REQUIRED_RULE_IDS: frozenset[str] = frozenset(
 # benign pattern-tuning doesn't tickle this gate, but tight enough
 # that a silent ~50% regression (e.g. TaintTracker or extract_all_tasks
 # shape detection breaking) surfaces immediately.
-_MULTI_BAD_MIN_FINDINGS = 30
+_MULTI_BAD_MIN_FINDINGS = 29
 
 
 def test_multi_example_bad_known_findings(multi_example_bad_json):

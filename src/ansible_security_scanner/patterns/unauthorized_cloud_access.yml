@@ -950,10 +950,26 @@ patterns:
     category: "unauthorized_cloud_access"
     severity: "CRITICAL"
     title: "Docker Privileged Mode"
-    description: "Runs a Docker container in privileged mode, granting full host access"
-    regex: "docker\\s+run.*--privileged|privileged:\\s*true"
+    description: "Runs a Docker container in privileged mode (`docker run --privileged`, `--privileged=true`, or YAML `privileged: true`/`yes`/`on`/`1`), granting full host access including all capabilities and direct device-node mounts. Container escape becomes trivial (mount /dev/sda, write /etc/cron.d on the host)."
+    regex: "docker\\s+run\\s+[^\\n]*?--privileged(?![=\\w])|docker\\s+run\\s+[^\\n]*?--privileged\\s*=\\s*['\"]?(?:true|yes|y|on|1)\\b|(?:^|\\s)privileged\\s*:\\s*['\"]?(?:true|yes|y|on|1)['\"]?(?=\\s|$|#|,)"
     positive_examples:
       - "privileged: true"
+      - "privileged: 'true'"
+      - "privileged: yes"
+      - "privileged: Yes"
+      - "privileged: 1"
+      - "privileged: on"
+      - "  privileged: \"true\""
+      - "docker run --privileged my/img"
+      - "docker run --privileged=true my/img"
+      - "docker run --privileged=yes my/img"
+    negative_examples:
+      - "privileged: false"
+      - "privileged: 'false'"
+      - "privileged: no"
+      - "privileged: 0"
+      - "non_privileged: true"
+      - "unprivileged: true"
     recommendation: "Never run containers in privileged mode; use specific capabilities instead"
     cwe: ["CWE-250"]
     owasp_asvs: [V13.4.5, V15.2.3]

@@ -145,10 +145,22 @@ patterns:
     category: "privilege_escalation"
     severity: "HIGH"
     title: "World-Writable Permissions on Sensitive Path"
-    description: "Setting 777/666 or o+w on system paths enables privilege escalation"
-    regex: "(?:mode:\\s*[\"']?0?(?:777|666)[\"']?|chmod\\s+(?:-R\\s+)?(?:777|666|o\\+w))"
+    description: "Setting any world-writable mode (octal ending in 2/3/6/7, symbolic +w / o+w / a+w / ugo+w / o=rwx) on system paths or invoking chmod / setfacl with those forms enables privilege escalation: any local user can replace the file's contents."
+    regex: "mode\\s*:\\s*['\"]?(?:0?[0-7]{2}[2367]|[2367])['\"]?(?=\\s|$|#|,)|chmod\\s+(?:-[A-Za-z]+\\s+)*['\"]?(?:0?[0-7]{2}[2367]|[2367])\\b|(?:mode\\s*:\\s*['\"]?|chmod\\s+(?:-[A-Za-z]+\\s+)*)(?:(?=[ugoa]*[oa])[ugoa]+\\+w|(?<![ugoa])\\+w(?=[\\s'\"]))|(?:mode\\s*:\\s*['\"]?|chmod\\s+(?:-[A-Za-z]+\\s+)*)(?:(?=[ugoa]*[oa])[ugoa]+=[rxw]*w[rxw]*)|setfacl\\s+[^\\n]*?-m\\s+[^\\n]*?o:[rxw]*w[rxw]*"
     positive_examples:
       - "mode: \"0777\""
+      - "mode: '0666'"
+      - "mode: 'a+w'"
+      - "mode: 'o+w'"
+      - "mode: 'ugo+w'"
+      - "chmod 666 /etc/sudoers.d/foo"
+      - "chmod a+w /etc/sudoers.d/foo"
+      - "chmod o=rwx /etc/cron.d/job"
+    negative_examples:
+      - "mode: '0750'"
+      - "mode: 'g+w'"
+      - "chmod g+w /etc/x"
+      - "chmod u+x /usr/local/bin/x"
     recommendation: "Replace 0777 / 0666 / o+w with the least-permissive mode that still satisfies the workload (typically 0640 for files and 0750 for directories), and use group ownership rather than world-write to share access between services."
     cwe: ['CWE-732']
     owasp_asvs: [V5.3.1]

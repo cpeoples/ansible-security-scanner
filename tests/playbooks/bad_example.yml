@@ -150,6 +150,36 @@
           -p "{\"data\":{\"tls.key\":\"$TLS_KEY\"}}"
       no_log: true
 
+    # --- operational_security: password_expiry_disabled ---
+    - name: disable password aging on service account
+      ansible.builtin.shell: chage -M 99999 svc_user
+
+    # --- hardcoded_credentials: factory_default_credential_in_basic_auth ---
+    - name: probe appliance with vendor default
+      ansible.builtin.shell: curl -sk -u admin:welcome https://appliance.example/api/health
+
+    # --- command_injection: secret_piped_to_text_processor ---
+    - name: read secret and pipe through jq
+      ansible.builtin.shell: aws secretsmanager get-secret-value --secret-id app | jq -r '.SecretString'
+      no_log: true
+
+    # --- system_compromise: ssh_keygen_empty_passphrase_privileged_key ---
+    - name: generate root key with empty passphrase
+      ansible.builtin.shell: ssh-keygen -t ed25519 -N '' -f /root/.ssh/id_ed25519
+
+    # --- unsafe_permissions: private_key_copied_outside_dot_ssh ---
+    - name: copy root key to non-canonical home
+      ansible.builtin.shell: cp /root/.ssh/id_rsa /home/root/.ssh/id_rsa
+
+    # --- insecure_communication: shell_ssh_scp_strict_host_key_disabled ---
+    - name: scp key with strict host key disabled
+      ansible.builtin.shell: |
+        scp -o StrictHostKeyChecking=no /etc/ssl/private/example.key root@host.example:/etc/ssl/private/example.key
+
+    # --- unsafe_permissions: tls_secret_downloaded_to_world_dir ---
+    - name: stage tls key in world-readable temp
+      ansible.builtin.shell: aws s3 cp s3://bucket/server.key /tmp/server.key
+
     # --- webhook_exposure.yml ---
     - name: Send to Slack webhook
       ansible.builtin.uri:

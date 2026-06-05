@@ -190,6 +190,36 @@ _CREDENTIAL_DEST_PATH_RE: re.Pattern[str] = re.compile(
     re.IGNORECASE,
 )
 
+# Destination paths that resemble private-key / TLS-secret material
+# (filename-shape only - dest *prefix* is checked separately by
+# ``_INSECURE_KEY_DEST_PREFIX_RE``).
+_PRIVATE_KEY_DEST_RE: re.Pattern[str] = re.compile(
+    r"(?:"
+    r"id_(?:rsa|ed25519|ecdsa|dsa)\b"
+    r"|\.(?:key|pem|pfx|p12|jks|p8|ovpn)\b"
+    r"|(?:^|/)private[-_]?key"
+    r")",
+    re.IGNORECASE,
+)
+
+# Destination prefixes that are world-readable, world-writable, or
+# otherwise unsuitable as at-rest homes for private-key material.
+# Acceptable canonical homes are matched separately by
+# ``_CANONICAL_KEY_DEST_PREFIX_RE`` and short-circuit before this
+# check runs.
+_INSECURE_KEY_DEST_PREFIX_RE: re.Pattern[str] = re.compile(
+    r"^(?:/tmp/|/var/tmp/|/dev/shm/|/home/root/|/srv/|/opt/|/mnt/|/media/|/data/|/var/log/|/var/cache/|/var/spool/)",
+    re.IGNORECASE,
+)
+
+# Destination prefixes that are acceptable canonical homes for
+# private-key material; a dest matching one of these short-circuits
+# the rule regardless of the filename shape.
+_CANONICAL_KEY_DEST_PREFIX_RE: re.Pattern[str] = re.compile(
+    r"(?:/\.ssh/|/etc/ssh/|/etc/ssl/private/|/etc/pki/tls/private/|/etc/pki/ca-trust/|/etc/letsencrypt/|/run/|/var/lib/)",
+    re.IGNORECASE,
+)
+
 # Rules whose entire purpose is to find things INSIDE YAML comments
 # (e.g. `# API_TOKEN=abc123` left in a review artefact). The universal
 # comment-line suppression in ``_emit_finding_if_allowed`` must not
@@ -584,7 +614,7 @@ _IP_URL_RE: re.Pattern[str] = re.compile(
     re.IGNORECASE,
 )
 _INSECURE_PROTOCOL_URL_RE: re.Pattern[str] = re.compile(
-    r"(?:http|ftp|telnet)://(?!(?:localhost|127\.0\.0\.1|\[::1\])(?::|/))[^\s'\"]+",
+    r"(?:http|ftp|telnet|tftp|rsync)://(?!(?:localhost|127\.0\.0\.1|\[::1\])(?::|/))[^\s'\"]+",
     re.IGNORECASE,
 )
 
@@ -2303,6 +2333,47 @@ class FileScanner:
                             "Credential File Created Without Explicit Mode",
                             "copy/template/get_url writes to a credential path without setting mode: - falls back to the remote's umask (typically 0644)",
                             "Set mode: '0600' on the task; pair with owner: and group:.",
+                            snippet,
+                        )
+                    )
+                    break
+
+            # File-write of private-key / TLS-secret material to a non-canonical
+            # dest via copy/template/get_url (the native-module path that
+            # ``private_key_copied_outside_dot_ssh`` and
+            # ``tls_secret_downloaded_to_world_dir`` cannot reach because they
+            # only scan ``shell:`` / ``command:`` strings).
+            if task_line:
+                for module_name in _FILE_WRITE_MODULES:
+                    block = task.get(module_name)
+                    if not isinstance(block, dict):
+                        continue
+                    dest = block.get("dest") or block.get("path")
+                    if not isinstance(dest, str) or not dest:
+                        continue
+                    src = block.get("src") or block.get("url") or ""
+                    looks_like_key = bool(
+                        _PRIVATE_KEY_DEST_RE.search(dest)
+                        or (isinstance(src, str) and _PRIVATE_KEY_DEST_RE.search(src))
+                    )
+                    if not looks_like_key:
+                        continue
+                    if _CANONICAL_KEY_DEST_PREFIX_RE.search(dest):
+                        break
+                    if not _INSECURE_KEY_DEST_PREFIX_RE.search(dest):
+                        break
+                    snippet = (
+                        self._ast_task_snippet(lines, task_line) if task_line <= len(lines) else ""
+                    )
+                    findings.append(
+                        self._make_finding(
+                            file_path,
+                            task_line,
+                            "private_key_written_outside_canonical_dir_ast",
+                            "HIGH",
+                            "Private Key Or TLS Secret Written To A Non-Canonical Path",
+                            "copy/template/get_url writes private-key-shaped material (id_rsa, *.key, *.pem, privatekey) to a world-readable or non-canonical path (/tmp, /var/tmp, /dev/shm, /home/root, /srv, /opt, /mnt, /data, /var/log, /var/cache).",
+                            "Move the dest under the canonical home for the key type (`~/.ssh/` for SSH keys, `/etc/ssl/private/`, `/etc/pki/tls/private/`, or `/etc/letsencrypt/live/` for TLS), set `mode: '0600'`, `owner:`, and `group:` to the consuming service account.",
                             snippet,
                         )
                     )
