@@ -307,9 +307,18 @@ def test_remediation_is_relevant_to_the_rule(
 
 
 _SECURE_FIX_BLOCK_RE = re.compile(
-    r"\*\*\u2705[^*\n]+:\*\*\s*\n(?:[^\n]*\n){0,3}```ya?ml\n",
-    re.MULTILINE,
+    r"\*\*\u2705[^*\n]+:\*\*\s*\n(?:[^\n]*\n){0,3}```ya?ml\n(?P<body>.*?)\n```",
+    re.MULTILINE | re.DOTALL,
 )
+
+
+def _companion_fix_hint(rule_id: str, category: str, companion_path) -> str:
+    return (
+        f"  Add a `secure_fix:` entry for `{rule_id}` in {companion_path},\n"
+        f"  or implement a tailored handler in remediations/{category}.py,\n"
+        f"  or set `no_ansible_remediation: true` on the rule if the correct\n"
+        f"  response is procedural."
+    )
 
 
 @pytest.mark.parametrize(
@@ -322,9 +331,10 @@ def test_remediation_includes_secure_fix_yaml_block(
     rule_id: str,
     category: str,
 ) -> None:
-    """Every rule must carry a concrete ``✅ Secure Fix`` YAML block, or
-    set ``no_ansible_remediation: true`` if the correct response is
-    procedural rather than configurable from Ansible."""
+    """Every rule must render a curated ``✅ Secure Fix`` YAML block or set
+    ``no_ansible_remediation: true``. ``negative_examples`` are regex
+    non-match fixtures and are explicitly not accepted as a fix source.
+    """
     meta = _PI.get(rule_id)
     if meta.get("no_ansible_remediation"):
         return
@@ -332,9 +342,6 @@ def test_remediation_includes_secure_fix_yaml_block(
     out = remediation_generator.generate_remediation_example(
         rule_id, "shell: echo placeholder", file_path="test.yml", line_number=1
     )
-
-    if _SECURE_FIX_BLOCK_RE.search(out):
-        return
 
     yml_path = PATTERNS_DIR / f"{category}.yml"
     if not yml_path.exists():
@@ -345,27 +352,32 @@ def test_remediation_includes_secure_fix_yaml_block(
                 break
 
     companion_path = (
-        PATTERNS_DIR / "remediations" / yml_path.name
-        if yml_path
-        else PATTERNS_DIR / "remediations" / f"{category}.yml"
+        PATTERNS_DIR / "remediations" / (yml_path.name if yml_path else f"{category}.yml")
     )
+    fix_hint = _companion_fix_hint(rule_id, category, companion_path)
 
-    pytest.fail(
-        f"{rule_id}: remediation has no `\u2705 Secure Fix` YAML block.\n"
-        f"  category: {category}\n"
-        f"  pattern file: {yml_path}\n"
-        f"\n"
-        f"  Fix one of THREE ways:\n"
-        f"    (a) Add `negative_examples:` to the rule in {yml_path.name}.\n"
-        f"    (b) Add a `secure_fix:` entry under this rule_id in {companion_path}.\n"
-        f"    (c) Add a tailored handler in remediations/<category>.py.\n"
-        f"\n"
-        f"  Or set `no_ansible_remediation: true` on the rule if the\n"
-        f"  correct response is procedural.\n"
-        f"\n"
-        f"  Remediation excerpt (first 320 chars):\n"
-        f"    {out[:320]!r}"
-    )
+    match = _SECURE_FIX_BLOCK_RE.search(out)
+    if not match:
+        pytest.fail(
+            f"{rule_id}: remediation has no `\u2705 Secure Fix` YAML block.\n"
+            f"{fix_hint}\n"
+            f"\n  Remediation excerpt (first 320 chars):\n    {out[:320]!r}"
+        )
+
+    rendered_body = match.group("body").strip()
+    negative_bodies = {
+        ex.rstrip("\n").strip()
+        for ex in (meta.get("negative_examples") or [])
+        if isinstance(ex, str)
+    }
+    if rendered_body in negative_bodies:
+        pytest.fail(
+            f"{rule_id}: rendered Secure Fix YAML matches a "
+            f"`negative_examples` fixture verbatim. Negative examples are "
+            f"regex non-match fixtures, not curated remediation Ansible.\n"
+            f"{fix_hint}\n"
+            f"\n  rendered body (first 320 chars):\n    {rendered_body[:320]!r}"
+        )
 
 
 class TestMaliciousActivityDirect:

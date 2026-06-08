@@ -125,7 +125,7 @@ def _normalize_cwe(raw: str) -> str | None:
     m = _CWE_RE.match(s)
     if m:
         return f"CWE-{int(m.group(1))}"
-    if s.isdigit():
+    if s.isascii() and s.isdigit():
         return f"CWE-{int(s)}"
     return None
 

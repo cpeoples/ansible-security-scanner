@@ -1,0 +1,11 @@
+# Companion Secure Fix snippets for obfuscation_evasion rules.
+
+remediations:
+
+  inline_env_var_secret_laundering:
+    secure_fix: |
+      - name: Bind secret via Ansible's environment: keyword, scoped to the task
+        ansible.builtin.command: python3 /opt/app/ingest.py
+        environment:
+          APP_SECRET: "{{ lookup('community.hashi_vault.vault_kv2_get', path='secret/app').data.data.secret }}"
+        no_log: true

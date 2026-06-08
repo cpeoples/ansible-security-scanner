@@ -1158,3 +1158,22 @@ remediations:
             restrict_public_buckets: true
           policy: "{{ lookup('file', 'policies/private-only.json') }}"
           state: present
+
+  gcp_compute_firewall_ssh_rdp_open_to_world:
+    secure_fix: |
+      - name: Restrict SSH ingress to corporate egress NAT only
+        google.cloud.gcp_compute_firewall:
+          name: ssh-from-corp
+          network: { selfLink: "{{ vpc_self_link }}" }
+          direction: INGRESS
+          source_ranges:
+            - 203.0.113.0/24
+            - 198.51.100.0/24
+          allowed:
+            - ip_protocol: tcp
+              ports: ['22']
+          target_tags: [bastion]
+          state: present
+      - name: Connect via IAP TCP forwarding instead of a public IP
+        ansible.builtin.command:
+          argv: [gcloud, compute, ssh, "{{ vm_name }}", --tunnel-through-iap]

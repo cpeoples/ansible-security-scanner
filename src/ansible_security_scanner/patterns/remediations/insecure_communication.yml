@@ -718,3 +718,70 @@ remediations:
         # NEVER: validate_certs: false; if cert is internal, install
         # the internal CA into the system trust store (/etc/pki/...) or
         # pass `client_cert`/`client_key` for mTLS.
+
+  curl_wget_insecure_flag_in_shell_task:
+    secure_fix: |
+      - name: Install the internal CA so TLS verification can succeed
+        ansible.builtin.copy:
+          src: files/internal-ca.crt
+          dest: /usr/local/share/ca-certificates/internal-ca.crt
+          owner: root
+          group: root
+          mode: '0644'
+      - name: Refresh the system trust store
+        ansible.builtin.command: update-ca-certificates
+      - name: Fetch artefact with TLS verification enabled
+        ansible.builtin.get_url:
+          url: https://internal.example.com/build.tar.gz
+          dest: /opt/app/build.tar.gz
+          checksum: "sha256:{{ build_sha256 }}"
+          validate_certs: true
+          mode: '0644'
+
+  helm_repo_plaintext_http_skip_tls_verify:
+    secure_fix: |
+      - name: Helm repository over HTTPS with full TLS verification
+        kubernetes.core.helm_repository:
+          name: mychart
+          repo_url: https://charts.example.com/
+          validate_certs: true
+
+  insecure_protocol_usage:
+    secure_fix: |
+      - name: Fetch artefact over HTTPS with a pinned checksum
+        ansible.builtin.get_url:
+          url: https://artifacts.internal.example.com/app/app-1.2.3.tgz
+          dest: /opt/app/app-1.2.3.tgz
+          checksum: "sha256:{{ app_sha256 }}"
+          validate_certs: true
+          mode: '0644'
+
+  shell_ssh_scp_strict_host_key_disabled:
+    secure_fix: |
+      - name: Seed the host key from a trusted, out-of-band source
+        ansible.builtin.known_hosts:
+          name: ops-bastion.internal.example.com
+          key: "{{ bastion_host_key }}"
+          path: /etc/ssh/ssh_known_hosts
+          state: present
+      - name: SSH with default StrictHostKeyChecking
+        ansible.builtin.command:
+          argv:
+            - ssh
+            - -o
+            - UserKnownHostsFile=/etc/ssh/ssh_known_hosts
+            - ops-bastion.internal.example.com
+            - uptime
+
+  ssl_verification_disabled:
+    secure_fix: |
+      - name: REST call with TLS verification against the system trust store
+        ansible.builtin.uri:
+          url: https://api.internal.example.com/v1/health
+          validate_certs: true
+          status_code: 200
+      - name: REST call verifying against an internal CA bundle
+        ansible.builtin.uri:
+          url: https://api.corp.internal/v1/health
+          ca_path: /etc/pki/ca-trust/source/anchors/internal-ca.pem
+          validate_certs: true

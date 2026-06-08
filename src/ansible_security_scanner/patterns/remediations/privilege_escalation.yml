@@ -56,3 +56,20 @@ remediations:
           data: 0
           type: dword
           state: present
+
+  dangerous_world_writable:
+    secure_fix: |
+      - name: Sensitive directory with group-restricted access
+        ansible.builtin.file:
+          path: /etc/myapp
+          state: directory
+          owner: root
+          group: myapp
+          mode: '0750'
+      - name: Sensitive file readable only to owner and service group
+        ansible.builtin.file:
+          path: /etc/myapp/secret.conf
+          state: file
+          owner: root
+          group: myapp
+          mode: '0640'

@@ -483,3 +483,69 @@ remediations:
           --restricted-services=storage.googleapis.com,bigquery.googleapis.com
           --enable-vpc-accessible-services
           --vpc-allowed-services=RESTRICTED-SERVICES
+
+  docker_sock_abuse:
+    secure_fix: |
+      - name: Container runtime metrics with no docker.sock bind-mount
+        community.docker.docker_container:
+          name: cadvisor
+          image: gcr.io/cadvisor/cadvisor:v0.49.1
+          read_only: true
+          volumes:
+            - /:/rootfs:ro
+            - /var/lib/docker:/var/lib/docker:ro
+            - /sys:/sys:ro
+          state: started
+      - name: Mediate Docker API access via a read-only socket proxy
+        community.docker.docker_container:
+          name: docker-socket-proxy
+          image: tecnativa/docker-socket-proxy:0.3.0
+          env:
+            CONTAINERS: "1"
+            IMAGES:     "1"
+            POST:       "0"
+            DELETE:     "0"
+          volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+          published_ports: ["127.0.0.1:2375:2375"]
+          state: started
+
+  falco_runtime_security_agent_disabled_or_masked:
+    secure_fix: |
+      - name: Ensure Falco is installed
+        ansible.builtin.package:
+          name: falco
+          state: present
+      - name: Falco runs at boot
+        ansible.builtin.systemd:
+          name: falco
+          enabled: true
+          state: started
+      - name: Tune noisy rules locally rather than disabling the service
+        ansible.builtin.copy:
+          dest: /etc/falco/falco_rules.local.yaml
+          content: |
+            - rule: Write below etc
+              exceptions:
+                - name: known_package_manager_writes
+                  fields: [proc.name]
+                  values: [apt, dpkg, rpm, dnf]
+          owner: root
+          group: root
+          mode: '0644'
+        notify: restart falco
+
+  password_expiry_disabled:
+    secure_fix: |
+      - name: Set the system-wide maximum password age
+        ansible.builtin.lineinfile:
+          path: /etc/login.defs
+          regexp: '^PASS_MAX_DAYS\b'
+          line: 'PASS_MAX_DAYS   90'
+          owner: root
+          group: root
+          mode: '0644'
+      - name: Apply the rotation policy to a specific account
+        ansible.builtin.command:
+          cmd: chage -M 90 svc_user
+        changed_when: false

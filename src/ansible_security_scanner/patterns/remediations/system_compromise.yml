@@ -503,3 +503,27 @@ remediations:
           name: SafeDllSearchMode
           data: 1
           type: dword
+
+  ssh_keygen_empty_passphrase_privileged_key:
+    secure_fix: |
+      - name: Issue a short-TTL host certificate signed by an SSH CA
+        ansible.builtin.command:
+          argv:
+            - ssh-keygen
+            - -s
+            - /etc/ssh/ca
+            - -I
+            - "host-{{ inventory_hostname }}"
+            - -h
+            - -V
+            - "+1h"
+            - /etc/ssh/ssh_host_ed25519_key.pub
+        no_log: true
+      - name: Service account authorized_keys with from= and command= restrictions
+        ansible.builtin.copy:
+          dest: /home/svc/.ssh/authorized_keys
+          content: |
+            from="10.0.0.0/8",command="/usr/local/bin/svc-restart",restrict ssh-ed25519 AAAA... svc@controller
+          owner: svc
+          group: svc
+          mode: '0600'
