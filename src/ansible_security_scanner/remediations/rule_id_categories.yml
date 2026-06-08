@@ -524,6 +524,7 @@ rules_by_category:
     - env_var_constructed_command
     - gzip_compressed_payload
     - hex_encoded_payload
+    - inline_env_var_secret_laundering
     - perl_obfuscated_exec
     - python_obfuscated_exec
     - rev_string_evasion

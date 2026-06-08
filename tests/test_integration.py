@@ -1012,7 +1012,7 @@ def test_suppressions_integration_malicious_content_triggers_meta_finding(tmp_pa
 
 def test_suppressions_integration_unknown_rule_id_triggers_meta_finding(tmp_path):
     """A directive that names a non-existent rule id must trigger the
-    ``nosec_unknown_rule_id`` meta-finding without silencing the real
+    ``unknown_suppression_rule`` meta-finding without silencing the real
     underlying finding."""
     playbook = _write_tmp_playbook(
         tmp_path,
@@ -1025,8 +1025,8 @@ def test_suppressions_integration_unknown_rule_id_triggers_meta_finding(tmp_path
     )
     data = _report_as_json(_scan_playbook(playbook))
     rule_ids = {f["rule_id"] for f in data["findings"] if f["line_number"] == 5}
-    assert "nosec_unknown_rule_id" in rule_ids, (
-        f"expected nosec_unknown_rule_id meta-finding; got {rule_ids}"
+    assert "unknown_suppression_rule" in rule_ids, (
+        f"expected unknown_suppression_rule meta-finding; got {rule_ids}"
     )
     assert "curl_pipe_to_shell" in rule_ids, (
         f"unknown-id directive must not silence the real finding; got {rule_ids}"
@@ -1047,14 +1047,14 @@ def test_suppressions_integration_known_rule_id_no_unknown_meta(tmp_path):
     )
     data = _report_as_json(_scan_playbook(playbook, show_suppressed=True))
     rule_ids = {f["rule_id"] for f in data["findings"]}
-    assert "nosec_unknown_rule_id" not in rule_ids, (
+    assert "unknown_suppression_rule" not in rule_ids, (
         f"valid rule id must not trigger unknown-id meta; got {rule_ids}"
     )
 
 
 def test_suppressions_integration_excessive_density_triggers_meta_finding(tmp_path):
     """A file with at least ``_EXCESSIVE_NOSEC_THRESHOLD`` valid directives
-    triggers ``excessive_nosec_suppression`` exactly once (file-level,
+    triggers ``excessive_suppressions`` exactly once (file-level,
     not per directive)."""
     from ansible_security_scanner.file_scanner import FileScanner
 
@@ -1068,9 +1068,9 @@ def test_suppressions_integration_excessive_density_triggers_meta_finding(tmp_pa
         )
     playbook = _write_tmp_playbook(tmp_path, "\n".join(lines) + "\n")
     data = _report_as_json(_scan_playbook(playbook))
-    excessive = [f for f in data["findings"] if f["rule_id"] == "excessive_nosec_suppression"]
+    excessive = [f for f in data["findings"] if f["rule_id"] == "excessive_suppressions"]
     assert len(excessive) == 1, (
-        f"expected exactly one excessive_nosec_suppression finding; got {len(excessive)}"
+        f"expected exactly one excessive_suppressions finding; got {len(excessive)}"
     )
 
 
@@ -1089,7 +1089,7 @@ def test_suppressions_integration_low_density_no_excessive_meta(tmp_path):
     )
     data = _report_as_json(_scan_playbook(playbook))
     rule_ids = {f["rule_id"] for f in data["findings"]}
-    assert "excessive_nosec_suppression" not in rule_ids, (
+    assert "excessive_suppressions" not in rule_ids, (
         f"low directive count must not trigger density meta; got {rule_ids}"
     )
 

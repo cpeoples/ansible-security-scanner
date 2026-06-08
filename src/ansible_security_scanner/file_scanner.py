@@ -194,6 +194,30 @@ _SECRET_SHAPED_JINJA_RE: re.Pattern[str] = re.compile(
     re.IGNORECASE,
 )
 
+# Bare-identifier flavour of the same vocabulary. Matches a whole
+# variable name; used by the set_fact aliasing detector.
+_SECRET_SHAPED_NAME_RE: re.Pattern[str] = re.compile(
+    r"(?:^|[_\W])"
+    r"(?:password|passwd|passphrase|secret|token|apikey|api[-_]key|"
+    r"private[-_]?key|secret[-_]?key|access[-_]?key|"
+    r"secret[-_]?token|bearer[-_]?token|auth[-_]?token|"
+    r"pw|pass|key|creds?|credentials?)"
+    r"(?:$|[_\W])",
+    re.IGNORECASE,
+)
+
+
+def _is_secret_shaped_name(name: str) -> bool:
+    """True when an identifier looks like a credential holder."""
+    return bool(name) and bool(_SECRET_SHAPED_NAME_RE.search(name))
+
+
+# Leading identifier of a Jinja reference: ``foo``, ``foo.bar``,
+# ``foo['x']``, ``foo[0].stdout``.
+_JINJA_REF_HEAD_RE: re.Pattern[str] = re.compile(
+    r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\b",
+)
+
 # Destination paths that hold credentials, key material, TLS private
 # keys, kube/cluster configs, or vault tokens.
 _CREDENTIAL_DEST_PATH_RE: re.Pattern[str] = re.compile(
@@ -1458,8 +1482,8 @@ _ALWAYS_EMITTED_RULE_IDS: frozenset[str] = frozenset(
     {
         "scan_error",
         "suspicious_suppression",
-        "nosec_unknown_rule_id",
-        "excessive_nosec_suppression",
+        "unknown_suppression_rule",
+        "excessive_suppressions",
     }
 )
 
@@ -1469,7 +1493,7 @@ class FileScanner:
 
     # Threshold at which a single file's count of valid ``# nosec`` /
     # ``# noqa`` directives is treated as blanket-silence rather than
-    # a few targeted exceptions and triggers ``excessive_nosec_suppression``.
+    # a few targeted exceptions and triggers ``excessive_suppressions``.
     _EXCESSIVE_NOSEC_THRESHOLD: int = 8
 
     def __init__(
@@ -1962,7 +1986,7 @@ class FileScanner:
                         else directive.raw
                     )
                     extra_findings.append(
-                        self._build_nosec_unknown_rule_id_finding(
+                        self._build_unknown_suppression_rule_finding(
                             file_path=file_path,
                             directive=directive,
                             unknown_ids=unknown,
@@ -1972,7 +1996,7 @@ class FileScanner:
 
                 if len(valid_directives) >= self._EXCESSIVE_NOSEC_THRESHOLD:
                     extra_findings.append(
-                        self._build_excessive_nosec_finding(
+                        self._build_excessive_suppressions_finding(
                             file_path=file_path,
                             directive=min(valid_directives, key=lambda d: d.line_number),
                             count=len(valid_directives),
@@ -2166,6 +2190,14 @@ class FileScanner:
                     lines[line_num - 1].strip(),
                     str(file_path.absolute()),
                     line_num,
+                    title_fallback="Hardcoded Credentials",
+                    description_fallback=(
+                        "Hardcoded passwords, API keys, secrets, service "
+                        "credentials, or webhook URLs found in playbook"
+                    ),
+                    recommendation_fallback=(
+                        "Use ansible-vault, environment variables, or external secret management"
+                    ),
                 )
                 tags = get_framework_tags("hardcoded_credentials")
                 return SecurityFinding(
@@ -3205,6 +3237,8 @@ class FileScanner:
         # those reliably without FPs.
         findings.extend(self._scan_become_user_without_become(yaml_data, lines, file_path))
 
+        findings.extend(self._scan_set_fact_secret_alias(yaml_data, lines, file_path))
+
         return findings
 
     @staticmethod
@@ -3292,6 +3326,83 @@ class FileScanner:
             else:
                 _scan_task_list([item], False)
 
+        return out
+
+    def _scan_set_fact_secret_alias(
+        self, yaml_data, lines: list[str], file_path: Path
+    ) -> list[SecurityFinding]:
+        """Flag ``set_fact`` assignments that copy a secret-shaped variable
+        into a non-secret-shaped fact.
+
+        Example shape:
+
+            - command: vault read -field=value secret/db
+              register: db_password
+
+            - set_fact:
+                config_value: "{{ db_password.stdout | trim }}"
+
+        ``config_value`` carries the same data as ``db_password`` but its
+        name no longer signals "credential", so name-based ``no_log``
+        heuristics, secret-name greps, and reviewer attention all stop
+        watching it.
+
+        Triggers when:
+          - LHS is a plain identifier (not Jinja-templated)
+          - LHS is NOT secret-shaped
+          - RHS is a string with at least one ``{{ name... }}`` reference
+            whose head identifier IS secret-shaped
+          - RHS is not a ``vault``/``hashi_vault``/``aws_secret`` lookup
+            (those are reads from a secret store, not aliasing)
+        """
+        out: list[SecurityFinding] = []
+        tasks = self._extract_all_tasks(yaml_data)
+        for task in tasks:
+            if not isinstance(task, dict):
+                continue
+            sf = task.get("set_fact") or task.get("ansible.builtin.set_fact")
+            if not isinstance(sf, dict):
+                continue
+            for lhs, rhs in sf.items():
+                if not isinstance(lhs, str) or not lhs or "{{" in lhs:
+                    continue
+                if _is_secret_shaped_name(lhs):
+                    continue
+                if not isinstance(rhs, str) or "{{" not in rhs:
+                    continue
+                if "lookup(" in rhs:
+                    continue
+                heads = {m.group(1) for m in _JINJA_REF_HEAD_RE.finditer(rhs)}
+                tainting = sorted(h for h in heads if _is_secret_shaped_name(h))
+                if not tainting:
+                    continue
+                ln = self._find_task_line(task.get("name", ""), lines) or 1
+                snippet = self._ast_task_snippet(lines, ln) if ln <= len(lines) else ""
+                source = tainting[0]
+                out.append(
+                    self._make_finding(
+                        file_path,
+                        ln,
+                        "set_fact_secret_alias",
+                        "HIGH",
+                        "set_fact Aliases Secret Variable Into Generic Name",
+                        (
+                            f"set_fact assigns ``{lhs}`` from secret-shaped "
+                            f"variable ``{source}``. Renaming a credential "
+                            "into a generic fact defeats name-based "
+                            "no_log heuristics and review greps."
+                        ),
+                        (
+                            f"Either keep a secret-shaped name on ``{lhs}`` "
+                            "(so downstream rules and reviewers still see "
+                            "it as a credential) or replace the alias with "
+                            "a vault/secret-store lookup at the consuming "
+                            "task. Set ``no_log: true`` on every task that "
+                            "reads the value."
+                        ),
+                        snippet,
+                    )
+                )
         return out
 
     def _scan_k8s_specs(
@@ -3766,7 +3877,13 @@ class FileScanner:
         snippet = redact_secrets(snippet)
         try:
             remediation = self.remediation_generator.generate_remediation_example(
-                rule_id, snippet, str(file_path.absolute()), line_num
+                rule_id,
+                snippet,
+                str(file_path.absolute()),
+                line_num,
+                title_fallback=title or "",
+                description_fallback=description or "",
+                recommendation_fallback=recommendation or "",
             )
         except Exception:
             remediation = f"**Fix:** {recommendation}"
@@ -5676,7 +5793,7 @@ class FileScanner:
     def _known_rule_ids(self) -> frozenset[str]:
         """Memoised view of every rule id the scanner can emit.
 
-        Used by ``nosec_unknown_rule_id`` to decide whether a directive
+        Used by ``unknown_suppression_rule`` to decide whether a directive
         names a real rule. Lazy-imports ``patterns_manager`` to avoid a
         module-load circular and caches the result per instance.
         """
@@ -5686,7 +5803,7 @@ class FileScanner:
             self._known_rule_ids_cache = known_rule_ids()
         return self._known_rule_ids_cache
 
-    def _build_nosec_unknown_rule_id_finding(
+    def _build_unknown_suppression_rule_finding(
         self,
         *,
         file_path: Path,
@@ -5702,8 +5819,8 @@ class FileScanner:
         return SecurityFinding(
             file_path=str(file_path.relative_to(self.directory)),
             line_number=directive.line_number,
-            rule_id="nosec_unknown_rule_id",
-            severity="HIGH",
+            rule_id="unknown_suppression_rule",
+            severity="MEDIUM",
             title="Suppression Directive Names Unknown Rule",
             description=(
                 f"A `# nosec` / `# noqa` directive references rule id(s) "
@@ -5716,7 +5833,9 @@ class FileScanner:
                 "id. Run `ansible-security-scanner --list-rules` for "
                 "the canonical list. If the original finding is "
                 "legitimate, fix the underlying issue instead of "
-                "suppressing it."
+                "suppressing it. MEDIUM severity: a `--severity HIGH` "
+                "CI gate passes; the finding still emits (always-on, "
+                "unsuppressable) so reviewers see it."
             ),
             code_snippet=line.strip(),
             remediation_example=(
@@ -5737,7 +5856,7 @@ class FileScanner:
             owasp_appsec=["A08:2021"],
         )
 
-    def _build_excessive_nosec_finding(
+    def _build_excessive_suppressions_finding(
         self,
         *,
         file_path: Path,
@@ -5750,8 +5869,8 @@ class FileScanner:
         return SecurityFinding(
             file_path=str(file_path.relative_to(self.directory)),
             line_number=directive.line_number,
-            rule_id="excessive_nosec_suppression",
-            severity="HIGH",
+            rule_id="excessive_suppressions",
+            severity="MEDIUM",
             title="Excessive Inline Suppressions In One File",
             description=(
                 f"This file contains {count} valid `# nosec` / `# noqa` "
@@ -5765,7 +5884,9 @@ class FileScanner:
                 "documents a reviewed exception with a written "
                 "`reason=`. If the playbook genuinely needs many "
                 "exceptions, split it so each file's suppressions are "
-                "easy to review."
+                "easy to review. MEDIUM severity: a `--severity HIGH` "
+                "CI gate passes; the finding still emits (always-on, "
+                "unsuppressable) so reviewers see it."
             ),
             code_snippet=directive.raw,
             remediation_example=(

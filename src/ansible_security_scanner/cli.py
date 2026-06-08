@@ -12,6 +12,7 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
+from .file_scanner import _ALWAYS_EMITTED_RULE_IDS
 from .patterns_manager import (
     RuleListingRow,
     RuleSelectionError,
@@ -1237,6 +1238,16 @@ def main():
     except RuleSelectionError as exc:
         logger.error("%s", exc)
         sys.exit(2)
+
+    if args.ignore:
+        _, ignored_preview, _ = _resolve_run_policy(args)
+        unignorable = sorted(set(ignored_preview) & _ALWAYS_EMITTED_RULE_IDS)
+        if unignorable:
+            logger.warning(
+                "--ignore listed always-emitted rule(s) %s; these still fire "
+                "(they detect scan failures and audit-evasion attempts).",
+                ", ".join(unignorable),
+            )
 
     # MR touched no YAML - produce an empty report so the downstream pipeline
     # (formatter -> write -> MR comment) still runs and the user gets a

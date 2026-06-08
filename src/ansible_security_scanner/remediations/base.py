@@ -9,16 +9,29 @@ from ..variable_extractor import VariableExtractor
 from . import _companion_index, _pattern_index
 
 
-def _render_from_metadata(rule_id: str, code_snippet: str) -> str:
+def _render_from_metadata(
+    rule_id: str,
+    code_snippet: str,
+    *,
+    title_fallback: str = "",
+    description_fallback: str = "",
+    recommendation_fallback: str = "",
+) -> str:
     """Render the canonical remediation block for ``rule_id``.
 
     Lives at module scope so per-category dispatchers can reach it
     without circular imports through ``RemediationGenerator``.
+
+    The ``*_fallback`` kwargs cover structural rules emitted from code
+    (no ``patterns/*.yml`` entry, hence absent from ``_pattern_index``).
+    The pattern catalog wins when populated; the fallbacks fill the
+    void so the rendered ``Show recommended fix`` block always carries
+    real text rather than the ``this <rule_id> issue`` stub.
     """
-    meta = _pattern_index.get(rule_id)
-    title = meta.get("title") or ""
-    description = meta.get("description") or f"this {rule_id} issue"
-    recommendation = meta.get("recommendation") or ""
+    meta = _pattern_index.get(rule_id) or {}
+    title = meta.get("title") or title_fallback
+    description = meta.get("description") or description_fallback or f"this {rule_id} issue"
+    recommendation = meta.get("recommendation") or recommendation_fallback
     no_ansible_fix = bool(meta.get("no_ansible_remediation"))
 
     secure_fix = None if no_ansible_fix else _select_secure_fix(rule_id, meta)

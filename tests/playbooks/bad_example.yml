@@ -5482,3 +5482,7 @@
     - name: trigger debug_of_ansible_magic_auth_variable
       ansible.builtin.debug:
         var: ansible_password
+
+    # --- obfuscation_evasion.yml: inline_env_var_secret_laundering ---
+    - name: trigger inline_env_var_secret_laundering
+      ansible.builtin.shell: 'API_TOKEN="{{ vault_api_token }}" python3 -c "import os; print(os.environ[''API_TOKEN''])"'
