@@ -34,7 +34,7 @@ def _render_from_metadata(
     recommendation = meta.get("recommendation") or recommendation_fallback
     no_ansible_fix = bool(meta.get("no_ansible_remediation"))
 
-    secure_fix = None if no_ansible_fix else _select_secure_fix(rule_id, meta)
+    secure_fix = None if no_ansible_fix else _select_secure_fix(rule_id)
     if secure_fix:
         secure_block = f"\n**\u2705 Secure Fix Example:**\n```yaml\n{secure_fix}\n```\n"
     elif no_ansible_fix:
@@ -58,12 +58,12 @@ def _render_from_metadata(
     )
 
 
-def _select_secure_fix(rule_id: str, meta: dict) -> str | None:
-    """Return rule-local ``negative_examples[0]`` if present, else the
-    companion-file entry, else None."""
-    for example in meta.get("negative_examples") or []:
-        if isinstance(example, str) and example.strip():
-            return example.rstrip("\n")
+def _select_secure_fix(rule_id: str) -> str | None:
+    """Return the curated companion-file fix for ``rule_id``, or ``None``.
+
+    ``negative_examples`` are regex non-match fixtures, not curated secure
+    code, so they are intentionally not consulted as a remediation source.
+    """
     return _companion_index.get(rule_id)
 
 

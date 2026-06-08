@@ -3,7 +3,6 @@
 System compromise remediation generator for Ansible Security Scanner
 """
 
-from . import _pattern_index
 from .base import BaseRemediationGenerator, _render_from_metadata
 
 
@@ -465,37 +464,6 @@ This command creates unauthorized privilege escalation paths, allowing attackers
 """
 
         return template
-
-    def _generate_metadata_compromise_fix(self, rule_id: str, code_snippet: str) -> str:
-        """Build a rule-specific remediation from the pattern's own metadata.
-
-        The rule's ``title``, ``description``, ``recommendation`` and
-        ``negative_examples`` (when present) carry far better context than
-        any category-level boilerplate could - so render them. When a rule
-        has no recommendation we still emit the rule's title and description
-        verbatim, which beats the legacy "perform legitimate maintenance"
-        template that had no relationship to the actual finding.
-        """
-        meta = _pattern_index.get(rule_id)
-        title = meta.get("title") or rule_id
-        description = meta.get("description") or ""
-        recommendation = meta.get("recommendation") or ""
-        negs = meta.get("negative_examples") or []
-
-        secure_block = ""
-        if negs:
-            secure_block = f"\n**\u2705 Secure Fix Example:**\n```yaml\n{negs[0]}\n```\n"
-
-        rec_block = ""
-        if recommendation:
-            rec_block = f"\n**\U0001f6e0 Recommendation:**\n{recommendation}\n"
-
-        return (
-            f"\n**\u274c Vulnerable Code:**\n```yaml\n{code_snippet}\n```\n"
-            f"\n**\U0001f50d {title} ({rule_id}):**\n{description}\n"
-            f"{rec_block}"
-            f"{secure_block}"
-        )
 
     def _generate_generic_compromise_fix(self, code_snippet: str) -> str:
         """Legacy boilerplate fallback. Retained for backward compatibility

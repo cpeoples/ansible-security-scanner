@@ -1,0 +1,18 @@
+# Companion Secure Fix snippets for dangerous_modules rules.
+
+remediations:
+
+  assemble_module_unsafe:
+    secure_fix: |
+      - name: Validate fragment dir is on the allow-list
+        ansible.builtin.assert:
+          that: fragment_dir in ['/etc/myapp/fragments', '/etc/myapp/extra-fragments']
+          fail_msg: "fragment_dir is not on the allow-list"
+      - name: Concatenate fragments from a controller-trusted directory
+        ansible.builtin.assemble:
+          src: "{{ fragment_dir }}"
+          dest: /etc/myapp/full.conf
+          owner: root
+          group: root
+          mode: '0640'
+          validate: "/usr/sbin/myapp -t -c %s"

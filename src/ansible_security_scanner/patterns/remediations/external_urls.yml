@@ -1,0 +1,12 @@
+# Companion Secure Fix snippets for external_urls rules.
+
+remediations:
+
+  ip_address_url:
+    secure_fix: |
+      - name: Address the endpoint by hostname
+        ansible.builtin.uri:
+          url: https://api.internal.example.com/v1/health
+          method: GET
+          validate_certs: true
+          status_code: 200

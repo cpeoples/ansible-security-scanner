@@ -30,3 +30,12 @@ remediations:
             ansible_port: 5986
             ansible_winrm_server_cert_validation: validate
           mode: '0640'
+
+  delegate_to_external_host:
+    secure_fix: |
+      - name: Delegate to a literal, controller-trusted host
+        ansible.builtin.command: /usr/local/bin/run-on-bastion.sh
+        delegate_to: ops-bastion.internal.example.com
+      - name: Delegate to the first member of a validated inventory group
+        ansible.builtin.command: /usr/local/bin/run-on-master.sh
+        delegate_to: "{{ groups['kube_master'][0] }}"

@@ -1,10 +1,9 @@
 # Companion Remediation Files
 
-Each YAML file in this directory carries hand-written `Secure Fix` Ansible
+Each YAML file in this directory carries hand-written `secure_fix` Ansible
 snippets keyed by `rule_id`. The remediation renderer
 (`src/ansible_security_scanner/remediations/base.py::_render_from_metadata`)
-looks here when the matching pattern in `../<category>.yml` does not carry
-a `negative_examples:` field.
+emits the companion entry verbatim under `✅ Secure Fix Example`.
 
 This separation keeps pattern definitions (rule, regex, severity, metadata)
 distinct from remediation guidance (the safe Ansible to ship instead),
@@ -37,6 +36,18 @@ The relevance contract (`test_remediation_is_relevant_to_the_rule`) plus
 this Secure Fix block contract together guarantee every rule produces
 output that mentions the rule's own keywords AND ships a copy-pasteable
 Ansible fix.
+
+## `negative_examples` is not a remediation source
+
+`negative_examples:` on a pattern is a regex non-match fixture - inputs the
+rule must NOT flag. Many are intentionally degenerate strings chosen to
+exercise the regex's negative space, so surfacing them as
+`✅ Secure Fix Example` produces misleading guidance. The renderer accepts
+exactly three sources, in order:
+
+1. A `secure_fix:` entry in this directory.
+2. A tailored handler under `remediations/<category>.py`.
+3. `no_ansible_remediation: true` on the rule (procedural-only response).
 
 ## When a rule has no Ansible-task fix
 

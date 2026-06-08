@@ -230,3 +230,104 @@ remediations:
         UserKnownHostsFile ~/.ssh/known_hosts
         VerifyHostKeyDNS yes
         UpdateHostKeys ask
+
+  delegate_to_dynamic_host:
+    secure_fix: |
+      - name: Static delegate target (no Jinja in delegate_to)
+        ansible.builtin.command: /usr/local/bin/run-on-bastion.sh
+        delegate_to: ops-bastion.internal.example.com
+      - name: Validate the host belongs to a known group before delegating
+        ansible.builtin.assert:
+          that: target_host in groups['kube_master']
+          fail_msg: "target_host is not a kube_master inventory member"
+      - name: Delegate to the validated host
+        ansible.builtin.command: /usr/local/bin/run-on-master.sh
+        delegate_to: "{{ target_host }}"
+
+  git_accept_hostkey_yes:
+    secure_fix: |
+      - name: Seed the git remote host key from a trusted source
+        ansible.builtin.known_hosts:
+          name: github.com
+          key: "{{ github_host_key }}"
+          path: /etc/ssh/ssh_known_hosts
+          state: present
+      - name: Clone with default StrictHostKeyChecking
+        ansible.builtin.git:
+          repo: git@github.com:example/config.git
+          dest: /opt/config
+          accept_hostkey: false
+
+  inventory_group_vars_all_contains_plaintext_secret:
+    secure_fix: |
+      db_password:    "{{ vault_db_password }}"
+      api_token:      "{{ vault_api_token }}"
+      jwt_secret:     "{{ vault_jwt_secret }}"
+      private_ssh_key: "{{ lookup('community.hashi_vault.vault_kv2_get', path='secret/ssh').data.data.private_key }}"
+
+  private_key_copied_outside_dot_ssh:
+    secure_fix: |
+      - name: Render the key into the owning user's ~/.ssh
+        ansible.builtin.copy:
+          dest: /home/svc/.ssh/id_ed25519
+          content: "{{ vault_svc_ssh_private_key }}"
+          owner: svc
+          group: svc
+          mode: '0600'
+        no_log: true
+      - block:
+          - name: Stage a temporary key under a 0700 directory
+            ansible.builtin.copy:
+              dest: /run/svc/key
+              content: "{{ vault_svc_ssh_private_key }}"
+              owner: svc
+              group: svc
+              mode: '0600'
+            no_log: true
+          - name: Use the staged key
+            ansible.builtin.command: /usr/local/bin/svc-tool --key /run/svc/key
+        always:
+          - name: Remove the staged key
+            ansible.builtin.file:
+              path: /run/svc/key
+              state: absent
+
+  tls_secret_downloaded_to_world_dir:
+    secure_fix: |
+      - name: Pre-create the secret directory
+        ansible.builtin.file:
+          path: /etc/ssl/private
+          state: directory
+          owner: root
+          group: ssl-cert
+          mode: '0710'
+      - name: Download the key directly into its final location
+        amazon.aws.s3_object:
+          bucket: tls-private
+          object: app/server.key
+          mode: get
+          dest: /etc/ssl/private/server.key
+          overwrite: different
+      - name: Lock down the downloaded key
+        ansible.builtin.file:
+          path: /etc/ssl/private/server.key
+          owner: app
+          group: app
+          mode: '0600'
+
+  world_writable_files:
+    secure_fix: |
+      - name: Sensitive file readable only to owner and service group
+        ansible.builtin.file:
+          path: /etc/myapp/config.yml
+          state: file
+          owner: root
+          group: myapp
+          mode: '0640'
+      - name: Sensitive directory traversable only by owner and service group
+        ansible.builtin.file:
+          path: /var/lib/myapp
+          state: directory
+          owner: myapp
+          group: myapp
+          mode: '0750'

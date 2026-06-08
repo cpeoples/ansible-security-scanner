@@ -112,3 +112,19 @@ remediations:
           query: "{{ ddl_statement }}"
         register: ddl_result
         failed_when: ddl_result.rowcount is not defined
+
+  data_exfiltration_curl:
+    secure_fix: |
+      - name: Ship diagnostic to an org-owned, IAM-authenticated object store
+        amazon.aws.s3_object:
+          bucket: ops-diagnostics
+          object: "{{ inventory_hostname }}/{{ ansible_date_time.iso8601_basic }}.tgz"
+          src: /tmp/diagnostic.tgz
+          mode: put
+          encrypt: true
+      - name: Block known anonymous-upload sinks at egress
+        community.general.ufw:
+          rule: deny
+          direction: out
+          to: any
+          comment: "T1567 anonymous upload sinks"

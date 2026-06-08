@@ -86,3 +86,44 @@ remediations:
           resolve_entities=False, no_network=True, dtd_validation=False,
           load_dtd=False, recover=False)
       tree = etree.parse(path, parser)
+
+  jinja2_lookup_pipe_in_template:
+    secure_fix: |
+      - name: Resolve the lookup once in a reviewable task
+        ansible.builtin.set_fact:
+          install_dir: "{{ lookup('pipe', '/usr/local/bin/get-install-dir') }}"
+      - name: Render the template against the resolved fact
+        ansible.builtin.template:
+          src: app.conf.j2
+          dest: /etc/app/app.conf
+          mode: '0640'
+
+  template_command_substitution:
+    secure_fix: |
+      - name: Resolve the dynamic value with a registered command
+        ansible.builtin.command: /usr/bin/sha512sum myapp.tar.gz
+        register: sha_result
+        changed_when: false
+      - name: Use the registered value with a quoted interpolation
+        ansible.builtin.shell: "echo {{ sha_result.stdout.split()[0] | quote }}"
+
+  template_in_sql_query:
+    secure_fix: |
+      - name: Parameterised query using named_args
+        community.postgresql.postgresql_query:
+          login_host: "{{ db_host }}"
+          login_user: "{{ db_user }}"
+          login_password: "{{ vault_db_password }}"
+          db: "{{ db_name }}"
+          query: "UPDATE users SET role = %(role)s WHERE id = %(id)s"
+          named_args:
+            role: "{{ role }}"
+            id:   "{{ user_id }}"
+
+  unquoted_template_variable:
+    secure_fix: |
+      - name: Run argv directly so no shell parses the interpolation
+        ansible.builtin.command:
+          argv: [/usr/local/bin/echo-tool, "{{ user_input }}"]
+      - name: When a shell is required, fully quote the interpolation
+        ansible.builtin.shell: "echo {{ user_input | quote }}"

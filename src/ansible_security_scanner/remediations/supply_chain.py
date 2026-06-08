@@ -5,8 +5,7 @@ Remediation generator for supply chain integrity issues
 
 from __future__ import annotations
 
-from . import _pattern_index
-from .base import BaseRemediationGenerator
+from .base import BaseRemediationGenerator, _render_from_metadata
 
 
 class SupplyChainRemediationGenerator(BaseRemediationGenerator):
@@ -267,18 +266,7 @@ class SupplyChainRemediationGenerator(BaseRemediationGenerator):
 """
 
     def _generate_pattern_driven_fix(self, rule_id: str, code_snippet: str) -> str:
-        meta = _pattern_index.get(rule_id)
-        description = meta.get("description") or f"this {rule_id} issue"
-        recommendation = meta.get("recommendation") or ""
-        negs = meta.get("negative_examples") or []
-        secure_block = f"\n**Secure Fix Example:**\n```yaml\n{negs[0]}\n```\n" if negs else ""
-        rec_block = f"\n**Recommendation:**\n{recommendation}\n" if recommendation else ""
-        return (
-            f"\n**Vulnerable Code:**\n```yaml\n{code_snippet}\n```\n"
-            f"\n**What this rule detects ({rule_id}):**\n{description}\n"
-            f"{rec_block}"
-            f"{secure_block}"
-        )
+        return _render_from_metadata(rule_id, code_snippet)
 
     # Ecosystem remediation generators
     def _generate_role_meta_unpinned_fix(self, code_snippet: str) -> str:

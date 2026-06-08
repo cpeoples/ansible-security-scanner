@@ -311,3 +311,22 @@ remediations:
                     apiVersions: ["v1"]
                     operations: ["CREATE","UPDATE"]
                     resources: ["pods"]
+
+  k8s_wildcard_rbac:
+    secure_fix: |
+      - name: Least-privilege Role with explicit verbs, resources, and apiGroups
+        kubernetes.core.k8s:
+          state: present
+          definition:
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: Role
+            metadata:
+              name: app-reader
+              namespace: app
+            rules:
+              - apiGroups: [""]
+                resources: [pods, configmaps]
+                verbs: [get, list, watch]
+              - apiGroups: [apps]
+                resources: [deployments]
+                verbs: [get, list, watch]

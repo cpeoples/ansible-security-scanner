@@ -5,7 +5,6 @@ Malicious activity remediation generator for Ansible Security Scanner
 
 import re
 
-from . import _pattern_index
 from .base import BaseRemediationGenerator, _render_from_metadata
 
 
@@ -876,17 +875,3 @@ This code contains patterns consistent with malicious activity and should be rem
 
         body = self._generate_generic_malicious_fix(code_snippet)
         return context_callout + body
-
-    def _generate_pattern_driven_fix(self, rule_id: str, code_snippet: str) -> str:
-        meta = _pattern_index.get(rule_id)
-        description = meta.get("description") or f"this {rule_id} pattern"
-        recommendation = meta.get("recommendation") or ""
-        negs = meta.get("negative_examples") or []
-        secure_block = f"\n**Secure Fix Example:**\n```yaml\n{negs[0]}\n```\n" if negs else ""
-        rec_block = f"\n**Recommendation:**\n{recommendation}\n" if recommendation else ""
-        return (
-            f"\n**Vulnerable Code:**\n```yaml\n{code_snippet}\n```\n"
-            f"\n**What this rule detects ({rule_id}):**\n{description}\n"
-            f"{rec_block}"
-            f"{secure_block}"
-        )

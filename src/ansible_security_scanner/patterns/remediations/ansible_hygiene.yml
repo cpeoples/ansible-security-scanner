@@ -133,3 +133,11 @@ remediations:
       # The application bearer token is fetched at runtime from
       # community.hashi_vault.vault_kv2_get('secret/app/api', 'token').
       # Cleartext examples like `# token: abc123` MUST be deleted.
+
+  debug_of_ansible_magic_auth_variable:
+    secure_fix: |
+      - name: Verify connectivity without printing the credential
+        ansible.builtin.ping:
+      - name: Log only non-sensitive identity
+        ansible.builtin.debug:
+          msg: "running as {{ ansible_user }}@{{ inventory_hostname }}"

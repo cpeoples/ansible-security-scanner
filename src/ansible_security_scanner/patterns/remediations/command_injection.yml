@@ -1,0 +1,91 @@
+# Companion Secure Fix snippets for command_injection rules.
+
+remediations:
+
+  command_chaining:
+    secure_fix: |
+      - name: Remove old build dir
+        ansible.builtin.file:
+          path: "/tmp/{{ name }}"
+          state: absent
+      - name: Restart service after cleanup
+        ansible.builtin.systemd:
+          name: app
+          state: restarted
+
+  curl_with_credentials:
+    secure_fix: |
+      - name: REST call with vault-sourced basic auth
+        ansible.builtin.uri:
+          url: https://controller.example.com/api/health
+          method: GET
+          url_username: "{{ vault_api_user }}"
+          url_password: "{{ vault_api_password }}"
+          force_basic_auth: true
+          validate_certs: true
+          status_code: 200
+        no_log: true
+
+  environment_variable_execution:
+    secure_fix: |
+      - name: Forward only allow-listed remote subcommands as argv
+        ansible.builtin.command:
+          argv:
+            - /usr/local/bin/forced-handler
+            - "{{ allowed_subcommand }}"
+        when: allowed_subcommand in ['status', 'reload', 'health']
+
+  eval_usage:
+    secure_fix: |
+      - name: Dispatch on a known action key
+        ansible.builtin.shell: |
+          case "{{ action | quote }}" in
+            start)  systemctl start app ;;
+            stop)   systemctl stop  app ;;
+            reload) systemctl reload app ;;
+            *) echo "unsupported action" >&2 ; exit 2 ;;
+          esac
+        args:
+          executable: /bin/bash
+
+  interpreter_inline_code_execution:
+    secure_fix: |
+      - name: Run vetted script with values on argv
+        ansible.builtin.script: "files/ingest.py {{ payload_id | quote }}"
+
+  secret_piped_to_text_processor:
+    secure_fix: |
+      - name: Read secret with the matching lookup plugin
+        ansible.builtin.set_fact:
+          app_secret: "{{ lookup('community.aws.aws_secret', 'app') }}"
+        no_log: true
+
+  secret_var_in_command_argv:
+    secure_fix: |
+      - name: Render secret to a 0600 tempfile
+        ansible.builtin.copy:
+          dest: /run/app/token
+          content: "{{ vault_api_token }}"
+          owner: app
+          group: app
+          mode: '0600'
+        no_log: true
+      - name: Pass the path on argv, not the value
+        ansible.builtin.command:
+          argv: [/usr/local/bin/app-cli, --token-file, /run/app/token]
+
+  shell_inline_compound_command:
+    secure_fix: |
+      - name: Run argv directly, no shell parser involved
+        ansible.builtin.command:
+          argv: [/usr/local/bin/app-tool, --target, "{{ target }}"]
+
+  subshell_execution:
+    secure_fix: |
+      - name: Resolve the dynamic value once
+        ansible.builtin.command: hostname
+        register: host_fact
+        changed_when: false
+      - name: Use the registered value as argv
+        ansible.builtin.command:
+          argv: [/usr/bin/tool, --arg, "{{ host_fact.stdout }}"]

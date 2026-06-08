@@ -1,0 +1,30 @@
+# Companion Secure Fix snippets for jinja_lookup_rce rules.
+
+remediations:
+
+  jinja_in_set_fact_unsafe:
+    secure_fix: |
+      - name: Resolve the secret via a vault-aware lookup
+        ansible.builtin.set_fact:
+          api_token: "{{ lookup('community.hashi_vault.vault_kv2_get', path='secret/app').data.data.token }}"
+        no_log: true
+
+  lookup_env_leak:
+    secure_fix: |
+      - name: Pull the token from the secrets backend
+        ansible.builtin.set_fact:
+          deploy_token: "{{ lookup('community.hashi_vault.vault_kv2_get', path='secret/ci').data.data.deploy_token }}"
+        no_log: true
+
+  lookup_file_traversal:
+    secure_fix: |
+      - name: Reject paths outside the trusted prefix
+        ansible.builtin.assert:
+          that:
+            - cert_path is string
+            - cert_path.startswith('/etc/myapp/certs/')
+            - "'..' not in cert_path"
+          fail_msg: "cert_path must live under /etc/myapp/certs/"
+      - name: Read the validated certificate
+        ansible.builtin.set_fact:
+          cert_pem: "{{ lookup('ansible.builtin.file', cert_path) }}"

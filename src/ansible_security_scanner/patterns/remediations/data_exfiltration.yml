@@ -1,0 +1,40 @@
+# Companion Secure Fix snippets for data_exfiltration rules.
+
+remediations:
+
+  network_configuration_collection:
+    secure_fix: |
+      - name: Collect network state via Ansible facts
+        ansible.builtin.setup:
+          gather_subset:
+            - network
+            - interfaces
+        register: net_facts
+      - name: Persist to the controller, not the managed host
+        delegate_to: localhost
+        ansible.builtin.copy:
+          dest: "{{ playbook_dir }}/artifacts/{{ inventory_hostname }}-net.json"
+          content: "{{ net_facts | to_nice_json }}"
+          mode: '0600'
+
+  network_data_exfiltration:
+    secure_fix: |
+      - name: Capture on-host with restricted perms
+        ansible.builtin.command:
+          argv:
+            - tcpdump
+            - -w
+            - "/var/log/cap/{{ inventory_hostname }}-{{ ansible_date_time.iso8601_basic }}.pcap"
+            - -G
+            - '60'
+            - -W
+            - '1'
+        async: 65
+        poll: 0
+      - name: Ship to org-owned object store with IAM auth
+        amazon.aws.s3_object:
+          bucket: incident-pcaps
+          object: "{{ inventory_hostname }}/{{ ansible_date_time.iso8601_basic }}.pcap"
+          src: "/var/log/cap/{{ inventory_hostname }}-{{ ansible_date_time.iso8601_basic }}.pcap"
+          mode: put
+          encrypt: true
