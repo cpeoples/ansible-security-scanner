@@ -110,8 +110,11 @@ UNSUPPRESSABLE_RULE_IDS: set[str] = {
     "selinux_disable",
     "apparmor_disable",
     "firewall_disable",
-    # Meta-rule: a suppression itself is suspicious
+    # Meta-rules: suppressing the scanner about the scanner itself is
+    # never legitimate.
     "suspicious_suppression",
+    "nosec_unknown_rule_id",
+    "excessive_nosec_suppression",
 }
 
 

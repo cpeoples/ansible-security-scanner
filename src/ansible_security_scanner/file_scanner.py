@@ -57,6 +57,7 @@ from .remediations import RemediationGenerator
 from .suppressions import (
     SuppressionDirective,
     SuppressionWarning,
+    canonical_rule_id,
     match_suppression,
     parse_suppressions,
 )
@@ -1449,8 +1450,27 @@ class ParsedFile:
     data: Any
 
 
+# Findings whose rule_id is emitted in code (not from a YAML pattern)
+# AND must always survive the final ``--select``/``--ignore`` gate so
+# the user always learns about scan failures and audit-evasion
+# attempts, even under a narrow rule scope.
+_ALWAYS_EMITTED_RULE_IDS: frozenset[str] = frozenset(
+    {
+        "scan_error",
+        "suspicious_suppression",
+        "nosec_unknown_rule_id",
+        "excessive_nosec_suppression",
+    }
+)
+
+
 class FileScanner:
     """Handles scanning of individual YAML files for security issues"""
+
+    # Threshold at which a single file's count of valid ``# nosec`` /
+    # ``# noqa`` directives is treated as blanket-silence rather than
+    # a few targeted exceptions and triggers ``excessive_nosec_suppression``.
+    _EXCESSIVE_NOSEC_THRESHOLD: int = 8
 
     def __init__(
         self,
@@ -1512,6 +1532,10 @@ class FileScanner:
         # kernel modules, so a curated rule set gets demoted across
         # the whole tree rather than firing as MEDIUM/HIGH risk.
         self._is_hardening_project = _is_security_hardening_project(self.directory)
+        # Lazily populated by ``_known_rule_ids()``; avoids a module-load
+        # circular with ``patterns_manager`` and the per-file cost of
+        # walking every YAML pattern file.
+        self._known_rule_ids_cache: frozenset[str] | None = None
 
     def scan_file(
         self,
@@ -1910,6 +1934,50 @@ class FileScanner:
                                 line=line_text,
                             )
                         )
+
+                # Collapse the by_target map (each directive is indexed at
+                # both its own line and the line below) into one entry per
+                # physical directive so density and unknown-id checks see
+                # the same universe.
+                unique_directives: dict[int, SuppressionDirective] = {}
+                for directive in suppressions.values():
+                    unique_directives.setdefault(directive.line_number, directive)
+
+                known_ids = self._known_rule_ids()
+                valid_directives: list[SuppressionDirective] = []
+                for directive in unique_directives.values():
+                    if not directive.valid:
+                        continue
+                    valid_directives.append(directive)
+                    unknown = sorted(
+                        rid
+                        for rid in directive.rule_ids
+                        if rid != "*" and canonical_rule_id(rid) not in known_ids
+                    )
+                    if not unknown:
+                        continue
+                    line_text = (
+                        lines[directive.line_number - 1]
+                        if 1 <= directive.line_number <= len(lines)
+                        else directive.raw
+                    )
+                    extra_findings.append(
+                        self._build_nosec_unknown_rule_id_finding(
+                            file_path=file_path,
+                            directive=directive,
+                            unknown_ids=unknown,
+                            line=line_text,
+                        )
+                    )
+
+                if len(valid_directives) >= self._EXCESSIVE_NOSEC_THRESHOLD:
+                    extra_findings.append(
+                        self._build_excessive_nosec_finding(
+                            file_path=file_path,
+                            directive=min(valid_directives, key=lambda d: d.line_number),
+                            count=len(valid_directives),
+                        )
+                    )
                 if extra_findings:
                     findings.extend(extra_findings)
 
@@ -1946,26 +2014,16 @@ class FileScanner:
             findings = [_demote_severity(f, _DEMOTE_IN_HARDENING_PROJECT) for f in findings]
         if self.active_rule_ids is not None:
             # Final ``--ignore`` gate. Runs AFTER ``_apply_overlap_suppression``
-            # so that ignoring the most-specific rule of an overlap group
-            # silences its less-specific siblings at the same location too -
-            # the deduper sees the ignored rule fire (we kept group-siblings
-            # in ``pattern_data`` for exactly this reason), drops the
-            # siblings, then this gate drops the ignored finding itself.
-            # Net result: ignoring rule X means rule X's vulnerability is
-            # silent on every line it matches, instead of a less-specific
-            # sibling surfacing ("whack-a-mole").
-            #
-            # Also covers synthetic / structural / jinja2 / taint findings
-            # whose rule_ids are emitted in code rather than via the YAML
-            # pattern loop. ``scan_error`` and ``suspicious_suppression``
-            # are meta-findings about the scan itself - they always fire
-            # so the user learns about parse failures and audit-evasion
-            # attempts even under a narrow ``--select``.
+            # so ignoring the most-specific rule of an overlap group also
+            # silences its less-specific siblings at the same location -
+            # otherwise ignoring rule X surfaces a less-specific sibling
+            # ("whack-a-mole"). ``_ALWAYS_EMITTED_RULE_IDS`` bypasses this
+            # gate so meta-findings (scan errors, audit-evasion) always
+            # surface even under a narrow ``--select``.
             findings = [
                 f
                 for f in findings
-                if f.rule_id in self.active_rule_ids
-                or f.rule_id in {"scan_error", "suspicious_suppression"}
+                if f.rule_id in self.active_rule_ids or f.rule_id in _ALWAYS_EMITTED_RULE_IDS
             ]
         return findings, suppression_warnings
 
@@ -5606,6 +5664,118 @@ class FileScanner:
                 "of the scanned tree, not silenced in place."
             ),
             match_line=line.strip(),
+            references=[
+                "https://owasp.org/Top10/A03_2021-Injection/",
+            ],
+            precision="very-high",
+            cwe=["CWE-1108", "CWE-1112"],
+            mitre_attack=["T1562.001", "T1070"],
+            owasp_appsec=["A08:2021"],
+        )
+
+    def _known_rule_ids(self) -> frozenset[str]:
+        """Memoised view of every rule id the scanner can emit.
+
+        Used by ``nosec_unknown_rule_id`` to decide whether a directive
+        names a real rule. Lazy-imports ``patterns_manager`` to avoid a
+        module-load circular and caches the result per instance.
+        """
+        if self._known_rule_ids_cache is None:
+            from .patterns_manager import known_rule_ids
+
+            self._known_rule_ids_cache = known_rule_ids()
+        return self._known_rule_ids_cache
+
+    def _build_nosec_unknown_rule_id_finding(
+        self,
+        *,
+        file_path: Path,
+        directive: SuppressionDirective,
+        unknown_ids: list[str],
+        line: str,
+    ) -> SecurityFinding:
+        """Construct the meta-finding for a directive naming a non-existent
+        rule. The directive silences nothing (the underlying finding
+        already fired); this surfaces the attempt so reviewers see
+        typo'd, stale, or fabricated rule ids."""
+        ids_str = ", ".join(unknown_ids)
+        return SecurityFinding(
+            file_path=str(file_path.relative_to(self.directory)),
+            line_number=directive.line_number,
+            rule_id="nosec_unknown_rule_id",
+            severity="HIGH",
+            title="Suppression Directive Names Unknown Rule",
+            description=(
+                f"A `# nosec` / `# noqa` directive references rule id(s) "
+                f"the scanner does not know: {ids_str}. The directive "
+                "silences nothing, but its presence implies a finding "
+                "was thought to be triaged when it was not."
+            ),
+            recommendation=(
+                "Remove the directive or replace it with a real rule "
+                "id. Run `ansible-security-scanner --list-rules` for "
+                "the canonical list. If the original finding is "
+                "legitimate, fix the underlying issue instead of "
+                "suppressing it."
+            ),
+            code_snippet=line.strip(),
+            remediation_example=(
+                "**❌ Vulnerable:**\n```yaml\n"
+                f"{line.rstrip()}\n"
+                "```\n\n"
+                "**✅ Secure:**\n"
+                "Use a rule id from `--list-rules`, or remove the "
+                "directive and address the finding directly."
+            ),
+            match_line=line.strip(),
+            references=[
+                "https://owasp.org/Top10/A03_2021-Injection/",
+            ],
+            precision="very-high",
+            cwe=["CWE-1108", "CWE-1112"],
+            mitre_attack=["T1562.001", "T1070"],
+            owasp_appsec=["A08:2021"],
+        )
+
+    def _build_excessive_nosec_finding(
+        self,
+        *,
+        file_path: Path,
+        directive: SuppressionDirective,
+        count: int,
+    ) -> SecurityFinding:
+        """Construct the file-level meta-finding for blanket-suppression
+        density. Anchored at the first valid directive's line; one
+        finding per file regardless of directive count."""
+        return SecurityFinding(
+            file_path=str(file_path.relative_to(self.directory)),
+            line_number=directive.line_number,
+            rule_id="excessive_nosec_suppression",
+            severity="HIGH",
+            title="Excessive Inline Suppressions In One File",
+            description=(
+                f"This file contains {count} valid `# nosec` / `# noqa` "
+                "directives. A handful of targeted exceptions is "
+                "expected; this density indicates blanket silence "
+                "rather than a reviewed exception."
+            ),
+            recommendation=(
+                "Audit every directive in this file. Remove the ones "
+                "that hide real findings; keep only the small set that "
+                "documents a reviewed exception with a written "
+                "`reason=`. If the playbook genuinely needs many "
+                "exceptions, split it so each file's suppressions are "
+                "easy to review."
+            ),
+            code_snippet=directive.raw,
+            remediation_example=(
+                "**❌ Vulnerable:** A single playbook with many "
+                "`# nosec` directives.\n\n"
+                "**✅ Secure:** Fix the underlying findings, or move "
+                "legitimately-exceptional tasks into a dedicated file "
+                "outside the scanned tree."
+            ),
+            match_line=directive.raw,
             references=[
                 "https://owasp.org/Top10/A03_2021-Injection/",
             ],
