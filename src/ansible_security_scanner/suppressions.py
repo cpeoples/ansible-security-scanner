@@ -113,8 +113,9 @@ UNSUPPRESSABLE_RULE_IDS: set[str] = {
     # Meta-rules: suppressing the scanner about the scanner itself is
     # never legitimate.
     "suspicious_suppression",
-    "nosec_unknown_rule_id",
-    "excessive_nosec_suppression",
+    "unknown_suppression_rule",
+    "excessive_suppressions",
+    "set_fact_secret_alias",
 }
 
 

@@ -298,6 +298,17 @@ SYNTHETIC_RULE_FRAMEWORKS: dict[str, FrameworkTags] = {
         "owasp_asvs": ["V2.10.1", "V6.2.1"],
         "stig": ["V-204392"],
     },
+    "set_fact_secret_alias": {
+        "cwe": ["CWE-200", "CWE-522", "CWE-668"],
+        "mitre_attack": ["T1552.001", "T1027"],
+        "cis_controls": ["CIS-3.11", "CIS-4.1"],
+        "nist_controls": ["AC-3", "AU-9", "SI-10"],
+        "pci_dss": ["3.5.1", "8.2.1"],
+        "hipaa": ["164.312(a)(2)(iv)"],
+        "soc2": ["CC6.1", "CC6.8"],
+        "owasp_appsec": ["A02:2021", "A09:2021"],
+        "owasp_asvs": ["V6.2.1", "V7.1.1"],
+    },
 }
 
 

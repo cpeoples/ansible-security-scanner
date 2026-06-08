@@ -611,6 +611,13 @@ T1552.001:
   tactics: ["Credential Access"]
   url: "https://attack.mitre.org/techniques/T1552/001/"
 
+T1552.003:
+  name: "Bash History"
+  parent: "Unsecured Credentials"
+  parent_id: "T1552"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1552/003/"
+
 T1552.004:
   name: "Private Keys"
   parent: "Unsecured Credentials"

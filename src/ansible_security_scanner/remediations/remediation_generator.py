@@ -150,6 +150,10 @@ class RemediationGenerator(BaseRemediationGenerator):
         file_path: str = "",
         line_number: int = 0,
         display_snippet: str | None = None,
+        *,
+        title_fallback: str = "",
+        description_fallback: str = "",
+        recommendation_fallback: str = "",
     ) -> str:
         """Return a category-specific remediation example for ``rule_id``.
 
@@ -158,13 +162,34 @@ class RemediationGenerator(BaseRemediationGenerator):
         stays single-line for the per-category generators that regex
         over it. Falls back to ``code_snippet`` so existing callers are
         unchanged.
+
+        ``*_fallback`` kwargs let structural call sites (rule_ids without
+        a ``patterns/*.yml`` entry) pass the rule's live title /
+        description / recommendation through, so the
+        ``Show recommended fix`` expander always renders real text rather
+        than the ``this <rule_id> issue`` stub.
         """
         rendered_snippet = display_snippet if display_snippet is not None else code_snippet
+
+        def render_meta() -> str:
+            return _render_from_metadata(
+                rule_id,
+                rendered_snippet,
+                title_fallback=title_fallback,
+                description_fallback=description_fallback,
+                recommendation_fallback=recommendation_fallback,
+            )
+
         if _companion_index.get(rule_id):
-            return _render_from_metadata(rule_id, rendered_snippet)
+            return render_meta()
+        # Structural rule (no pattern entry) with caller-supplied
+        # fallbacks: skip per-category dispatch so the expander renders
+        # the rule's real text, not the ``this <rule_id> issue`` stub.
+        if not _pattern_index.get(rule_id) and (description_fallback or recommendation_fallback):
+            return render_meta()
         out = self._dispatch(rule_id, code_snippet, file_path, line_number)
         if not self._is_relevant(rule_id, code_snippet, out):
-            return self._render_from_metadata(rule_id, rendered_snippet)
+            return render_meta()
         return _swap_vulnerable_code_block(out, code_snippet, rendered_snippet)
 
     def _dispatch(
@@ -423,6 +448,3 @@ class RemediationGenerator(BaseRemediationGenerator):
 
         out_lower = output.lower()
         return any(k in out_lower for k in anchors)
-
-    def _render_from_metadata(self, rule_id: str, code_snippet: str) -> str:
-        return _render_from_metadata(rule_id, code_snippet)

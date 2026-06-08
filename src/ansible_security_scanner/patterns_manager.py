@@ -453,8 +453,9 @@ _CODE_EMITTED_RULE_IDS: frozenset[str] = frozenset(
         "cross_file_taint",
         "scan_error",
         "suspicious_suppression",
-        "nosec_unknown_rule_id",
-        "excessive_nosec_suppression",
+        "unknown_suppression_rule",
+        "excessive_suppressions",
+        "set_fact_secret_alias",
     }
 )
 
