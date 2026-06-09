@@ -1390,6 +1390,57 @@ patterns:
     hipaa: ['164.312(e)(1)']
     soc2: ['CC6.7']
 
+  - id: "basic_auth_without_tls_verification"
+    category: "insecure_communication"
+    severity: "CRITICAL"
+    title: "ansible.builtin.uri Sends Basic-Auth Credentials With validate_certs: false"
+    description: "An `ansible.builtin.uri` / `uri` task sets both `force_basic_auth: true` and `validate_certs: false` on the same task. `force_basic_auth: true` ships `Authorization: Basic <base64(user:password)>` in the very first request without waiting for a `401` challenge, so the credential is on the wire on every retry. With `validate_certs: false` on the same task, an on-path attacker presenting any TLS certificate receives the basic-auth credential and recovers the password with one base64 decode."
+    regex: "(?ms)(?:ansible\\.builtin\\.uri|^[\\t ]*uri)\\s*:(?:(?!^\\s*-\\s+(?:name|block|hosts|ansible\\.builtin\\.))[\\s\\S]){0,1500}?(?:\\bforce_basic_auth\\s*:\\s*['\"]?(?:true|yes|on|1)['\"]?(?:(?!^\\s*-\\s+(?:name|block|hosts|ansible\\.builtin\\.))[\\s\\S]){0,1500}?\\bvalidate_certs\\s*:\\s*['\"]?(?:false|no|0|off|n)['\"]?|\\bvalidate_certs\\s*:\\s*['\"]?(?:false|no|0|off|n)['\"]?(?:(?!^\\s*-\\s+(?:name|block|hosts|ansible\\.builtin\\.))[\\s\\S]){0,1500}?\\bforce_basic_auth\\s*:\\s*['\"]?(?:true|yes|on|1)['\"]?)"
+    positive_examples:
+      - |2-
+        - name: post update
+          uri:
+            url: "{{ api_base }}/v1/items"
+            method: POST
+            user: admin
+            password: "{{ vault_admin_password }}"
+            force_basic_auth: yes
+            validate_certs: no
+      - |2-
+        ansible.builtin.uri:
+          url: "{{ controller }}/api/v1/login"
+          user: ops
+          password: "{{ vault_ops_password }}"
+          validate_certs: false
+          force_basic_auth: true
+    negative_examples:
+      - |2-
+        - name: post update
+          uri:
+            url: "https://api.internal.example.com/v1/items"
+            method: POST
+            user: ops
+            password: "{{ vault_ops_password }}"
+            force_basic_auth: yes
+            validate_certs: yes
+      - |2-
+        - name: fetch token
+          uri:
+            url: "https://idp.internal/oauth/token"
+            validate_certs: false
+    multiline: true
+    window: 40
+    recommendation: "Set `validate_certs: true` on every `uri:` task that uses `force_basic_auth: true`. For internal CAs, install the bundle into the system trust store or pass `ca_path: /etc/pki/ca-trust/source/anchors/internal-ca.pem` instead of disabling validation. Add `no_log: true` to the task so the password is not written to logs."
+    cwe: ['CWE-295', 'CWE-300', 'CWE-319', 'CWE-522']
+    owasp_appsec: ["A02:2021", "A07:2021"]
+    owasp_asvs: [V12.3.4, V14.2.1]
+    mitre_attack: ['T1040', 'T1557', 'T1078']
+    cis_controls: ['CIS-3.10', 'CIS-15.4']
+    nist_controls: ['IA-5', 'SC-8', 'SC-8(1)', 'SC-23']
+    pci_dss: ['4.1', '4.2.1', '8.3.1']
+    hipaa: ['164.312(a)(2)(iv)', '164.312(e)(1)']
+    soc2: ['CC6.1', 'CC6.7']
+
   - id: "uri_module_url_plaintext_http"
     category: "insecure_communication"
     severity: "HIGH"

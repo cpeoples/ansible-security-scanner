@@ -719,6 +719,22 @@ remediations:
         # the internal CA into the system trust store (/etc/pki/...) or
         # pass `client_cert`/`client_key` for mTLS.
 
+  basic_auth_without_tls_verification:
+    secure_fix: |
+      - name: REST call with basic auth, full cert validation
+        ansible.builtin.uri:
+          url: "https://api.internal.example.com/v1/items"
+          method: POST
+          url_username: "{{ vault_api_user }}"
+          url_password: "{{ vault_api_password }}"
+          force_basic_auth: true
+          validate_certs: true
+          ca_path: /etc/pki/ca-trust/source/anchors/internal-ca.pem
+          body_format: json
+          body: { name: "{{ item_name }}" }
+          status_code: 201
+        no_log: true
+
   curl_wget_insecure_flag_in_shell_task:
     secure_fix: |
       - name: Install the internal CA so TLS verification can succeed
