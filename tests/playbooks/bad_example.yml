@@ -5347,6 +5347,15 @@
         method: GET
         validate_certs: false
 
+    - name: trigger uri basic auth without tls verification
+      ansible.builtin.uri:
+        url: https://self-signed.badssl.com/api
+        method: POST
+        user: admin
+        password: "{{ vault_admin_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+
     - name: trigger uri plaintext http url
       ansible.builtin.uri:
         url: http://internal-api.example.com/v1/register

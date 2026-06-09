@@ -337,6 +337,7 @@ rules_by_category:
     - azure_db_server_ssl_enforcement_disabled
     - azure_redis_non_ssl_port_enabled
     - azure_webapp_https_only_disabled
+    - basic_auth_without_tls_verification
     - bind_named_conf_open_recursion
     - consul_acl_default_policy_allow
     - curl_wget_insecure_flag_in_shell_task
