@@ -1,0 +1,35 @@
+name: ansible-security-scanner
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+section: utils
+priority: optional
+maintainer: Chris Peoples
+vendor: cpeoples
+homepage: https://github.com/cpeoples/ansible-security-scanner
+license: Apache-2.0
+description: |
+  Static security scanner for Ansible playbooks, roles, and collections.
+  Detects malicious code, RCE, command and template injection, hardcoded
+  credentials, supply-chain risk, and unauthorized cloud access. Outputs
+  SARIF, CycloneDX SBOM, and GitLab SAST.
+
+contents:
+  - src: ./dist-bin/ansible-security-scanner
+    dst: /usr/bin/ansible-security-scanner
+    file_info:
+      mode: 0755
+  - src: ./LICENSE
+    dst: /usr/share/doc/ansible-security-scanner/LICENSE
+  - src: ./NOTICE
+    dst: /usr/share/doc/ansible-security-scanner/NOTICE
+  - src: ./README.md
+    dst: /usr/share/doc/ansible-security-scanner/README.md
+
+deb:
+  fields:
+    Bugs: https://github.com/cpeoples/ansible-security-scanner/issues
+
+rpm:
+  group: Development/Tools
+  summary: Static security scanner for Ansible playbooks
