@@ -5,3 +5,4 @@ build
 twine
 pyyaml
 cyclonedx-bom
+pyinstaller

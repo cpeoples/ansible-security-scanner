@@ -4,6 +4,10 @@
 #
 #    pip-compile --allow-unsafe --generate-hashes --output-file=.github/constraints.txt --strip-extras .github/constraints.in
 #
+altgraph==0.17.5 \
+    --hash=sha256:c87b395dd12fabde9c99573a9749d67da8d29ef9de0125c7f536699b4a9bc9e7 \
+    --hash=sha256:f3a22400bce1b0c701683820ac4f3b159cd301acab067c51c653e06961600597
+    # via pyinstaller
 arrow==1.4.0 \
     --hash=sha256:749f0769958ebdc79c173ff0b0670d59051a535fa26e8eba02953dc19eb43205 \
     --hash=sha256:ed0cc050e98001b8779e84d461b0098c4ac597e88704a655582b21d116e526d7
@@ -594,6 +598,8 @@ packaging==26.2 \
     #   build
     #   cyclonedx-bom
     #   pip-requirements-parser
+    #   pyinstaller
+    #   pyinstaller-hooks-contrib
     #   twine
     #   wheel
 pip-requirements-parser==32.0.1 \
@@ -628,6 +634,24 @@ pygments==2.20.0 \
     # via
     #   readme-renderer
     #   rich
+pyinstaller==6.20.0 \
+    --hash=sha256:03696bb6350177c6bc23bcaf78e71a33c4a89b6754dd90d1be2f318e978c918b \
+    --hash=sha256:0ab39c690abad26ba148e8f664f0478acc82a733997f4f22e757774832802da9 \
+    --hash=sha256:1031bcc307f3fbeffd4e162723e64d46dbf591c82dd0997413afb2a07328b941 \
+    --hash=sha256:6357f1699f6af84f37e7367f031d4f68abdba65543b83990c9e8f5a4cebed0b7 \
+    --hash=sha256:72ae9c1fdea134afa791f58bdc9a1934d5c7609753c111e0026bfc272b32b712 \
+    --hash=sha256:8df3b3f347659fa2562d8d193a98ad4600133b8b8d07c268df89e4154376750e \
+    --hash=sha256:95c5c7e03d5d61e9dfb8ef259c699cf492bb1041beb6dbe83696608cec07347a \
+    --hash=sha256:9a7637e8e44b4387b13667fdcaac86ab6b29c446c16d34d8401539b81838759c \
+    --hash=sha256:b0d3cc9dd8120d448459bd3880a12e2f9774c51443af49047801446377999a59 \
+    --hash=sha256:bd53282c0a73e5c95573e1ddc8e5d564d4932bec91efbaed4dc5fdff9c2ae7f2 \
+    --hash=sha256:bf3be4e1284ee78ddccba5e29f99443a12a7b4673168288ffc4c9d38c6f7b90e \
+    --hash=sha256:d588844e890ee80c4365867f98146636e1849bbca8e4284bbf0c809aff0f161a
+    # via -r .github/constraints.in
+pyinstaller-hooks-contrib==2026.6 \
+    --hash=sha256:bef5002c32f4f50bd55b005da12cff64eca8783e7eaf86a06a62410164bab725 \
+    --hash=sha256:fd13b8ac126b35361175edacd41a0d97080b75dd5f4b594ecefefff969509dd3
+    # via pyinstaller
 pyparsing==3.3.2 \
     --hash=sha256:850ba148bd908d7e2411587e247a1e4f0327839c40e2e5e6d05a007ecc69911d \
     --hash=sha256:c777f4d763f140633dcb6d8a3eda953bf7a214dc4eff598413c070bcdc117cbc
@@ -960,4 +984,6 @@ pip==26.1.2 \
 setuptools==82.0.1 \
     --hash=sha256:7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9 \
     --hash=sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb
-    # via pip-tools
+    # via
+    #   pip-tools
+    #   pyinstaller

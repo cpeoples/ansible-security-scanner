@@ -1,11 +1,12 @@
 name: Scanner Release
 
 # Publishes ansible-security-scanner to TestPyPI and PyPI using
-# PyPI's Trusted Publishing (OIDC) - no long-lived API tokens.
+# PyPI's Trusted Publishing (OIDC) - no long-lived API tokens. Also
+# builds standalone .deb / .rpm packages for amd64 and arm64.
 #
 # Provenance: SLSA Build L3 via slsa-github-generator's generic generator
-# (trusted reusable workflow). Produces a non-forgeable in-toto bundle on
-# the GitHub Release. PyPI also receives PEP 740 attestations
+# (trusted reusable workflow). Provenance covers the sdist, wheel, SBOM,
+# and Linux packages. PyPI also receives PEP 740 attestations
 # automatically from pypa/gh-action-pypi-publish + Trusted Publishing.
 #
 # Release flow:
@@ -16,7 +17,8 @@ name: Scanner Release
 #      -> "Publish release".
 #   4. Pipeline (release event):
 #        build -> publish-testpypi -> smoke-test -> publish-pypi -> sign-and-attest
-#              \-> provenance (SLSA L3, in parallel)
+#              \-> package-linux (amd64, arm64) ----------------/
+#              \-> aggregate-hashes -> provenance (SLSA L3)
 #      A TestPyPI failure short-circuits prod. The `pypi` environment
 #      requires reviewer approval (see repo Settings -> Environments).
 #
@@ -118,9 +120,190 @@ jobs:
           path: sbom/*.cdx.json
           if-no-files-found: error
 
+  package-linux:
+    name: Build ${{ matrix.arch }} Linux packages
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    outputs:
+      hashes-amd64: ${{ steps.hash.outputs.hashes-amd64 }}
+      hashes-arm64: ${{ steps.hash.outputs.hashes-arm64 }}
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Download built wheel
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: scanner-dist
+          path: dist/
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            v="${{ github.event.release.tag_name }}"
+          else
+            v="$(git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0)"
+          fi
+          echo "version=${v#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Install scanner from wheel + PyInstaller
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends binutils
+          python -m pip install --upgrade pip
+          pip install --require-hashes -c .github/constraints.txt pyinstaller
+          pip install dist/*.whl
+
+      - name: Build standalone binary
+        run: |
+          pyinstaller --onefile \
+            --name ansible-security-scanner \
+            --collect-data ansible_security_scanner \
+            --collect-submodules ansible_security_scanner \
+            --console \
+            --distpath build-bin \
+            src/ansible_security_scanner/__main__.py
+
+      - name: Smoke test binary
+        run: |
+          set -euo pipefail
+          bin=./build-bin/ansible-security-scanner
+
+          rules=$("$bin" --list-rules | wc -l)
+          [ "$rules" -ge 1000 ] || { echo "rule count too low: $rules"; exit 1; }
+
+          "$bin" --directory tests/playbooks --files bad_example.yml \
+                 --format json --exit-zero --output /tmp/bad.json
+          python3 - <<'PY'
+          import json
+          s = json.load(open("/tmp/bad.json"))["summary"]
+          assert s["critical"] > 0 and s["high"] > 0, f"expected CRITICAL+HIGH findings, got {s}"
+          PY
+
+          for f in markdown json xml yaml csv html junit sarif gitlab-sast cyclonedx sbom; do
+            "$bin" --directory tests/playbooks --files bad_example.yml \
+                   --format "$f" --exit-zero --output "/tmp/out.$f" >/dev/null
+            [ -s "/tmp/out.$f" ] || { echo "formatter $f produced empty output"; exit 1; }
+          done
+
+          # Exit-code contract: bad_example.yml must trigger CRITICAL (exit 2);
+          # clean_example.yml must pass cleanly (exit 0).
+          "$bin" --directory tests/playbooks --files bad_example.yml >/dev/null 2>&1 && rc=0 || rc=$?
+          [ "$rc" -eq 2 ] || { echo "expected exit 2 on CRITICAL, got $rc"; exit 1; }
+          "$bin" --directory tests/playbooks --files clean_example.yml >/dev/null
+
+      - name: Install nfpm
+        env:
+          NFPM_VERSION: 2.46.3
+          NFPM_SHA256_amd64: d6417f99d5fa32bba7a4e007084615d3897651498c2e443118c26b9ec3b698a8
+          NFPM_SHA256_arm64: dc63aa7228ec70490bae67ad3146883055a055639dcf0dffc82fa965bac75a31
+        run: |
+          set -euo pipefail
+          arch="${{ matrix.arch }}"
+          sha_var="NFPM_SHA256_${arch}"
+          expected="${!sha_var}"
+          curl -fsSL -o /tmp/nfpm.deb \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_${arch}.deb"
+          echo "${expected}  /tmp/nfpm.deb" | sha256sum -c -
+          sudo dpkg -i /tmp/nfpm.deb
+
+      - name: Build .deb and .rpm
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          mkdir -p out dist-bin
+          cp build-bin/ansible-security-scanner dist-bin/
+          nfpm package --packager deb --config packaging/nfpm.yaml --target out/
+          nfpm package --packager rpm --config packaging/nfpm.yaml --target out/
+          ls -lh out/
+
+      - name: Verify .deb installs and runs
+        run: |
+          set -euo pipefail
+          deb=$(ls out/*.deb | head -n1)
+          sudo apt-get install -y "./$deb"
+          ansible-security-scanner --list-rules >/dev/null
+
+      - name: Verify .rpm installs and runs (rockylinux:9)
+        run: |
+          set -euo pipefail
+          rpm=$(ls out/*.rpm | head -n1)
+          rpm_name=$(basename "$rpm")
+          docker run --rm -v "$PWD/out:/pkgs:ro" rockylinux:9 sh -euc "
+            dnf install -y /pkgs/${rpm_name} >/dev/null
+            ansible-security-scanner --list-rules >/dev/null
+          "
+
+      - name: Generate sha256 subjects for SLSA provenance
+        id: hash
+        run: |
+          cd out
+          echo "hashes-${{ matrix.arch }}=$(sha256sum -- *.deb *.rpm | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Linux package artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: scanner-linux-${{ matrix.arch }}
+          path: out/*
+          if-no-files-found: error
+
+  aggregate-hashes:
+    name: Aggregate provenance subjects
+    needs: [build, package-linux]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      hashes: ${{ steps.combine.outputs.hashes }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Combine sha256 subjects
+        id: combine
+        env:
+          PY_HASHES: ${{ needs.build.outputs.hashes }}
+          AMD64_HASHES: ${{ needs.package-linux.outputs.hashes-amd64 }}
+          ARM64_HASHES: ${{ needs.package-linux.outputs.hashes-arm64 }}
+        run: |
+          merged=$({
+            echo "$PY_HASHES" | base64 -d
+            echo "$AMD64_HASHES" | base64 -d
+            echo "$ARM64_HASHES" | base64 -d
+          } | base64 -w0)
+          echo "hashes=$merged" >> "$GITHUB_OUTPUT"
+
   provenance:
     name: SLSA L3 provenance
-    needs: build
+    needs: aggregate-hashes
     if: github.event_name == 'release'
     permissions:
       actions: read
@@ -130,7 +313,7 @@ jobs:
     # trusted-builder identity to this tag via the OIDC claim.
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
-      base64-subjects: "${{ needs.build.outputs.hashes }}"
+      base64-subjects: "${{ needs.aggregate-hashes.outputs.hashes }}"
       provenance-name: "${{ github.event.release.tag_name }}.intoto.jsonl"
       upload-assets: true
 
@@ -252,7 +435,7 @@ jobs:
   sign-and-attest:
     name: Sign and release artifacts
     runs-on: ubuntu-latest
-    needs: publish-pypi
+    needs: [publish-pypi, package-linux]
     if: github.event_name == 'release'
     permissions:
       id-token: write
@@ -276,10 +459,17 @@ jobs:
           name: scanner-sbom
           path: sbom/
 
+      - name: Download Linux packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: scanner-linux-*
+          merge-multiple: true
+          path: linux/
+
       - name: Sign artifacts with Sigstore
         uses: sigstore/gh-action-sigstore-python@04cffa1d795717b140764e8b640de88853c92acc  # v3.3.0
         with:
-          inputs: ./dist/*.tar.gz ./dist/*.whl ./sbom/*.cdx.json
+          inputs: ./dist/*.tar.gz ./dist/*.whl ./sbom/*.cdx.json ./linux/*.deb ./linux/*.rpm
 
       - name: Attach signed artifacts + signatures to GitHub Release
         env:
@@ -293,6 +483,9 @@ jobs:
             dist/*.sigstore.json \
             sbom/*.cdx.json \
             sbom/*.sigstore.json \
+            linux/*.deb \
+            linux/*.rpm \
+            linux/*.sigstore.json \
             --clobber
 
   bump-tap:
