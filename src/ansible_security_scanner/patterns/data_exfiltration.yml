@@ -28,13 +28,25 @@ patterns:
     title: "Credential File Search"
     description: >-
         find -name searches for SSH keys (id_rsa/id_dsa/id_ecdsa/id_ed25519),
-        PEM/p12/pfx files, or `credentials`/`config` filenames - the canonical
+        PEM/p12/pfx files, or a `credentials` filename - the canonical
         reconnaissance step before credential theft.
-    regex: "find.*-name.*(?:id_rsa|id_dsa|id_ecdsa|id_ed25519|\\.pem|\\.key|\\.p12|\\.pfx|credentials|config)"
+    # Match only a positive ``-name``/``-iname`` predicate: ``(?<!! )`` rejects
+    # the ``! -name 'cluster.key'`` exclusion form (protecting files from a
+    # ``-delete``/``-prune`` is the opposite of hunting credentials). The
+    # token list is restricted to high-confidence credential artifacts; bare
+    # ``config`` and ``.key`` are dropped because ``kubeconfig`` / ``*.config``
+    # / ``cluster.key`` housekeeping are common benign shapes.
+    regex: "find\\b[^\\n]*?(?<!! )-i?name\\s+\\S*(?:id_rsa|id_dsa|id_ecdsa|id_ed25519|\\.pem|\\.p12|\\.pfx|credentials)"
     positive_examples:
       - |2
             - ansible.builtin.shell: find /home -name id_rsa
-    recommendation: "find -name id_rsa / *.pem / *.key / credentials is a credential-discovery primitive; if the play actually needs to manage SSH keys, target known paths explicitly and use ansible.builtin.find with file_type and a strict pattern: list, never a recursive credential sweep."
+      - "    shell: find / -iname '*.pem'"
+      - "    shell: find /root -name credentials"
+    negative_examples:
+      - "    shell: sudo find \"$DQLITE\" -maxdepth 1 -type f ! -name 'cluster.key' -delete"
+      - "    shell: find /etc -name '*.config' -prune"
+      - "    shell: find ~/.kube -name kubeconfig -delete"
+    recommendation: "find -name id_rsa / *.pem / *.p12 / credentials is a credential-discovery primitive; if the play actually needs to manage SSH keys, target known paths explicitly and use ansible.builtin.find with file_type and a strict pattern: list, never a recursive credential sweep."
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
     owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
@@ -98,7 +110,12 @@ patterns:
     # so Jinja comparisons like ``count > 0`` and XML tag tails like
     # ``form>`` are excluded. The target must look like a path (letters
     # and ``/`` / ``.`` / ``~`` / ``$`` / backtick / a variable ref).
-    regex: "(?:(?:^|[\\s;|&])(?:netstat|ss|ifconfig|arp|route)\\b|\\bip\\s+(?:route|addr|link|neigh))\\b[^\\n]*?>>?[ \\t]*(?:['\\\"]?(?:[/~.$]|\\{\\{|\\$\\(|/dev/)|[A-Za-z][\\w./-]*\\.(?:txt|log|out|csv|json|xml|tmp|dat))"
+    # The ``>`` must be a stdout redirect, not a file-descriptor redirect:
+    # ``(?<![0-9&])`` rejects ``2>``/``&>`` so the ``2>/dev/null`` idiom on a
+    # benign ``ip route`` lookup is not read as persisting recon output. A
+    # ``/dev/null``/``/dev/std*`` target is a discard/stream, never a file,
+    # so it is excluded as well.
+    regex: "(?:(?:^|[\\s;|&])(?:netstat|ss|ifconfig|arp|route)\\b|\\bip\\s+(?:route|addr|link|neigh))\\b[^\\n]*?(?<![0-9&])>>?[ \\t]*(?:['\\\"]?(?:[/~.$]|\\{\\{|\\$\\(|/dev/(?!null|std))|[A-Za-z][\\w./-]*\\.(?:txt|log|out|csv|json|xml|tmp|dat))"
     positive_examples:
       - "    shell: netstat -an > /tmp/netstat.out"
       - "    shell: ss -tnp >> /tmp/connections.log"
@@ -117,6 +134,8 @@ patterns:
               msg: "count is {{ count > threshold }}"
       - "    shell: netstat -an"
       - "    shell: ss -tnp"
+      - "    shell: CURRENT_IP=$(ip route get 1 2>/dev/null | awk '{print $7}')"
+      - "    shell: ip addr show eth0 2>/dev/null"
     recommendation: "Persisting netstat / ss / ip-route output to a file is the System Network Configuration Discovery (T1016) signature; if the data is genuinely needed for operations, capture it via ansible.builtin.setup or a purpose-built fact module and store the result in the controller's fact cache rather than a host file."
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
