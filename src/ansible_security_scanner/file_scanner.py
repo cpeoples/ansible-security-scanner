@@ -5401,7 +5401,15 @@ class FileScanner:
             else:
                 line_mode.append(p)
 
-        # Single-line pass
+        # Both passes share one fast-reject shortcut: a pattern that does not
+        # match the whole file text cannot match any single line or window, so
+        # one search up front lets us skip the per-line loop for every pattern
+        # that is absent from the file - the common case.
+        full_text = "\n".join(lines)
+
+        # Single-line pass. ``^``/``$`` anchored patterns are exempt from the
+        # shortcut: those anchors match differently against the whole text than
+        # against one line, so the up-front search could wrongly reject them.
         for pattern_obj in line_mode:
             compiled_single = getattr(pattern_obj, "_compiled", None)
             if compiled_single is None:
@@ -5409,6 +5417,12 @@ class FileScanner:
                     compiled_single = re.compile(pattern_obj.regex, re.IGNORECASE)
                 except re.error:
                     continue
+            if (
+                "^" not in pattern_obj.regex
+                and "$" not in pattern_obj.regex
+                and not compiled_single.search(full_text)
+            ):
+                continue
             pid = pattern_obj.id
             for line_num, line in enumerate(lines, 1):
                 key = (pid, line_num)
@@ -5454,7 +5468,8 @@ class FileScanner:
         # finding to the line of the first line within the window that
         # contains a piece of the match (so reports point to the anchor, not
         # a later line). If we cannot localise, we fall back to the window
-        # start line.
+        # start line. A window is always a contiguous slice of ``full_text``,
+        # so the same fast-reject applies.
         for pattern_obj in window_mode:
             win = max(1, int(getattr(pattern_obj, "window", 10) or 10))
             compiled = getattr(pattern_obj, "_compiled_multiline", None)
@@ -5463,6 +5478,8 @@ class FileScanner:
                     compiled = re.compile(pattern_obj.regex, re.IGNORECASE | re.MULTILINE)
                 except re.error:
                     continue
+            if not compiled.search(full_text):
+                continue
             pid = pattern_obj.id
             total = len(lines)
             for start_idx in range(total):
