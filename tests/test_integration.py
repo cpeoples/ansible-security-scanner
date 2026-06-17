@@ -249,7 +249,14 @@ _MULTI_BAD_REQUIRED_RULE_IDS: frozenset[str] = frozenset(
 # benign pattern-tuning doesn't tickle this gate, but tight enough
 # that a silent ~50% regression (e.g. TaintTracker or extract_all_tasks
 # shape detection breaking) surfaces immediately.
-_MULTI_BAD_MIN_FINDINGS = 29
+#
+# Lowered from 29 to 28 when ``elastic_apm_secret_token_or_api_key_literal``
+# was tightened to require real APM context: it previously double-counted
+# the fixture's ``webapp_api_key: "sk_live_..."`` Stripe key as an "Elastic
+# APM" finding (a misclassification). That key is still detected by the
+# correct ``stripe_api_key`` / ``stripe_live_secret_key_literal`` rules,
+# so removing the duplicate FP is a quality improvement, not a regression.
+_MULTI_BAD_MIN_FINDINGS = 28
 
 
 def test_multi_example_bad_known_findings(multi_example_bad_json):
