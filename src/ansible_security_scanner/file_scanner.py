@@ -5,6 +5,7 @@ File scanning logic for Ansible Security Scanner
 
 from __future__ import annotations
 
+import itertools
 import logging
 import re
 import threading
@@ -1132,8 +1133,14 @@ _OVERLAP_SUPPRESSION_GROUPS: tuple[tuple[str, ...], ...] = (
         "twitter_api_key",
         "google_api_key",
         "youtube_api_key",
-        "github_token",
+        # Order must agree with the dedicated
+        # ``(github_personal_access_token_literal, github_token)`` group
+        # above: the "literal" rule is the canonical winner. If the two
+        # github rule IDs are ordered inconsistently across groups, a line
+        # that fires BOTH loses each rule in the *other* group and both get
+        # annihilated - silently dropping a real GitHub PAT leak.
         "github_personal_access_token_literal",
+        "github_token",
         "slack_bot_or_app_token_literal",
         "heroku_api_key",
         "mailchimp_api_key",
@@ -1196,6 +1203,38 @@ def _apply_overlap_suppression(
         if all(loc_winners.get(gi, (None, None))[1] == f.rule_id for gi, _ in groups):
             kept.append(f)
     return kept
+
+
+def _validate_overlap_groups_consistent(
+    groups: tuple[tuple[str, ...], ...],
+) -> None:
+    """Fail loudly if two rules are ordered inconsistently across groups.
+
+    ``_apply_overlap_suppression`` only keeps a finding when its rule is
+    the winner (lowest position) of EVERY group it appears in. If rules
+    ``A`` and ``B`` co-occur in two groups with opposite relative order,
+    then a line firing both loses ``A`` in the group where ``B`` ranks
+    higher AND loses ``B`` in the group where ``A`` ranks higher - so
+    BOTH get annihilated and a real finding silently vanishes. This guard
+    turns that latent ordering bug into an immediate, obvious failure.
+    """
+    # ``first_seen[(a, b)]`` (a < b lexicographically) records whether ``a``
+    # ranked before ``b`` the first time the pair was observed in any group.
+    first_seen: dict[tuple[str, str], bool] = {}
+    for group in groups:
+        position = {rid: i for i, rid in enumerate(group)}
+        for a, b in itertools.combinations(sorted(group), 2):
+            before = position[a] < position[b]
+            if first_seen.setdefault((a, b), before) != before:
+                raise ValueError(
+                    f"Inconsistent overlap-suppression ordering for rules "
+                    f"{a!r} and {b!r}: they appear in different relative order "
+                    "across groups, which would mutually annihilate both "
+                    "findings when they co-fire on the same line."
+                )
+
+
+_validate_overlap_groups_consistent(_OVERLAP_SUPPRESSION_GROUPS)
 
 
 def _normalize_display_snippet(snippet: str) -> str:
