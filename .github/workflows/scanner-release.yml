@@ -76,7 +76,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install build frontend
-        run: pip install --require-hashes -c .github/constraints.txt build twine cyclonedx-bom
+        run: pip install --require-hashes -r .github/buildfrontend.txt
 
       - name: Build sdist and wheel
         run: python -m build
