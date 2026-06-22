@@ -554,6 +554,7 @@ jobs:
           PY
 
       - name: Open pull request on tap
+        id: pr
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
         with:
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
@@ -566,44 +567,9 @@ jobs:
           add-paths: ${{ env.FORMULA_PATH }}
           sign-commits: true
 
-  update-readme-rev:
-    runs-on: ubuntu-latest
-    needs: publish-pypi
-    if: github.event_name == 'release'
-    permissions:
-      contents: write
-      pull-requests: write
-    env:
-      VERSION: ${{ github.event.release.tag_name }}
-
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-        with:
-          persist-credentials: false
-
-      - name: Pin pre-commit rev to release tag
-        run: |
-          python3 - <<'PY'
-          import os, re, pathlib
-          readme = pathlib.Path("README.md")
-          src = readme.read_text()
-          # Anchor on the scanner repo line so we only touch its rev, not other hooks'.
-          block = r"(repo: https://github\.com/cpeoples/ansible-security-scanner\s*\n\s*rev: )\S+"
-          readme.write_text(re.sub(block, lambda m: m.group(1) + os.environ["VERSION"], src, count=1))
-          PY
-
-      - name: Open pull request
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
-        with:
-          commit-message: "Update README pre-commit rev to ${{ env.VERSION }}"
-          title: "Update README pre-commit rev to ${{ env.VERSION }}"
-          body: |
-            Automated pre-commit rev bump triggered by ${{ env.VERSION }}.
-          branch: readme-rev-${{ env.VERSION }}
-          delete-branch: true
-          add-paths: README.md
+      - name: Enable auto-merge
+        if: steps.pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          PR: ${{ steps.pr.outputs.pull-request-number }}
+        run: gh pr merge "$PR" --repo cpeoples/homebrew-tap --auto --squash --delete-branch
