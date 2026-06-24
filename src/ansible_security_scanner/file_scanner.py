@@ -2082,7 +2082,9 @@ class FileScanner:
             # otherwise ignoring rule X surfaces a less-specific sibling
             # ("whack-a-mole"). ``_ALWAYS_EMITTED_RULE_IDS`` bypasses this
             # gate so meta-findings (scan errors, audit-evasion) always
-            # surface even under a narrow ``--select``.
+            # surface even under a narrow ``--select``. ``--ignore`` cannot
+            # remove unsuppressable rules from ``active_rule_ids`` (see
+            # scanner construction), so they survive this gate too.
             findings = [
                 f
                 for f in findings
@@ -5805,7 +5807,7 @@ class FileScanner:
     ) -> SecurityFinding:
         """Construct a HIGH severity meta-finding for a suspicious
         suppression. This finding itself is never suppressed (its rule_id
-        is on ``UNSUPPRESSABLE_RULE_IDS``)."""
+        is in ``unsuppressable_rule_ids()``)."""
         return SecurityFinding(
             file_path=str(file_path.relative_to(self.directory)),
             line_number=directive.line_number,

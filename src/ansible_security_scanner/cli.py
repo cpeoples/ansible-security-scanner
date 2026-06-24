@@ -22,6 +22,7 @@ from .patterns_manager import (
     resolve_rule_specs,
 )
 from .scanner import AnsibleSecurityScanner
+from .suppressions import unsuppressable_rule_ids
 from .utils import get_exit_code, get_formatter_class, parse_changed_files, setup_logging
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,15 @@ def _infer_format_from_output_path(output_path: str) -> str | None:
         return None
     suffix = Path(output_path).suffix.lower()
     return _OUTPUT_EXTENSION_TO_FORMAT.get(suffix)
+
+
+def _summarize_rule_ids(rule_ids: list[str], limit: int = 10) -> str:
+    """Render a rule-id list for a log line, truncating long lists so a
+    wildcard ``--ignore`` doesn't flood the log with every protected rule.
+    """
+    if len(rule_ids) <= limit:
+        return ", ".join(rule_ids)
+    return f"{', '.join(rule_ids[:limit])} (+{len(rule_ids) - limit} more)"
 
 
 # Default output directory used when the user passes
@@ -1241,12 +1251,24 @@ def main():
 
     if args.ignore:
         _, ignored_preview, _ = _resolve_run_policy(args)
-        unignorable = sorted(set(ignored_preview) & _ALWAYS_EMITTED_RULE_IDS)
+        ignored_set = set(ignored_preview)
+        unignorable = sorted(ignored_set & _ALWAYS_EMITTED_RULE_IDS)
         if unignorable:
             logger.warning(
                 "--ignore listed always-emitted rule(s) %s; these still fire "
                 "(they detect scan failures and audit-evasion attempts).",
-                ", ".join(unignorable),
+                _summarize_rule_ids(unignorable),
+            )
+        # Exclude anything already reported above so a meta-rule that is both
+        # always-emitted and unsuppressable isn't warned about twice.
+        active_compromise = sorted(
+            (ignored_set & unsuppressable_rule_ids()) - _ALWAYS_EMITTED_RULE_IDS
+        )
+        if active_compromise:
+            logger.warning(
+                "--ignore listed rule(s) %s; these cannot be suppressed "
+                "(high-severity active-compromise signal) and still fire.",
+                _summarize_rule_ids(active_compromise),
             )
 
     # MR touched no YAML - produce an empty report so the downstream pipeline

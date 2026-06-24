@@ -16,7 +16,7 @@ To keep them from becoming a silent bypass for real attacks, this parser
 
 Additionally the scanner engine (see ``file_scanner.py``) refuses to
 suppress CRITICAL malicious-activity findings regardless of what the
-directive says - see ``UNSUPPRESSABLE_RULE_IDS`` below.
+directive says - see ``unsuppressable_rule_ids`` below.
 
 Supported syntax (case-insensitive, same line or line above):
 
@@ -36,87 +36,22 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-# Rules that can never be suppressed, no matter what the directive
-# says. These signal active compromise -- a legitimate author has no
-# reason to suppress them in version-controlled code.
-UNSUPPRESSABLE_RULE_IDS: set[str] = {
-    # Malicious activity / active compromise
-    "reverse_shell",
-    "reverse_shell_bash",
-    "reverse_shell_python",
-    "reverse_shell_perl",
-    "reverse_shell_nc",
-    "reverse_shell_php",
-    "powershell_reverse",
-    "xterm_reverse",
-    "dnscat2_shell",
-    "interactive_shell_spawn",
-    "web_shell_drop",
-    "web_shell",
-    "webshell",
-    "named_shell",
-    "china_chopper",
-    "weevely",
-    "antsword",
-    "godzilla",
-    "behinder",
-    "backdoor_installation",
-    "backdoor_listener",
-    "backdoor_bashrc",
-    "ssh_key_backdoor",
-    "network_backdoor",
-    "git_hook",
-    "mimikatz",
-    "pypykatz",
-    "sharpdpapi",
-    "donpapi",
-    "credential_dump",
-    "credential_harvesting",
-    "credential_file_upload",
-    "sam_dump",
-    "ntdsutil",
-    "firefox_decrypt",
-    "cobalt_strike",
-    "responder",
-    "bloodhound",
-    "impacket",
-    "rubeus",
-    "crackmapexec",
-    "netexec",
-    "evil_winrm",
-    "certipy",
-    "crypto_mining_binary",
-    "crypto_mining_pool",
-    "ccminer",
-    "srbminer",
-    "teamredminer",
-    "xmr_stak",
-    "ransomware",
-    "disk_wipe",
-    "mkfs_format",
-    "shred",
-    "ld_preload_injection",
-    "nsenter_container_escape",
-    "docker_sock",
-    "sys_ptrace",
-    # Active data exfil
-    "credential_file_search",
-    "environment_variable_harvesting",
-    # System-level tampering
-    "audit_log_tampering",
-    "history_file_tampering",
-    "log_file_deletion",
-    "auditd_disable",
-    "selinux_disable",
-    "apparmor_disable",
-    "firewall_disable",
-    # Meta-rules: suppressing the scanner about the scanner itself is
-    # never legitimate.
-    "suspicious_suppression",
-    "unknown_suppression_rule",
-    "excessive_suppressions",
-    "set_fact_secret_alias",
-}
+from .patterns_manager import unsuppressable_rule_ids as _derive_unsuppressable
+
+# Rules that can never be suppressed, no matter what the directive says.
+# These signal active compromise -- a legitimate author has no reason to
+# suppress them in version-controlled code. Derived from pattern metadata
+# (see ``patterns_manager.unsuppressable_rule_ids``) and cached on first
+# use so the hot ``applies_to`` path stays a plain set membership test.
+_unsuppressable_cache: frozenset[str] | None = None
+
+
+def unsuppressable_rule_ids() -> frozenset[str]:
+    """Cached accessor for the derived unsuppressable rule set."""
+    global _unsuppressable_cache
+    if _unsuppressable_cache is None:
+        _unsuppressable_cache = _derive_unsuppressable()
+    return _unsuppressable_cache
 
 
 # Backward-compatible aliases for renamed rule IDs. A suppression that
@@ -152,7 +87,7 @@ class SuppressionDirective:
 
     Invariants for a *valid* directive:
       - ``rule_ids`` is non-empty (``*`` is allowed and means "any rule on
-        this line, excluding UNSUPPRESSABLE_RULE_IDS")
+        this line, excluding unsuppressable rules")
       - ``reason`` is non-empty
     Invalid directives are still returned (with ``valid=False``) so callers
     can surface them as warnings rather than silently drop them.
@@ -168,10 +103,10 @@ class SuppressionDirective:
     def applies_to(self, rule_id: str) -> bool:
         """True if this directive suppresses ``rule_id``. Always False for
         invalid directives (missing rule list or reason) and for rules on
-        the UNSUPPRESSABLE_RULE_IDS list."""
+        the unsuppressable rule set."""
         if not self.valid:
             return False
-        if rule_id in UNSUPPRESSABLE_RULE_IDS:
+        if rule_id in unsuppressable_rule_ids():
             return False
         if "*" in self.rule_ids:
             return True
@@ -250,7 +185,7 @@ def parse_suppressions(
 
         # Reject attempts to suppress unsuppressable rules up front so the
         # user gets a clear message.
-        blocked_ids = rule_ids & UNSUPPRESSABLE_RULE_IDS
+        blocked_ids = rule_ids & unsuppressable_rule_ids()
         if blocked_ids:
             problems.append(
                 f"rule(s) {sorted(blocked_ids)} cannot be suppressed (high-severity active-compromise signal)"
