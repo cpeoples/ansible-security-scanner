@@ -845,6 +845,7 @@ patterns:
 
   - id: "git_hook_or_config_write"
     category: "supply_chain"
+    unsuppressable: true
     severity: "CRITICAL"
     title: "Ansible Task Modifies .git/hooks, .git/config, or core.hooksPath"
     description: "A task writes to `.git/hooks/*`, `.git/config`, `.gitconfig`, `.gitattributes`, or calls `git config --local core.hooksPath` / `core.sshCommand` / `http.extraheader` / `credential.helper`. Git hooks execute silently on every subsequent `git` command the developer or CI runner performs, making this a prime persistence + credential-theft primitive (the `core.sshCommand` form is actively used by in-the-wild malware to proxy all git auth through an attacker host)."
@@ -889,6 +890,7 @@ patterns:
 
   - id: "xz_liblzma_backdoored_version_install"
     category: "supply_chain"
+    unsuppressable: true
     severity: "CRITICAL"
     title: "xz-utils / liblzma Backdoored Version Installed or Built (CVE-2024-3094)"
     description: "An Ansible task installs, builds, or copies an xz-utils / liblzma / xz-libs package at version 5.6.0 or 5.6.1 - the versions containing the Jia Tan SSH-authentication backdoor (CVE-2024-3094, disclosed March 29 2024). These releases injected a malicious IFUNC resolver into OpenSSH via systemd's liblzma dependency, allowing any attacker with the matching private key to bypass sshd authentication on sd_notify-linked sshd builds. Matches Ansible package-name pins (`name: xz-utils version: 5.6.0`), inline package-manager invocations (`apt install xz-utils=5.6.0*`, `yum install xz-5.6.1*`, `dnf`, `zypper`, `pacman -U`, `apk add`), direct tarball URLs (`xz-5.6.0.tar.{gz,xz,bz2,zst}`), GitHub release URLs for `tukaani-project/xz` at those tags, and `pip install pyliblzma==5.6.0/.1`. Any pin to 5.6.0/5.6.1 from a third-party mirror, tarball, or container base layer must be treated as a confirmed compromise."
@@ -1262,6 +1264,7 @@ patterns:
 
   - id: "frp_fast_reverse_proxy_install"
     category: "supply_chain"
+    unsuppressable: true
     severity: "CRITICAL"
     title: "frp (Fast Reverse Proxy) Client Installed For Outbound Tunnel"
     description: "A task downloads or renders a systemd unit for `frpc` (Fast Reverse Proxy client) with an `frps` server config pointing at an arbitrary public host. frp is the most common reverse-proxy tool in the 2023-2025 Chinese-speaking ransomware / APT playbook (Mustang Panda, RedDelta, Sandman): the compromised host dials outbound to an attacker-controlled `frps` and exposes RDP / SSH / arbitrary TCP back through the tunnel."

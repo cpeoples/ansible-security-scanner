@@ -24,6 +24,7 @@ patterns:
 
   - id: "credential_file_search"
     category: "data_exfiltration"
+    unsuppressable: true
     severity: "HIGH"
     title: "Credential File Search"
     description: >-
@@ -59,6 +60,7 @@ patterns:
 
   - id: "environment_variable_harvesting"
     category: "data_exfiltration"
+    unsuppressable: true
     severity: "MEDIUM"
     title: "Environment Variable Harvesting"
     description: >-

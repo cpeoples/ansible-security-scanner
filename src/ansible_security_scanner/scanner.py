@@ -34,6 +34,7 @@ from .path_scopes import (
 )
 from .patterns_manager import known_rule_ids, resolve_rule_specs
 from .score_calculator import ScoreCalculator
+from .suppressions import unsuppressable_rule_ids
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +137,10 @@ class AnsibleSecurityScanner:
         # the scan starts. ``active_rule_ids = None`` means "no filter,
         # ship every rule" - the default. When set, the FileScanner
         # narrows its YAML pattern set AND the synthetic-finding gate
-        # at the end of scan_file uses this same set.
+        # at the end of scan_file uses this same set. ``--ignore`` cannot
+        # drop unsuppressable rules (active-compromise signals), mirroring
+        # the inline # nosec guard; ``--select`` still scopes precisely so
+        # a focused scan only surfaces the rules the user asked for.
         if select_rules is None and ignore_rules is None:
             active_rule_ids: frozenset[str] | None = None
         else:
@@ -149,7 +153,7 @@ class AnsibleSecurityScanner:
                 if ignore_rules is not None
                 else frozenset()
             )
-            active_rule_ids = selected - ignored
+            active_rule_ids = selected - (ignored - unsuppressable_rule_ids())
         self.active_rule_ids = active_rule_ids
 
         self.file_scanner = FileScanner(
