@@ -72,23 +72,11 @@ class MaliciousActivityRemediationGenerator(BaseRemediationGenerator):
         "ruby_reverse_shell": "backdoor",
         "socat_reverse_shell": "backdoor",
         "telnet_reverse_shell": "backdoor",
-        # Offensive tools
-        "bloodhound_sharphound": "credential_harvesting",
-        "cobalt_strike_beacon": "backdoor",
-        "credential_dump_tool": "credential_harvesting",
-        "exploit_framework": "backdoor",
-        "hashcat_john": "credential_harvesting",
-        "impacket_tools": "credential_harvesting",
-        "linpeas_winpeas": "credential_harvesting",
-        "mimikatz_usage": "credential_harvesting",
-        "responder_tool": "credential_harvesting",
-        "rubeus_kerberos": "credential_harvesting",
-        "wireless_attack_tools": "credential_harvesting",
-        # AD / Windows offensive tooling
-        "adcs_certify_abuse": "credential_harvesting",
-        "dcsync_keyword": "credential_harvesting",
-        "dpapi_extraction": "credential_harvesting",
-        "safetykatz_usage": "credential_harvesting",
+        "powershell_tcp_reverse_shell": "backdoor",
+        "powershell_conpty_reverse_shell": "backdoor",
+        "java_runtime_exec_reverse_shell": "backdoor",
+        "xterm_reverse_shell": "backdoor",
+        "dnscat2_reverse_shell": "backdoor",
         # Webshells
         "aspx_webshell": "backdoor",
         "cgi_script_deployment": "backdoor",
@@ -96,15 +84,10 @@ class MaliciousActivityRemediationGenerator(BaseRemediationGenerator):
         "php_webshell": "backdoor",
         "python_webshell": "backdoor",
         "web_directory_write": "backdoor",
-        # Data destruction
-        "backup_deletion": "file_manipulation",
-        "database_drop_truncate": "database_backdoor",
-        "disk_wipe_dd": "file_manipulation",
-        "lvm_vg_remove": "file_manipulation",
-        "mkfs_format_device": "file_manipulation",
-        "ransomware_file_encryption": "file_manipulation",
-        "recursive_delete_critical": "file_manipulation",
-        "shred_wipe_command": "file_manipulation",
+        # Data destruction rules are rendered from pattern metadata
+        # (see remediation_generator._SIMPLE_DISPATCH); they are not routed
+        # through the malicious-activity file-manipulation handler, whose
+        # "manage files securely" advice does not match a destructive delete.
         # Binary planting
         "binary_replace_system_path": "backdoor",
         "git_hook_injection": "backdoor",
@@ -119,9 +102,6 @@ class MaliciousActivityRemediationGenerator(BaseRemediationGenerator):
         "python_obfuscated_exec": "backdoor",
         "rev_string_evasion": "backdoor",
         "variable_indirection_evasion": "backdoor",
-        # Steganography
-        "steganography_extract": "data_exfiltration",
-        "steganography_tool": "backdoor",
     }
 
     def generate_malicious_activity_fix(self, rule_id: str, code_snippet: str) -> str:
@@ -599,7 +579,7 @@ This code is performing dangerous file system operations that could compromise s
     src: "{{{{ source_file }}}}"
     dest: "{{{{ source_file }}}}.backup"
     remote_src: yes
-  before: file modification
+  # take a backup before any in-place modification
 ```
 
 **✅ Proper File Operations:**

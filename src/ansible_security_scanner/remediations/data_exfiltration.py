@@ -3,7 +3,7 @@
 Data exfiltration remediation generator for Ansible Security Scanner
 """
 
-from .base import BaseRemediationGenerator
+from .base import BaseRemediationGenerator, _first
 
 
 class DataExfiltrationRemediationGenerator(BaseRemediationGenerator):
@@ -21,10 +21,149 @@ class DataExfiltrationRemediationGenerator(BaseRemediationGenerator):
         "process_list_collection": "_generate_file_copy_fix",
         "remote_copy_sensitive_data": "_generate_ftp_transfer_fix",
         "sensitive_file_collection": "_generate_file_copy_fix",
+        "rclone_data_sync": "_generate_transfer_tool_fix",
+        "rclone_config_setup": "_generate_transfer_tool_fix",
+        "mega_cmd_exfiltration": "_generate_transfer_tool_fix",
+        "azcopy_data_transfer": "_generate_transfer_tool_fix",
+        "magic_wormhole_transfer": "_generate_p2p_transfer_fix",
+        "croc_file_transfer": "_generate_p2p_transfer_fix",
+        "python_http_server_exfil": "_generate_http_server_fix",
     }
 
     def generate_data_exfiltration_fix(self, rule_id: str, code_snippet: str) -> str:
         return self._dispatch_fix(rule_id, code_snippet, self._generate_generic_exfiltration_fix)
+
+    def _generate_transfer_tool_fix(self, code_snippet: str) -> str:
+        """Replace an exfiltration-tool transfer (rclone/mega/azcopy) with an
+        approved, audited transfer to an allow-listed destination."""
+        source = (
+            _first(
+                code_snippet,
+                r"(?:copy|sync|put|mega-put)\s+([^\s'\"|>&]+)",
+                r"(/[\w./-]+)",
+            )
+            or "{{ source_path }}"
+        )
+        return f"""
+**❌ Vulnerable Code:**
+```yaml
+{code_snippet}
+```
+
+**🚨 Data Exfiltration via Cloud-Sync Tool:**
+Tools like rclone, MEGAcmd, and azcopy are among the most common data-exfiltration utilities used by ransomware and intrusion crews. They move data straight to attacker-controlled cloud storage, bypassing the SDK-level audit trail of the provider.
+
+**✅ Secure Fix - Remove the Tool and Use an Approved, Audited Transfer:**
+```yaml
+# Remove the rclone/mega/azcopy invocation. If the transfer is genuinely
+# required, send it to an allow-listed destination through the provider's
+# audited module, gated behind an explicit, reviewed approval.
+- name: Refuse transfers to destinations that are not on the approved list
+  ansible.builtin.assert:
+    that:
+      - data_transfer_approved | default(false) | bool
+      - approved_exfil_destination is defined
+    fail_msg: >-
+      Bulk data transfer requires data_transfer_approved=true and an
+      approved_exfil_destination from the data-handling allow-list.
+
+- name: Upload to the approved bucket through the audited module
+  amazon.aws.s3_object:
+    bucket: "{{{{ approved_exfil_destination }}}}"
+    object: "{{{{ source_path | basename }}}}"
+    src: "{source}"
+    mode: put
+  # S3 server-access logging / CloudTrail data events record this transfer;
+  # rclone/mega/azcopy deliberately would not.
+```
+
+**🔐 Data Protection Best Practices:**
+- Treat rclone, MEGAcmd, croc, and azcopy on a server as exfiltration indicators unless explicitly authorized
+- Route legitimate transfers through provider SDKs/modules that emit audit logs
+- Restrict destinations to an allow-list of organization-owned storage
+- Egress-filter and DLP-monitor outbound bulk transfers
+"""
+
+    def _generate_p2p_transfer_fix(self, code_snippet: str) -> str:
+        """Replace an encrypted P2P transfer (magic-wormhole/croc) with an
+        approved managed-transfer path."""
+        tool = "croc" if "croc" in code_snippet.lower() else "magic-wormhole"
+        return f"""
+**❌ Vulnerable Code:**
+```yaml
+{code_snippet}
+```
+
+**🚨 Encrypted Peer-to-Peer Exfiltration ({tool}):**
+{tool} establishes an end-to-end encrypted channel keyed by a one-time code, deliberately bypassing network monitoring and DLP. There is no benign reason for unattended automation to move data this way.
+
+**✅ Secure Fix - Remove the P2P Transfer and Use a Managed Path:**
+```yaml
+# Remove the {tool} send/receive. Move files only through a managed,
+# inspectable transfer to an approved internal host.
+- name: Confirm this managed transfer is approved
+  ansible.builtin.assert:
+    that:
+      - data_transfer_approved | default(false) | bool
+      - managed_transfer_host in approved_transfer_hosts
+    fail_msg: >-
+      File transfers must go to an approved host via the managed channel,
+      not an encrypted P2P tool that bypasses inspection.
+
+- name: Transfer to the approved internal host over the managed channel
+  ansible.posix.synchronize:
+    src: "{{{{ source_path }}}}/"
+    dest: "{{{{ managed_transfer_path }}}}/"
+    checksum: true
+    delete: false
+  delegate_to: "{{{{ managed_transfer_host }}}}"
+```
+
+**🔐 Data Protection Best Practices:**
+- Block {tool} and similar relays at the egress firewall
+- Keep transfers on inspectable, logged channels (managed rsync/SFTP to approved hosts)
+- Require explicit approval and a destination allow-list for any bulk move
+"""
+
+    def _generate_http_server_fix(self, code_snippet: str) -> str:
+        """Replace an ad-hoc python http.server with a controlled pull from an
+        approved internal host."""
+        directory = (
+            _first(
+                code_snippet,
+                r"--directory[=\s]+([^\s'\"]+)",
+                r"http\.server[^\n]*?(/[\w./{}-]+)",
+            )
+            or "{{ served_directory }}"
+        )
+        return f"""
+**❌ Vulnerable Code:**
+```yaml
+{code_snippet}
+```
+
+**🚨 Ad-hoc File Server Exposes Local Files:**
+`python -m http.server` exposes a directory over the network with no authentication, no TLS, and no access logging - a common staging step for pulling data off a host.
+
+**✅ Secure Fix - Remove the Server and Pull Through a Controlled Path:**
+```yaml
+# Remove the ad-hoc http.server. Distribute files by pulling them from an
+# approved internal artifact host with a verified checksum, instead of
+# standing up an unauthenticated server on the source host.
+- name: Fetch the file from the approved internal host with a checksum
+  ansible.builtin.get_url:
+    url: "https://{{{{ approved_artifact_host }}}}/{{{{ artifact_name }}}}"
+    dest: "{directory}/{{{{ artifact_name }}}}"
+    checksum: "sha256:{{{{ artifact_sha256 }}}}"
+    mode: '0644'
+  # No listener is opened on this host; transfer is authenticated and logged.
+```
+
+**🔐 Data Protection Best Practices:**
+- Never expose local directories with an unauthenticated `http.server`
+- Distribute artifacts from an authenticated, logged internal store
+- Verify integrity with a checksum on every fetch
+"""
 
     def _generate_curl_upload_fix(self, code_snippet: str) -> str:
         """Generate fix for curl-based data uploads"""
@@ -139,68 +278,6 @@ This code is transferring data using potentially insecure file transfer methods 
 - Encrypt all data in transit
 - Log and monitor all file transfer activities
 - Use approved and authorized destination servers only
-"""
-
-    def _generate_email_send_fix(self, code_snippet: str) -> str:
-        """Generate fix for email-based data exfiltration"""
-        return f"""
-**❌ Vulnerable Code:**
-```yaml
-{code_snippet}
-```
-
-**🚨 Data Exfiltration via Email:**
-This code is sending potentially sensitive data via email, which is insecure and may violate data protection policies.
-
-**✅ Secure Fix - Remove Unauthorized Email:**
-```yaml
-# REMOVE the above malicious email code entirely
-# Instead, use proper notification systems:
-
-- name: send notification to authorized recipients
-  ansible.builtin.mail:
-    to: "{{{{ authorized_notification_email }}}}"
-    subject: "System Status Notification"
-    body: "System operation completed successfully on {{{{ ansible_hostname }}}}"
-    host: "{{{{ authorized_smtp_server }}}}"
-    port: 587
-    username: "{{{{ vault_smtp_user }}}}"
-    password: "{{{{ vault_smtp_password }}}}"
-    secure: starttls
-  when:
-    - send_notifications | default(false)
-    - authorized_notification_email is defined
-```
-
-**✅ Secure Logging and Alerting:**
-```yaml
-- name: log to centralized logging system
-  ansible.builtin.syslog:
-    msg: "Operation completed: {{{{ operation_name }}}}"
-    priority: info
-    facility: local0
-
-- name: send to monitoring system
-  ansible.builtin.uri:
-    url: "{{{{ monitoring_webhook_url }}}}"
-    method: POST
-    body_format: json
-    body:
-      hostname: "{{{{ ansible_hostname }}}}"
-      status: "completed"
-      timestamp: "{{{{ ansible_date_time.iso8601 }}}}"
-    headers:
-      Authorization: "Bearer {{{{ vault_monitoring_token }}}}"
-  when: monitoring_webhook_url is defined
-```
-
-**🔐 Email and Communication Security:**
-- Never send sensitive data via unencrypted email
-- Use secure email protocols (TLS/SSL) for legitimate notifications
-- Implement proper access controls for email systems
-- Use dedicated notification and alerting systems
-- Encrypt sensitive communications end-to-end
-- Follow data protection and privacy regulations
 """
 
     def _generate_database_dump_fix(self, code_snippet: str) -> str:

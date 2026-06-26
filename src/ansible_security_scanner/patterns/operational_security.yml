@@ -17,7 +17,6 @@ patterns:
     positive_examples:
       - "apt_repository: repo=\"ppa:ansible/ansible\""
     recommendation: "Only use approved internal package mirrors; vet third-party repos through security review"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -32,7 +31,6 @@ patterns:
     positive_examples:
       - "cmd: dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo"
     recommendation: "Only use approved internal package mirrors; vet third-party repos through security review"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -63,7 +61,6 @@ patterns:
     positive_examples:
       - "command: update-ca-trust"
     recommendation: "CA certificate installation must go through approved PKI workflows with security review"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -77,7 +74,6 @@ patterns:
     positive_examples:
       - "openssl req -x509 -batch -sha256 -days 1825 -newkey rsa:2048 -nodes -keyout /root/ca.key -out /usr/local/share/ca-certificates/ca.crt"
     recommendation: "Use an approved certificate authority (Let's Encrypt, internal CA); avoid self-signed certs"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -93,7 +89,6 @@ patterns:
     positive_examples:
       - "- nmap inventory plugin - use ``raise ... from ...`` when passing on exceptions (https://github.com/ansible-collections/community.general/pull/11095)."
     recommendation: "Network scanning should only be performed by authorized security teams, not from playbooks"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -107,7 +102,6 @@ patterns:
     positive_examples:
       - "qhv8FwdoPFNh8TC11btfU1wphcBl65pCaPff2s94/Gj2aQ0PrFYuhPtzqwARAQAB"
     recommendation: "Network capture should only be performed by authorized network teams with proper controls"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -168,7 +162,6 @@ patterns:
     #      is ≥16 chars of hex only (randomised name -> malware beacon).
     regex: "(?mi)(?:^\\s*ExecStart\\s*=\\s*(?:/tmp/|/var/tmp/|/dev/shm/|~/|/home/[^/\\s]+/\\.cache/|/home/[^/\\s]+/tmp/)[^\\n]+|/etc/systemd/system/[a-f0-9]{16,}\\.service(?=[\"'\\s]|$))"
     recommendation: "If the service is legitimate, move the binary to a managed location (``/usr/local/bin/`` or a package-managed path) and reference it from there; ephemeral/user-writable ``ExecStart=`` targets let any local user (or any process with equivalent write access) hijack a root-context service at boot."
-    no_ansible_remediation: true
     positive_examples:
       - |2-
               content: |
@@ -205,7 +198,6 @@ patterns:
     positive_examples:
       - "ExecStart = /etc/init.d/elastichq start"
     recommendation: "Use approved configuration management for service lifecycle, not init script manipulation"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -219,7 +211,6 @@ patterns:
     positive_examples:
       - "dest:/.config/autostart/.desktop"
     recommendation: "XDG autostart entries should be deployed through approved configuration management only"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -233,7 +224,6 @@ patterns:
     positive_examples:
       - "/etc/anacrontab"
     recommendation: "Scheduled tasks should use approved orchestration; do not modify anacrontab in playbooks"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -247,7 +237,6 @@ patterns:
     positive_examples:
       - "pidfile_run=\"/run/$(basename \"${0}\").pid\""
     recommendation: "udev rules must go through approved system configuration; RUN= allows arbitrary command execution"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -261,7 +250,6 @@ patterns:
     positive_examples:
       - "path:  '{{ \"/etc/apt/apt.conf.d/\" + (item.filename | d(item.name | regex_replace(\".conf$\", \"\") + \".conf\")) }}'"
     recommendation: "APT hooks can execute arbitrary code on every package install; use approved config management"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -275,7 +263,6 @@ patterns:
     positive_examples:
       - "dest: '/etc/modules-load.d/{{ item.filename | d(item.name | replace(\"_\", \"-\") + \".conf\") }}'"
     recommendation: "Kernel module auto-loading must be managed through approved system hardening workflows"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -289,7 +276,6 @@ patterns:
     positive_examples:
       - "/etc/NetworkManager/dispatcher.d/"
     recommendation: "NetworkManager dispatcher scripts run as root on network changes; use approved config management"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -305,7 +291,6 @@ patterns:
     positive_examples:
       - "ssh -M -S '{{ xdebug_tunnel_control_socket }}' -fnNT -R {{ xdebug_tunnel_port_mapping }} {{ xdebug_tunnel_user_at_host }} '{{ xdebug_tunnel_control_identity }}'"
     recommendation: "Use approved VPN or network access solutions, not SSH tunnels from playbooks"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -319,7 +304,6 @@ patterns:
     positive_examples:
       - "line: PasswordAuthentication yes"
     recommendation: "SSH hardening should follow CIS benchmarks; never weaken SSH config from playbooks"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -336,7 +320,6 @@ patterns:
     positive_examples:
       - "redis-cli -a \"$(redis-password)\" -n \"${REDIS_DATABASE}\" --raw keys \"blobs::sha256:*\" 2>/dev/null \\"
     recommendation: "Use credential files (.my.cnf, .pgpass) or environment variables, not inline passwords"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -356,7 +339,6 @@ patterns:
       - "- shell: ansible-galaxy collection install -r requirements.yml"
       - "- shell: ansible-galaxy install --requirements-file roles.yml"
     recommendation: "Always install via a pinned ``requirements.yml`` (``ansible-galaxy install -r requirements.yml``). Pin every entry to a version (``version: 1.2.3``), or for git sources to a full 40-char SHA. For collections, pin via ``signatures:`` (Sigstore / GPG) when the source supports it. Run installs against an internal Galaxy proxy you control; avoid the public ``galaxy.ansible.com`` for production."
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -370,7 +352,6 @@ patterns:
     positive_examples:
       - "git clone https://github.com/containers/podman.git /tmp/podman"
     recommendation: "Pin git clone to specific tags/SHAs; prefer internal mirrors for external repositories"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -386,7 +367,6 @@ patterns:
     positive_examples:
       - "iptables -F"
     recommendation: "Never disable host firewalls from playbooks; manage rules through approved IaC"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -402,7 +382,6 @@ patterns:
     positive_examples:
       - "Write-Host \"$($acl.AccessRight)|$($acl.AccessControlType)|$($acl.AccountName)\""
     recommendation: "DNS queries should not contain dynamic/variable data; this pattern suggests data exfiltration"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -418,7 +397,6 @@ patterns:
     positive_examples:
       - "- modprobe - remove redundant conversions to unicode (https://github.com/ansible-collections/community.general/pull/11098)."
     recommendation: "Kernel module management should go through approved system hardening workflows"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -435,7 +413,6 @@ patterns:
     positive_examples:
       - "git: repo=git://github.com/pooler/cpuminer.git dest=/opt/cpuminer accept_hostkey=yes"
     recommendation: "Crypto mining is never permitted on managed infrastructure; remove immediately and investigate"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -449,7 +426,6 @@ patterns:
     positive_examples:
       - "pool.:0000"
     recommendation: "Mining pool connections are never legitimate in automation; investigate immediately"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -465,7 +441,6 @@ patterns:
     positive_examples:
       - "Environment=LD_PRELOAD={{ libfaketime_path.stdout_lines[0].strip() }}"
     recommendation: "LD_PRELOAD is a common rootkit technique; this should never appear in playbooks"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -479,7 +454,6 @@ patterns:
     positive_examples:
       - "export LD_LIBRARY_PATH=\"${HOME}/go/deps/sqlite/.libs/:${HOME}/go/deps/libco/:${HOME}/go/deps/raft/.libs/:${HOME}/go/deps/dqlite/.libs/\""
     recommendation: "Never set LD_LIBRARY_PATH to untrusted directories"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -495,7 +469,6 @@ patterns:
     positive_examples:
       - "lineinfile: dest=/etc/pam.d/sshd line=\"{{item}}\""
     recommendation: "PAM configuration must be managed through approved hardening workflows with change control"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -511,7 +484,6 @@ patterns:
     positive_examples:
       - "grep -Eq \"$CMD_PATT\" \"/proc/$pid/cmdline\" 2>/dev/null && return 0"
     recommendation: "Process debugging tools should never be used from playbooks; this is a credential extraction technique"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -527,7 +499,6 @@ patterns:
     positive_examples:
       - "- cron: \"0 4 * * *\" # Run daily at 4:00 UTC"
     recommendation: "Use approved scheduling (cron, systemd timers) with proper audit trails, not at/batch"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -541,7 +512,6 @@ patterns:
     positive_examples:
       - "cd $DAEMON_PATH && nohup npm start > $DAEMON_PATH/logs/$DAEMON_NAME.log 2>&1 &"
     recommendation: "Long-running processes should be managed as systemd services with a ``Restart=on-failure``, ``StandardOutput=journal``, and ``MemoryMax=`` limit. For containers, use the container runtime's restart policy (``--restart=unless-stopped`` for podman/docker, ``restartPolicy: Always`` for Kubernetes). For one-off jobs, use ``systemd-run --unit=... --on-calendar=...`` (transient timer) so the schedule is still tracked by systemd."
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -557,7 +527,6 @@ patterns:
     positive_examples:
       - "iptables -t nat -D POSTROUTING -s {{ node_pod_cidr|ansible.utils.ipaddr('net') }} -o {{ node_default_gateway_interface }} -j MASQUERADE"
     recommendation: "Network NAT rules should be managed through approved network infrastructure, not playbooks"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -571,7 +540,6 @@ patterns:
     positive_examples:
       - "arpspoof "
     recommendation: "ARP manipulation is never legitimate in automation; this indicates active network attack"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -587,7 +555,6 @@ patterns:
     positive_examples:
       - "nsenter --cgroup=/hostproc/1/ns/cgroup --mount=/hostproc/1/ns/mnt \"${BIN_PATH}/cilium-mount\" $CGROUP_ROOT;"
     recommendation: "nsenter into PID 1 is a container escape; this should never appear in playbooks"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -601,7 +568,6 @@ patterns:
     positive_examples:
       - "/proc/sysrq-trigger"
     recommendation: "SysRq trigger access is dangerous and indicates attempted system disruption"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -617,7 +583,6 @@ patterns:
     positive_examples:
       - "dest: /root/.netrc"
     recommendation: "Use secret management (Vault, SSM) instead of credential dotfiles on disk"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -631,7 +596,6 @@ patterns:
     positive_examples:
       - "dest: /root/.aws/credentials"
     recommendation: "Use IAM roles and instance profiles, not persistent credential files"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -647,7 +611,6 @@ patterns:
     positive_examples:
       - "file: src=/home/{{user_name}}/.ssh/id_rsa.pub dest=/home/{{user_name}}/.ssh/authorized_keys state=link"
     recommendation: "SSH key management should be centralized; review all authorized_key additions"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -689,7 +652,6 @@ patterns:
     positive_examples:
       - "http_proxy:http://:@"
     recommendation: "Use proxy authentication through PAC files or credential helpers, not inline URLs"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -705,7 +667,6 @@ patterns:
     positive_examples:
       - "ipmitool -H "
     recommendation: "IPMI commands grant hardware-level control; access must be strictly controlled and audited"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -719,7 +680,6 @@ patterns:
     positive_examples:
       - "url: \"https://{{ idrac_ip }}:{{ idrac_port }}/redfish/v1/Managers\\"
     recommendation: "Redfish API access provides hardware control; must be authorized and logged"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -735,7 +695,6 @@ patterns:
     positive_examples:
       - "dig axfr"
     recommendation: "DNS zone transfers expose full domain inventory; only authorized DNS tools should perform AXFR"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -749,7 +708,6 @@ patterns:
     positive_examples:
       - "dnsrecon"
     recommendation: "DNS enumeration tools are reconnaissance techniques; should not run from playbooks"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -765,7 +723,6 @@ patterns:
     positive_examples:
       - "dest: '/etc/systemd/system/netbox-housekeeping.timer'"
     recommendation: "Systemd timers are a persistence mechanism; ensure they are authorized and audited"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -779,7 +736,6 @@ patterns:
     positive_examples:
       - "systemd-run --on-calendar"
     recommendation: "Transient systemd timers bypass standard unit file review; use proper timer unit files"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -795,7 +751,6 @@ patterns:
     positive_examples:
       - "bpftool prog load"
     recommendation: "eBPF programs have kernel-level access; loading should be strictly controlled"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -809,7 +764,6 @@ patterns:
     positive_examples:
       - "dest: '/etc/default/grub.d/debops.apparmor.cfg'"
     recommendation: "Bootloader modifications can install rootkits; changes must go through change management"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -823,7 +777,6 @@ patterns:
     positive_examples:
       - "- name: Update-initramfs # noqa no-changed-when"
     recommendation: "Initramfs modifications execute at boot before security controls; audit carefully"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -837,7 +790,6 @@ patterns:
     positive_examples:
       - "/sys/fs/cgrouprelease_agent"
     recommendation: "Cgroup manipulation is a container escape technique; investigate immediately"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -856,7 +808,6 @@ patterns:
     positive_examples:
       - "bash deepce.sh"
     recommendation: "DEEPCE is a container escape toolkit; its presence indicates active container breakout attempts"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -870,7 +821,6 @@ patterns:
     positive_examples:
       - "cdk evaluate"
     recommendation: "CDK is a container penetration toolkit; investigate immediately"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -925,7 +875,6 @@ patterns:
     positive_examples:
       - "amicontained"
     recommendation: "Amicontained is a container introspection tool used in escape reconnaissance; investigate"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -939,7 +888,6 @@ patterns:
     positive_examples:
       - "--cap-add=SYS_PTRACE"
     recommendation: "SYS_PTRACE allows process injection across containers; this is a privilege escalation vector"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -953,7 +901,6 @@ patterns:
     positive_examples:
       - "strings /dev/swap"
     recommendation: "Reading swap/memory for credentials is an attack technique; remove and investigate"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -967,7 +914,6 @@ patterns:
     positive_examples:
       - "- cron: \"0 4 * * *\" # Run daily at 4:00 UTC"
     recommendation: "Scheduled at jobs can evade detection; use cron/systemd timers with proper auditing instead"
-    no_ansible_remediation: true
     nist_controls: ['AU-6', 'CA-7', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.2']
@@ -983,7 +929,6 @@ patterns:
     positive_examples:
       - "Reset-ADAccountPasswordidentitykrbtgt"
     recommendation: "krbtgt resets should follow the Microsoft-recommended two-reset procedure (>10 hour gap) and be triggered by an IR runbook, not routine configuration management. Document the reason in the change ticket and audit who initiated it."
-    no_ansible_remediation: true
     cwe: ['CWE-321', 'CWE-1188']
     owasp_appsec: ["A02:2021"]
     mitre_attack: ['T1098.007', 'T1558.001']
@@ -1002,7 +947,6 @@ patterns:
     positive_examples:
       - "Get-LAPSADPassword"
     recommendation: "LAPS reads should be just-in-time, for a specific host, by a specific engineer (via the LAPS UI or scoped PowerShell). Bulk reads from automation indicate either a scope problem (script has more access than needed) or credential harvesting - audit the caller and tighten 'All extended rights' on OUs."
-    no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
     owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
@@ -1026,7 +970,6 @@ patterns:
     multiline: true
     window: 8
     recommendation: "Store activation keys and passwords in Ansible Vault and reference them by variable: `password: \"{{ vault_rhsm_password }}\"`. For unattended registration, prefer activation keys over passwords (they have narrower scope and can be rotated independently), and rotate them after every CI run that exposed them. Use Red Hat Insights + organisation-scoped service accounts rather than per-host credentials where possible."
-    no_ansible_remediation: true
     cwe: ['CWE-312', 'CWE-522', 'CWE-798']
     owasp_appsec: ["A04:2021", "A07:2021"]
     owasp_asvs: [V13.2.1, V13.2.3, V13.3.1, V14.1.1, V11.2.5, V14.2.1]
@@ -1108,7 +1051,6 @@ patterns:
     multiline: true
     window: 6
     recommendation: "Immutable / append-only flags on `/etc/shadow`, `/etc/sudoers`, `/etc/ssh/sshd_config`, `/var/log/audit/audit.log`, and `/etc/audit/rules.d/` are a deliberate defence; removing them should only happen inside a short, audited maintenance window, with the flag restored immediately after. If an Ansible role needs to edit these files routinely, fix the root cause (don't set the flag), rather than toggling it. Monitor: add an auditd watch (`-w /etc/shadow -p wa`) and alert on `ausearch -k shadow_write` from a non-maintenance session."
-    no_ansible_remediation: true
     cwe: ['CWE-281', 'CWE-732']
     owasp_asvs: [V5.3.1]
     mitre_attack: ['T1070.002', 'T1222', 'T1562.001']
@@ -1132,7 +1074,6 @@ patterns:
     multiline: true
     window: 6
     recommendation: "Never flush or disable firewalld on production RHEL. To add a legitimate rule, use `ansible.posix.firewalld: zone: public, service: https, permanent: true, state: enabled`. If a host genuinely does not need a firewall (e.g. a bastion behind a dedicated security group), document the exception in `.security-scanner-allowlist.yml` with a business justification, not by disabling firewalld."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693']
     owasp_appsec: ["A01:2021"]
     mitre_attack: ['T1562.004']
@@ -1152,7 +1093,6 @@ patterns:
     multiline: true
     window: 25
     recommendation: "Remove the task. If a legitimate maintenance window needs rsyslog briefly stopped, use a tightly-scoped handler with a matching `state: started` restart and log the action to a remote SIEM via a separate channel (syslog-ng forwarder on a different host, or a Fluent Bit sidecar). Never use `masked: true` on a logging service. Monitor with auditd's `-w /bin/systemctl -p x -k systemctl_exec` and alert on any `stop`/`mask` targeting logging units."
-    no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -1174,7 +1114,6 @@ patterns:
     multiline: true
     window: 3
     recommendation: "Remove the task. For log-size control, configure `logrotate` under `/etc/logrotate.d/` with `copytruncate`, `compress`, and `maxsize` directives. For history hygiene on shared hosts, rely on `HISTCONTROL=ignoreboth` and a remote session-recording tool (auditd + ausearch, or Teleport session recording) - never truncate live logs. Forward all auth/secure/audit logs off-host to a SIEM (rsyslog `@@siem:6514` over TLS) so a local wipe cannot destroy evidence."
-    no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -1219,7 +1158,6 @@ patterns:
     multiline: true
     window: 50
     recommendation: "Before any FIM reinit, archive the current DB off-host to append-only storage: `aws s3 cp /var/lib/aide/aide.db s3://forensic-vault/$(hostname)/$(date +%s)/aide.db --acl bucket-owner-full-control --metadata immutable=true` then rotate. For AIDE, use `aide --check` on a schedule; only reinit during patched-and-verified maintenance windows, not in ad-hoc playbooks. Alert on any DB removal via auditd: `-w /var/lib/aide/ -p wa -k fim_tamper` and forward to SIEM. Compensate with a cloud-side control: enable EBS/Azure-disk snapshot-on-change or zfs send for ground-truth disk baselines."
-    no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -1241,7 +1179,6 @@ patterns:
     multiline: true
     window: 10
     recommendation: "Point the primary resolver at an enterprise DoH gateway (Cloudflare Gateway with DNS Policies, Cisco Umbrella, Zscaler ZIA DNS Control, or an internal Pi-hole/AdGuard Home + Unbound stack) that both logs queries to SIEM and enforces category-based blocking. Forbid public-resolver DoH via outbound firewall (block TCP/443 to the known public-DoH IP ranges + HTTP/3 QUIC). On managed Windows fleets, enforce `NetworkIsolationEnableAutoProxy=false` + DoH policy pointing at the enterprise gateway only."
-    no_ansible_remediation: true
     cwe: ['CWE-441', 'CWE-778']
     owasp_appsec: ["A01:2021", "A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -1265,7 +1202,6 @@ patterns:
     multiline: true
     window: 20
     recommendation: "Treat any CloudTrail-disablement task as an active incident. Re-enable logging IMMEDIATELY (`aws cloudtrail start-logging` + `put-event-selectors ReadWriteType=All IncludeManagementEvents=true`). Lock the trail against future disablement by applying an SCP at the organisation level: `Deny cloudtrail:DeleteTrail, cloudtrail:StopLogging, cloudtrail:PutEventSelectors` except from a break-glass role requiring manual ticket approval. Enable AWS Security Hub control `CloudTrail.1` and `CloudTrail.4` for alerting. Restore any missing events from the S3 backing bucket (log files continue to be written during the `WriteOnly` window - only API filtering is affected)."
-    no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -1287,7 +1223,6 @@ patterns:
     multiline: true
     window: 15
     recommendation: "Re-enable immediately. Apply an organization-level SCP denying these APIs except from a delegated-admin security account: `{\"Effect\":\"Deny\",\"Action\":[\"guardduty:Delete*\",\"guardduty:Stop*\",\"securityhub:Disable*\",\"config:Stop*\",\"config:Delete*\"],\"Resource\":\"*\",\"Condition\":{\"StringNotEquals\":{\"aws:PrincipalOrgID\":\"<org-id>\",\"aws:PrincipalArn\":\"arn:aws:iam::<security-acct>:role/SecurityHubAdmin\"}}}`. Enable AWS Organizations delegated admin for GuardDuty + Security Hub so member accounts cannot disable locally. Monitor `eventName=DeleteDetector` etc. via EventBridge with a 24/7 pager alert."
-    no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -1328,7 +1263,6 @@ patterns:
       - "az security pricing create --tier Free"
     multiline: true
     recommendation: "Re-enable Defender Standard tier across all subscriptions: `az security pricing create --name VirtualMachines --tier Standard` (repeat for `StorageAccounts`, `SqlServers`, `KeyVaults`, `Arm`, `Dns`, `Containers`). Lock via Azure Policy: `DeployIfNotExists` on `Microsoft.Security/pricings` requiring `Standard` tier. Re-instate any deleted Sentinel data-connectors and add `Microsoft.SecurityInsights/dataConnectors/write` deny via Azure Policy except for a break-glass `SentinelAdmin` role. Audit existing downgrades: `az security pricing list --query \"[?pricingTier=='Free']\"`."
-    no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -1348,7 +1282,6 @@ patterns:
     positive_examples:
       - "csrutil disable"
     recommendation: "Never disable SIP on production or endpoint-fleet macOS. For the rare legitimate case (kernel-extension development for a security product) require it to be scoped to a dedicated developer Mac that is NEVER enrolled in MDM and NEVER holds corporate credentials. If a playbook legitimately disables SIP for a kernel-driver install, verify via Apple's recommended path: a temporary `csr-active-config` with MINIMAL flags (only `CSR_ALLOW_UNAPPROVED_KEXTS`) not a full `disable`. On fleet endpoints, use Apple MDM's `com.apple.security.*` profile to LOCK SIP on via DeviceManagement. Alert on `csrutil status` != `enabled` via Jamf/Kandji/Mosyle."
-    no_ansible_remediation: true
     cwe: ['CWE-250', 'CWE-284', 'CWE-693']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V13.4.5, V15.2.3]
@@ -1386,7 +1319,6 @@ patterns:
     positive_examples:
       - "tccutil reset All"
     recommendation: "NEVER mutate TCC.db from a playbook. Grant privacy permissions through the MDM `com.apple.TCC.configuration-profile-policy` payload (PPPC), which is the ONLY Apple-supported way to pre-authorise apps without a user prompt. Deliver PPPC profiles via Jamf PPPC Utility / Kandji / Mosyle with the full `CodeRequirement` string from `codesign -dr - <app>`. Alert on any `tccutil reset` via EndpointSecurity ES_EVENT_TYPE_AUTH_* subscriptions in your EDR."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-807', 'CWE-863']
     cve: ["CVE-2020-9771", "CVE-2022-32800", "CVE-2023-40424"]
     owasp_appsec: ["A01:2021", "A04:2021"]
@@ -1407,7 +1339,6 @@ patterns:
     multiline: true
     window: 100
     recommendation: "LaunchDaemons are LEGITIMATE for signed, notarized, MDM-deployed software. For those, pin every plist to `/Library/LaunchDaemons/com.<vendor>.<product>.plist` with `ProgramArguments` pointing at `/Library/Application Support/<vendor>/<signed-binary>` - never into world-writable locations. Sign every `launchd` plist's target binary with a Developer-ID cert + notarize it. Audit existing persistence: `launchctl list | grep -v com.apple` and review each non-Apple entry. For IR, enumerate with `sudo find /Library/Launch* ~/Library/LaunchAgents -name '*.plist' -newer /var/log/install.log`."
-    no_ansible_remediation: true
     cwe: ['CWE-269', 'CWE-506', 'CWE-732']
     owasp_appsec: ["A04:2021"]
     owasp_asvs: [V5.3.1]
@@ -1429,7 +1360,6 @@ patterns:
     multiline: true
     window: 30
     recommendation: "Never flush a host firewall without the replacement ruleset in the same transaction. Use `iptables-restore < /etc/iptables/rules.v4` (atomic swap) or nftables `nft -f /etc/nftables.conf` (transactional). Preferred: manage the firewall with `ansible.posix.firewalld` / `community.general.ufw` / `ansible.builtin.iptables` module idempotently - never with ad-hoc shell. Maintain default-DENY policies: `iptables -P INPUT DROP`, `iptables -P FORWARD DROP`. Audit for this pattern in your config-drift detection."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693', 'CWE-732']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V5.3.1]
@@ -1449,7 +1379,6 @@ patterns:
     positive_examples:
       - "iptables-save >/dev/null"
     recommendation: "Always persist firewall rules to the distro's canonical location: `/etc/iptables/rules.v4` (Debian/Ubuntu netfilter-persistent), `/etc/sysconfig/iptables` (RHEL/CentOS with `iptables-services`), `/etc/nftables.conf` (nftables-based distros). Use the `ansible.builtin.iptables` module with `state: saved` (iptables ≥ 1.8.4) or a `notify: save iptables` handler. For compliance dumps, write to `/var/log/firewall/snapshot-$(date +%Y%m%d).conf` with mode `0600` owner `root:adm`. Never pipe firewall state to ephemeral storage."
-    no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -1471,7 +1400,6 @@ patterns:
     multiline: true
     window: 60
     recommendation: "Every `/etc/pf.conf` MUST start with `set skip on lo` then `block return all` (or `block drop all`) BEFORE any `pass` rules. Load via `pfctl -f /etc/pf.conf -e` in the maintenance window, never `pfctl -d`. For macOS, use an MDM configuration profile (`com.apple.applicationaccess.new`) to prevent `pfctl -d`. Validate with `pfctl -sr | head -1` - first rule should be `block`. Audit rule-loads via `/var/log/pflog` (tcpdump-compatible)."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693']
     owasp_appsec: ["A01:2021"]
     mitre_attack: ['T1562.004']
@@ -1582,7 +1510,6 @@ patterns:
     multiline: true
     window: 15
     recommendation: "Apply `CanNotDelete` locks at the subscription level on all production subscriptions via Azure Policy `deployIfNotExists` assignment. Use Azure AD Privileged Identity Management (PIM) to require time-bound, MFA-gated activation for any role that can remove locks (`Owner`, `User Access Administrator`). Audit `Microsoft.Authorization/locks/delete` Activity Log events - alert high on sub-scope lock removals and page on-call for prod subs. Consider Azure Policy `deny` on `Microsoft.Authorization/locks/delete` except from a break-glass account."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-732', 'CWE-922']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V5.3.1]
@@ -1651,7 +1578,6 @@ patterns:
     multiline: true
     window: 15
     recommendation: "For legitimate admin scripting, use `Set-ExecutionPolicy RemoteSigned -Scope LocalMachine` (blocks downloaded unsigned scripts, allows local) or `AllSigned` (requires all scripts code-signed). Sign your internal scripts with an enterprise code-signing cert via `Set-AuthenticodeSignature`. Deploy script-policy via GPO `Computer Configuration\\Administrative Templates\\Windows Components\\Windows PowerShell\\Turn on Script Execution = AllSigned` which takes precedence over `Set-ExecutionPolicy`. Audit with `Get-ExecutionPolicy -List` - alert on any scope where the effective policy is `Bypass` or `Unrestricted`. Enable PowerShell Script Block Logging (EID 4104) to capture what runs when policy is weakened."
-    no_ansible_remediation: true
     cwe: ['CWE-250', 'CWE-284', 'CWE-693']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V13.4.5, V15.2.3]
@@ -1673,7 +1599,6 @@ patterns:
     multiline: true
     window: 12
     recommendation: "Disable SMBv1 everywhere: `Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force` + `Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol`. For stragglers that need SMBv1 (legacy scanners, NAS), isolate them on a dedicated VLAN with no route to user endpoints or servers, and explicitly ACL only those IP pairs that need SMB1. Enforce fleet-wide via GPO `Computer Configuration\\Policies\\Administrative Templates\\MS Security Guide\\Configure SMBv1 client / server driver = Disabled`. Audit via `Get-SmbServerConfiguration | Select EnableSMB1Protocol` - must be `False`. Alert on Windows EID 2000 (SMB1 access attempt)."
-    no_ansible_remediation: true
     cwe: ['CWE-326', 'CWE-327', 'CWE-693']
     cve: ["CVE-2017-0144"]
     owasp_appsec: ["A02:2021"]
@@ -1718,7 +1643,6 @@ patterns:
     multiline: true
     window: 15
     recommendation: "Set `RestrictAnonymous = 1` (recommended baseline) or `2` (strict, blocks all anonymous enum), `RestrictAnonymousSAM = 1`, `EveryoneIncludesAnonymous = 0`. Enforce via GPO `Computer Configuration\\Policies\\Windows Settings\\Security Settings\\Local Policies\\Security Options` -> `Network access: Do not allow anonymous enumeration of SAM accounts = Enabled` + `Network access: Let Everyone permissions apply to anonymous users = Disabled`. Audit via `Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa' | Select RestrictAnonymous*,EveryoneIncludes*`. Test before enforcement - some legacy line-of-business apps rely on anonymous enum (mitigate by upgrading the app, not weakening the OS)."
-    no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-284', 'CWE-306']
     owasp_appsec: ["A01:2021", "A07:2021"]
     owasp_asvs: [V6.2.1, V14.2.2]
@@ -1740,7 +1664,6 @@ patterns:
     multiline: true
     window: 10
     recommendation: "Force WinRM over HTTPS (5986) with a trusted CA-issued cert: `winrm quickconfig -transport:https` after installing the cert, then `winrm set winrm/config/service @{AllowUnencrypted=\"false\"}`. For Ansible use `ansible_winrm_transport: credssp` or `kerberos` (domain-joined) + `ansible_winrm_scheme: https` + `ansible_winrm_server_cert_validation: validate`. Enforce via GPO `Computer Configuration\\Policies\\Windows Components\\Windows Remote Management\\WinRM Service\\Allow unencrypted traffic = Disabled`. Audit: `winrm get winrm/config/service` - `AllowUnencrypted` must be `false`. Firewall inbound 5985 to DENY (leaving only 5986 HTTPS open)."
-    no_ansible_remediation: true
     cwe: ['CWE-311', 'CWE-319', 'CWE-522']
     owasp_appsec: ["A02:2021", "A04:2021"]
     owasp_asvs: [V13.2.1, V11.2.5, V14.2.1, V12.2.1, V12.3.4]
@@ -1762,7 +1685,6 @@ patterns:
     multiline: true
     window: 40
     recommendation: "Stop and disable Print Spooler on EVERY Domain Controller: `Stop-Service -Name Spooler -Force` + `Set-Service -Name Spooler -StartupType Disabled`. Enforce via GPO linked to the `Domain Controllers` OU: `Computer Configuration\\Preferences\\Control Panel Settings\\Services -> Spooler StartupType=Disabled, ServiceState=Stopped`. For member servers, only machines with a legitimate print-server role need Spooler - all others should match DC policy. Audit: `Get-ADComputer -Filter 'Enabled -eq $true' | ForEach {Get-Service -ComputerName $_.Name -Name Spooler}` - alert on any `Running` entry. Apply the quarterly cumulative updates (KB5005652, KB5006670 onwards) which contain print-driver restrictions even when Spooler is enabled."
-    no_ansible_remediation: true
     cwe: ['CWE-250', 'CWE-269', 'CWE-284']
     cve: ["CVE-2021-34527", "CVE-2023-21678", "CVE-2024-20683"]
     owasp_appsec: ["A01:2021", "A04:2021"]
@@ -1806,7 +1728,6 @@ patterns:
     multiline: true
     window: 10
     recommendation: "Require dual-control for SCP changes: protect the `organizations:*Policy*` permissions behind a break-glass role with MFA + AWS IAM Identity Center approval workflows. At the management-account level, apply an SCP that denies `organizations:DetachPolicy` and `organizations:DeletePolicy` for everyone EXCEPT a designated `OrgPolicyAdmin` role. Enable CloudTrail org-trail for the management account (log SCP changes). Alert HIGH on any `DetachPolicy`/`DeletePolicy` CloudTrail event - page on-call within 5 min. Maintain an IaC source-of-truth (Terraform / OrgFormation) for SCPs so any out-of-band change is detected by config-drift detection (AWS Config, drift report)."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693', 'CWE-732']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V5.3.1]
@@ -1828,7 +1749,6 @@ patterns:
     multiline: true
     window: 15
     recommendation: "DELETE the IAM user immediately if possible and replace with IAM Identity Center + permission sets. For non-human access from an on-prem / CI system, use OIDC Web Identity Federation (GitHub Actions has native AWS OIDC integration, 2022 GA) - no access key needed. For Ansible control-node on EC2/ECS, use the instance profile / task role - Ansible's `amazon.aws` collection auto-detects these. If a long-lived key is unavoidable (legacy partner integration), rotate every 30 days via `aws iam update-access-key --status Inactive` + re-create, enforce via SCP: `iam:CreateAccessKey` denied except for specific service users with a `KeyMaxAgeDays: 90` tag. Audit with AWS IAM Credentials Report: `aws iam generate-credential-report` + find `access_key_1_last_rotated > 90 days ago`."
-    no_ansible_remediation: true
     cwe: ['CWE-308', 'CWE-522', 'CWE-798']
     owasp_appsec: ["A04:2021", "A07:2021"]
     owasp_asvs: [V13.2.1, V13.2.3, V13.3.1, V11.2.5]
@@ -1871,7 +1791,6 @@ patterns:
     multiline: true
     window: 15
     recommendation: "Enforce diagnostic-settings via Azure Policy: `Microsoft.Insights/diagnosticSettings` `DeployIfNotExists` linked to every `Microsoft.KeyVault`, `Microsoft.Storage`, `Microsoft.Network/*`, `Microsoft.AzureActiveDirectory` resource type. Send logs to a central Log Analytics Workspace with long retention (≥1 year). For break-glass deletion, require an Azure Policy `Deny` effect on `Microsoft.Insights/diagnosticSettings/delete` scoped below Management-Group -> break-glass Role Assignment only. Alert on `Microsoft.Insights/diagnosticSettings/delete` Activity Log events - page on-call. Quarterly audit: `az monitor diagnostic-settings list-categories --resource <id>` for every production resource, compare against a golden-baseline list."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693', 'CWE-778']
     owasp_appsec: ["A01:2021", "A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -1893,7 +1812,6 @@ patterns:
     multiline: true
     window: 12
     recommendation: "Keep all Defender Plans on Standard tier for production subscriptions. For cost optimization, use Azure Policy to ENFORCE the minimum tier per-plan at management-group scope via `azurerm_policy_definition` with a `deny` effect on `tier = 'Free'`. Review the per-plan cost vs. security trade-off annually - the cost of Defender for Containers is ~1% of the cost of an average container-escape breach response. Alert on `Microsoft.Security/pricings/write` Activity Log events with `tier=Free`. Maintain the pricing-tier IaC in Terraform + require break-glass approval for downgrade changes."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693', 'CWE-697']
     owasp_appsec: ["A01:2021"]
     mitre_attack: ['T1562.001', 'T1562.008']
@@ -1977,7 +1895,6 @@ patterns:
     multiline: true
     window: 25
     recommendation: "Enable immutability on every backup repository with minimum 14-day retention (PCI-scoped: 30 days; HIPAA/regulated: 90+ days). Veeam: `Hardened Repository` with XFS + filesystem-level immutability + `Immutable for: 30 days` policy + separate non-domain-joined backup-service account. Commvault: WORM-enabled storage policy + Cloud Storage Lock with S3 Object Lock in Compliance mode. Rubrik: SLA with `retention_lock_mode: COMPLIANCE` + `snapshot_archival_lock_duration_days: 30`. Cohesity: DataLock with `lockDurationUsecs: 2592000000000` (30 days in µs). For cloud S3-backed backups: `aws s3api put-object-lock-configuration --bucket backups --object-lock-configuration 'ObjectLockEnabled=Enabled,Rule={DefaultRetention={Mode=COMPLIANCE,Days=30}}'` + separate AWS account with SCP denying `s3:PutObjectLockConfiguration` / `s3:BypassGovernanceRetention` from anyone outside break-glass role. Test quarterly via ransomware-simulation: attempt deletion as domain-admin - must fail. Audit: Veeam `Get-VBRBackupRepository | Select Name, ImmutabilityPeriodDays` / `aws s3api get-object-lock-configuration --bucket <b>`."
-    no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-732', 'CWE-1326']
     owasp_asvs: [V5.3.1]
     mitre_attack: ['T1485', 'T1490', 'T1565.001']
@@ -2081,7 +1998,6 @@ patterns:
     multiline: true
     window: 10
     recommendation: "Never disable Tetragon on a Cilium-protected cluster. Tune by narrowing `TracingPolicy` selectors (pod label, namespace, binary path) rather than uninstalling. Deploy Tetragon as a DaemonSet with `kubectl apply -f tetragon.yaml` managed by a GitOps reconciler (ArgoCD/Flux) that blocks drift; enable Tetragon's JSON event export to a SIEM (Loki, Splunk, Datadog, Sentinel). Put `TracingPolicy` CRDs under OPA Gatekeeper admission policy that blocks delete for `kill_action: SIGKILL` rules tagged critical. Alert on Tetragon agent restart/stop, on deleted `TracingPolicy` objects, and on `kprobe_process_event_count` going to zero for any node. Document Tetragon as the PCI-DSS 10.5, CIS K8s 3.2, SOC 2 CC7.2 compensating control for runtime behavioural monitoring. Review Isovalent's 2024 Tetragon hardening guide and the MITRE-aligned TracingPolicy library."
-    no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-1357']
     owasp_asvs: [V15.2.4]
     mitre_attack: ['T1070', 'T1562.001', 'T1562.007']

@@ -276,7 +276,6 @@ patterns:
     positive_examples:
       - "New-ObjectNet.Sockets.TCPClient"
     recommendation: "Remove this PowerShell reverse shell payload immediately and investigate the source"
-    no_ansible_remediation: true
     cwe: ['CWE-78', 'CWE-506']
     owasp_appsec: ["A03:2021"]
     mitre_attack: ['T1059.001', 'T1071.001']
@@ -294,7 +293,6 @@ patterns:
     positive_examples:
       - "Runtime.getRuntime().exec(/bin/sh"
     recommendation: "Remove this Java reverse shell payload immediately and investigate the source"
-    no_ansible_remediation: true
     cwe: ['CWE-78', 'CWE-506']
     owasp_appsec: ["A03:2021"]
     mitre_attack: ['T1059', 'T1071.001']
@@ -312,7 +310,6 @@ patterns:
     positive_examples:
       - "xterm -display 0:0"
     recommendation: "Remove this xterm reverse shell payload immediately; X11 forwarding to external hosts is a known attack vector"
-    no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-506']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -335,7 +332,6 @@ patterns:
     positive_examples:
       - "dnscat--dns"
     recommendation: "Remove dnscat2 immediately; it provides a covert C2 channel over DNS"
-    no_ansible_remediation: true
     cwe: ['CWE-78', 'CWE-506']
     owasp_appsec: ["A03:2021"]
     mitre_attack: ['T1071.004', 'T1572']
@@ -353,7 +349,6 @@ patterns:
     positive_examples:
       - "IWR|IEX$TCPClient"
     recommendation: "Remove this PowerShell download-and-execute reverse shell payload immediately"
-    no_ansible_remediation: true
     cwe: ['CWE-78', 'CWE-506']
     owasp_appsec: ["A03:2021"]
     mitre_attack: ['T1059.001', 'T1105']

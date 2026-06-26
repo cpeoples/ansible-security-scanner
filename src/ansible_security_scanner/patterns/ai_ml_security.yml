@@ -156,7 +156,6 @@ patterns:
     positive_examples:
       - "pickle.load"
     recommendation: "Never load pickle files from untrusted sources; use safetensors format for ML models"
-    no_ansible_remediation: true
     cve: ["CVE-2024-12029", "CVE-2024-3568"]
     nist_controls: ['SI-3', 'SI-10', 'CM-11']
     soc2: ['CC7.1']
@@ -176,7 +175,6 @@ patterns:
     multiline: true
     window: 10
     recommendation: "Pin model URLs to specific versions and verify SHA256 checksums"
-    no_ansible_remediation: true
     nist_controls: ['CM-11', 'SA-10', 'SI-7']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0010', 'AML.T0011.000']
@@ -193,7 +191,6 @@ patterns:
     positive_examples:
       - "aws sagemaker create-"
     recommendation: "SageMaker provisioning should go through approved ML pipelines, not Ansible"
-    no_ansible_remediation: true
     nist_controls: ['AC-3', 'AC-6', 'AU-12']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0040', 'AML.T0034']
@@ -208,7 +205,6 @@ patterns:
     positive_examples:
       - "aws bedrock invoke"
     recommendation: "Bedrock access should go through approved API gateways with cost controls"
-    no_ansible_remediation: true
     nist_controls: ['AC-3', 'AC-6', 'AU-12']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0040', 'AML.T0034']
@@ -226,7 +222,6 @@ patterns:
     positive_examples:
       - "gcloud ai "
     recommendation: "Vertex AI provisioning should go through approved ML pipelines"
-    no_ansible_remediation: true
     nist_controls: ['AC-3', 'AC-6', 'AU-12']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0040', 'AML.T0034']
@@ -241,7 +236,6 @@ patterns:
     positive_examples:
       - "environment: azureml://registries/azureml/environments/sklearn-1.5/labels/latest"
     recommendation: "Azure ML provisioning should go through approved ML pipelines"
-    no_ansible_remediation: true
     nist_controls: ['AC-3', 'AC-6', 'AU-12']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0040', 'AML.T0034']
@@ -258,7 +252,6 @@ patterns:
     positive_examples:
       - "description: Please enter the AWS instance type to use, e.g. 'g6.2xlarge'."
     recommendation: "GPU instance launches must be approved and tagged with a cost center and expiration"
-    no_ansible_remediation: true
     nist_controls: ['AC-6', 'CM-7', 'AU-12']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0034']
@@ -289,7 +282,6 @@ patterns:
     positive_examples:
       - "buildah config --cmd \"jupyter lab --ip=0.0.0.0 --no-browser\" {{ container_id }}"
     recommendation: "Jupyter servers should be deployed through approved platforms with authentication"
-    no_ansible_remediation: true
     nist_controls: ['AC-3', 'IA-2', 'SC-7']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0049', 'AML.T0050']
@@ -306,7 +298,6 @@ patterns:
     positive_examples:
       - "wp_cli_completion_url: \"https://raw.githubusercontent.com/wp-cli/wp-cli/v{{ wp_cli_version }}/utils/wp-completion.bash\""
     recommendation: "Sanitize and validate all user input before including in LLM prompts; use input guardrails"
-    no_ansible_remediation: true
     nist_controls: ['SI-10', 'SI-3']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0051', 'AML.T0051.001']
@@ -323,7 +314,6 @@ patterns:
     positive_examples:
       - "mlflow run"
     recommendation: "MLflow access should go through approved ML pipeline orchestration"
-    no_ansible_remediation: true
     nist_controls: ['AC-3', 'AC-6', 'AU-12']
     soc2: ['CC7.1']
     mitre_atlas: ['AML.T0010', 'AML.T0018']
@@ -406,7 +396,6 @@ patterns:
     multiline: true
     window: 60
     recommendation: "Never pipe raw LLM output to shell. Parse the LLM response as structured JSON with a strict schema (JSON-Schema / Pydantic). Allowlist exactly the commands / arguments the workflow needs and invoke them explicitly by name with validated arguments - not via string interpolation. Add a second-pass classifier that rejects outputs containing shell metacharacters (`;`, `&`, `|`, backticks)."
-    no_ansible_remediation: true
     cwe: ["CWE-77", "CWE-94", "CWE-1427"]
     owasp_appsec: ["A03:2021"]
     owasp_llm: ["LLM01", "LLM02"]
@@ -451,7 +440,6 @@ patterns:
     multiline: true
     window: 40
     recommendation: "Never `pickle.load` attacker-controlled data; prefer safetensors (`safetensors.torch.load_file`) which is pure data. If you must use pickle for a model, compute the SHA-256 against a known-good value first and fail the task on mismatch. Run the loader as an unprivileged user (`become: false` for this task) inside a restricted container with `readOnlyRootFilesystem: true`."
-    no_ansible_remediation: true
     cwe: ["CWE-250", "CWE-502"]
     cve: ["CVE-2024-12029", "CVE-2024-3568"]
     owasp_appsec: ["A08:2021"]
@@ -497,7 +485,6 @@ patterns:
     multiline: true
     window: 10
     recommendation: "Never bind an unconstrained shell tool to an LLM agent. If shell capability is required, wrap it in an allowlist+argv-validation shim: `Tool(name='ls_project', func=lambda _: subprocess.run(['ls', PROJECT_DIR], check=True, capture_output=True).stdout)`. Run all tool executions in a locked-down sandbox (gVisor, Firecracker, or a per-request disposable container with no secrets and no outbound network). Apply guardrails (NeMo Guardrails, Llama Guard 3) before the tool-dispatch step."
-    no_ansible_remediation: true
     cwe: ['CWE-78', 'CWE-94', 'CWE-1427']
     cve: ["CVE-2023-36258", "CVE-2023-44467"]
     owasp_appsec: ["A03:2021"]
@@ -562,7 +549,6 @@ patterns:
     multiline: true
     window: 40
     recommendation: "NEVER expose a generic `shell` / `exec` tool through MCP. Define narrow, parameterised tools per operation (e.g., `git_status(repo: str)`, `read_file(path: str)` constrained to an allowlisted root). If a shell-style tool is unavoidable (operator-only diagnostic MCP): (a) run the MCP server in a throw-away container with a read-only rootfs, no network, non-root UID, dropped capabilities, seccomp strict, (b) apply an allowlist of commands + argument patterns (argparse + enum, not regex), (c) require the MCP client to pass a fresh per-invocation OAuth/PAT bound to the current user, never a long-lived shared secret, (d) log every tool call with full arguments to an append-only audit sink, (e) run an adversarial prompt-injection test suite (PromptBench, Garak) before exposing the tool to an end-user LLM. Review Anthropic MCP security guidance (Nov 2024) and disable any community MCP server with `shell`/`exec`/`eval` sinks by default."
-    no_ansible_remediation: true
     cwe: ['CWE-77', 'CWE-78', 'CWE-94', 'CWE-1427']
     cve: ["CVE-2025-49596"]
     owasp_appsec: ["A03:2021"]
@@ -585,7 +571,6 @@ patterns:
     multiline: true
     window: 20
     recommendation: "Never ingest arbitrary URLs into a production RAG index. Maintain an explicit domain allowlist (config file, code-reviewed) and reject ingestion requests that resolve outside it. Canonicalise every URL (lowercased scheme/host, strip fragments, resolve redirects, re-check against allowlist at final hop to prevent SSRF/open-redirect poisoning). Sanitise every ingested document through: (a) HTML -> text with `bleach` or `readability` stripping `<script>`, HTML comments, zero-width characters, and known prompt-injection markers (`<|im_start|>`, `[INST]`, `###`), (b) an LLM-based prompt-injection classifier (Rebuff, Lakera Guard, Meta Prompt Guard) with a strict threshold, (c) content-type + size guards (reject `text/html` > 1 MB, reject binaries). Quarantine newly-ingested chunks for 24 h before promoting to the live index. Log every ingested URL + SHA-256 of content and alert on anomalies. Review OWASP LLM Top-10 v1.1 LLM03 and NIST AI 100-2 (2024) adversarial-ML profile."
-    no_ansible_remediation: true
     cwe: ['CWE-20', 'CWE-918', 'CWE-1427']
     owasp_appsec: ["A03:2021", "A10:2021"]
     owasp_llm: ["LLM01", "LLM03"]

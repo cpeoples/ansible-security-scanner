@@ -12,7 +12,6 @@ patterns:
     positive_examples:
       - "ssh -D 0"
     recommendation: "SSH tunneling should only be used with explicit approval; consider VPN alternatives"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1090.001', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
@@ -30,7 +29,6 @@ patterns:
     positive_examples:
       - "chisel server"
     recommendation: "Chisel is a common pentesting tool; should not appear in production playbooks"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1090.002', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
@@ -48,7 +46,6 @@ patterns:
     positive_examples:
       - "ligolo-ng"
     recommendation: "Ligolo is a pentesting pivot tool; should not appear in production playbooks"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1090.002', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
@@ -66,7 +63,6 @@ patterns:
     positive_examples:
       - "ngrok http"
     recommendation: "ngrok exposes internal services publicly; never use in production environments"
-    no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-693']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -89,7 +85,6 @@ patterns:
     positive_examples:
       - "cloudflared tunnel"
     recommendation: "Cloudflare tunnels must be approved; they bypass network security controls"
-    no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-693']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -109,7 +104,6 @@ patterns:
     positive_examples:
       - "frpc"
     recommendation: "FRP is commonly used for unauthorized tunneling; remove immediately"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1090.002', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
@@ -127,7 +121,6 @@ patterns:
     positive_examples:
       - "revsocks-l "
     recommendation: "Reverse proxy tools should not appear in production playbooks"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1090.001', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
@@ -145,7 +138,6 @@ patterns:
     positive_examples:
       - "ssh -R 0:localhost:0"
     recommendation: "Remote port forwarding exposes internal services; requires explicit security approval"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1021.004', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
@@ -163,7 +155,6 @@ patterns:
     positive_examples:
       - "apt installwireguard"
     recommendation: "VPN installations must be approved by network security; unauthorized VPNs bypass controls"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1133', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.7']
@@ -181,7 +172,6 @@ patterns:
     positive_examples:
       - "iodine -f"
     recommendation: "Iodine tunnels IPv4 over DNS to bypass firewalls; remove immediately"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1071.004', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-13.1']
@@ -199,7 +189,6 @@ patterns:
     positive_examples:
       - "dnscat--dns"
     recommendation: "dnscat2 is a DNS-based C2 tool; should not appear in production playbooks"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1071.004', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-13.1']
@@ -217,7 +206,6 @@ patterns:
     positive_examples:
       - "icmptunnel -s"
     recommendation: "ICMP tunneling bypasses firewall rules; remove immediately"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1095', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-13.1']
@@ -235,7 +223,6 @@ patterns:
     positive_examples:
       - "rathole --client"
     recommendation: "Rathole enables NAT traversal tunnels; requires explicit security approval"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1090.002', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
@@ -253,7 +240,6 @@ patterns:
     positive_examples:
       - "bore local 0"
     recommendation: "Bore exposes local services through a public relay; requires security approval"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1090.002', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
@@ -271,7 +257,6 @@ patterns:
     positive_examples:
       - "lt --port 0"
     recommendation: "LocalTunnel exposes internal services publicly; should not be used in production"
-    no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-693']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -291,7 +276,6 @@ patterns:
     positive_examples:
       - "ssh -R 0: serveo.net"
     recommendation: "Serveo exposes internal services publicly via SSH; requires security approval"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1021.004', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
@@ -309,7 +293,6 @@ patterns:
     positive_examples:
       - "socat TCP-LISTEN:0forkTCP:0:0"
     recommendation: "Socat port forwarding can expose internal services; ensure this is authorized"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1090.001', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.6']
@@ -327,7 +310,6 @@ patterns:
     positive_examples:
       - "tailscale up"
     recommendation: "Tailscale mesh VPN can bypass network controls; requires explicit security approval"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1133', 'T1572']
     cis_controls: ['CIS-4.1', 'CIS-12.7']

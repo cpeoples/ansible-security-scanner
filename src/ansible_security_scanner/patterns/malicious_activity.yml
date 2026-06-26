@@ -654,7 +654,6 @@ patterns:
       - "${jndildap"
     multiline: false
     recommendation: "Remove the payload. Targets must be patched to Log4j >= 2.17.1 (or >= 2.12.4 for Java 7, >= 2.3.2 for Java 6). Short-term mitigation on legacy targets: set `-Dlog4j2.formatMsgNoLookups=true` and remove the `JndiLookup` class (`zip -q -d log4j-core-*.jar org/apache/logging/log4j/core/lookup/JndiLookup.class`). Detection: EDR/WAF/SIEM rule on the regex above across inbound HTTP headers and URL parameters."
-    no_ansible_remediation: true
     nist_controls: ['RA-5', 'SI-2', 'SI-3', 'SI-4']
     pci_dss: ['6.3.3', '11.3.1']
     soc2: ['CC7.1', 'CC7.3']
@@ -676,7 +675,6 @@ patterns:
       - "class.module.classLoader.resources.context.parent.pipeline.first.pattern="
     multiline: false
     recommendation: "Remove the payload. Patch Spring Framework to >= 5.3.18 or >= 5.2.20; on JDK <= 8 the vulnerability is not exploitable. If you cannot patch immediately, set a `WebDataBinder.setDisallowedFields` global configuration blocking `class.*`, `Class.*`, `*.class.*`, `*.Class.*`. Detection: WAF rule on the regex above; hunt for unexpected `.jsp` writes under `webapps/ROOT/`."
-    no_ansible_remediation: true
     nist_controls: ['RA-5', 'SI-2', 'SI-3', 'SI-4']
     pci_dss: ['6.3.3', '11.3.1']
     soc2: ['CC7.1', 'CC7.3']
@@ -698,7 +696,6 @@ patterns:
     multiline: true
     window: 6
     recommendation: "IMDS access from a playbook is legitimate only when the playbook runs **on the instance itself** for bootstrapping/tagging, and only via IMDSv2 (AWS: `PUT` to `/latest/api/token` then `X-aws-ec2-metadata-token` header). Never template IMDS response bodies into other `uri` tasks, logs, or files readable by CI - any of those become credential exfiltration. Enforce IMDSv2 at the instance level (`HttpTokens: required`, `HttpPutResponseHopLimit: 1`). In CI, block 169.254.169.254 with a per-job network policy or egress firewall."
-    no_ansible_remediation: true
     nist_controls: ['AC-3', 'SC-7', 'SI-4', 'SI-10']
     pci_dss: ['1.2.1', '6.2.4', '8.6.2']
     hipaa: ['164.312(a)(1)', '164.312(a)(2)(i)']
@@ -719,7 +716,6 @@ patterns:
     positive_examples:
       - "log4j2.formatMsgNoLookups=false"
     recommendation: "Upgrade log4j to 2.17.1+ and keep formatMsgNoLookups=true; do not downgrade; audit JAVA_TOOL_OPTIONS for overrides"
-    no_ansible_remediation: true
     cwe: ['CWE-20', 'CWE-917']
     cve: ["CVE-2021-44228"]
     owasp_appsec: ["A03:2021"]
@@ -735,7 +731,6 @@ patterns:
     positive_examples:
       - "spring-beans-5.0.0.jar"
     recommendation: "Upgrade Spring Framework to 5.3.18+ / 5.2.20+ (Spring Boot 2.6.6+ / 2.5.12+); add `disallowedFields` to every `@InitBinder`"
-    no_ansible_remediation: true
     cwe: ['CWE-20', 'CWE-917']
     cve: ["CVE-2022-22965"]
     owasp_appsec: ["A03:2021"]
@@ -751,7 +746,6 @@ patterns:
     positive_examples:
       - "/setup/setupadministrator.action"
     recommendation: "Patch Confluence DC/Server to 8.3.3+, 8.4.3+, 8.5.2+; block public access to /setup/*; audit `confluence_admin_users` for unknown accounts"
-    no_ansible_remediation: true
     cwe: ['CWE-20', 'CWE-863']
     cve: ["CVE-2023-22515"]
     owasp_appsec: ["A01:2021", "A03:2021"]
@@ -767,7 +761,6 @@ patterns:
     positive_examples:
       - "human2.aspx"
     recommendation: "Remove the dropped file; hunt for further Cl0p indicators; patch MOVEit Transfer to June 2023+ builds; rotate all app-service credentials"
-    no_ansible_remediation: true
     cwe: ['CWE-89', 'CWE-434']
     cve: ["CVE-2023-34362"]
     owasp_appsec: ["A03:2021", "A04:2021"]
@@ -786,7 +779,6 @@ patterns:
     positive_examples:
       - "certutil -urlcache http://"
     recommendation: "Remove the task. If you genuinely need to fetch a signed binary on Windows, use `ansible.windows.win_get_url` with `checksum:` set, or `Invoke-WebRequest -UseBasicParsing` with certificate pinning. Block certutil download behaviour at policy layer via the ASR rule `Block executable content from email client and webmail` (GUID BE9BA2D9-53EA-4CDC-84E5-9B1EEEE46550) and the `BlockOfficeCommunicationAppFromCreatingChildProcesses` equivalents. Monitor with Sysmon Event ID 1 + 3 for `certutil.exe` with a URL in the command line."
-    no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]
@@ -805,7 +797,6 @@ patterns:
     positive_examples:
       - "bitsadmin /transfer http://"
     recommendation: "Remove the task. Prefer `ansible.windows.win_get_url` with a checksum. For fleet-wide mitigation, restrict BITS-initiated network I/O to `*.microsoft.com` / `*.windowsupdate.com` via the Windows Firewall service-based rule, and monitor with Sysmon Event ID 1 on `bitsadmin.exe` + Event ID 22 (DNS query) from `svchost.exe` hosting BITS to non-Microsoft hosts."
-    no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]
@@ -824,7 +815,6 @@ patterns:
     positive_examples:
       - "mshta http://"
     recommendation: "Remove the task. Block mshta entirely via ASR rule `Block all Office applications from creating child processes` and `Block Win32 API calls from Office macros`. If mshta is truly required (uncommon), use a signed, pinned local .hta and enforce AppLocker path + publisher rules."
-    no_ansible_remediation: true
     cwe: ['CWE-749', 'CWE-829']
     owasp_appsec: ["A08:2021"]
     owasp_asvs: []
@@ -843,7 +833,6 @@ patterns:
     positive_examples:
       - "regsvr32 /i:http://"
     recommendation: "Remove the task. Disable scrobj.dll-based script-host behaviour with AppLocker's `Packaged app rules` + the explicit DLL rule denying scrobj.dll / scrrun.dll loads from user-writable paths. Complement with ASR rule `Block execution of potentially obfuscated scripts` (GUID 5BEB7EFE-FD9A-4556-801D-275E5FFC04CC)."
-    no_ansible_remediation: true
     cwe: ['CWE-749', 'CWE-829']
     owasp_appsec: ["A08:2021"]
     owasp_asvs: []
@@ -862,7 +851,6 @@ patterns:
     positive_examples:
       - "esentutl /y /vss"
     recommendation: "Remove the task. Legitimate NTDS backup uses `wbadmin start systemstatebackup` on a DC with a dedicated backup account, not ad-hoc esentutl from Ansible. Detect at SACL layer: audit object access on `C:\\Windows\\NTDS\\` and `C:\\Windows\\System32\\config\\SYSTEM`, and alert on any non-SYSTEM user reading them."
-    no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-732']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2, V5.3.1]
@@ -882,7 +870,6 @@ patterns:
     positive_examples:
       - "manage-bde -on -recoverypassword"
     recommendation: "Never enable BitLocker from an ad-hoc playbook. Deploy via Intune BitLocker policy / AD GPO with `Choose how BitLocker-protected operating system drives can be recovered: Save BitLocker recovery information to AD DS: Required`. Monitor `Microsoft-Windows-BitLocker/BitLocker Management` Event IDs 768/769 (key rotation) and alert on any BitLocker enablement that is not correlated to a Group Policy cycle."
-    no_ansible_remediation: true
     cwe: ['CWE-311', 'CWE-319']
     owasp_appsec: ["A02:2021", "A04:2021"]
     owasp_asvs: [V14.2.1, V12.2.1, V12.3.4]
@@ -904,7 +891,6 @@ patterns:
     multiline: true
     window: 20
     recommendation: "Remove the task immediately and treat the host inventory as compromised. Search for and remove any dropped notes across the fleet (`find /home /root -maxdepth 3 -type f \\( -iname 'HOW_TO_DECRYPT*' -o -iname 'README_FOR_DECRYPT*' -o -iname '_readme.txt' \\)`). Rotate all credentials reachable from the affected hosts. Initiate incident-response (preserve VSS snapshots before the attacker deletes them)."
-    no_ansible_remediation: true
     cwe: ['CWE-506']
     mitre_attack: ['T1486', 'T1491']
     cis_controls: ['CIS-10.1', 'CIS-17.3']
@@ -939,7 +925,6 @@ patterns:
     multiline: true
     window: 10
     recommendation: "Remove the task immediately and treat the host as compromised - no production automation legitimately needs to POST to Discord / Telegram / Pastebin. Rotate credentials reachable from the host, pull network flow logs for any POST to the listed endpoints in the past 30 days, and hunt for the webhook/bot token's usage history via Discord's audit-log API or Telegram's `getMe`. Block the listed domains at the egress firewall (`discord.com`, `api.telegram.org`, `pastebin.com`) outside of narrowly-scoped ChatOps use-cases, which should use an authenticated enterprise broker (Mattermost, Slack Enterprise Grid) instead."
-    no_ansible_remediation: true
     cwe: ['CWE-506', 'CWE-912']
     mitre_attack: ['T1041', 'T1102.001', 'T1567.002']
     cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-13.7']
@@ -959,7 +944,6 @@ patterns:
     multiline: true
     window: 40
     recommendation: "Never push WDAC/AppLocker policies from an ad-hoc playbook; roll them via Intune Endpoint Security or SCCM with a documented policy-review workflow. Keep WDAC in `Enforcement` mode (`Set-RuleOption -Option 0 -Delete` removes audit-mode flag). AppLocker rules MUST be built from publisher-signature (`New-AppLockerPolicy -RuleType Publisher`) or file-path allowlists - never hash wildcards. Monitor WDAC policy changes via Windows Event Log channel `Microsoft-Windows-CodeIntegrity/Operational` event IDs 3099 (policy applied) + 3089 (signature change) forwarded to SIEM with critical alerts on unexpected changes. Verify currently-active policy: `CiTool --list-policies | Where {$_.IsEffective}`."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693', 'CWE-732']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V5.3.1]
@@ -981,7 +965,6 @@ patterns:
     multiline: true
     window: 15
     recommendation: "Treat the host that runs the playbook AND the target host as compromised - this rule only fires on literal exploit strings. Isolate both, rotate all credentials the playbook had access to, and capture volatile memory via `avml` / `winpmem` before power-off. Patch the target per the CVE (Confluence ≥ 8.5.4 / 8.6.0 for CVE-2023-22527, Jenkins ≥ 2.442 / LTS 2.426.3 for CVE-2024-23897, F5 BIG-IP per K23605346, Cisco IOS-XE per cisco-sa-iosxe-webui-privesc-j22SaA4z, vCenter ≥ 8.0 U2c for CVE-2024-37080). Do NOT re-run the offending playbook. Hunt for persistence IoCs: Confluence -> `confluence-cli`/`webworks` plugin, Jenkins -> new `/var/jenkins_home/users/*/config.xml`, IOS-XE -> `cisco_support_user` account."
-    no_ansible_remediation: true
     cwe: ['CWE-22', 'CWE-78', 'CWE-94']
     cve: ["CVE-2022-1388", "CVE-2023-20198", "CVE-2023-22527", "CVE-2024-23897", "CVE-2024-37080"]
     owasp_appsec: ["A01:2021", "A03:2021"]
@@ -1004,7 +987,6 @@ patterns:
     multiline: true
     window: 12
     recommendation: "Do NOT distribute macro-enabled Office documents via Ansible for any production workflow. Block macro execution organization-wide via Group Policy: `Computer Config -> Admin Templates -> Microsoft Office 2016 -> Security -> Block macros from running in Office files from the Internet = Enabled` + `VBA Macro Notification Settings = Disable all without notification`. For legitimate macro use (finance teams, engineering calc sheets), require **code-signed macros only** with a digital signature from an internal CA trusted in the user's cert store. Convert existing macros to Office Scripts (cloud-backed, signed, sandboxed, no VBA). Quarantine macro-enabled files at email gateway. If a playbook MUST deliver templates, deliver the non-macro variant (`.docx`, `.xlsx`). Detect: Sysmon Event ID 1 for `WINWORD.EXE`/`EXCEL.EXE` with child process (`cmd.exe`, `powershell.exe`, `wscript.exe`) - this combination is >99% malicious. Alert on any Ansible task transferring `.docm`/`.xlsm`/`.pptm` to user-writable paths."
-    no_ansible_remediation: true
     cwe: ['CWE-94', 'CWE-506', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
     owasp_asvs: []
@@ -1026,7 +1008,6 @@ patterns:
     multiline: true
     window: 15
     recommendation: "Block `MSBuild.exe` with AppLocker or Microsoft Defender Application Control (WDAC) on hosts that do NOT legitimately compile .NET code (i.e. everything except developer workstations and build servers). Use WDAC's `--Block-MSBuild-Code-Execution` supplemental policy from Microsoft's recommended-block-list. On dev hosts where MSBuild IS legitimate, alert on MSBuild invocations with `.csproj` / `.xml` paths under user profile directories (`AppData`, `Temp`, `Downloads`, `Desktop`) - legitimate dev work uses source-controlled repos, NEVER from those paths. Detect: Sysmon Event ID 1 with `Image=*\\msbuild.exe` + `CommandLine` matching user-profile paths. For Ansible automation that needs compilation, use a dedicated build agent in a locked-down network segment with limited egress - not 'msbuild.exe from a user laptop playbook'. Audit: `Get-EventLog -LogName Application -Source 'MSBuild' -After (Get-Date).AddDays(-7)` - any entry on a non-dev host is suspicious."
-    no_ansible_remediation: true
     cwe: ['CWE-94', 'CWE-506', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
     owasp_asvs: []
@@ -1067,7 +1048,6 @@ patterns:
     multiline: true
     window: 30
     recommendation: "Never map a single public-facing hostname to both a public AND an RFC1918/loopback/link-local IP. For legitimate split-horizon DNS (internal-users-see-internal, external-see-external), use **views** (BIND), **policies** (PowerDNS), or **split DNS** - NOT multiple A records in the same view. Set TTLs to sane values (300-3600s); TTLs of 0/1/2 are almost always malicious or operationally broken. Configure recursive resolvers to reject responses containing private-space IPs for public-space hostnames - BIND `deny-answer-addresses { 10.0.0.0/8; 172.16.0.0/12; 192.168.0.0/16; 127.0.0.0/8; 169.254.0.0/16; } except-from { internal-domains; };`. Browser-side: use DNS-over-HTTPS (DoH) to bypass attacker-controlled local resolvers. Application-side: validate the resolved IP AFTER DNS resolution and before HTTP request (`socket.getaddrinfo` + IP-range check) - reject private IPs when you expect a public endpoint. Detect: passive DNS / Zeek scripts alerting on any hostname resolving to a mix of public + RFC1918 within a 1-hour window."
-    no_ansible_remediation: true
     cwe: ['CWE-290', 'CWE-346', 'CWE-918']
     owasp_appsec: ["A07:2021", "A10:2021"]
     mitre_attack: ['T1071.004', 'T1090', 'T1557']
@@ -1088,7 +1068,6 @@ patterns:
     multiline: true
     window: 10
     recommendation: "Never transfer serialized Java objects from untrusted or unverified sources. If your application legitimately uses Java deserialization (migrate away from it - JSON or Protobuf are safer), configure **SerialKiller** (`org.nibblesec.tools.SerialKiller`) as the `ObjectInputFilter` to allow-list only specific classes. For Java 9+, use `ObjectInputFilter.Config.setSerialFilter(\"!org.apache.commons.collections.functors.*;!javax.management.BadAttributeValueExpException;...\")` on every JVM startup. Block `commons-collections` < 3.2.2 and < 4.1 (both have InvokerTransformer exposed) via Maven enforcer / Gradle dependency constraints. For runtime, enable RASP (Contrast, OpenRASP) to block deserialization call stacks that terminate in `Runtime.exec` / `ProcessBuilder`. Audit: `find / -name '*.ser' -exec xxd {} + | head -1 | grep -q 'aced 0005' && echo SUSPECT` + grep codebases for `ObjectInputStream` constructor calls without a preceding `setObjectInputFilter`. Migrate high-risk deserialization to Jackson with `ACCEPT_CASE_INSENSITIVE_PROPERTIES=false` + `@JsonTypeInfo(use = NAME)` explicit class whitelisting only."
-    no_ansible_remediation: true
     cwe: ['CWE-94', 'CWE-502', 'CWE-915']
     cve: ["CVE-2015-4852"]
     owasp_appsec: ["A03:2021", "A08:2021"]

@@ -64,7 +64,6 @@ patterns:
     positive_examples:
       - "Rubeus"
     recommendation: "Rubeus is a Kerberos attack tool; remove immediately"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -78,7 +77,6 @@ patterns:
     positive_examples:
       - "cobaltstrike"
     recommendation: "C2 frameworks indicate an active attack; escalate to incident response immediately"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -111,7 +109,6 @@ patterns:
     positive_examples:
       - "exploit-db"
     recommendation: "Exploit tools and references should not appear in production infrastructure code"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -157,7 +154,6 @@ patterns:
     positive_examples:
       - "my $linenum=0;"
     recommendation: "Priv-esc enumeration scripts indicate reconnaissance; investigate immediately"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -171,7 +167,6 @@ patterns:
     positive_examples:
       - "crackmapexec smb"
     recommendation: "CrackMapExec/NetExec are offensive AD tools; remove and investigate as a potential compromise"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -185,7 +180,6 @@ patterns:
     positive_examples:
       - "evil-winrm"
     recommendation: "Evil-WinRM is an offensive remote shell tool; remove immediately and investigate"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -199,7 +193,6 @@ patterns:
     positive_examples:
       - "certipy find"
     recommendation: "Certipy is used to abuse AD CS; remove and audit AD certificate configurations"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -213,7 +206,6 @@ patterns:
     positive_examples:
       - "kerbrute userenum"
     recommendation: "Kerbrute is a Kerberos brute forcing tool; remove and investigate unauthorized access attempts"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -227,7 +219,6 @@ patterns:
     positive_examples:
       - "pypykatz lsa"
     recommendation: "Pypykatz is a credential dumping tool; remove immediately and rotate affected credentials"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -241,7 +232,6 @@ patterns:
     positive_examples:
       - "ntdsutil ifm"
     recommendation: "ntdsutil IFM creates full copies of the AD database; remove and investigate data exfiltration"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -255,7 +245,6 @@ patterns:
     positive_examples:
       - "PowerView"
     recommendation: "PowerView/PowerSploit are offensive AD tools; remove and investigate for domain compromise"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -269,7 +258,6 @@ patterns:
     positive_examples:
       - "Seatbelt-group="
     recommendation: "Seatbelt/SharpUp are offensive enumeration tools; remove and investigate host compromise"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -283,7 +271,6 @@ patterns:
     positive_examples:
       - "enum4linux"
     recommendation: "enum4linux is a network reconnaissance tool; remove and restrict SMB exposure"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -297,7 +284,6 @@ patterns:
     positive_examples:
       - "smbclient //"
     recommendation: "SMB share tools can be used for lateral movement; verify legitimate need and restrict access"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -311,7 +297,6 @@ patterns:
     positive_examples:
       - "ATTRIBUTE=$(ldapsearch -Z -LLL -x -y /etc/ssh/ldap_authorized_keys_bindpw -D \"${ldap_binddn}\" -o ldif-wrap=no -S sshPublicKey \"${ldap_filter}\" sshPublicKey | grep -v 'dn:')"
     recommendation: "ldapsearch can expose directory information; verify legitimate need and use least-privilege binds"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -325,7 +310,6 @@ patterns:
     positive_examples:
       - "rpcclient -U "
     recommendation: "rpcclient can enumerate domain objects; verify legitimate use and restrict null sessions"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -339,7 +323,6 @@ patterns:
     positive_examples:
       - "nikto -h "
     recommendation: "Nikto is a web vulnerability scanner; remove from production playbooks"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -353,7 +336,6 @@ patterns:
     positive_examples:
       - "nuclei -u "
     recommendation: "Nuclei is a vulnerability scanner; remove from production infrastructure automation"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -369,7 +351,6 @@ patterns:
     positive_examples:
       - "ffuf -u "
     recommendation: "ffuf is an offensive web fuzzing tool; remove from production playbooks"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -383,7 +364,6 @@ patterns:
     positive_examples:
       - "feroxbuster -u "
     recommendation: "feroxbuster is an offensive directory brute forcing tool; remove from production playbooks"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -399,7 +379,6 @@ patterns:
     positive_examples:
       - "gobuster dir "
     recommendation: "gobuster is an offensive brute forcing tool; remove from production playbooks"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -413,7 +392,6 @@ patterns:
     positive_examples:
       - "rustscan -a "
     recommendation: "RustScan is an offensive port scanner; remove from production playbooks"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -427,7 +405,6 @@ patterns:
     positive_examples:
       - "snmpwalk -v1"
     recommendation: "SNMP enumeration can expose device configurations; verify legitimate need and use SNMPv3"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -441,7 +418,6 @@ patterns:
     positive_examples:
       - "testssl "
     recommendation: "SSL scanning tools can identify exploitable weaknesses; verify authorized security testing"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -455,7 +431,6 @@ patterns:
     positive_examples:
       - "nbtscan "
     recommendation: "nbtscan is a network reconnaissance tool; remove from production playbooks"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -469,7 +444,6 @@ patterns:
     positive_examples:
       - 'reg save HKLM\SAM'
     recommendation: "Dumping registry hives enables offline credential cracking; remove and investigate immediately"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -483,7 +457,6 @@ patterns:
     positive_examples:
       - "firefox_decrypt"
     recommendation: "firefox_decrypt steals saved browser credentials; remove and investigate data theft"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -497,7 +470,6 @@ patterns:
     positive_examples:
       - "SharpDPAPI  triage"
     recommendation: "DPAPI extraction tools steal protected credentials; remove immediately and rotate all secrets"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -513,7 +485,6 @@ patterns:
     positive_examples:
       - "steghide "
     recommendation: "Steganography is used for covert data exfiltration; investigate immediately"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -540,7 +511,6 @@ patterns:
     positive_examples:
       - "stegseek 0"
     recommendation: "Steganography brute-force tools are used to extract covert payloads; investigate immediately"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -554,7 +524,6 @@ patterns:
     positive_examples:
       - "stegoveritas "
     recommendation: "StegOveritas performs deep steganographic analysis; presence in a playbook is suspicious"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -568,7 +537,6 @@ patterns:
     positive_examples:
       - "jsteg hide "
     recommendation: "jsteg embeds data in JPEG files for covert exfiltration; investigate immediately"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -582,7 +550,6 @@ patterns:
     positive_examples:
       - "binwalk -e "
     recommendation: "Binwalk extracts embedded payloads from files; verify this is authorized firmware analysis"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -596,7 +563,6 @@ patterns:
     positive_examples:
       - "exiftool -Comment="
     recommendation: "Writing data into image metadata can be used for covert data storage; verify intent"
-    no_ansible_remediation: true
     nist_controls: ['CA-7', 'IR-4', 'SI-4']
     pci_dss: ['10.4.1', '12.10.1']
     soc2: ['CC7.3']
@@ -689,7 +655,6 @@ patterns:
     multiline: true
     window: 25
     recommendation: "Remove the task. WMI persistence is never an appropriate CM primitive - use a signed Windows service or scheduled task enrolled through GPO / Intune. Enumerate and clean existing bindings with `Get-WmiObject -Namespace root\\subscription -Class __FilterToConsumerBinding | Remove-WmiObject`. Monitor with Sysmon Event IDs 19/20/21 (WmiEvent) and alert on any subscription whose consumer is ActiveScript or CommandLine."
-    no_ansible_remediation: true
     cwe: ['CWE-506', 'CWE-653']
     owasp_appsec: ["A04:2021"]
     mitre_attack: ['T1047', 'T1546.003']
@@ -709,7 +674,6 @@ patterns:
     multiline: true
     window: 30
     recommendation: "Never export the ADFS token-signing private key via automation. Store it in an HSM-backed key provider (`Microsoft Platform Crypto Provider` / `Microsoft Software Key Storage Provider` with non-exportable keys) and rotate it with `Update-AdfsCertificate -CertificateType Token-Signing -Urgent` immediately if exfiltration is suspected. Monitor ADFS admin log Event IDs 307/310 for certificate operations and correlate with AD 4662 on the ADFS service account. After any Golden SAML suspicion, rotate both primary and secondary token-signing certificates twice (revoke forged tokens in caches)."
-    no_ansible_remediation: true
     cwe: ['CWE-321', 'CWE-347', 'CWE-798']
     owasp_appsec: ["A02:2021", "A07:2021"]
     owasp_asvs: [V13.2.3, V13.3.1]
@@ -731,7 +695,6 @@ patterns:
     multiline: true
     window: 40
     recommendation: "Disable enrollee-supplies-subject on any template that issues authentication EKUs. Audit existing templates with `Get-ADObject -SearchBase (Get-ADRootDSE).ConfigurationNamingContext -Filter {objectClass -eq 'pKICertificateTemplate'} -Properties msPKI-Certificate-Name-Flag,pKIExtendedKeyUsage` and remove the flag, or restrict Enroll/AutoEnroll rights to a specific security group (not Domain Users). Run Certify.exe or Locksmith.ps1 to enumerate ESC1-ESC8 in the environment."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-295']
     owasp_appsec: ["A01:2021", "A07:2021"]
     owasp_asvs: [V12.3.4]

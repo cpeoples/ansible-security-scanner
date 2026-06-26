@@ -12,7 +12,6 @@ patterns:
     positive_examples:
       - "    - ansible.builtin.lineinfile: { dest: /etc/hosts, line: '10.0.0.1 evil.example.com' }"
     recommendation: "Hosts file changes should use centralized DNS; review all entries for domain hijacking"
-    no_ansible_remediation: true
     cwe: ["CWE-345"]
     owasp_appsec: ["A08:2021"]
     mitre_attack: ["T1557"]
@@ -31,7 +30,6 @@ patterns:
       - |2
             - ansible.builtin.lineinfile: { dest: /etc/resolv.conf, line: 'nameserver 1.2.3.4' }
     recommendation: "DNS resolver changes must point to trusted corporate or well-known DNS servers"
-    no_ansible_remediation: true
     cwe: ["CWE-345"]
     owasp_appsec: ["A08:2021"]
     mitre_attack: ["T1557"]
@@ -49,7 +47,6 @@ patterns:
     positive_examples:
       - "    - ansible.builtin.copy: { src: rogue.conf, dest: /etc/ntp.conf }"
     recommendation: "NTP should only point to trusted, authorized time servers"
-    no_ansible_remediation: true
     cwe: ["CWE-345"]
     owasp_appsec: ["A08:2021"]
     mitre_attack: ["T1565.001"]
@@ -67,7 +64,6 @@ patterns:
     positive_examples:
       - "export PATH=~/.local/bin:$PATH"
     recommendation: "Never prepend untrusted directories to PATH; only use system paths"
-    no_ansible_remediation: true
     cwe: ["CWE-427"]
     mitre_attack: ["T1574.007"]
     cis_controls: ["CIS-4.1"]
@@ -87,7 +83,6 @@ patterns:
     positive_examples:
       - "shell: \"PYTHONPATH=$(echo {{ remote_tmp_dir }}/pip_root{{ pip_python_site_lib.stdout }}) {{ remote_tmp_dir }}/pip_root{{ pip_python_user_base.stdout }}/bin/ansible_test_pip_chdir\""
     recommendation: "PYTHONPATH should not be modified in playbooks; use virtual environments instead"
-    no_ansible_remediation: true
     cwe: ["CWE-427"]
     mitre_attack: ["T1574"]
     cis_controls: ["CIS-4.1"]
@@ -104,7 +99,6 @@ patterns:
     positive_examples:
       - "settings: {\"commandToExecute\": \"apt-get update && apt-get install -y python2 && update-alternatives --install /usr/bin/python python /usr/bin/python2 1\"}"
     recommendation: "Alternatives changes should be reviewed; only use packages from trusted repositories"
-    no_ansible_remediation: true
     cwe: ["CWE-506"]
     mitre_attack: ["T1036.005"]
     cis_controls: ["CIS-2.3"]
@@ -120,7 +114,6 @@ patterns:
     positive_examples:
       - "/etc/ld.so.conf"
     recommendation: "Never add untrusted paths to the dynamic linker configuration"
-    no_ansible_remediation: true
     cwe: ["CWE-427"]
     mitre_attack: ["T1574.006"]
     cis_controls: ["CIS-4.1"]
@@ -137,7 +130,6 @@ patterns:
     positive_examples:
       - "    dest: /etc/profile.d/payload.sh shell: /bin/sh"
     recommendation: "Login scripts should only contain legitimate system configuration"
-    no_ansible_remediation: true
     cwe: ["CWE-506"]
     mitre_attack: ["T1546.004"]
     cis_controls: ["CIS-4.1"]
@@ -154,7 +146,6 @@ patterns:
     positive_examples:
       - "CLASSPATH=/tmp"
     recommendation: "Language library paths should only reference trusted, system-managed directories"
-    no_ansible_remediation: true
     cwe: ["CWE-427"]
     mitre_attack: ["T1574"]
     cis_controls: ["CIS-4.1"]

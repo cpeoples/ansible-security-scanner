@@ -310,7 +310,6 @@ patterns:
     positive_examples:
       - "rclone copy "
     recommendation: "Rclone is the #1 data exfiltration tool used by ransomware groups; remove unless explicitly authorized"
-    no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -330,7 +329,6 @@ patterns:
     positive_examples:
       - "rclone config"
     recommendation: "Rclone remote configuration enables data exfiltration; ensure this is authorized"
-    no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -350,7 +348,6 @@ patterns:
     positive_examples:
       - "mega-put"
     recommendation: "MEGA.nz CLI tools can exfiltrate data to encrypted cloud storage; remove immediately"
-    no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -373,7 +370,6 @@ patterns:
     positive_examples:
       - "azcopy copy blob.core.windows.net"
     recommendation: "AzCopy to external Azure accounts can be used for data exfiltration; verify the destination"
-    no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -393,7 +389,6 @@ patterns:
     positive_examples:
       - "wormhole send"
     recommendation: "Magic-wormhole enables encrypted P2P file transfers that bypass network monitoring; requires approval"
-    no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -413,7 +408,6 @@ patterns:
     positive_examples:
       - "croc send"
     recommendation: "Croc enables encrypted file transfers that bypass network monitoring; requires approval"
-    no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -433,7 +427,6 @@ patterns:
     positive_examples:
       - "cmd: 'python -m http.server --directory {{url_pkg_path}} {{http_port}} >/dev/null 2>&1'"
     recommendation: "Python HTTP server exposes local files over the network; ensure this is not serving sensitive data"
-    no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]

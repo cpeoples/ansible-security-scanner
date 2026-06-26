@@ -536,7 +536,7 @@ remediations:
 
       - name: Or pull a secret from Key Vault at run-time
         ansible.builtin.set_fact:
-          db_password: "{{ lookup('azure.azcollection.azure_keyvault_secret', 'db-password', vault_url='https://{{ kv_name }}.vault.azure.net') }}"
+          db_password: "{{ lookup('azure.azcollection.azure_keyvault_secret', 'db-password', vault_url='https://' ~ kv_name ~ '.vault.azure.net') }}"
 
   azure_storage_connection_string_embedded_in_playbook:
     secure_fix: |
@@ -583,7 +583,7 @@ remediations:
 
       - name: Read a secret via AppRole-backed lookup, no embedded token
         ansible.builtin.set_fact:
-          db_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/data/db:password auth_method=approle role_id={{ approle_id }} secret_id={{ approle_secret_id }} url=https://vault.example.com') }}"
+          db_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/data/db:password auth_method=approle role_id=' ~ approle_id ~ ' secret_id=' ~ approle_secret_id ~ ' url=https://vault.example.com') }}"
 
   aws_secrets_manager_get:
     secure_fix: |

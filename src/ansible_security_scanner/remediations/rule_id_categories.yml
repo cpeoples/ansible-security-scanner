@@ -80,6 +80,7 @@ rules_by_category:
     - no_log_explicitly_false_on_credential_task_ast
     - no_log_false_on_secret_handling_task
     - secret_in_comment
+    - set_fact_secret_alias
     - tags_never_on_security_task
 
   ansible_specific:

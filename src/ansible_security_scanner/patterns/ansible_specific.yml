@@ -122,7 +122,6 @@ patterns:
     positive_examples:
       - "community: public"
     recommendation: "Use SNMPv3 with authentication; store community strings in Vault"
-    no_ansible_remediation: true
     cwe: ['CWE-259', 'CWE-798']
     owasp_appsec: ["A07:2021"]
     owasp_asvs: [V13.2.3, V13.3.1]
@@ -144,7 +143,6 @@ patterns:
     positive_examples:
       - "terraform.tfstate"
     recommendation: "Use remote state backends (S3, Consul) with encryption; never access tfstate directly from playbooks"
-    no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
     owasp_asvs: [V13.2.1, V11.2.5, V14.2.2]
@@ -175,7 +173,6 @@ patterns:
     multiline: true
     window: 8
     recommendation: "Do not distribute kubeconfig files via playbooks. Use short-lived tokens from OIDC / IAM-integrated service accounts (e.g., ``aws eks get-token``, ``gcloud container clusters get-credentials --internal-ip``) that generate a kubeconfig on the local host from ambient cloud identity. For service accounts, use ``kubernetes.core.k8s`` with a token fetched at runtime from Vault / AWS Secrets Manager - never from a file that follows the playbook."
-    no_ansible_remediation: true
     positive_examples:
       - |2-
             ansible.builtin.slurp:
@@ -225,7 +222,6 @@ patterns:
     positive_examples:
       - "CI_JOB_TOKEN:xxx"
     recommendation: "CI/CD tokens should only be used via masked environment variables, never hardcoded"
-    no_ansible_remediation: true
     cwe: ['CWE-522', 'CWE-532']
     owasp_appsec: ["A04:2021", "A09:2021"]
     owasp_asvs: [V13.2.1, V11.2.5, V16.2.5]
@@ -248,7 +244,6 @@ patterns:
     positive_examples:
       - "echo$CI_JOB_TOKEN"
     recommendation: "Never echo CI/CD tokens; use no_log: true and masked variables"
-    no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-532']
     owasp_appsec: ["A01:2021", "A09:2021"]
     owasp_asvs: [V16.2.5, V14.2.2]
@@ -270,7 +265,6 @@ patterns:
     positive_examples:
       - "redis-cli -h "
     recommendation: "Always use Redis AUTH and TLS; never connect without credentials"
-    no_ansible_remediation: true
     cwe: ['CWE-306']
     owasp_appsec: ["A07:2021"]
     owasp_asvs: [V6.2.1]
@@ -289,7 +283,6 @@ patterns:
     positive_examples:
       - "shell: curl -XPUT localhost:9200/_all/_settings -d '{\"index.routing.allocation.disable_allocation\":\"false\" }'"
     recommendation: "Enable Elasticsearch security features (X-Pack) with authentication and TLS"
-    no_ansible_remediation: true
     cwe: ['CWE-306']
     owasp_appsec: ["A07:2021"]
     owasp_asvs: [V6.2.1]
@@ -311,7 +304,6 @@ patterns:
     positive_examples:
       - "mongo --host"
     recommendation: "Enable MongoDB authentication and use SCRAM-SHA-256; never connect without auth"
-    no_ansible_remediation: true
     cwe: ['CWE-306']
     owasp_appsec: ["A07:2021"]
     owasp_asvs: [V6.2.1]
@@ -332,7 +324,6 @@ patterns:
     positive_examples:
       - "New-Object Net.WebClientDownloadString"
     recommendation: "Download files to disk with checksum verification instead of executing from memory"
-    no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]
@@ -351,7 +342,6 @@ patterns:
     positive_examples:
       - "Invoke-Expression x"
     recommendation: "Avoid Invoke-Expression; use explicit cmdlets with validated parameters"
-    no_ansible_remediation: true
     cwe: ['CWE-94', 'CWE-95']
     owasp_appsec: ["A03:2021"]
     mitre_attack: ['T1059.001']
@@ -369,7 +359,6 @@ patterns:
     positive_examples:
       - 'HKLM\RunOnce\'
     recommendation: "Registry persistence should only be configured through approved GPO or SCCM"
-    no_ansible_remediation: true
     cwe: ['CWE-506']
     mitre_attack: ['T1547.001']
     cis_controls: ['CIS-4.1', 'CIS-10.1']
@@ -628,7 +617,6 @@ patterns:
     multiline: true
     window: 6
     recommendation: "Run `buildah` as an unprivileged user with `--isolation=rootless` (the default when not root). For CI, run the entire build job under a `UID/GID != 0` user via the runner's user-spec - don't `become: root` just to call buildah. If you need to cross-compile or access privileged syscalls, run the build inside a gVisor or Kata-containers sandbox rather than giving buildah real root."
-    no_ansible_remediation: true
     cwe: ['CWE-250', 'CWE-269']
     owasp_appsec: ["A04:2021"]
     owasp_asvs: [V13.4.5, V15.2.3]

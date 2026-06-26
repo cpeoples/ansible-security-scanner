@@ -119,7 +119,6 @@ patterns:
     positive_examples:
       - "weevely generate"
     recommendation: "Weevely is a known webshell tool; remove immediately and investigate the host for compromise"
-    no_ansible_remediation: true
     cwe: ["CWE-506", "CWE-912"]
     mitre_attack: ["T1027", "T1505.003"]
     cis_controls: ["CIS-10.1", "CIS-16.1"]
@@ -136,7 +135,6 @@ patterns:
     positive_examples:
       - "antSword.php"
     recommendation: "AntSword is a webshell management tool; remove associated files and investigate immediately"
-    no_ansible_remediation: true
     cwe: ["CWE-506", "CWE-912"]
     mitre_attack: ["T1027", "T1505.003"]
     cis_controls: ["CIS-10.1", "CIS-16.1"]
@@ -153,7 +151,6 @@ patterns:
     positive_examples:
       - "godzilla_php.php"
     recommendation: "Godzilla is a known encrypted webshell; remove immediately and scan the host"
-    no_ansible_remediation: true
     cwe: ["CWE-506", "CWE-912"]
     mitre_attack: ["T1027", "T1505.003"]
     cis_controls: ["CIS-10.1", "CIS-16.1"]
@@ -170,7 +167,6 @@ patterns:
     positive_examples:
       - "behinder.php"
     recommendation: "Behinder is a known encrypted webshell tool; remove immediately and investigate"
-    no_ansible_remediation: true
     cwe: ["CWE-506", "CWE-912"]
     mitre_attack: ["T1027", "T1505.003"]
     cis_controls: ["CIS-10.1", "CIS-16.1"]
@@ -187,7 +183,6 @@ patterns:
     positive_examples:
       - "eval(Request['"
     recommendation: "China Chopper is a classic one-line webshell; remove immediately and audit all web files"
-    no_ansible_remediation: true
     cwe: ["CWE-506", "CWE-912"]
     mitre_attack: ["T1027", "T1505.003"]
     cis_controls: ["CIS-10.1", "CIS-16.1"]
@@ -204,7 +199,6 @@ patterns:
     positive_examples:
       - "b374k/var/www"
     recommendation: "Named webshells indicate active compromise; remove files and perform full incident response"
-    no_ansible_remediation: true
     cwe: ["CWE-506", "CWE-912"]
     mitre_attack: ["T1027", "T1505.003"]
     cis_controls: ["CIS-10.1", "CIS-16.1"]
@@ -221,7 +215,6 @@ patterns:
     positive_examples:
       - "dest:/var/www.jschild_process"
     recommendation: "Node.js files with child_process in web roots are likely backdoors; remove and investigate"
-    no_ansible_remediation: true
     cwe: ["CWE-506", "CWE-912"]
     mitre_attack: ["T1505.003"]
     cis_controls: ["CIS-10.1", "CIS-16.1"]
@@ -238,7 +231,6 @@ patterns:
     positive_examples:
       - "dest:/var/www.plsystem("
     recommendation: "Perl CGI scripts with shell execution in web paths are likely webshells; remove and audit"
-    no_ansible_remediation: true
     cwe: ["CWE-912"]
     mitre_attack: ["T1505.003"]
     cis_controls: ["CIS-16.1"]
