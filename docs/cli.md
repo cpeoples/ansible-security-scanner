@@ -157,9 +157,13 @@ Rules:
 - A rule id (or `*`) is **required** - bare `# nosec` is rejected and surfaced
   as a scanner warning.
 - A quoted `reason="..."` is **required** - unreasoned suppressions are rejected.
-- Critical-severity rules (credential harvesting, reverse shells, RCE
-  primitives, privilege escalation) are **unsuppressable**; the directive is
-  ignored and a `suspicious_suppression` meta-finding fires.
+- Any vulnerability rule can be suppressed; an operator who suppresses one
+  accepts that they may miss a real finding. Suppressing high-risk content
+  (reverse shells, credential harvesting, destructive commands) still fires a
+  `suspicious_suppression` meta-finding so the choice stays visible in audits.
+- The scanner's own self-monitoring meta-rules (`suspicious_suppression`,
+  `unknown_suppression_rule`, `excessive_suppressions`) are **unsuppressable** -
+  a directive silencing the scanner about the scanner is never honored.
 - Every suppressed finding still appears in the report with
   `suppressed_by=<rule>:<reason>` metadata, so auditors can trace what got
   muted and why.

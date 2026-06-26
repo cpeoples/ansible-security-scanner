@@ -14,9 +14,12 @@ To keep them from becoming a silent bypass for real attacks, this parser
 2. **A written reason.** ``reason="..."`` is mandatory. Directives without a
    reason are reported as ``INVALID_SUPPRESSION`` and ignored.
 
-Additionally the scanner engine (see ``file_scanner.py``) refuses to
-suppress CRITICAL malicious-activity findings regardless of what the
-directive says - see ``unsuppressable_rule_ids`` below.
+Additionally the scanner engine (see ``file_scanner.py``) always emits a
+``suspicious_suppression`` meta-finding when a directive sits on a line
+with high-risk content, so suppressing a real threat stays visible even
+though the directive itself is honored. Only the scanner's own
+self-monitoring meta-rules are unsuppressable (see
+``patterns_manager.unsuppressable_rule_ids``).
 
 Supported syntax (case-insensitive, same line or line above):
 
@@ -36,23 +39,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from .patterns_manager import unsuppressable_rule_ids as _derive_unsuppressable
-
-# Rules that can never be suppressed, no matter what the directive says.
-# These signal active compromise -- a legitimate author has no reason to
-# suppress them in version-controlled code. Derived from pattern metadata
-# (see ``patterns_manager.unsuppressable_rule_ids``) and cached on first
-# use so the hot ``applies_to`` path stays a plain set membership test.
-_unsuppressable_cache: frozenset[str] | None = None
-
-
-def unsuppressable_rule_ids() -> frozenset[str]:
-    """Cached accessor for the derived unsuppressable rule set."""
-    global _unsuppressable_cache
-    if _unsuppressable_cache is None:
-        _unsuppressable_cache = _derive_unsuppressable()
-    return _unsuppressable_cache
-
+from .patterns_manager import unsuppressable_rule_ids
 
 # Backward-compatible aliases for renamed rule IDs. A suppression that
 # still references the old ID silently resolves to the new ID so
