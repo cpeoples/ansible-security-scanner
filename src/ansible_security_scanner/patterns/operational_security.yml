@@ -116,7 +116,6 @@ patterns:
 
   - id: "log_file_deletion"
     category: "operational_security"
-    unsuppressable: true
     severity: "CRITICAL"
     title: "Log File Deletion or Truncation"
     description: "Deletes, truncates, or overwrites system log files to cover tracks"
@@ -130,7 +129,6 @@ patterns:
 
   - id: "history_file_tampering"
     category: "operational_security"
-    unsuppressable: true
     severity: "CRITICAL"
     title: "Shell History Tampering"
     description: "Clears or disables shell command history to hide executed commands"
@@ -144,7 +142,6 @@ patterns:
 
   - id: "audit_log_tampering"
     category: "operational_security"
-    unsuppressable: true
     severity: "CRITICAL"
     title: "Audit System Tampering"
     description: "Stops or modifies the Linux audit system (auditd) to hide activity"
@@ -382,7 +379,6 @@ patterns:
 
   - id: "firewall_disable"
     category: "operational_security"
-    unsuppressable: true
     severity: "CRITICAL"
     title: "Host Firewall Disabled"
     description: "Disables or flushes iptables/nftables/firewalld rules on the host"
@@ -432,7 +428,6 @@ patterns:
 
   - id: "crypto_mining_binary"
     category: "operational_security"
-    unsuppressable: true
     severity: "CRITICAL"
     title: "Cryptocurrency Miner Detected"
     description: "Installs or executes cryptocurrency mining software, abusing compute resources"
@@ -447,7 +442,6 @@ patterns:
 
   - id: "crypto_mining_pool"
     category: "operational_security"
-    unsuppressable: true
     severity: "CRITICAL"
     title: "Cryptocurrency Mining Pool Connection"
     description: "Connects to a known mining pool, strong indicator of unauthorized crypto mining"
@@ -464,7 +458,6 @@ patterns:
 
   - id: "ld_preload_injection"
     category: "operational_security"
-    unsuppressable: true
     severity: "CRITICAL"
     title: "LD_PRELOAD Library Injection"
     description: "Sets LD_PRELOAD to inject a shared library into processes, hijacking function calls"
@@ -587,7 +580,6 @@ patterns:
 
   - id: "nsenter_container_escape"
     category: "operational_security"
-    unsuppressable: true
     severity: "CRITICAL"
     title: "nsenter Container Escape"
     description: "Uses nsenter to enter host namespaces from a container, enabling full host access"
@@ -885,7 +877,6 @@ patterns:
 
   - id: "docker_sock_abuse"
     category: "operational_security"
-    unsuppressable: true
     severity: "CRITICAL"
     title: "Docker Socket Mounted Into Container (Host Escape Primitive)"
     description: "A task mounts the host's Docker socket (``/var/run/docker.sock``) INTO a container via ``-v``, ``--mount``, Kubernetes ``hostPath``, or an Ansible ``volumes:``/``mounts:`` field. A container with access to the host Docker socket can ``docker run --privileged -v /:/host ... chroot /host`` to become root on the host - it's the canonical container-escape primitive. This rule fires ONLY on mount / bind contexts; ``dockerd -H unix:///var/run/docker.sock ...`` (the daemon's OWN listen-socket config) is a different class of issue (covered by ``docker_api_exposed_plaintext``) and is NOT a container-escape vector."
@@ -941,7 +932,6 @@ patterns:
 
   - id: "sys_ptrace_capability_abuse"
     category: "operational_security"
-    unsuppressable: true
     severity: "CRITICAL"
     title: "SYS_PTRACE Capability Abuse"
     description: "Adds SYS_PTRACE capability to a container or checks capabilities, enabling process injection for escape"

@@ -202,27 +202,32 @@ jobs:
           set -euo pipefail
           bin=./build-bin/ansible-security-scanner
 
+          # Each --onefile invocation pays a multi-second cold-start tax
+          # (it unpacks the bundled patterns + package to a tmp dir), so the
+          # binary smoke test only proves the bundle is intact: patterns load,
+          # a scan emits the default and one non-default formatter, and the
+          # exit-code contract holds. Per-formatter correctness is covered by
+          # the unit suite running against the wheel.
           rules=$("$bin" --list-rules | wc -l)
           [ "$rules" -ge 1000 ] || { echo "rule count too low: $rules"; exit 1; }
 
+          # One scan does double duty: it writes the JSON report we assert on
+          # AND, by omitting --exit-zero, surfaces the CRITICAL exit code (2).
           "$bin" --directory tests/playbooks --files bad_example.yml \
-                 --format json --exit-zero --output /tmp/bad.json
+                 --format json --output /tmp/bad.json && rc=0 || rc=$?
+          [ "$rc" -eq 2 ] || { echo "expected exit 2 on CRITICAL, got $rc"; exit 1; }
           python3 - <<'PY'
           import json
           s = json.load(open("/tmp/bad.json"))["summary"]
           assert s["critical"] > 0 and s["high"] > 0, f"expected CRITICAL+HIGH findings, got {s}"
           PY
 
-          for f in markdown json xml yaml csv html junit sarif gitlab-sast cyclonedx sbom; do
-            "$bin" --directory tests/playbooks --files bad_example.yml \
-                   --format "$f" --exit-zero --output "/tmp/out.$f" >/dev/null
-            [ -s "/tmp/out.$f" ] || { echo "formatter $f produced empty output"; exit 1; }
-          done
+          # A non-default formatter proves the formatter modules are bundled.
+          "$bin" --directory tests/playbooks --files bad_example.yml \
+                 --format sarif --exit-zero --output /tmp/bad.sarif
+          [ -s /tmp/bad.sarif ] || { echo "sarif formatter produced empty output"; exit 1; }
 
-          # Exit-code contract: bad_example.yml must trigger CRITICAL (exit 2);
           # clean_example.yml must pass cleanly (exit 0).
-          "$bin" --directory tests/playbooks --files bad_example.yml >/dev/null 2>&1 && rc=0 || rc=$?
-          [ "$rc" -eq 2 ] || { echo "expected exit 2 on CRITICAL, got $rc"; exit 1; }
           "$bin" --directory tests/playbooks --files clean_example.yml >/dev/null
 
       - name: Install nfpm

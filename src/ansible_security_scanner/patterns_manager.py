@@ -46,11 +46,6 @@ class SecurityPattern:
     plugin_name: str
     plugin_version: str
     exclude: bool = False
-    # When True, this rule can never be silenced by inline ``# nosec`` or by
-    # ``--ignore`` - it signals active compromise. Most active-compromise
-    # rules are derived by category (see ``unsuppressable_rule_ids``); this
-    # flag opts in the few that live in mixed-severity categories.
-    unsuppressable: bool = False
     # Enrichment fields (all optional, default empty) - populated from YAML
     # and consumed by formatters (SARIF tags, compliance filter, etc.)
     cwe: list[str] = field(default_factory=list)  # e.g. ["CWE-78", "CWE-494"]
@@ -153,13 +148,6 @@ class PatternsManager:
         """Drop cached pattern data (tests / hot-reload use cases)."""
         self._cached_pattern_data = None
         self.pattern_files.clear()
-        # The suppressions module memoises the derived unsuppressable set,
-        # which is built from this pattern data. Reset it here so a reload
-        # can't leave it pointing at the pre-reload rule set. Imported
-        # locally to avoid a module-load circular import.
-        from . import suppressions
-
-        suppressions._unsuppressable_cache = None
 
     def discover_and_load_patterns(self) -> dict[str, list[SecurityPattern]]:
         """
@@ -231,7 +219,6 @@ class PatternsManager:
                         plugin_name=pattern_file_info.name,
                         plugin_version=pattern_file_info.version,
                         exclude=pattern_data.get("exclude", False),
-                        unsuppressable=pattern_data.get("unsuppressable", False),
                         cwe=list(pattern_data.get("cwe", []) or []),
                         mitre_attack=list(pattern_data.get("mitre_attack", []) or []),
                         cis_controls=list(pattern_data.get("cis_controls", []) or []),
@@ -475,32 +462,14 @@ _CODE_EMITTED_RULE_IDS: frozenset[str] = frozenset(
 
 # Meta-rules that report on the scan itself (a suppression directive
 # aimed at the scanner about the scanner) - never legitimately
-# suppressible, independent of any pattern category.
+# suppressible. These are the only rules the scanner refuses to silence;
+# every actual vulnerability rule can be suppressed via ``# nosec`` or
+# ``--ignore``, and the operator owns the risk of doing so.
 _UNSUPPRESSABLE_META_RULE_IDS: frozenset[str] = frozenset(
     {
         "suspicious_suppression",
         "unknown_suppression_rule",
         "excessive_suppressions",
-        "set_fact_secret_alias",
-    }
-)
-
-
-# Pattern categories whose CRITICAL rules are post-exploitation / active
-# compromise: a legitimate author has no reason to suppress them in
-# version-controlled code, so every CRITICAL rule in these categories is
-# unsuppressable. Rules in mixed-severity categories opt in individually
-# via ``unsuppressable: true`` in their YAML definition.
-_ACTIVE_COMPROMISE_CATEGORIES: frozenset[str] = frozenset(
-    {
-        "reverse_shells",
-        "offensive_tools",
-        "webshell_deployment",
-        "data_destruction",
-        "anti_forensics",
-        "tunneling",
-        "system_compromise",
-        "malicious_activity",
     }
 )
 
@@ -509,8 +478,8 @@ def _iter_all_patterns() -> Iterable[SecurityPattern]:
     """Yield every ``SecurityPattern`` loaded from the YAML pattern files.
 
     Single source of truth for the flat walk over the category-keyed
-    pattern dict so the ``known_rule_*`` / ``unsuppressable_rule_ids``
-    helpers don't each re-implement the same nested iteration.
+    pattern dict so the ``known_rule_*`` helpers don't each re-implement
+    the same nested iteration.
     """
     for patterns in patterns_manager.discover_and_load_patterns().values():
         yield from patterns
@@ -561,20 +530,12 @@ def unsuppressable_rule_ids() -> frozenset[str]:
     """Return every rule_id that can never be silenced by ``# nosec`` or
     ``--ignore``.
 
-    A rule is unsuppressable if it is CRITICAL and lives in an
-    active-compromise category, or if its YAML definition sets
-    ``unsuppressable: true``. The scanner's own meta-rules are always
-    included - a suppression aimed at the scanner about the scanner is
-    never legitimate. Derived from pattern metadata so the set never
-    drifts as rules are added or renamed.
+    Only the scanner's own meta-rules qualify - a suppression directive
+    aimed at the scanner about the scanner is never legitimate. Every
+    actual vulnerability rule is suppressible; an operator who suppresses
+    one accepts that they may miss a real finding.
     """
-    derived = {
-        p.id
-        for p in _iter_all_patterns()
-        if p.unsuppressable
-        or (p.severity == "CRITICAL" and p.category in _ACTIVE_COMPROMISE_CATEGORIES)
-    }
-    return frozenset(derived | set(_UNSUPPRESSABLE_META_RULE_IDS))
+    return _UNSUPPRESSABLE_META_RULE_IDS
 
 
 def filter_patterns(
