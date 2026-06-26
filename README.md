@@ -82,7 +82,7 @@ Add to your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/cpeoples/ansible-security-scanner
-    rev: v0.1.29
+    rev: v0.1.31
     hooks:
       - id: ansible-security-scanner
 ```
