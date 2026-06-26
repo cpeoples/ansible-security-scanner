@@ -76,12 +76,23 @@ patterns:
     severity: "CRITICAL"
     title: "Recursive Delete of Critical Paths"
     description: >-
-        rm -rf targets a critical system path (/, /boot, /etc, /var, /usr, /home,
-        /opt, /srv, /root). A typo or unbound variable in the path renders the host
-        unrecoverable.
-    regex: "rm\\s+(?:-[a-z]*)?r[a-z]*f?\\s+(?:/\\s|/boot|/etc|/var|/usr|/home|/opt|/srv|/root)[/\\s]"
+        A recursive rm (short ``-rf`` or long ``--recursive``) targets a critical
+        system path itself (/, /boot, /etc, /var, /usr, /home, /opt, /srv, /root)
+        or a templated segment directly beneath one (e.g. ``/home/{{ user }}``),
+        where an unbound variable collapses the path back to the parent and renders
+        the host unrecoverable. Fully-literal nested paths
+        (``/home/coder/.continue/rules``) are ordinary housekeeping and do not match.
+    regex: "rm\\s+(?:(?:-[a-z]*r[a-z]*\\s+)|(?=(?:--?[a-z-]+\\s+)*--recursive\\b)(?:--?[a-z-]+\\s+)+)['\"]?(?:/|/boot|/etc|/var|/usr|/home|/opt|/srv|/root)(?:/?(?=[\\s'\";&|)*]|$)|/\\s*\\{\\{)"
     positive_examples:
+      - "rm -rf /etc/"
+      - "rm -rf /home/{{ user }}"
+      - 'rm -rf "/srv"'
+      - "rm -rf /*"
+      - "rm --recursive --force /home"
+    negative_examples:
+      - "rm -rf /home/coder/.continue/rules && mkdir -p /home/coder/.continue/rules"
       - "rm -rf /opt/kafka-manager-1.2.7/RUNNING_PID"
+      - "rm -rf /var/log/myapp/old"
     recommendation: "Recursive deletion of system directories is destructive; remove immediately"
     cwe: ["CWE-506"]
     mitre_attack: ["T1485"]
