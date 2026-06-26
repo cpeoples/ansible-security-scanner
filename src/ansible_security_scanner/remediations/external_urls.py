@@ -3,7 +3,7 @@
 External URLs remediation generator for Ansible Security Scanner
 """
 
-from .base import BaseRemediationGenerator
+from .base import BaseRemediationGenerator, _first
 
 
 class ExternalUrlsRemediationGenerator(BaseRemediationGenerator):
@@ -18,87 +18,97 @@ class ExternalUrlsRemediationGenerator(BaseRemediationGenerator):
         "raw_github_content": "_generate_script_download_fix",
         "suspicious_download_url": "_generate_package_download_fix",
         "temporary_file_sharing": "_generate_untrusted_domain_fix",
+        "gitlab_snippet_execution": "_generate_snippet_pipe_fix",
+        "additional_paste_services": "_generate_paste_service_fix",
+        "encrypted_paste_service": "_generate_paste_service_fix",
     }
 
     def generate_external_urls_fix(self, rule_id: str, code_snippet: str) -> str:
         return self._dispatch_fix(rule_id, code_snippet, self._generate_generic_url_fix)
 
-    def _generate_http_fix(self, code_snippet: str) -> str:
-        """Generate fix for HTTP (non-HTTPS) URLs"""
+    def _generate_snippet_pipe_fix(self, code_snippet: str) -> str:
+        """Replace a `curl <snippet> | sh` with download, checksum-verify, then run."""
+        url = (
+            _first(
+                code_snippet,
+                r"(https?://[^\s'\"|>]+)",
+                r"(gitlab\.com/[^\s'\"|>]+)",
+            )
+            or "{{ snippet_url }}"
+        )
         return f"""
 **❌ Vulnerable Code:**
 ```yaml
 {code_snippet}
 ```
 
-**🚨 Insecure HTTP URL:**
-Using HTTP instead of HTTPS exposes data to man-in-the-middle attacks and eavesdropping.
+**🚨 Remote Snippet Piped Directly to a Shell:**
+Piping a downloaded snippet straight into `sh` runs whatever the URL serves at that moment, with no integrity check and no chance to review it. The content can change between runs.
 
-**✅ Secure Fix - Use HTTPS:**
+**✅ Secure Fix - Download, Verify, Then Run:**
 ```yaml
-- name: download from secure HTTPS source
+# Never pipe a remote snippet into a shell. Fetch it to disk, pin it to a
+# known checksum so the content cannot change underneath you, then run the
+# verified copy.
+- name: Download the snippet to disk (not executable, not piped)
   ansible.builtin.get_url:
-    url: "https://{{{{ trusted_server }}}}/{{{{ file_path }}}}"
-    dest: "{{{{ local_path }}}}"
+    url: "{url}"
+    dest: /tmp/snippet.sh
     mode: '0644'
-    validate_certs: yes
-    checksum: "sha256:{{{{ expected_checksum }}}}"
-    timeout: 30
-  vars:
-    trusted_server: "releases.example.com"
-    file_path: "v1.0.0/application.tar.gz"
-    local_path: "/tmp/application.tar.gz"
-    expected_checksum: "a1b2c3d4e5f6..."  # Known good checksum
-  register: download_result
+    checksum: "sha256:{{{{ snippet_sha256 }}}}"
+    validate_certs: true
 
-- name: verify download integrity
-  ansible.builtin.stat:
-    path: "{{{{ local_path }}}}"
-    checksum_algorithm: sha256
-  register: file_checksum
+- name: Run the verified snippet
+  ansible.builtin.command: /bin/sh /tmp/snippet.sh
+  # snippet_sha256 is the reviewed, pinned digest; a content change fails the
+  # download task above before anything executes.
+```
 
-- name: validate file integrity
+**🔐 Best Practices:**
+- Prefer vendoring the snippet's logic into a reviewed role over fetching it at all
+- Always pin a checksum; treat an unpinned remote script as untrusted code
+- Keep the fetched file non-executable and run it explicitly so the flow is auditable
+"""
+
+    def _generate_paste_service_fix(self, code_snippet: str) -> str:
+        """Replace a paste/anonymous-share URL with a pull from an approved
+        internal artifact store, with a checksum."""
+        url = _first(code_snippet, r"(https?://[^\s'\"|>]+)") or "{{ paste_url }}"
+        return f"""
+**❌ Vulnerable Code:**
+```yaml
+{code_snippet}
+```
+
+**🚨 Artifact Sourced From a Paste / Anonymous Sharing Service:**
+Paste and anonymous file-sharing services (and zero-knowledge/encrypted pastes whose contents network controls cannot inspect) are routinely abused to host payloads and to stage exfiltration. They are not a trustworthy source for anything a playbook installs or runs.
+
+**✅ Secure Fix - Pull From an Approved Internal Store With a Checksum:**
+```yaml
+# Do not fetch artifacts from {url} or any paste/anonymous-share service.
+# Host the artifact in the approved internal store and pull it with a pinned
+# checksum so its integrity and provenance are verifiable.
+- name: Refuse sources that are not on the approved artifact-host list
   ansible.builtin.assert:
     that:
-      - file_checksum.stat.checksum == expected_checksum
-    fail_msg: "Downloaded file checksum validation failed"
+      - approved_artifact_host is defined
+    fail_msg: >-
+      Artifacts must come from an approved internal host, never a paste or
+      anonymous file-sharing service.
+
+- name: Fetch the artifact from the approved internal host with a checksum
+  ansible.builtin.get_url:
+    url: "https://{{{{ approved_artifact_host }}}}/{{{{ artifact_name }}}}"
+    dest: "/opt/artifacts/{{{{ artifact_name }}}}"
+    checksum: "sha256:{{{{ artifact_sha256 }}}}"
+    validate_certs: true
+    mode: '0644'
 ```
 
-**✅ Secure API Requests:**
-```yaml
-- name: make secure API request
-  ansible.builtin.uri:
-    url: "https://{{{{ api_server }}}}/api/v1/{{{{ endpoint }}}}"
-    method: GET
-    headers:
-      Authorization: "Bearer {{{{ vault_api_token }}}}"
-      Content-Type: "application/json"
-      User-Agent: "Ansible/{{{{ ansible_version.string }}}}"
-    validate_certs: yes
-    timeout: 30
-    status_code: [200, 201]
-  vars:
-    api_server: "api.trusted-service.com"
-    endpoint: "status"
-  register: api_response
-  when: vault_api_token is defined
-
-- name: process API response securely
-  ansible.builtin.set_fact:
-    service_status: "{{{{ api_response.json.status }}}}"
-  when:
-    - api_response is defined
-    - api_response.json is defined
-    - api_response.json.status is defined
-```
-
-**🔐 HTTPS Security Best Practices:**
-- Always use HTTPS for external communications
-- Validate SSL/TLS certificates (validate_certs: yes)
-- Use checksum verification for downloaded files
-- Implement proper timeout settings
-- Use trusted certificate authorities
-- Monitor certificate expiration dates
+**🔐 Best Practices:**
+- Mirror required third-party artifacts into an internal, access-controlled store
+- Pin a checksum on every fetch; reject content that cannot be inspected
+- Egress-filter paste and anonymous-share domains on managed hosts
 """
 
     def _generate_untrusted_domain_fix(self, code_snippet: str) -> str:
@@ -383,105 +393,6 @@ Downloading and executing scripts from external sources is extremely dangerous a
 - Require manual review of all external scripts
 - Use restricted execution environments
 - Monitor and log all script executions
-"""
-
-    def _generate_api_endpoint_fix(self, code_snippet: str) -> str:
-        """Generate fix for external API endpoint usage"""
-        return f"""
-**❌ Vulnerable Code:**
-```yaml
-{code_snippet}
-```
-
-**🚨 Untrusted External API Endpoint:**
-Connecting to untrusted API endpoints can expose sensitive data and credentials.
-
-**✅ Secure Fix - Use Trusted API Endpoints:**
-```yaml
-- name: define trusted API endpoints
-  ansible.builtin.set_fact:
-    trusted_apis:
-      github: "api.github.com"
-      docker: "registry-1.docker.io"
-      npm: "registry.npmjs.org"
-      pypi: "pypi.org"
-
-- name: validate API endpoint
-  ansible.builtin.assert:
-    that:
-      - api_host in trusted_apis.values()
-    fail_msg: "API endpoint {{{{ api_host }}}} is not trusted"
-  vars:
-    api_host: "{{{{ api_url | urlsplit('hostname') }}}}"
-
-- name: make secure API request
-  ansible.builtin.uri:
-    url: "https://{{{{ api_host }}}}/{{{{ api_path }}}}"
-    method: "{{{{ http_method | default('GET') }}}}"
-    headers:
-      Authorization: "{{{{ auth_header }}}}"
-      Content-Type: "application/json"
-      User-Agent: "Ansible-{{{{ ansible_version.string }}}}/Company"
-    body_format: json
-    body: "{{ request_body | default({{}}) }}"
-    validate_certs: yes
-    timeout: 30
-    status_code: [200, 201, 202]
-  vars:
-    auth_header: "Bearer {{{{ vault_api_token }}}}"
-    api_path: "v1/status"
-  register: api_response
-  when: api_host in trusted_apis.values()
-
-- name: validate API response
-  ansible.builtin.assert:
-    that:
-      - api_response.status in [200, 201, 202]
-      - api_response.json is defined
-    fail_msg: "API returned unexpected response"
-  when: api_response is defined
-```
-
-**✅ Use Internal API Gateway:**
-```yaml
-- name: route through internal API gateway
-  ansible.builtin.uri:
-    url: "https://{{{{ internal_gateway }}}}/external-api/{{{{ service_name }}}}/{{{{ endpoint }}}}"
-    method: "{{{{ http_method | default('GET') }}}}"
-    headers:
-      Authorization: "Bearer {{{{ vault_internal_token }}}}"
-      X-External-Service: "{{{{ service_name }}}}"
-      Content-Type: "application/json"
-    validate_certs: yes
-    timeout: 30
-  vars:
-    internal_gateway: "api-gateway.company.com"
-    service_name: "github"
-    endpoint: "user/repos"
-  register: gateway_response
-
-- name: monitor API gateway usage
-  ansible.builtin.uri:
-    url: "https://{{{{ monitoring_endpoint }}}}/api-usage"
-    method: POST
-    body_format: json
-    body:
-      service: "{{{{ service_name }}}}"
-      endpoint: "{{{{ endpoint }}}}"
-      status: "{{{{ gateway_response.status }}}}"
-      timestamp: "{{{{ ansible_date_time.iso8601 }}}}"
-    headers:
-      Authorization: "Bearer {{{{ vault_monitoring_token }}}}"
-  when: gateway_response is defined
-```
-
-**🔐 API Security Best Practices:**
-- Use a whitelist of trusted API endpoints
-- Route external API calls through internal gateways
-- Validate SSL certificates and use proper authentication
-- Implement rate limiting and monitoring
-- Use API keys and tokens securely
-- Monitor and log all external API communications
 """
 
     def _generate_generic_url_fix(self, code_snippet: str) -> str:

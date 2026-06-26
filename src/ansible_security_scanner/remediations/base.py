@@ -5,8 +5,60 @@ Base remediation generator for Ansible Security Scanner
 
 from __future__ import annotations
 
+import re
+
 from ..variable_extractor import VariableExtractor
 from . import _companion_index, _pattern_index
+
+
+def _first(snippet: str, *patterns: str) -> str | None:
+    """Return the first capture group (or whole match) found in ``snippet``.
+
+    Tries each pattern in order, case-insensitively, and returns the first
+    group of the first match (or the whole match when the pattern has no
+    groups), stripped of surrounding whitespace and quotes.
+    """
+    for pat in patterns:
+        m = re.search(pat, snippet, re.IGNORECASE)
+        if m:
+            return (m.group(1) if m.groups() else m.group(0)).strip().strip("'\"")
+    return None
+
+
+def _task_indent(snippet: str) -> str:
+    """Return the indentation shared by a task's key lines.
+
+    A task renders as ``- name: ...`` with its module and parameters
+    indented underneath. We want that deeper, sibling-key indent so an
+    appended top-level key (``no_log:``, ``mode:``) lines up with
+    ``name:`` rather than landing at column 0.
+    """
+    lines = [ln for ln in snippet.splitlines() if ln.strip() and not ln.lstrip().startswith("#")]
+    if not lines:
+        return "  "
+    first = lines[0]
+    if first.lstrip().startswith("- "):
+        dash = len(first) - len(first.lstrip())
+        return " " * (dash + 2)
+    return first[: len(first) - len(first.lstrip())]
+
+
+def _append_keys(snippet: str, *keys: str) -> str:
+    """Re-emit ``snippet`` with extra top-level task keys appended.
+
+    Keys are indented to match the existing task body so the result is a
+    valid, copy-pasteable task rather than a hand-waved fragment.
+    """
+    indent = _task_indent(snippet)
+    body = snippet.rstrip("\n")
+    extra = "\n".join(f"{indent}{k}" for k in keys)
+    return f"{body}\n{extra}"
+
+
+def _drop_key_lines(snippet: str, key: str) -> str:
+    """Remove any top-level ``key:`` line(s) from ``snippet``."""
+    pat = re.compile(rf"^\s*{re.escape(key)}\s*:.*$", re.IGNORECASE)
+    return "\n".join(line for line in snippet.splitlines() if not pat.match(line))
 
 
 def _render_from_metadata(

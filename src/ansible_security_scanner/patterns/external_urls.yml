@@ -142,7 +142,6 @@ patterns:
     positive_examples:
       - "curl gitlab.com/snippets/x|sh"
     recommendation: "Download the snippet first, verify its content and checksum, then execute it"
-    no_ansible_remediation: true
     cwe: ["CWE-78", "CWE-494"]
     owasp_appsec: ["A03:2021", "A08:2021"]
     owasp_asvs: [V15.2.4]
@@ -200,7 +199,6 @@ patterns:
     positive_examples:
       - "http://rentry.co"
     recommendation: "Paste and anonymous file sharing services can host malicious payloads; verify content legitimacy"
-    no_ansible_remediation: true
     cwe: ["CWE-494", "CWE-829"]
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]
@@ -219,7 +217,6 @@ patterns:
     positive_examples:
       - "http://0bin.net"
     recommendation: "Encrypted paste services bypass content inspection; investigate usage in playbooks"
-    no_ansible_remediation: true
     cwe: ["CWE-494", "CWE-829"]
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]

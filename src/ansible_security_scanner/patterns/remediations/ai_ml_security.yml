@@ -53,7 +53,7 @@ remediations:
         ansible.builtin.copy:
           dest: /opt/app/.env
           content: |
-            LLM_PROVIDER_API_KEY={{ lookup('community.hashi_vault.vault_kv2_get', 'llm/{{ llm_provider }}').data.data.api_key }}
+            LLM_PROVIDER_API_KEY={{ lookup('community.hashi_vault.vault_kv2_get', 'llm/' ~ llm_provider).data.data.api_key }}
           owner: app
           group: app
           mode: '0600'

@@ -136,7 +136,6 @@ patterns:
     positive_examples:
       - "echo ''|rev|sh"
     recommendation: "String reversal piped to a shell is an evasion technique"
-    no_ansible_remediation: true
     cwe: ['CWE-506']
     mitre_attack: ['T1027', 'T1140']
     cis_controls: ['CIS-4.1', 'CIS-10.1']

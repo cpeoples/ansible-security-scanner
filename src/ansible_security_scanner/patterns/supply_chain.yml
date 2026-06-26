@@ -32,7 +32,6 @@ patterns:
     positive_examples:
       - "wget |sh"
     recommendation: "Use `get_url` with `checksum:`, then execute the file explicitly. Don't let the network dictate what runs on your host."
-    no_ansible_remediation: true
     cis_controls: ["CIS-Supply-Chain"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
     pci_dss: ['6.3.2', '6.3.3']
@@ -87,7 +86,6 @@ patterns:
     positive_examples:
       - "curl raw.githubusercontent.com|sh"
     recommendation: "Download the artefact with `get_url` + `checksum:`, store it in your own artefact store, and reference that. Raw GitHub content is not a distribution channel."
-    no_ansible_remediation: true
     cis_controls: ["CIS-Supply-Chain"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
     pci_dss: ['6.3.2', '6.3.3']
@@ -106,7 +104,6 @@ patterns:
     positive_examples:
       - "shell: gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 && curl -sSL https://get.rvm.io | bash -s stable"
     recommendation: "Use the vendor's package repository (apt/yum/rpm) or download and verify a signed release asset. If the vendor only ships a `curl|sh` installer, vendor it behind your own CI and pin a checksum."
-    no_ansible_remediation: true
     cis_controls: ["CIS-Supply-Chain"]
     nist_controls: ['CM-5', 'CM-11', 'SA-10', 'SI-7']
     pci_dss: ['6.3.2', '6.3.3']
@@ -505,7 +502,6 @@ patterns:
     #   3. Kubernetes-style ``hostPath: /var/run/docker.sock``.
     regex: "(?:\\b(?:docker|podman|nerdctl)\\s+run\\b[^\\n]*?(?:-v|--volume)[= ]/var/run/docker\\.sock\\b|-\\s*['\\\"]?/var/run/docker\\.sock[:][^\\s'\\\"]*|hostPath\\s*:\\s*['\\\"]?/var/run/docker\\.sock\\b|source\\s*:\\s*['\\\"]?/var/run/docker\\.sock\\b)"
     recommendation: "Never bind-mount the host's docker.sock into a container. For Molecule, use the ``molecule-docker`` driver without a socket mount (the driver talks to Docker via the controller's own client). For docker-in-docker CI runners, use a DinD sidecar (``docker:dind`` with ``privileged: true`` on the sidecar only, or sysbox for rootless DinD). For general container-manages-container workflows, use a rootless runtime or a tightly-scoped Unix socket proxy (e.g. ``tecnativa/docker-socket-proxy``) that only exposes the specific APIs needed."
-    no_ansible_remediation: true
     positive_examples:
       - "    shell: docker run -v /var/run/docker.sock:/var/run/docker.sock jenkins/jenkins"
       - |2-
@@ -543,7 +539,6 @@ patterns:
     positive_examples:
       - "privileged: true"
     recommendation: "Remove `privileged: true`. Most Ansible role tests don't need kernel capabilities - if yours does (systemd, mount), prefer `systemd: always` + a tmpfs for /tmp instead."
-    no_ansible_remediation: true
     cis_controls: ["CIS-Docker"]
     nist_controls: ['AC-6', 'AC-6(1)']
     pci_dss: ['7.2.1']
@@ -561,7 +556,6 @@ patterns:
     positive_examples:
       - "tls_verify: false"
     recommendation: "Keep TLS verification on. If you're on a corporate registry with a private CA, inject the CA bundle into the container; never disable verification globally."
-    no_ansible_remediation: true
     cis_controls: ["CIS-Network"]
     nist_controls: ['SC-8', 'SC-8(1)', 'SC-12']
     pci_dss: ['2.2.7', '4.2.1', '4.2.1.1']
@@ -898,7 +892,6 @@ patterns:
       - "apt install xz-5.6.0"
     multiline: false
     recommendation: "Pin xz-utils/liblzma to >= 5.6.2 (or revert to the 5.4.x LTS line - 5.4.6 is the last known-good for most distros). Rebuild any container image whose base layer or intermediate builder installed 5.6.0/5.6.1. Rotate every SSH host key on machines that ran a vulnerable sshd (sd_notify-linked builds on glibc systems - primarily Debian unstable, Fedora 40/41 Rawhide, openSUSE Tumbleweed snapshots from late Feb 2024 through Mar 29 2024). Audit `authorized_keys` files for unexpected entries and verify sshd binary integrity: `rpm -V openssh-server` / `debsums -c openssh-server`. Treat any credentialed operation from a backdoored host as potentially compromised. See: CVE-2024-3094, Red Hat RHSB-2024-001, Debian DSA-5649, openssf.org/blog/2024/03/30/."
-    no_ansible_remediation: true
     cve: ["CVE-2024-3094"]
     cwe: ['CWE-494', 'CWE-506', 'CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
@@ -1064,7 +1057,6 @@ patterns:
     multiline: true
     window: 40
     recommendation: "Before consuming any external artifact, verify its provenance: `slsa-verifier verify-artifact --provenance-path build.intoto.jsonl --source-uri github.com/myorg/myrepo <artifact>` or `cosign verify-attestation --type slsaprovenance --certificate-identity-regexp ... <image>`. For Galaxy, use `ansible-galaxy collection verify --signature` (requires galaxy_ng 4.7+)."
-    no_ansible_remediation: true
     positive_examples:
       - |2-
             ansible.builtin.unarchive:
@@ -1251,7 +1243,6 @@ patterns:
     positive_examples:
       - "cloudflared service install aaaaaaaaaaaaaaaaaaaa"
     recommendation: "Remove the task unless there is a documented, change-controlled remote-access exception. If Cloudflare Tunnels are a sanctioned tool, provision the token via `ansible-vault` or a secrets manager (never inline), restrict egress to `*.cloudflare.com` only from approved hosts via outbound firewall, and enforce `Access for Infrastructure` policies requiring SSO + device posture. Detect with Sysmon Event ID 3 + DNS queries to `*.cloudflareaccess.com` from unexpected hosts."
-    no_ansible_remediation: true
     cwe: ['CWE-668', 'CWE-912']
     owasp_appsec: ["A01:2021"]
     mitre_attack: ['T1090.004', 'T1219', 'T1572']
@@ -1271,7 +1262,6 @@ patterns:
     multiline: true
     window: 20
     recommendation: "Remove the task. frp is never a legitimate configuration-management primitive - if the stated need is ingress to a private host, use an SSO-gated zero-trust reverse proxy (Cloudflare Access, Tailscale Funnel with ACLs, Pomerium, Teleport) with device posture and audit logging. Block outbound TCP to unknown high-port listeners at the egress firewall."
-    no_ansible_remediation: true
     cwe: ['CWE-668', 'CWE-912']
     owasp_appsec: ["A01:2021"]
     mitre_attack: ['T1090', 'T1219', 'T1572']
@@ -1289,7 +1279,6 @@ patterns:
     positive_examples:
       - "/usr/bin/gost-L x"
     recommendation: "Remove the task and audit the host for persistent gost binaries (`find / -name gost -type f 2>/dev/null`) and systemd units referencing it. Rotate any credentials accessible from the host and investigate how the task was introduced (likely via compromised CI or a malicious role). Add gost/frpc/rathole/chisel binary names to EDR blocklists."
-    no_ansible_remediation: true
     cwe: ['CWE-506', 'CWE-912']
     mitre_attack: ['T1090', 'T1219', 'T1572']
     cis_controls: ['CIS-4.8', 'CIS-10.5']
@@ -1306,7 +1295,6 @@ patterns:
     positive_examples:
       - "adb tcpip 0"
     recommendation: "Remove the task. If remote debugging is genuinely required for CI, restrict it to a loopback / host-only emulator interface and immediately follow with `adb usb` to return to USB-only mode at the end of the job. Never enable `adb tcpip` on a physical device on a shared network - use `adb -s <serial>` over USB + UAC-confirmed authorisation instead."
-    no_ansible_remediation: true
     cwe: ['CWE-306', 'CWE-749']
     owasp_appsec: ["A07:2021"]
     owasp_asvs: [V6.2.1]
@@ -1378,7 +1366,6 @@ patterns:
     multiline: true
     window: 60
     recommendation: "Set `mode: enforce` (policy-controller), `validationFailureAction: Enforce` (Kyverno), and `failurePolicy: Fail` on admission webhooks. Roll out enforcement gradually: start with a narrow namespace selector, verify `policy-controller` / Kyverno pod logs show zero violations for 48h, then widen. Always pair with a break-glass override annotation (`policy.sigstore.dev/breakglass: 'true'`) that requires a signed-by-CI-root commit to set, so emergency rollouts have an auditable escape hatch."
-    no_ansible_remediation: true
     cwe: ['CWE-295', 'CWE-494', 'CWE-693']
     owasp_appsec: ["A07:2021", "A08:2021"]
     owasp_asvs: [V12.3.4, V15.2.4]
@@ -1415,7 +1402,6 @@ patterns:
     positive_examples:
       - "pip installreqeusts"
     recommendation: "Pin every dependency in `requirements.txt` with exact versions AND hashes: `requests==2.32.3 --hash=sha256:70761cfe...`. Generate with `pip-compile --generate-hashes`. Enable PyPI Trusted Publishers for your own releases and rely on the PyPI signed-index PEP 458 rollout (2025 default). Install only from an internal mirror (`--index-url https://internal-pypi/simple`) that runs `pip-audit` / `pypa/pip-vet` against a curated allowlist. Never use ad-hoc `pip install <name>` in production playbooks without a corresponding lockfile."
-    no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-829', 'CWE-1357']
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]
@@ -1438,7 +1424,6 @@ patterns:
     multiline: true
     window: 120
     recommendation: "Immediately after the download task, run `slsa-verifier verify-artifact <file> --provenance <file>.intoto.jsonl --source-uri github.com/<owner>/<repo> --source-tag <tag>` OR `gh attestation verify <file> --owner <owner>` (GitHub 2.50+). For non-GitHub artifacts, use `cosign verify-attestation --type slsaprovenance --certificate-identity-regexp '...'` against the OIDC identity that signed the release. Fail the play on any non-zero verifier exit. For maximum assurance, pin the release by its Sigstore Rekor log index (`--rekor-entry <uuid>`) so even a malicious re-upload cannot substitute the verified artifact."
-    no_ansible_remediation: true
     cwe: ['CWE-345', 'CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]
@@ -1557,7 +1542,6 @@ patterns:
     multiline: true
     window: 15
     recommendation: "Bind DB ports to loopback or the docker bridge only: `127.0.0.1:5432:5432` (loopback, same-host app access) or drop `ports:` entirely and use `expose:` (compose-internal DNS reachable only by linked services). For cluster access, use a dedicated overlay network + reverse-proxy (HAProxy, Envoy) with auth in front. Audit with `ss -tlnp | grep -E '(3306|5432|6379)'` showing `0.0.0.0` - these rows must not exist on any host with a public IP. Add a cloud-security-group default-deny rule as second line of defence."
-    no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-284', 'CWE-668']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -1866,7 +1850,6 @@ patterns:
     multiline: true
     window: 20
     recommendation: "Commit git hooks INTO the repo under a `.githooks/` directory + configure `git config --local core.hooksPath .githooks/` during setup. That way the hook content is visible in `git log`, reviewable in PRs, and cannot be silently changed. For polyglot repos use `pre-commit` (https://pre-commit.com) - declarative config, pinned hook versions by SHA, visible diff on config changes. For org-wide hooks, use GitLab push rules or GitHub branch-protection required status checks (runs in CI, not as a local hook). Never download a hook from a URL. Audit existing hooks: `find /home -path '*.git/hooks/*' -not -name '*.sample' -exec sha256sum {} \\;` -> diff per-host. Alert on any non-template hook whose SHA differs from the committed `.githooks/` version."
-    no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-506', 'CWE-829']
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]
@@ -1972,7 +1955,6 @@ patterns:
     multiline: true
     window: 15
     recommendation: "Migrate off the legacy **Network Access Account (NAA)** pattern entirely. Use **Enhanced HTTP** mode for SCCM (≥2103) + client authentication via Azure AD device tokens OR Entra-ID joined device certs - no shared NAA needed. For remaining NAA use, grant ONLY `ReadAndExecute` on the DP content share (NEVER a domain-privileged account; not Domain Admin; not the backup account; create a dedicated `svc_sccm_naa` with least privilege). Never use the **Client Push Installation Account** - deploy clients via **Autopilot** / **Intune** / **GPO** / **MDM** instead, which don't require a domain credential distributed across hosts. Store all SCCM-related credentials in **CyberArk** / **HashiCorp Vault** / **AWS Secrets Manager** - inject into playbooks via lookup: `password: \"{{ lookup('community.hashi_vault.vault_kv2_get', 'secret/sccm/naa')['data']['password'] }}\"`. Detect NAA extraction: Microsoft Defender for Endpoint alert `SCCMNetworkAccessAccountCredentialsAccessed`, Sysmon Event ID 10 for `lsass.exe` read by `SharpSCCM.exe`/`MalSCCM.exe`/`Impacket` signatures. Rotate NAA immediately if any extraction is suspected; rotate quarterly regardless."
-    no_ansible_remediation: true
     cwe: ['CWE-257', 'CWE-522', 'CWE-798']
     owasp_appsec: ["A04:2021", "A07:2021"]
     owasp_asvs: [V13.2.1, V13.2.3, V13.3.1, V11.2.5]
@@ -2062,7 +2044,6 @@ patterns:
     multiline: true
     window: 15
     recommendation: "Never pass the JNLP secret on the command line. Store the secret in a file with mode 0600 owned by the agent user, and pass `-secretFile /etc/jenkins/agent.secret`. Better: use the **Jenkins WebSocket agent** protocol (since 2.217) which authenticates via outbound HTTPS and avoids the raw TCP JNLP port entirely. Source secrets from Vault / AWS Secrets Manager at boot (`lookup('community.hashi_vault.vault_kv2_get', ...)`). Rotate the secret whenever an agent is decommissioned (`groovy` step: `jenkins.model.Jenkins.instance.getNode('agent').computer.setJnlpMac(null)`). Audit `journalctl -u jenkins-agent` / `ps auxf` for exposure."
-    no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-312', 'CWE-522']
     owasp_appsec: ["A01:2021", "A04:2021"]
     owasp_asvs: [V13.2.1, V14.1.1, V11.2.5, V14.2.2, V14.2.1]
@@ -2102,7 +2083,6 @@ patterns:
     positive_examples:
       - "FGT_A-v6.0.0.out"
     recommendation: "Upgrade to a patched FortiOS / FortiProxy build: FortiOS 7.4.3+, 7.2.7+, 7.0.14+, 6.4.15+, 6.2.16+, 6.0.18+ (or Fortinet's current GA branch). Follow Fortinet PSIRT FG-IR-24-015. Never expose the SSL-VPN portal (webvpn service) to the internet without a WAF + geo-ACL in front; a significant portion of 2024 Volt Typhoon activity used this CVE against unpatched public-facing SSL-VPN. Audit with `diagnose sys session list | grep :443` and check for the IOCs listed in Mandiant's FortiOS post-exploitation guide (implanted CUTHAT/THINCRUST backdoors, modified `/bin/smartctl`). If running an unpatched build that was internet-reachable, assume compromise and perform a full factory reset + config restore from a pre-incident backup."
-    no_ansible_remediation: true
     cwe: ['CWE-787', 'CWE-1395']
     cve: ["CVE-2024-21762"]
     mitre_attack: ['T1068', 'T1133', 'T1190']
@@ -2124,7 +2104,6 @@ patterns:
     multiline: true
     window: 8
     recommendation: "Upgrade to PAN-OS 10.2.9-h1+, 11.0.4-h1+, 11.1.2-h3+, or later per Palo Alto advisory PAN-SA-2024-0003. If the appliance was internet-reachable and unpatched during April 2024, treat as compromised: perform a full factory-reset per Unit 42 guidance, rotate every credential the firewall had access to (RADIUS/TACACS+/LDAP binds, SNMP v3, API keys, certificates, VPN PSKs), and hunt for UPSTYLE backdoor IOCs (`/opt/panlogs/tmp/device_telemetry/minute/*.pth`, outbound to suspicious DDNS). Never enable GlobalProtect portal/gateway AND device telemetry together without the April 2024 content update - the device-telemetry disable toggle is NOT a full mitigation for versions earlier than the fixed builds."
-    no_ansible_remediation: true
     cwe: ['CWE-20', 'CWE-77', 'CWE-78']
     cve: ["CVE-2024-3400"]
     owasp_appsec: ["A03:2021"]
@@ -2145,7 +2124,6 @@ patterns:
     positive_examples:
       - "downloads.ivanti.com/connect-secure"
     recommendation: "Upgrade to Ivanti Connect Secure 22.5R2.4+, 22.6R2.3+, or the latest GA build per Ivanti KB44784. If the appliance was internet-reachable and unpatched between Dec 2023-Apr 2024, assume compromise: perform a factory reset, rotate ALL credentials that traversed the ICS appliance (local, LDAP/AD binds, RADIUS, OAuth, OIDC, SAML signing keys, SSL certificates, admin passwords, 802.1x PSKs), and hunt for the 2024 implant families (BUSHWALK webshell, LIGHTWIRE, WIREFIRE, ZIPLINE, FRAMESTING) per Mandiant M-Trends 2024. Retire Ivanti Connect Secure 9.x - it is end-of-engineering and should be replaced, not upgraded."
-    no_ansible_remediation: true
     cwe: ['CWE-78', 'CWE-287', 'CWE-288']
     cve: ["CVE-2023-46805", "CVE-2024-21887"]
     owasp_appsec: ["A03:2021", "A07:2021"]
@@ -2169,7 +2147,6 @@ patterns:
     multiline: true
     window: 10
     recommendation: "NEVER expose the NetScaler NSIP (management) interface to the internet - bind it to an RFC1918 out-of-band management VLAN only. If internet access to the gateway is required (typical), that goes via the VIP on the load-balanced SSL-VPN / ICA-proxy service, NEVER the management IP. Use `add ns ip <ip> <mask> -mgmtAccess ENABLED -type NSIP` on the OOB VLAN, and `-mgmtAccess DISABLED` on any VIP. Audit exposure with `show ns ip -summary` and an external nmap from an untrusted net. Even post-CVE-2023-4966 patching, public NSIP exposure is a finding in every major pentest framework (MITRE, NIST SP 800-115). For Citrix Cloud Connector deployments, put the connector behind a WAF with explicit allow-listing."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-668', 'CWE-1188']
     cve: ["CVE-2023-4966", "CVE-2024-6235", "CVE-2024-8534"]
     owasp_appsec: ["A01:2021"]
@@ -2190,7 +2167,6 @@ patterns:
     positive_examples:
       - "checkpoint.download.checkpoint.com/R77.20"
     recommendation: "Apply Check Point sk182336 hotfix IMMEDIATELY on every Quantum Security Gateway running R77.20/R80.20/R80.40/R81/R81.10/R81.20 with remote-access portal, Mobile Access, or SNX enabled. Rotate EVERY credential that has ever traversed the gateway: local accounts, LDAP/AD binds, RADIUS shared secrets, 2FA seeds, user passwords, SSL certificates. Pull `/var/log/httpd2/error_log` and `fw log` for May 2024 onward and grep for `CVE-2024-24919`, `MyCRL`, suspicious `GET` requests to `/clients/MyCRL`. If compromise is suspected: full factory-reset per Check Point IR playbook, rotate HA / VRRP / SIC creds, rebuild the CMA. Retire R77.20 - it is end-of-life and will not get further hotfixes."
-    no_ansible_remediation: true
     cwe: ['CWE-22', 'CWE-200', 'CWE-306']
     cve: ["CVE-2024-24919"]
     owasp_appsec: ["A01:2021", "A07:2021"]
@@ -2214,7 +2190,6 @@ patterns:
     multiline: true
     window: 8
     recommendation: "Upgrade to ScreenConnect 23.9.8+ (or 24.x) immediately per ConnectWise security bulletin CWE-2024-02. If you ran an on-prem ScreenConnect server ≤ 23.9.7 that was internet-reachable between Feb 13-Feb 22, 2024: assume compromise. Every customer machine that had an active ScreenConnect agent is potentially compromised - rotate local admin creds on every downstream endpoint, rebuild the ScreenConnect server from clean media, rotate any MFA seeds / machine accounts the server could read, and run threat-hunting for the 2024 implant families (Slingshot, CoinLoader, BlackCat loaders). Prefer ConnectWise Cloud (SaaS) over self-hosted where possible - the SaaS edition was patched server-side before public disclosure. Front any residual on-prem instance with a WAF that blocks requests to `/SetupWizard.aspx` except during upgrades."
-    no_ansible_remediation: true
     cwe: ['CWE-22', 'CWE-287', 'CWE-288']
     cve: ["CVE-2024-1708", "CVE-2024-1709"]
     owasp_appsec: ["A01:2021", "A07:2021"]
@@ -2236,7 +2211,6 @@ patterns:
     positive_examples:
       - "FMG_A-v6.2.0.out"
     recommendation: "Upgrade to FortiManager 7.6.1+, 7.4.5+, 7.2.8+, 7.0.13+, or 6.4.15+ per Fortinet PSIRT FG-IR-24-423. TCP/541 (fgfmd) MUST NOT be internet-reachable - place FortiManager on a dedicated management VLAN reachable only from FortiGate devices via IPsec, not via a public Elastic IP. If you ran an internet-reachable FortiManager ≤ the fixed build between ~June-Oct 2024, assume total tenant compromise: rotate every credential ever managed by the FortiManager (user passwords, RADIUS/TACACS+ secrets, IPsec PSKs, SSL-VPN cert private keys, BGP auth), and hunt Mandiant UNC5820 IOCs (rogue FortiGate enrollment events, unusual `fgfmd.log` connections, `/tmp/.tm` presence). Consider rebuilding the FortiManager from scratch and re-enrolling devices rather than trusting a post-exploitation instance."
-    no_ansible_remediation: true
     cwe: ['CWE-287', 'CWE-306', 'CWE-862']
     cve: ["CVE-2024-47575"]
     owasp_appsec: ["A01:2021", "A07:2021"]
@@ -2260,7 +2234,6 @@ patterns:
     multiline: true
     window: 8
     recommendation: "Upgrade to Cisco CUCM / IM&P 14SU3+, 12.5(1)SU8+, CUCCX 12.5(1)SU3+, VVB 12.5(1)SU3+ per Cisco advisory cisco-sa-cucm-rce-bWNzQcUm. 11.5.x is end-of-software-maintenance and must be migrated. NEVER expose CUCM/IM&P to the internet - management and signaling should be on a dedicated voice VLAN, SIP trunks terminate on a CUBE session-border controller, not directly on the call agent. If an internet-reachable CUCM ran an unpatched version for any period, assume compromise, rotate every phone authentication key / LDAP sync password / SSH admin / AXL API user, and rebuild from clean installation media. Audit with `show version active` and the Cisco `cisco-sa-cucm-rce-bWNzQcUm` mitigation-status script."
-    no_ansible_remediation: true
     cwe: ['CWE-77', 'CWE-78', 'CWE-434']
     cve: ["CVE-2024-20253"]
     owasp_appsec: ["A03:2021", "A04:2021"]
@@ -2475,7 +2448,6 @@ patterns:
     multiline: true
     window: 80
     recommendation: "Never embed `${{ github.event.* }}` into a `github-script` body. Pass the untrusted text through the action's environment and reference `process.env.X`: `env: TITLE: ${{ github.event.issue.title }}` then `script: core.info(process.env.TITLE)`. Prefer `actions/github-script` for small glue only; for anything non-trivial, write a repo-local `.github/scripts/*.js` file reviewed under CODEOWNERS, invoked with `- uses: actions/github-script@SHA with: script-path: .github/scripts/x.js`. Enable `zizmor` / `actionlint` in CI."
-    no_ansible_remediation: true
     cwe: ['CWE-74', 'CWE-77', 'CWE-94']
     owasp_appsec: ["A03:2021"]
     mitre_attack: ['T1059.007', 'T1195.002']
@@ -2805,7 +2777,6 @@ patterns:
     multiline: true
     window: 12
     recommendation: "Move secrets out of the URL. Prefer `headers:` on `ansible.builtin.uri` (`headers: { Authorization: 'Bearer {{ my_token }}' }`) with the token sourced from Ansible Vault, AWS Secrets Manager, or HashiCorp Vault (`{{ lookup('community.hashi_vault.hashi_vault', '...') }}`). For `get_url`, use `url_username:` / `url_password:` + `force_basic_auth: yes` (the password is passed via HTTP Basic auth header, not the URL). For `git`, use SSH (`git@github.com:...`) with a deploy key, or HTTPS with a Git credential helper that reads from a secret manager - never embed the PAT in the URL. Audit existing playbooks with `grep -rEn 'https?://[^\"\\'' ]+[?&](?:token|api_key|apikey|access_token|pat)=' .`. If a token is found committed, immediately rotate it on the provider (it's in every log you don't know about), invalidate any cached artifacts it was used to pull, and check the provider's access log for unexpected IPs."
-    no_ansible_remediation: true
     cwe: ['CWE-312', 'CWE-532', 'CWE-598']
     owasp_appsec: ["A07:2021", "A09:2021"]
     owasp_asvs: [V6.2.1, V16.2.5, V14.2.1]

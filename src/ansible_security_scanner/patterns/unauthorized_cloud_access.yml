@@ -137,7 +137,6 @@ patterns:
     positive_examples:
       - "aws sts assume-role"
     recommendation: "IAM role assumption should be handled by the execution environment, not playbook code"
-    no_ansible_remediation: true
     cwe: ["CWE-269"]
     owasp_appsec: ["A04:2021"]
     mitre_attack: ["T1548.005"]
@@ -159,7 +158,6 @@ patterns:
     positive_examples:
       - "aws iam create-user"
     recommendation: "IAM user management must go through approved identity governance workflows"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1136.003"]
@@ -178,7 +176,6 @@ patterns:
     positive_examples:
       - "aws iam create-access-key"
     recommendation: "Access key creation must go through approved workflows"
-    no_ansible_remediation: true
 
     cwe: ["CWE-798"]
     owasp_appsec: ["A07:2021"]
@@ -201,7 +198,6 @@ patterns:
     positive_examples:
       - "aws ec2 run-instances"
     recommendation: "EC2 provisioning should go through approved IaC pipelines"
-    no_ansible_remediation: true
 
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
@@ -223,7 +219,6 @@ patterns:
     positive_examples:
       - "python -cimport boto3"
     recommendation: "Do not embed boto3 in Ansible tasks; use approved service integrations"
-    no_ansible_remediation: true
     cwe: ["CWE-506"]
     mitre_attack: ["T1027"]
     cis_controls: ["CIS-8.2"]
@@ -266,7 +261,6 @@ patterns:
     positive_examples:
       - "gcloud compute"
     recommendation: "Use approved IaC workflows for GCP resource management, not ad-hoc gcloud calls"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1078.004"]
@@ -304,7 +298,6 @@ patterns:
     positive_examples:
       - "metadata.google.internal/computeMetadata"
     recommendation: "Do not query cloud metadata servers from playbooks; use environment-provided configuration"
-    no_ansible_remediation: true
 
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
@@ -330,7 +323,6 @@ patterns:
     positive_examples:
       - "az group create -l eastus -n $(setvar.resource_group)"
     recommendation: "Use approved IaC workflows for Azure resource management"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1078.004"]
@@ -374,7 +366,6 @@ patterns:
     positive_examples:
       - "iptables -I OUTPUT 1 -d 169.254.169.254 -j REJECT"
     recommendation: "Do not access cloud metadata from playbooks; use scoped IAM roles and environment variables"
-    no_ansible_remediation: true
 
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
@@ -453,7 +444,6 @@ patterns:
     positive_examples:
       - "terraform apply "
     recommendation: "Terraform should run through its own CI/CD pipeline with plan review, not from Ansible"
-    no_ansible_remediation: true
 
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
@@ -494,7 +484,6 @@ patterns:
     positive_examples:
       - "cmd: \"vault write sys/plugins/catalog/secret/acme"
     recommendation: "Use the community.hashi_vault lookup plugin or Vault agent instead of CLI calls"
-    no_ansible_remediation: true
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
     owasp_asvs: [V13.2.1, V11.2.5]
@@ -514,7 +503,6 @@ patterns:
     positive_examples:
       - "cmd: vault secrets enable -path acme -plugin-name acme plugin"
     recommendation: "Vault policy and auth configuration must go through reviewed IaC pipelines"
-    no_ansible_remediation: true
 
     cwe: ["CWE-269"]
     owasp_appsec: ["A04:2021"]
@@ -536,7 +524,6 @@ patterns:
     positive_examples:
       - "aws s3 cp"
     recommendation: "Access S3 through approved data pipelines; do not use direct AWS CLI S3 commands in playbooks"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1530"]
@@ -555,7 +542,6 @@ patterns:
     positive_examples:
       - "boto3.client('s3'"
     recommendation: "Do not use boto3 S3 access in playbooks; use approved data transfer mechanisms"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1530"]
@@ -595,7 +581,6 @@ patterns:
     positive_examples:
       - "aws ssm send-command"
     recommendation: "Use Ansible's native SSH-based execution; do not use SSM for remote command execution"
-    no_ansible_remediation: true
     cwe: ["CWE-78"]
     owasp_appsec: ["A03:2021"]
     mitre_attack: ["T1651"]
@@ -635,7 +620,6 @@ patterns:
     positive_examples:
       - "- name: negative - Create a DB instance using the default AWS KMS encryption key"
     recommendation: "KMS operations should be handled by the application layer, not Ansible playbooks"
-    no_ansible_remediation: true
 
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
@@ -658,7 +642,6 @@ patterns:
     positive_examples:
       - "aws rds create-db"
     recommendation: "RDS provisioning must go through approved IaC pipelines"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1578"]
@@ -681,7 +664,6 @@ patterns:
     positive_examples:
       - "aws dynamodb put-item"
     recommendation: "DynamoDB access should go through application APIs, not Ansible playbooks"
-    no_ansible_remediation: true
 
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
@@ -703,7 +685,6 @@ patterns:
     positive_examples:
       - "aws ecs run-task"
     recommendation: "ECS deployments should go through CI/CD pipelines with review gates"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1610"]
@@ -722,7 +703,6 @@ patterns:
     positive_examples:
       - "aws eks get-token"
     recommendation: "EKS access should be configured through the execution environment, not playbook code"
-    no_ansible_remediation: true
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
     owasp_asvs: [V13.2.1, V11.2.5]
@@ -742,7 +722,6 @@ patterns:
     positive_examples:
       - "aws ecr get-login-password"
     recommendation: "ECR authentication should be handled by the CI/CD runner, not Ansible playbooks"
-    no_ansible_remediation: true
 
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
@@ -765,7 +744,6 @@ patterns:
     positive_examples:
       - "aws cloudformation create-stack"
     recommendation: "CloudFormation should run through its own CI/CD pipeline with review gates"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1578"]
@@ -784,7 +762,6 @@ patterns:
     positive_examples:
       - "aws route53 change-resource-record-sets"
     recommendation: "DNS changes must go through approved IaC pipelines with peer review"
-    no_ansible_remediation: true
     cwe: ["CWE-345"]
     owasp_appsec: ["A08:2021"]
     mitre_attack: ["T1557"]
@@ -802,7 +779,6 @@ patterns:
     positive_examples:
       - "aws ec2 authorize-security-group"
     recommendation: "Security group changes must go through reviewed IaC pipelines"
-    no_ansible_remediation: true
 
     cwe: ["CWE-732"]
     owasp_asvs: [V5.3.1]
@@ -824,7 +800,6 @@ patterns:
     positive_examples:
       - "aws cloudtrail stop-logging"
     recommendation: "Never disable CloudTrail; this is a strong indicator of malicious intent"
-    no_ansible_remediation: true
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -844,7 +819,6 @@ patterns:
     positive_examples:
       - "aws guardduty delete-detector"
     recommendation: "Never disable GuardDuty; this is a strong indicator of malicious intent"
-    no_ansible_remediation: true
     cwe: ["CWE-693"]
     mitre_attack: ["T1562.001"]
     cis_controls: ["CIS-13.1"]
@@ -862,7 +836,6 @@ patterns:
     positive_examples:
       - "aws configservice stop-configuration-recorder"
     recommendation: "Never disable AWS Config; compliance monitoring must remain active"
-    no_ansible_remediation: true
     cwe: ["CWE-693"]
     mitre_attack: ["T1562.001"]
     cis_controls: ["CIS-4.1"]
@@ -880,7 +853,6 @@ patterns:
     positive_examples:
       - "aws cloudwatch delete-alarms"
     recommendation: "CloudWatch alarm management should go through IaC pipelines"
-    no_ansible_remediation: true
 
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
@@ -1047,7 +1019,6 @@ patterns:
     positive_examples:
       - "kubectl port-forward "
     recommendation: "Use Kubernetes Ingress or Services for network access, not port forwarding"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1572"]
@@ -1066,7 +1037,6 @@ patterns:
     positive_examples:
       - "kubectl cp "
     recommendation: "Use init containers or ConfigMaps/Secrets for file delivery, not kubectl cp"
-    no_ansible_remediation: true
     cwe: ["CWE-200"]
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -1086,7 +1056,6 @@ patterns:
     positive_examples:
       - "kubectl delete deployment"
     recommendation: "Resource lifecycle should be managed through GitOps or Helm, not ad-hoc kubectl delete"
-    no_ansible_remediation: true
     cwe: ["CWE-732"]
     owasp_asvs: [V5.3.1]
     mitre_attack: ["T1485"]
@@ -1150,7 +1119,6 @@ patterns:
     positive_examples:
       - "gsutil cp "
     recommendation: "Use approved data pipelines for GCS access, not ad-hoc gsutil commands"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1530"]
@@ -1194,7 +1162,6 @@ patterns:
     positive_examples:
       - "gcloud kms decrypt"
     recommendation: "KMS operations should be handled by the application layer, not Ansible"
-    no_ansible_remediation: true
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
     owasp_asvs: [V13.2.1, V11.2.5]
@@ -1214,7 +1181,6 @@ patterns:
     positive_examples:
       - "gcloud logging sinks delete"
     recommendation: "Never modify audit logging from playbooks; this is a strong indicator of malicious intent"
-    no_ansible_remediation: true
 
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
@@ -1239,7 +1205,6 @@ patterns:
     positive_examples:
       - "az keyvault secret show"
     recommendation: "Use managed identity with scoped access; do not extract secrets via az CLI"
-    no_ansible_remediation: true
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
     owasp_asvs: [V13.2.1, V11.2.5]
@@ -1262,7 +1227,6 @@ patterns:
     positive_examples:
       - "az sql db create"
     recommendation: "Azure SQL provisioning must go through approved IaC pipelines"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1578"]
@@ -1281,7 +1245,6 @@ patterns:
     positive_examples:
       - "az acr login"
     recommendation: "ACR access should be handled by CI/CD pipelines, not Ansible playbooks"
-    no_ansible_remediation: true
     cwe: ["CWE-522"]
     owasp_appsec: ["A04:2021"]
     owasp_asvs: [V13.2.1, V11.2.5]
@@ -1304,7 +1267,6 @@ patterns:
     positive_examples:
       - "az monitor diagnostic-settings delete"
     recommendation: "Never disable monitoring from playbooks; this is a strong indicator of malicious intent"
-    no_ansible_remediation: true
 
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
@@ -1327,7 +1289,6 @@ patterns:
     positive_examples:
       - "pulumi up "
     recommendation: "Pulumi should run through its own CI/CD pipeline with review gates"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1578"]
@@ -1346,7 +1307,6 @@ patterns:
     positive_examples:
       - "cdk deploy "
     recommendation: "CDK should run through its own CI/CD pipeline with review gates"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1578"]
@@ -1365,7 +1325,6 @@ patterns:
     positive_examples:
       - "serverless deploy "
     recommendation: "Serverless Framework should run through CI/CD pipelines, not Ansible"
-    no_ansible_remediation: true
 
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
@@ -1387,7 +1346,6 @@ patterns:
     positive_examples:
       - "oci compute"
     recommendation: "OCI CLI calls should go through approved IaC pipelines (Terraform), not direct Ansible execution"
-    no_ansible_remediation: true
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
     mitre_attack: ["T1078.004"]
@@ -1406,7 +1364,6 @@ patterns:
     positive_examples:
       - "oci os object put"
     recommendation: "Object storage access should be governed by IAM policies and logged"
-    no_ansible_remediation: true
 
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
@@ -1428,7 +1385,6 @@ patterns:
     positive_examples:
       - "aws iam attach-user-policy"
     recommendation: "IAM policy changes must go through approved IaC pipelines with MFA and approval gates"
-    no_ansible_remediation: true
     cwe: ["CWE-269"]
     owasp_appsec: ["A04:2021"]
     mitre_attack: ["T1098.003"]
@@ -1447,7 +1403,6 @@ patterns:
     positive_examples:
       - "aws iam delete-user"
     recommendation: "IAM deletions must go through change management; this could be sabotage or covering tracks"
-    no_ansible_remediation: true
 
     cwe: ["CWE-284"]
     owasp_appsec: ["A01:2021"]
@@ -1469,7 +1424,6 @@ patterns:
     positive_examples:
       - "aws s3 ls"
     recommendation: "S3 operations should go through approved data pipelines, not direct CLI access from playbooks"
-    no_ansible_remediation: true
 
     cwe: ["CWE-732"]
     owasp_asvs: [V5.3.1]
@@ -1491,7 +1445,6 @@ patterns:
     positive_examples:
       - "aws ec2 describe-instances"
     recommendation: "EC2 operations should use Terraform/CloudFormation, not direct CLI calls from Ansible"
-    no_ansible_remediation: true
 
     cwe: ["CWE-200"]
     owasp_appsec: ["A01:2021"]
@@ -1516,7 +1469,6 @@ patterns:
     positive_examples:
       - "aws cloudtrail delete-trail"
     recommendation: "CloudTrail deletion is a strong indicator of compromise; escalate immediately"
-    no_ansible_remediation: true
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -1536,7 +1488,6 @@ patterns:
     positive_examples:
       - "aws logs delete-log-group"
     recommendation: "CloudWatch log deletion is a strong indicator of tampering; escalate immediately"
-    no_ansible_remediation: true
     cwe: ["CWE-778"]
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -1556,7 +1507,6 @@ patterns:
     positive_examples:
       - "aws config delete-configuration-recorder"
     recommendation: "AWS Config deletion disables compliance monitoring; escalate immediately"
-    no_ansible_remediation: true
 
     cwe: ["CWE-693"]
     mitre_attack: ["T1562.001"]
@@ -1577,7 +1527,6 @@ patterns:
     positive_examples:
       - "aws organizations leave-organization"
     recommendation: "Organization changes remove security guardrails; this requires executive approval"
-    no_ansible_remediation: true
 
     cwe: ["CWE-269"]
     owasp_appsec: ["A04:2021"]
@@ -1599,7 +1548,6 @@ patterns:
     positive_examples:
       - "aws sts get-caller-identity"
     recommendation: "STS identity checks in playbooks may indicate reconnaissance; verify intent"
-    no_ansible_remediation: true
 
     cwe: ["CWE-200"]
     owasp_appsec: ["A01:2021"]
@@ -1622,7 +1570,6 @@ patterns:
     positive_examples:
       - "aws lambda create-function"
     recommendation: "Lambda deployment must go through CI/CD pipelines, not direct CLI from Ansible"
-    no_ansible_remediation: true
     cwe: ["CWE-494"]
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]

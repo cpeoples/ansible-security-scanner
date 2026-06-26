@@ -389,7 +389,6 @@ patterns:
     positive_examples:
       - "mokutil --disable-validation"
     recommendation: "Never disable Secure Boot from a playbook. If you genuinely need to boot a custom kernel/initramfs, sign it with a MOK enrolled interactively at the console (not via automation), or build it into an internally-signed RHEL/SLES shim. Verify posture with `mokutil --sb-state` expecting `SecureBoot enabled`, and enforce Secure Boot + TPM-PCR measured-boot attestation via a platform like Keylime or Azure Attestation."
-    no_ansible_remediation: true
     cwe: ['CWE-347', 'CWE-693', 'CWE-798']
     owasp_appsec: ["A02:2021", "A07:2021"]
     owasp_asvs: [V13.2.3, V13.3.1]
@@ -831,7 +830,6 @@ patterns:
     multiline: true
     window: 6
     recommendation: "Never `auditctl -D` in a playbook. Manage audit rules declaratively by writing to `/etc/audit/rules.d/<name>.rules` and invoking `augenrules --load` (which PRESERVES non-overlapping rule-set files). For a full replacement, use `ansible.builtin.template` -> `/etc/audit/rules.d/zz-baseline.rules` with `notify: reload auditd`. Add an immutable marker `-e 2` at the END of the ruleset so the audit config cannot be modified until reboot - any playbook needing `auditctl -D` after `-e 2` is an immediate alert. Audit with `auditctl -l` (list rules) + `auditctl -s` (show config) - alert when the rule count drops unexpectedly between consecutive CMDB inventory snapshots."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693', 'CWE-778']
     owasp_appsec: ["A01:2021", "A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -941,7 +939,6 @@ patterns:
     multiline: true
     window: 10
     recommendation: "Never disable Secure Boot on production hosts. For driver-signing workarounds, ENROLL your driver-signing cert via `mokutil --import <internal-ca>.der` (which adds to MokList WITHOUT disabling validation) + sign drivers with that cert. For NVIDIA/VMware-tools kernel modules, use the distro's pre-signed variant (`kmod-nvidia` from RPM Fusion for RHEL, `nvidia-dkms` with distro-signed kernel for Ubuntu), not an unsigned hand-compiled module. Maintain a SBAT revocation-policy baseline: `sbverify --list /boot/efi/EFI/*/shimx64.efi` should show a current-year SBAT policy. Audit: `mokutil --sb-state` must return `SecureBoot enabled`. Alert on `mokutil --disable-validation` or `sbctl disable-secureboot` via auditd `-w /usr/bin/mokutil -p x -k secure_boot` + centralize events."
-    no_ansible_remediation: true
     cwe: ['CWE-347', 'CWE-347', 'CWE-1329']
     owasp_appsec: ["A02:2021"]
     mitre_attack: ['T1542.001', 'T1542.003', 'T1553.006']
@@ -962,7 +959,6 @@ patterns:
     multiline: true
     window: 60
     recommendation: "Set a GRUB password across ALL entries: 1) Generate PBKDF2 hash: `grub2-mkpasswd-pbkdf2` -> copy the `grub.pbkdf2.sha512.10000.<salt>.<hash>` value. 2) Add to `/etc/grub.d/01_users` (persistent): `set superusers=\"grubadmin\"` + `password_pbkdf2 grubadmin grub.pbkdf2.sha512.10000.XXX...`. 3) Regenerate: `grub2-mkconfig -o /boot/grub2/grub.cfg` (RHEL) or `update-grub` (Debian). 4) For custom entries that should be accessible WITHOUT password at boot but not edit, use `--unrestricted` flag on the `menuentry`. For highest assurance, combine with full-disk-encryption (LUKS) + TPM-backed unlock (Clevis + tang) so even physical-presence can't extract data. Enforce via CIS scan: `/etc/grub2.cfg` must contain `password_pbkdf2` and `/etc/grub.d/` entries must NOT have `--unrestricted` on rescue/emergency entries."
-    no_ansible_remediation: true
     cwe: ['CWE-250', 'CWE-272', 'CWE-306']
     owasp_appsec: ["A07:2021"]
     owasp_asvs: [V6.2.1, V13.4.5, V15.2.3]
@@ -1091,7 +1087,6 @@ patterns:
     multiline: true
     window: 10
     recommendation: "Enable Microsoft's **vulnerable driver blocklist** on every Windows host: `Windows Security -> Device Security -> Core Isolation -> Microsoft Vulnerable Driver Blocklist = On`. For Windows 10/11/Server 2022, this blocks the Microsoft-curated list of ~300 known-abusive drivers at kernel load time via Windows Defender Application Control (WDAC). For older hosts (Win Server 2019 and earlier), deploy the blocklist manually via WDAC policy XML (Microsoft publishes the reference XML at https://github.com/MicrosoftDocs/windows-itpro-docs). Combine with: **HVCI** (Hypervisor-enforced Code Integrity) to prevent attacker-loaded unsigned drivers at all, **Smart App Control** (Win 11 22H2+), and EDR behavioral detection for driver-load anomalies. For Linux, enable kernel lockdown: `kernel.lockdown=confidentiality` via `/sys/kernel/security/lockdown` and sign all modules with a locally-held MOK (machine owner key). Audit installed kernel drivers periodically: `fltmc instances` (Windows filter drivers), `driverquery /v` (Windows), `lsmod` (Linux) + cross-reference against vulnerable-driver databases (`loldrivers.io`). Alert on NEW driver loads via Sysmon Event ID 6 (DriverLoad) + correlate with the `loldrivers.io` feed in SIEM."
-    no_ansible_remediation: true
     cwe: ['CWE-94', 'CWE-829', 'CWE-1357']
     cve: ["CVE-2015-2291", "CVE-2018-19320", "CVE-2019-16098", "CVE-2021-21551"]
     owasp_appsec: ["A03:2021", "A08:2021"]
@@ -1135,7 +1130,6 @@ patterns:
     multiline: true
     window: 6
     recommendation: "Never disable Gatekeeper. If a specific app legitimately can't be notarized (internal tooling only), sign it with a Developer ID and notarize via `xcrun notarytool submit` - then it runs with Gatekeeper enabled. For dev-environment exceptions, use `spctl --add --label 'DevTooling' /path/to/app` to allow a specific path WITHOUT disabling globally. Enforce Gatekeeper state via MDM (Jamf `Restrictions` -> `Gatekeeper: App Store and identified developers`). Audit: `spctl --status` should return `assessments enabled` on every managed Mac. Monitor for the disable action via `log stream --predicate 'subsystem == \"com.apple.syspolicy\"'` and alert on any occurrence."
-    no_ansible_remediation: true
     cwe: ['CWE-284', 'CWE-693']
     owasp_appsec: ["A01:2021"]
     mitre_attack: ['T1553.001', 'T1562.001', 'T1562.010']
@@ -1156,7 +1150,6 @@ patterns:
     multiline: true
     window: 6
     recommendation: "Never disable SIP on a production or user-facing Mac. For the extremely rare case a dev tool requires SIP-off (low-level kernel research, legacy kext development), isolate it to a DEDICATED test Mac that is not on the production network and holds no production data. Enforce SIP-enabled via MDM and alert on any disabled status (`csrutil status` should return `System Integrity Protection status: enabled.` - anything else is a P0 incident). For legitimate kext needs, use the new System Extensions framework (Network, Endpoint Security, DriverKit) which works with SIP enabled. Audit on boot via a LaunchDaemon that invokes `csrutil status` and ships the result to SIEM. Treat `csrutil disable` as equivalent to `rm -rf / --no-preserve-root` for incident-response purposes."
-    no_ansible_remediation: true
     cwe: ['CWE-250', 'CWE-693']
     owasp_asvs: [V13.4.5, V15.2.3]
     mitre_attack: ['T1014', 'T1562.001']

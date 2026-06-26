@@ -64,7 +64,6 @@ patterns:
     positive_examples:
       - "DROP TABLE #integration56yH2"
     recommendation: "Destructive database commands should never appear in playbooks; use migrations with backups"
-    no_ansible_remediation: true
     cwe: ["CWE-506"]
     mitre_attack: ["T1485", "T1490"]
     cis_controls: ["CIS-11.1", "CIS-11.2"]
@@ -111,7 +110,6 @@ patterns:
     positive_examples:
       - "mkfs.ext2 /dev/"
     recommendation: "Disk formatting destroys all data; should only happen during initial provisioning"
-    no_ansible_remediation: true
     cwe: ["CWE-400", "CWE-506"]
     owasp_asvs: []
     mitre_attack: ["T1485", "T1561.002"]

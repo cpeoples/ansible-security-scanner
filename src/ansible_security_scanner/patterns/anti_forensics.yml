@@ -12,7 +12,6 @@ patterns:
     positive_examples:
       - "touch -t 00000000"
     recommendation: "File timestomping is a forensic evasion technique; remove immediately and investigate"
-    no_ansible_remediation: true
     cwe: ['CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -32,7 +31,6 @@ patterns:
     positive_examples:
       - "command: /usr/sbin/setenforce 0"
     recommendation: "SELinux should always be enforcing in production; use targeted policies for application exceptions"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1562.001']
     cis_controls: ['CIS-4.1', 'CIS-10.1']
@@ -50,7 +48,6 @@ patterns:
     positive_examples:
       - "sudo systemctl stop apparmor.service"
     recommendation: "AppArmor profiles should not be disabled; create proper profiles for applications"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1562.001']
     cis_controls: ['CIS-4.1', 'CIS-10.1']
@@ -68,7 +65,6 @@ patterns:
     positive_examples:
       - "systemctl stop auditd"
     recommendation: "The audit daemon must remain running; investigate why someone is attempting to disable it"
-    no_ansible_remediation: true
     cwe: ['CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -88,7 +84,6 @@ patterns:
     positive_examples:
       - "journalctl --flush"
     recommendation: "Journal logs should only be managed by system log rotation policies"
-    no_ansible_remediation: true
     cwe: ['CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -108,7 +103,6 @@ patterns:
     positive_examples:
       - "> /utmp"
     recommendation: "Login records must not be tampered with; investigate this as a potential incident"
-    no_ansible_remediation: true
     cwe: ['CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -128,7 +122,6 @@ patterns:
     positive_examples:
       - "{{ \"invoke-rc.d rsyslog rotate > /dev/null\""
     recommendation: "Syslog should only forward to authorized log aggregation servers"
-    no_ansible_remediation: true
     cwe: ['CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V16.2.5, V16.3.1]
@@ -148,7 +141,6 @@ patterns:
     positive_examples:
       - "- seccomp=unconfined"
     recommendation: "Never disable seccomp in production; create appropriate seccomp profiles"
-    no_ansible_remediation: true
     cwe: ['CWE-693']
     mitre_attack: ['T1562.001', 'T1611']
     cis_controls: ['CIS-4.1', 'CIS-Docker']
@@ -166,7 +158,6 @@ patterns:
     positive_examples:
       - "ulimit -c unlimited"
     recommendation: "Core dumps should be disabled or restricted to prevent credential extraction"
-    no_ansible_remediation: true
     cwe: ['CWE-200', 'CWE-212']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -186,7 +177,6 @@ patterns:
     positive_examples:
       - "vssadmin delete shadows /all"
     recommendation: "Ansible playbooks should NEVER delete shadow copies in production. If this is legitimate disk-maintenance automation: (1) explicitly document and sign the playbook, (2) gate behind AWX/Tower job-template approval with multi-party RBAC, (3) run only on narrowly-scoped hosts (not domain-wide), (4) log via Windows Event ID 524 (backup catalog deleted), 8224 (VSS delete). Detection: Sysmon Event ID 1 (ProcessCreate) for `vssadmin.exe delete shadows`, `wmic shadowcopy delete`, `wbadmin delete catalog`, `bcdedit /set recoveryenabled No`, plus Windows Event ID 524. Prevention: Controlled Folder Access + Defender for Endpoint ASR rule `c1db55a8-c604-4b9b-aa9c-9b79fad0e9f8` (use advanced protection against ransomware) + WDAC policy blocking vssadmin for non-admin contexts. If this playbook ever runs unexpectedly, isolate the host, preserve volatile memory, and invoke IR - shadow deletion is Initial Access + Impact combined."
-    no_ansible_remediation: true
     cwe: ['CWE-73', 'CWE-732', 'CWE-1104']
     owasp_appsec: ["A04:2021", "A06:2021"]
     owasp_asvs: [V5.3.2, V5.3.1]
@@ -273,7 +263,6 @@ patterns:
     multiline: true
     window: 40
     recommendation: "Never render `discard`/`~`/`stop` rsyslog actions or `never,exit` auditd rules from configuration management. Legitimate log-volume control belongs in a separate forwarder layer (rsyslog `omfwd` with rate-limit, Fluent Bit tail+filter with metrics) and should NEVER happen at the local rsyslog/auditd layer on a monitored host - filtering at the source destroys forensic evidence. If a playbook writes to `/etc/rsyslog.d/` or `/etc/audit/rules.d/`, the content should be additive (new file-watches, new destinations) only. Pre-commit lint: reject any rsyslog conf containing `discard`, `~`, or ` stop\\b` actions; reject any audit rules file containing `-a never,`. Runtime detection: add an auditd watch on the rule directories themselves (`-w /etc/audit/rules.d/ -p wa -k audit_rule_tamper`, `-w /etc/rsyslog.d/ -p wa -k rsyslog_tamper`) and forward those events off-host to a SIEM that owns the detection for this anti-forensic class. Verify running config matches committed config: `augenrules --check` + `rsyslogd -N1 -f /etc/rsyslog.conf` and alert on drift. For playbook CI, add a pre-deploy check that greps every rendered template for the listed fingerprints and fails the run."
-    no_ansible_remediation: true
     cwe: ['CWE-117', 'CWE-693', 'CWE-778']
     owasp_appsec: ["A09:2021"]
     owasp_asvs: [V14.2.1]

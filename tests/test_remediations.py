@@ -64,6 +64,32 @@ def _collect_rule_ids() -> list[tuple[str, str]]:
 ALL_RULES = _collect_rule_ids()
 
 
+def _collect_rule_positive_examples() -> list[tuple[str, str, str]]:
+    """Return ``(rule_id, category, positive_example)`` triples - one per
+    positive example per rule. Rendering a rule's fix against the very
+    code it is built to match is the only way to catch extraction bugs
+    (truncated/nested Jinja, missing Secure Fix block) that never surface
+    against a generic placeholder snippet.
+    """
+    out: list[tuple[str, str, str]] = []
+    for yml in sorted(PATTERNS_DIR.glob("*.yml")):
+        data = yaml.safe_load(yml.read_text())
+        if not isinstance(data, dict):
+            continue
+        for p in data.get("patterns", []):
+            rid = p.get("id")
+            if not rid or p.get("exclude"):
+                continue
+            cat = p.get("category", yml.stem)
+            for ex in p.get("positive_examples") or []:
+                if isinstance(ex, str) and ex.strip():
+                    out.append((rid, cat, ex))
+    return out
+
+
+ALL_POSITIVE_EXAMPLES = _collect_rule_positive_examples()
+
+
 _UNRENDERED_PLACEHOLDER_PATTERNS = [
     re.compile(r"\{code_snippet[^a-zA-Z0-9_]"),
     re.compile(r"\{rule_id[^a-zA-Z0-9_]"),
@@ -101,6 +127,19 @@ _MARKDOWN_BULLET_RE = re.compile(r"^[ ]{0,2}- [A-Z]")
 # fence so we also strip the indented fences the MR comment renderer
 # emits for inline snippets.
 _FENCED_BLOCK_RE = re.compile(r"^[ ]{0,4}```[^\n]*\n.*?\n[ ]{0,4}```", re.DOTALL | re.MULTILINE)
+
+# `{{` that is followed only by optional whitespace/quote until end of line:
+# the signature of a Jinja expression whose value was truncated by a greedy
+# extractor that stopped at the space inside `{{ var }}` (e.g. `url: "...v{{"`
+# or `path: "{{"`). Valid single-line and multi-line Jinja never match this;
+# neither do JSON policy docs whose braces close as `...}}`.
+_TRUNCATED_JINJA_RE = re.compile(r"\{\{(?=\s*[\"']?\s*$)", re.MULTILINE)
+
+# A `{{ ... }}` expression that itself contains another `{{` before it closes:
+# invalid nested Jinja (e.g. `{{ lookup('x', '{{ playbook_dir }}/y') }}`),
+# the symptom of an f-string author pasting a literal `{{ var }}` inside an
+# already-interpolated expression.
+_NESTED_JINJA_RE = re.compile(r"\{\{(?:[^{}]|\}(?!\}))*\{\{")
 
 
 def _unfenced_yaml_runs(output: str) -> list[list[str]]:
@@ -315,9 +354,9 @@ _SECURE_FIX_BLOCK_RE = re.compile(
 def _companion_fix_hint(rule_id: str, category: str, companion_path) -> str:
     return (
         f"  Add a `secure_fix:` entry for `{rule_id}` in {companion_path},\n"
-        f"  or implement a tailored handler in remediations/{category}.py,\n"
-        f"  or set `no_ansible_remediation: true` on the rule if the correct\n"
-        f"  response is procedural."
+        f"  or implement a tailored handler in remediations/{category}.py.\n"
+        f"  Every finding must ship an actionable Ansible fix - there is no\n"
+        f"  procedural opt-out."
     )
 
 
@@ -331,13 +370,13 @@ def test_remediation_includes_secure_fix_yaml_block(
     rule_id: str,
     category: str,
 ) -> None:
-    """Every rule must render a curated ``✅ Secure Fix`` YAML block or set
-    ``no_ansible_remediation: true``. ``negative_examples`` are regex
-    non-match fixtures and are explicitly not accepted as a fix source.
+    """Every rule must render a curated ``✅ Secure Fix`` YAML block.
+
+    Per project policy every finding ships an actionable Ansible fix - there
+    is no procedural opt-out. ``negative_examples`` are regex non-match
+    fixtures and are explicitly not accepted as a fix source.
     """
     meta = _PI.get(rule_id)
-    if meta.get("no_ansible_remediation"):
-        return
 
     out = remediation_generator.generate_remediation_example(
         rule_id, "shell: echo placeholder", file_path="test.yml", line_number=1
@@ -378,6 +417,183 @@ def test_remediation_includes_secure_fix_yaml_block(
             f"{fix_hint}\n"
             f"\n  rendered body (first 320 chars):\n    {rendered_body[:320]!r}"
         )
+
+
+def test_no_rule_opts_out_of_remediation() -> None:
+    """Policy guard: no shipped rule may carry ``no_ansible_remediation``.
+
+    The flag was the escape hatch that let prose-only rules skip the Secure
+    Fix contract. Project policy is now that *every* finding ships an
+    actionable Ansible fix, so the flag must not reappear - reintroducing it
+    silently re-opens the gap this suite exists to close.
+    """
+    flagged: list[str] = []
+    for yml in sorted(PATTERNS_DIR.glob("*.yml")):
+        data = yaml.safe_load(yml.read_text())
+        if not isinstance(data, dict):
+            continue
+        for p in data.get("patterns", []):
+            if p.get("exclude"):
+                continue
+            if p.get("no_ansible_remediation"):
+                flagged.append(f"{p.get('id')} ({yml.name})")
+    assert not flagged, (
+        f"{len(flagged)} rule(s) still set `no_ansible_remediation: true`, "
+        f"which is no longer permitted - every finding must ship a dynamic "
+        f"Ansible fix instead:\n  " + "\n  ".join(flagged[:20])
+    )
+
+
+@pytest.mark.parametrize(
+    "rule_id,category,positive_example",
+    ALL_POSITIVE_EXAMPLES,
+    ids=[f"{r}#{i}" for i, (r, _, _) in enumerate(ALL_POSITIVE_EXAMPLES)],
+)
+def test_positive_example_renders_valid_secure_fix(
+    remediation_generator: RemediationGenerator,
+    rule_id: str,
+    category: str,
+    positive_example: str,
+) -> None:
+    """Render every rule against the *actual* code it is built to flag.
+
+    This is the regression net for the whole class of bug where a fix looks
+    fine against a generic placeholder snippet but breaks on a real match -
+    a greedy extractor truncating ``{{ var }}`` to ``{{``, a nested Jinja
+    expression, or the fix dispatch silently dropping to a prose-only
+    metadata stub. The generic-snippet tests above never exercise the
+    rule's own extraction path; this one does.
+    """
+    out = remediation_generator.generate_remediation_example(
+        rule_id, positive_example, file_path="test.yml", line_number=1
+    )
+    _assert_well_formed(rule_id, out)
+
+    match = _SECURE_FIX_BLOCK_RE.search(out)
+    assert match, (
+        f"{rule_id}: rendering against its own positive example produced no "
+        f"`\u2705 Secure Fix` YAML block - the fix dispatch fell through to a "
+        f"prose-only stub for real matching code.\n"
+        f"  positive example (first 160 chars): {positive_example[:160]!r}\n"
+        f"  remediation excerpt (first 320 chars): {out[:320]!r}"
+    )
+
+    body = match.group("body")
+    assert not _TRUNCATED_JINJA_RE.search(body), (
+        f"{rule_id}: Secure Fix rendered from the rule's own positive example "
+        f"contains a truncated Jinja expression (a dangling `{{{{`). The value "
+        f"extractor stopped at the space inside `{{{{ var }}}}`.\n"
+        f"  positive example: {positive_example[:160]!r}\n"
+        f"  Secure Fix body (first 320 chars): {body[:320]!r}"
+    )
+    assert not _NESTED_JINJA_RE.search(body), (
+        f"{rule_id}: Secure Fix rendered from the rule's own positive example "
+        f"contains nested Jinja (`{{{{ ... {{{{ ... }}}} ... }}}}`).\n"
+        f"  positive example: {positive_example[:160]!r}\n"
+        f"  Secure Fix body (first 320 chars): {body[:320]!r}"
+    )
+
+
+# Structural (AST / Python-defined) rules have no ``patterns/*.yml`` entry and
+# therefore no ``positive_examples``, so the catalog-driven test above never
+# exercises them. They are nonetheless emitted as real findings and must ship a
+# dynamic Secure Fix that reuses the finding's own code. Each example below is a
+# realistic task the rule fires on, paired with a token the dynamic fix must
+# substitute from that code (or ``None`` when the fix is legitimately procedural).
+STRUCTURAL_RULE_EXAMPLES = [
+    (
+        "missing_no_log",
+        '- name: authenticate\n  uri:\n    url: "https://api/x"\n    password: "{{ vault_pw }}"',
+        "no_log: true",
+    ),
+    (
+        "ignore_errors_security_task",
+        "- name: verify cert\n  ansible.builtin.command: openssl verify /etc/ssl/cert.pem\n  ignore_errors: yes",
+        "failed_when:",
+    ),
+    (
+        "get_url_no_checksum",
+        '- name: download tf\n  get_url:\n    url: "https://releases.example.com/{{ ver }}/tf.zip"\n    dest: "./tf.zip"',
+        "checksum:",
+    ),
+    (
+        "s3_download_no_integrity_check",
+        '- name: pull iocs\n  aws_s3:\n    bucket: b\n    object: o\n    dest: "/tmp/{{ name }}.json"\n    mode: get',
+        "/tmp/{{ name }}.json",
+    ),
+    (
+        "set_fact_secret_alias",
+        '- name: alias secret\n  set_fact:\n    app_token: "{{ raw_token.stdout }}"',
+        "vault_app_token",
+    ),
+    (
+        "credential_file_missing_mode",
+        '- name: copy cert\n  copy:\n    src: /tmp/x.pem\n    dest: "/etc/ssl/private/x.pem"\n    owner: root',
+        "mode: '0600'",
+    ),
+    (
+        "private_key_written_outside_canonical_dir_ast",
+        '- name: drop key\n  copy:\n    src: id_rsa\n    dest: "/opt/app/id_rsa"\n    owner: app',
+        "mode: '0600'",
+    ),
+    (
+        "hardcoded_credentials",
+        'service_password: "REDACTED_EXAMPLE_VALUE"',
+        "vault_service_password",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "rule_id,snippet,must_contain",
+    STRUCTURAL_RULE_EXAMPLES,
+    ids=[r for r, _, _ in STRUCTURAL_RULE_EXAMPLES],
+)
+def test_structural_rule_renders_dynamic_secure_fix(
+    remediation_generator: RemediationGenerator,
+    rule_id: str,
+    snippet: str,
+    must_contain: str,
+) -> None:
+    """Structural rules must ship a dynamic Secure Fix, not prose.
+
+    These rules are defined in ``file_scanner.py`` (not pattern YAML) and the
+    scanner passes ``description_fallback``/``recommendation_fallback`` for
+    them, which historically short-circuited dispatch to a procedural metadata
+    stub. This locks in the dynamic, code-reusing fix so that regression can't
+    recur silently.
+    """
+    out = remediation_generator.generate_remediation_example(
+        rule_id,
+        snippet,
+        file_path="test.yml",
+        line_number=1,
+        description_fallback="structural rule description",
+        recommendation_fallback="structural rule recommendation",
+    )
+    _assert_well_formed(rule_id, out)
+
+    match = _SECURE_FIX_BLOCK_RE.search(out)
+    assert match, (
+        f"{rule_id}: structural rule produced no `\u2705 Secure Fix` block - "
+        f"dispatch fell through to a prose-only metadata stub.\n"
+        f"  remediation excerpt: {out[:320]!r}"
+    )
+
+    body = match.group("body")
+    assert not _TRUNCATED_JINJA_RE.search(body), (
+        f"{rule_id}: Secure Fix contains a truncated Jinja expression "
+        f"(dangling `{{{{`).\n  body: {body[:320]!r}"
+    )
+    assert not _NESTED_JINJA_RE.search(body), (
+        f"{rule_id}: Secure Fix contains nested Jinja.\n  body: {body[:320]!r}"
+    )
+    yaml.safe_load(body)  # raises if the Secure Fix isn't valid YAML
+    assert must_contain in body, (
+        f"{rule_id}: Secure Fix did not dynamically apply the expected hardening "
+        f"({must_contain!r}) drawn from the finding's own code.\n"
+        f"  body: {body[:320]!r}"
+    )
 
 
 class TestMaliciousActivityDirect:
@@ -837,3 +1053,106 @@ class TestTaintFlowRealWorldSyntax:
             "cross_file_taint hit the generic fallback - the dispatcher "
             "entry for `cross_file_taint` is missing or broken"
         )
+
+
+class TestDataDestructionDynamicFixes:
+    """The data_destruction remediations must be DYNAMIC: the concrete
+    target from the finding (the device wiped, the path deleted, the
+    database dropped, the LVM volume removed) has to appear in the rendered
+    Secure Fix, not a generic placeholder. They must also stay semantically
+    honest - a deletion fix must use ``state: absent`` and must never
+    propose creating a file - and every destructive op must be gated.
+    """
+
+    @pytest.fixture(scope="class")
+    def gen(self) -> RemediationGenerator:
+        return RemediationGenerator()
+
+    def _render(self, gen, rule_id, snippet):
+        return gen.generate_remediation_example(
+            rule_id, snippet, file_path="play.yml", line_number=3
+        )
+
+    @pytest.mark.parametrize(
+        "rule_id,snippet,must_contain",
+        [
+            ("disk_wipe_dd", "shell: dd if=/dev/zero of=/dev/sdb bs=1M", "/dev/sdb"),
+            ("recursive_delete_critical", "shell: rm -rf /home/{{ user }}", "/home/{{ user }}"),
+            ("database_drop_truncate", "mysql: DROP DATABASE customers;", "customers"),
+            ("lvm_vg_remove", "shell: lvremove /dev/vg0/data -f", "/dev/vg0/data"),
+            ("mkfs_format_device", "shell: mkfs.xfs /dev/nvme0n1", "/dev/nvme0n1"),
+            ("shred_wipe_command", "command: shred -u /srv/app/secret.key", "/srv/app/secret.key"),
+        ],
+    )
+    def test_finding_value_is_substituted_into_fix(self, gen, rule_id, snippet, must_contain):
+        out = self._render(gen, rule_id, snippet)
+        _assert_well_formed(rule_id, out)
+        secure = _SECURE_FIX_BLOCK_RE.search(out)
+        assert secure, f"{rule_id}: no Secure Fix block"
+        assert must_contain in secure.group("body"), (
+            f"{rule_id}: the finding's real target {must_contain!r} was not "
+            f"woven into the Secure Fix - the remediation is not dynamic.\n"
+            f"  Secure Fix body (first 320 chars):\n    {secure.group('body')[:320]!r}"
+        )
+
+    @pytest.mark.parametrize(
+        "rule_id,snippet",
+        [
+            ("recursive_delete_critical", "shell: rm -rf /etc/"),
+            ("shred_wipe_command", "command: shred /srv/x"),
+            ("backup_deletion", "shell: rm -f /backups/db.bak"),
+        ],
+    )
+    def test_deletion_fix_uses_absent_not_creation(self, gen, rule_id, snippet):
+        """A fix for a deletion rule must remove via ``state: absent`` and
+        must never propose creating the thing it is meant to delete - the
+        old file-manipulation handler suggested ``state: file`` here."""
+        out = self._render(gen, rule_id, snippet)
+        match = _SECURE_FIX_BLOCK_RE.search(out)
+        assert match, f"{rule_id}: no Secure Fix block"
+        secure = match.group("body")
+        assert "state: absent" in secure, f"{rule_id}: deletion fix does not use `state: absent`"
+        assert "state: file" not in secure and "state: touch" not in secure, (
+            f"{rule_id}: deletion fix proposes CREATING a file - semantically wrong"
+        )
+
+    @pytest.mark.parametrize(
+        "rule_id,snippet",
+        [
+            ("disk_wipe_dd", "shell: dd if=/dev/zero of=/dev/sdb"),
+            ("database_drop_truncate", "mysql: DROP TABLE orders;"),
+            ("lvm_vg_remove", "shell: vgremove vg0"),
+            ("shred_wipe_command", "command: shred /srv/x"),
+            ("backup_deletion", "shell: rm -rf /backups"),
+            ("recursive_delete_critical", "shell: rm -rf /var/{{ d }}"),
+        ],
+    )
+    def test_destructive_fix_is_gated(self, gen, rule_id, snippet):
+        """Every destructive op must sit behind an explicit confirmation
+        gate (an assert + a confirm variable), never run unconditionally."""
+        out = self._render(gen, rule_id, snippet)
+        match = _SECURE_FIX_BLOCK_RE.search(out)
+        assert match, f"{rule_id}: no Secure Fix block"
+        secure = match.group("body")
+        assert "ansible.builtin.assert" in secure or "confirm" in secure, (
+            f"{rule_id}: destructive fix is not gated behind a confirmation"
+        )
+
+    def test_data_destruction_routes_to_dynamic_generator(self, gen):
+        """All eight data_destruction rules must resolve through the
+        dynamic generator, never the metadata fallback or a stale companion
+        snippet (which would emit a static placeholder, not the finding)."""
+        for rule_id in (
+            "disk_wipe_dd",
+            "shred_wipe_command",
+            "ransomware_file_encryption",
+            "database_drop_truncate",
+            "recursive_delete_critical",
+            "mkfs_format_device",
+            "backup_deletion",
+            "lvm_vg_remove",
+        ):
+            out = self._render(gen, rule_id, "shell: rm -rf /etc/")
+            assert _SECURE_FIX_BLOCK_RE.search(out), (
+                f"{rule_id}: no Secure Fix block - dispatch regressed"
+            )

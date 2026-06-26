@@ -36,7 +36,6 @@ patterns:
     positive_examples:
       - "    add_host: name: \"{{ new_host }}\" groups: dynamic"
     recommendation: "Only add hosts from trusted sources; validate hostnames against an approved list"
-    no_ansible_remediation: true
     cwe: ['CWE-20', 'CWE-284']
     owasp_appsec: ["A01:2021", "A03:2021"]
     mitre_attack: ['T1021']
@@ -55,7 +54,6 @@ patterns:
     positive_examples:
       - "local_action: command echo 123"
     recommendation: "Avoid local_action with shell; use delegate_to: localhost with proper module calls"
-    no_ansible_remediation: true
     cwe: ['CWE-78', 'CWE-269']
     owasp_appsec: ["A03:2021", "A04:2021"]
     mitre_attack: ['T1059.004', 'T1552.001']
@@ -84,7 +82,6 @@ patterns:
           - name: Get list of all images based distribution on DigitalOcean
             shell:
     recommendation: "Review commands running on the controller; prefer dedicated Ansible modules"
-    no_ansible_remediation: true
     cwe: ['CWE-78', 'CWE-269']
     owasp_appsec: ["A03:2021", "A04:2021"]
     mitre_attack: ['T1059.004']
@@ -103,7 +100,6 @@ patterns:
     positive_examples:
       - "ANSIBLE_PYTHON_INTERPRETER: \"{{ ansible_python_interpreter }}\""
     recommendation: "Only use system Python interpreters; never point to user-writable paths"
-    no_ansible_remediation: true
     cwe: ['CWE-427', 'CWE-494']
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]
@@ -122,7 +118,6 @@ patterns:
     positive_examples:
       - "- { regexp: '#callback_plugins', line: \"callback_plugins = /usr/local/lib/python2.7/dist-packages/ara/plugins/callbacks\" }"
     recommendation: "Only use trusted, audited callback plugins from official sources"
-    no_ansible_remediation: true
     cwe: ['CWE-94', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
     owasp_asvs: []
@@ -141,7 +136,6 @@ patterns:
     positive_examples:
       - "lookup_plugins = {{ ara_setup_plugins.stdout }}/lookup"
     recommendation: "Only use trusted filter/lookup plugins from official Ansible collections"
-    no_ansible_remediation: true
     cwe: ['CWE-94', 'CWE-829']
     owasp_appsec: ["A03:2021", "A08:2021"]
     owasp_asvs: []
@@ -160,7 +154,6 @@ patterns:
     positive_examples:
       - "dest: /etc/ansible/facts.d/"
     recommendation: "Audit all custom facts scripts; ensure they come from trusted sources and are not user-writable"
-    no_ansible_remediation: true
     cwe: ['CWE-94', 'CWE-506']
     owasp_appsec: ["A03:2021"]
     mitre_attack: ['T1546.005']
@@ -178,7 +171,6 @@ patterns:
     positive_examples:
       - "wait_for:port:{{}}timeout:1"
     recommendation: "Ensure wait_for is only used for legitimate service readiness checks, not port scanning"
-    no_ansible_remediation: true
     cwe: ['CWE-200']
     owasp_appsec: ["A01:2021"]
     owasp_asvs: [V14.2.2]
@@ -198,7 +190,6 @@ patterns:
     positive_examples:
       - "export ANSIBLE_CONFIG=$(pwd)/ci/ansible-dev.cfg"
     recommendation: "Only use the default ansible.cfg; custom configs must be audited for security"
-    no_ansible_remediation: true
     cwe: ['CWE-427', 'CWE-829']
     owasp_appsec: ["A08:2021"]
     owasp_asvs: []
@@ -217,7 +208,6 @@ patterns:
     positive_examples:
       - "include_role:src:http://"
     recommendation: "Only include roles from trusted, pinned sources; use requirements.yml with version locks"
-    no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]
@@ -236,7 +226,6 @@ patterns:
     positive_examples:
       - "ANSIBLE_VAULT_PASSWORD="
     recommendation: "Use ansible-vault with --ask-vault-pass or a secure vault password file with restricted permissions"
-    no_ansible_remediation: true
     cwe: ['CWE-522', 'CWE-532']
     owasp_appsec: ["A04:2021", "A09:2021"]
     owasp_asvs: [V13.2.1, V11.2.5, V16.2.5]
@@ -279,7 +268,6 @@ patterns:
     positive_examples:
       - 'ansible.windows.win_service:path:\\x'
     recommendation: "Copy the binary to local disk (ansible.windows.win_copy) with checksum verification, then install the service pointing at the local path. Never let the service manager resolve a remote UNC/URL at start time."
-    no_ansible_remediation: true
     cwe: ['CWE-494', 'CWE-829']
     owasp_appsec: ["A08:2021"]
     owasp_asvs: [V15.2.4]
@@ -298,7 +286,6 @@ patterns:
     positive_examples:
       - "ldap_attr:msDS-AllowedToDelegateTo"
     recommendation: "Delegation attribute writes should only come from Tier-0 administrative automation. Review who has write access (should be limited to domain admins). Audit for Resource-Based Constrained Delegation abuse (see: Elad Shamir 'Wagging the Dog')."
-    no_ansible_remediation: true
     cwe: ['CWE-269', 'CWE-284']
     owasp_appsec: ["A01:2021", "A04:2021"]
     mitre_attack: ['T1134.003', 'T1558.003']

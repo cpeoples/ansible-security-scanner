@@ -12,6 +12,7 @@ from ._category_map import resolve_category as _resolve_category
 from .ai_ml_security import AiMlSecurityRemediationGenerator
 from .ansible_hygiene import AnsibleHygieneRemediationGenerator
 from .ansible_specific import AnsibleSpecificRemediationGenerator
+from .anti_forensics import AntiForensicsRemediationGenerator
 from .base import BaseRemediationGenerator, _render_from_metadata
 from .become_delegate_misuse import BecomeDelegateMisuseRemediationGenerator
 from .callback_plugin_risk import CallbackPluginRiskRemediationGenerator
@@ -19,23 +20,32 @@ from .command_injection import CommandInjectionRemediationGenerator
 from .credentials import CredentialsRemediationGenerator
 from .curl import CurlRemediationGenerator
 from .dangerous_modules import DangerousModulesRemediationGenerator
+from .data_destruction import DataDestructionRemediationGenerator
 from .data_exfiltration import DataExfiltrationRemediationGenerator
+from .environment_hijacking import EnvironmentHijackingRemediationGenerator
 from .external_urls import ExternalUrlsRemediationGenerator
 from .galaxy_supply_chain import GalaxySupplyChainRemediationGenerator
 from .insecure_communication import InsecureCommunicationRemediationGenerator
 from .k8s_insecure_spec import K8sInsecureSpecRemediationGenerator
-from .malicious_activity import MaliciousActivityRemediationGenerator
-from .operational_security import OperationalSecurityRemediationGenerator
+from .lateral_movement import LateralMovementRemediationGenerator
+from .malicious_activity_exploits import MaliciousActivityExploitRemediationGenerator
+from .offensive_tools import OffensiveToolsRemediationGenerator
+from .operational_security_procedural import (
+    OperationalSecurityProceduralRemediationGenerator,
+)
 from .permissions import PermissionsRemediationGenerator
 from .privilege_escalation import PrivilegeEscalationRemediationGenerator
 from .ssh_trust_bypass import SshTrustBypassRemediationGenerator
 from .supply_chain import SupplyChainRemediationGenerator
-from .system_compromise import SystemCompromiseRemediationGenerator
 from .taint_flow import TaintFlowRemediationGenerator
 from .template_injection import TemplateInjectionRemediationGenerator
-from .unauthorized_cloud_access import UnauthorizedCloudAccessRemediationGenerator
+from .tunneling import TunnelingRemediationGenerator
+from .unauthorized_cloud_procedural import (
+    UnauthorizedCloudProceduralRemediationGenerator,
+)
 from .variables import VariableInjectionRemediationGenerator
 from .vault_hygiene import VaultHygieneRemediationGenerator
+from .webshell_deployment import WebshellRemediationGenerator
 
 _VULN_FENCE_RE = re.compile(
     r"(\*\*(?:[^*]+\s)?Vulnerable Code:\*\*\s*\n```[a-zA-Z0-9]*\n)(.*?)(\n```)",
@@ -77,20 +87,26 @@ class RemediationGenerator(BaseRemediationGenerator):
             "webhook_exposure": CredentialsRemediationGenerator(),
             "unsafe_permissions": PermissionsRemediationGenerator(),
             "variable_injection": VariableInjectionRemediationGenerator(),
-            "system_compromise": SystemCompromiseRemediationGenerator(),
-            "malicious_activity": MaliciousActivityRemediationGenerator(),
+            "malicious_activity": MaliciousActivityExploitRemediationGenerator(),
+            "lateral_movement": LateralMovementRemediationGenerator(),
+            "anti_forensics": AntiForensicsRemediationGenerator(),
+            "offensive_tools": OffensiveToolsRemediationGenerator(),
+            "webshell_deployment": WebshellRemediationGenerator(),
+            "data_destruction": DataDestructionRemediationGenerator(),
             "data_exfiltration": DataExfiltrationRemediationGenerator(),
+            "environment_hijacking": EnvironmentHijackingRemediationGenerator(),
+            "tunneling": TunnelingRemediationGenerator(),
             "insecure_communication": InsecureCommunicationRemediationGenerator(),
             "privilege_escalation": PrivilegeEscalationRemediationGenerator(),
             "template_injection": TemplateInjectionRemediationGenerator(),
             "jinja_lookup_rce": TemplateInjectionRemediationGenerator(),
             "dangerous_modules": DangerousModulesRemediationGenerator(),
             "external_urls": ExternalUrlsRemediationGenerator(),
-            "unauthorized_cloud_access": UnauthorizedCloudAccessRemediationGenerator(),
+            "unauthorized_cloud_access": UnauthorizedCloudProceduralRemediationGenerator(),
             "supply_chain": SupplyChainRemediationGenerator(),
             "ansible_hygiene": AnsibleHygieneRemediationGenerator(),
             "ai_ml_security": AiMlSecurityRemediationGenerator(),
-            "operational_security": OperationalSecurityRemediationGenerator(),
+            "operational_security": OperationalSecurityProceduralRemediationGenerator(),
             "ansible_specific": AnsibleSpecificRemediationGenerator(),
             "ssh_trust_bypass": SshTrustBypassRemediationGenerator(),
             "k8s_insecure_spec": K8sInsecureSpecRemediationGenerator(),
@@ -106,18 +122,18 @@ class RemediationGenerator(BaseRemediationGenerator):
     # context (command injection, credentials, permissions, variable injection)
     # have their own explicit handlers below and are looked up separately.
     _SIMPLE_DISPATCH: dict[str, tuple] = {
-        "system_compromise": ("system_compromise", "generate_system_compromise_fix"),
+        "system_compromise": ("anti_forensics", "generate_system_compromise_fix"),
         "malicious_activity": ("malicious_activity", "generate_malicious_activity_fix"),
-        "offensive_tools": ("malicious_activity", "generate_malicious_activity_fix"),
+        "offensive_tools": ("offensive_tools", "generate_offensive_tools_fix"),
         "reverse_shells": ("malicious_activity", "generate_malicious_activity_fix"),
-        "tunneling": ("malicious_activity", "generate_malicious_activity_fix"),
-        "lateral_movement": ("malicious_activity", "generate_malicious_activity_fix"),
-        "anti_forensics": ("malicious_activity", "generate_malicious_activity_fix"),
-        "webshell_deployment": ("malicious_activity", "generate_malicious_activity_fix"),
-        "environment_hijacking": ("malicious_activity", "generate_malicious_activity_fix"),
-        "obfuscation_evasion": ("malicious_activity", "generate_malicious_activity_fix"),
-        "data_destruction": ("malicious_activity", "generate_malicious_activity_fix"),
-        "binary_planting": ("malicious_activity", "generate_malicious_activity_fix"),
+        "tunneling": ("tunneling", "generate_tunneling_fix"),
+        "lateral_movement": ("lateral_movement", "generate_lateral_movement_fix"),
+        "anti_forensics": ("anti_forensics", "generate_anti_forensics_fix"),
+        "webshell_deployment": ("webshell_deployment", "generate_webshell_deployment_fix"),
+        "environment_hijacking": ("environment_hijacking", "generate_environment_hijacking_fix"),
+        "obfuscation_evasion": ("webshell_deployment", "generate_obfuscation_evasion_fix"),
+        "binary_planting": ("webshell_deployment", "generate_binary_planting_fix"),
+        "data_destruction": ("data_destruction", "generate_data_destruction_fix"),
         "data_exfiltration": ("data_exfiltration", "generate_data_exfiltration_fix"),
         "insecure_communication": ("insecure_communication", "generate_insecure_communication_fix"),
         "privilege_escalation": ("privilege_escalation", "generate_privilege_escalation_fix"),
@@ -185,12 +201,46 @@ class RemediationGenerator(BaseRemediationGenerator):
         # Structural rule (no pattern entry) with caller-supplied
         # fallbacks: skip per-category dispatch so the expander renders
         # the rule's real text, not the ``this <rule_id> issue`` stub.
-        if not _pattern_index.get(rule_id) and (description_fallback or recommendation_fallback):
+        # A tailored dynamic handler is the exception - it reuses the
+        # finding's own code to emit a real Secure Fix, which beats the
+        # procedural metadata text, so let it run.
+        if (
+            not _pattern_index.get(rule_id)
+            and (description_fallback or recommendation_fallback)
+            and not self._has_dynamic_handler(rule_id)
+        ):
             return render_meta()
         out = self._dispatch(rule_id, code_snippet, file_path, line_number)
         if not self._is_relevant(rule_id, code_snippet, out):
             return render_meta()
         return _swap_vulnerable_code_block(out, code_snippet, rendered_snippet)
+
+    # Structural rules (no patterns/*.yml entry) whose special-category
+    # handler reuses the finding's own code to emit a real Secure Fix.
+    # Listing them here lets ``generate_remediation_example`` bypass the
+    # procedural-metadata short-circuit and dispatch to that handler.
+    _DYNAMIC_SPECIAL_RULES = frozenset(
+        {
+            "credential_file_missing_mode",
+            "hardcoded_credentials",
+            "private_key_written_outside_canonical_dir_ast",
+        }
+    )
+
+    def _has_dynamic_handler(self, rule_id: str) -> bool:
+        """True when the rule's category generator has a tailored handler.
+
+        Used to let structural rules (no ``patterns/*.yml`` entry) still
+        reach a code-reusing Secure Fix instead of the procedural
+        metadata renderer.
+        """
+        if rule_id in self._DYNAMIC_SPECIAL_RULES:
+            return True
+        spec = self._SIMPLE_DISPATCH.get(_resolve_category(rule_id))
+        if spec is None:
+            return False
+        generator = self._generators.get(spec[0])
+        return bool(generator and rule_id in getattr(generator, "_FIX_MAP", {}))
 
     def _dispatch(
         self,
@@ -311,6 +361,10 @@ class RemediationGenerator(BaseRemediationGenerator):
         )
 
     def _gen_permissions(self, *, rule_id, code_snippet, **_kw):
+        if rule_id == "raw_module_with_become":
+            return self._generators["become_delegate_misuse"].generate_become_delegate_misuse_fix(
+                rule_id, code_snippet
+            )
         return self._generators["unsafe_permissions"].generate_context_aware_permissions_fix(
             code_snippet, rule_id=rule_id
         )
@@ -435,7 +489,7 @@ class RemediationGenerator(BaseRemediationGenerator):
         if any(p in output for p in cls._LEGACY_BOILERPLATE):
             return False
 
-        meta = _pattern_index.get(rule_id)
+        meta = _pattern_index.get(rule_id) or {}
         keywords = cls._distinctive_tokens(meta.get("title") or "") | cls._distinctive_tokens(
             meta.get("recommendation") or ""
         )

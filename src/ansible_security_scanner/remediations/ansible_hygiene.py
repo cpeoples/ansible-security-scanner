@@ -3,7 +3,11 @@
 Remediation generator for Ansible hygiene issues (no_log, get_url checksum, secrets in comments)
 """
 
-from .base import BaseRemediationGenerator
+from __future__ import annotations
+
+import re
+
+from .base import BaseRemediationGenerator, _append_keys, _drop_key_lines, _first
 
 
 class AnsibleHygieneRemediationGenerator(BaseRemediationGenerator):
@@ -14,10 +18,12 @@ class AnsibleHygieneRemediationGenerator(BaseRemediationGenerator):
         "get_url_dest_executable_with_insecure_validate": "_generate_get_url_dest_executable_fix",
         "get_url_no_checksum": "_generate_checksum_fix",
         "ignore_errors_security": "_generate_ignore_errors_fix",
+        "ignore_errors_security_task": "_generate_ignore_errors_fix",
         "missing_no_log": "_generate_no_log_fix",
         "no_log_explicitly_false_on_credential_task": "_generate_no_log_explicitly_false_fix",
         "no_log_explicitly_false_on_credential_task_ast": "_generate_no_log_explicitly_false_fix",
         "secret_in_comment": "_generate_secret_comment_fix",
+        "set_fact_secret_alias": "_generate_set_fact_secret_alias_fix",
         "tags_never_on_security_task": "_generate_tags_never_security_fix",
     }
 
@@ -25,100 +31,157 @@ class AnsibleHygieneRemediationGenerator(BaseRemediationGenerator):
         return self._dispatch_fix(rule_id, code_snippet, self._generate_generic_hygiene_fix)
 
     def _generate_no_log_fix(self, code_snippet: str) -> str:
+        fixed = _append_keys(code_snippet, "no_log: true")
         return f"""
-**Vulnerable Code:**
+**❌ Vulnerable Code:**
 ```yaml
 {code_snippet}
 ```
 
-**Secure Fix:**
-```yaml
-- name: Authenticate to service
-  ansible.builtin.uri:
-    url: "https://api.example.com/auth"
-    method: POST
-    body_format: json
-    body:
-      username: "{{{{ service_user }}}}"
-      password: "{{{{ vault_service_password }}}}"
-  no_log: true   # <-- prevents credentials from appearing in logs
-  register: auth_result
-```
+**🚨 Missing no_log on a Credential Task:**
+Without `no_log: true`, Ansible prints the task's resolved arguments - including
+the looked-up password/token - to stdout and every log file and callback plugin.
 
-**Why this matters:** Without `no_log: true`, Ansible prints the full task parameters (including passwords and tokens) to stdout and log files.
+**✅ Secure Fix Example:**
+```yaml
+{fixed}
+```
 """
 
     def _generate_checksum_fix(self, code_snippet: str) -> str:
+        url = (
+            _first(code_snippet, r"url\s*:\s*[\"']?((?:\{\{.*?\}\}|[^\s\"'])+)")
+            or "{{ download_url }}"
+        )
+        fixed = _append_keys(
+            code_snippet,
+            'checksum: "sha256:{{ expected_sha256 }}"',
+        )
         return f"""
-**Vulnerable Code:**
+**❌ Vulnerable Code:**
 ```yaml
 {code_snippet}
 ```
 
-**Secure Fix:**
+**🚨 Download Without Integrity Verification:**
+`{url}` is fetched with no `checksum:`. A compromised mirror or MITM can
+silently swap the artifact for a trojanized one.
+
+**✅ Secure Fix Example:**
 ```yaml
-- name: Download binary with integrity verification
-  get_url:
-    url: "https://releases.example.com/v1.2.3/binary_amd64.tar.gz"
-    dest: /tmp/binary.tar.gz
-    checksum: "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+{fixed}
 ```
 
-**Why this matters:** Without `checksum:`, a compromised CDN/mirror or MITM attack can silently replace the download with a trojanized binary.
+Pin `expected_sha256` from the publisher's signed checksum file (vault it for
+internal artifacts). `get_url` re-downloads only when the checksum changes.
 """
 
     def _generate_ignore_errors_fix(self, code_snippet: str) -> str:
+        without = _drop_key_lines(code_snippet, "ignore_errors")
+        fixed = _append_keys(
+            without,
+            "register: task_result",
+            "failed_when: task_result.rc not in [0]   # set the conditions you actually tolerate",
+        )
         return f"""
-**Vulnerable Code:**
+**❌ Vulnerable Code:**
 ```yaml
 {code_snippet}
 ```
 
-**Secure Fix:**
+**🚨 ignore_errors on a Security-Critical Task:**
+`ignore_errors` swallows every failure, so a security operation can fail
+silently and leave the host in an insecure state while the play reports success.
+
+**✅ Secure Fix Example:**
 ```yaml
-- name: Verify TLS certificate
-  ansible.builtin.command: openssl verify /etc/ssl/cert.pem
-  register: cert_result
-  failed_when: cert_result.rc != 0
-  # Never use ignore_errors on security-critical tasks
+{fixed}
 ```
 
-**Why this matters:** Using `ignore_errors: yes` on security-sensitive operations silently swallows failures, leaving the system in an insecure state.
+Replace the blanket `ignore_errors` with an explicit `failed_when` that names
+the conditions you genuinely tolerate, so unexpected failures still stop the play.
+"""
+
+    def _generate_set_fact_secret_alias_fix(self, code_snippet: str) -> str:
+        alias = _first(code_snippet, r"set_fact\s*:\s*\n\s*([A-Za-z_][\w]*)\s*:") or "secret_value"
+        secret_name = alias if alias.startswith(("vault_", "secret_")) else f"vault_{alias}"
+        renamed = re.sub(
+            rf"(\b){re.escape(alias)}(\s*:)",
+            rf"\g<1>{secret_name}\g<2>",
+            code_snippet,
+            count=1,
+        )
+        fixed = _append_keys(renamed, "no_log: true")
+        return f"""
+**❌ Vulnerable Code:**
+```yaml
+{code_snippet}
+```
+
+**🚨 set_fact Aliases a Secret Into a Generic Name:**
+Renaming a credential into a generic fact (`{alias}`) defeats name-based
+`no_log` heuristics and review greps, so the value leaks downstream unredacted.
+
+**✅ Secure Fix Example:**
+```yaml
+{fixed}
+```
+
+Keep a secret-shaped name (`{secret_name}`) so downstream rules and reviewers
+still treat it as a credential, and set `no_log: true` on every task that reads it.
+Prefer a vault/secret-store lookup at the consuming task over aliasing entirely.
 """
 
     def _generate_secret_comment_fix(self, code_snippet: str) -> str:
         return f"""
-**Vulnerable Code:**
+**❌ Vulnerable Code:**
 ```yaml
 {code_snippet}
 ```
 
-**Secure Fix:**
+**🚨 Credential Left in a Comment:**
+Comments are not redacted by `no_log` and stay in version-control history.
+
+**✅ Secure Fix Example:**
 ```yaml
-# Use variable references even in comments:
+# Reference the variable, never the literal value, even in comments:
 #     password: "{{{{ vault_service_password }}}}"
-# Or simply use a placeholder:
+# Or use a placeholder:
 #     password: "<REDACTED>"
 ```
 
-**Why this matters:** Credentials in comments remain visible in version control history. Use `git filter-branch` or BFG Repo-Cleaner to purge them from history.
+Purge any already-committed secret from history with BFG Repo-Cleaner or
+`git filter-repo`, then rotate it.
 """
 
     def _generate_generic_hygiene_fix(self, code_snippet: str) -> str:
         return f"""
-**Vulnerable Code:**
+**❌ Vulnerable Code:**
 ```yaml
 {code_snippet}
 ```
 
-**Secure Fix:**
-- Add `no_log: true` to tasks handling credentials
-- Add `checksum:` to all `get_url` tasks
-- Remove hardcoded credentials from comments
-- Never use `ignore_errors` on security-critical tasks
+**✅ Secure Fix Example:**
+```yaml
+# Apply the matching hardening for this task:
+#   - add `no_log: true` to tasks handling credentials
+#   - add `checksum: "sha256:..."` to every `get_url`
+#   - replace `ignore_errors` with an explicit `failed_when`
+#   - keep secrets out of comments and generic fact names
+{code_snippet}
+```
 """
 
     def _generate_no_log_explicitly_false_fix(self, code_snippet: str) -> str:
+        fixed = re.sub(
+            r"(no_log\s*:\s*)(?:false|no)\b",
+            r"\1true",
+            code_snippet,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        if fixed == code_snippet:
+            fixed = _append_keys(_drop_key_lines(code_snippet, "no_log"), "no_log: true")
         return f"""
 **❌ Vulnerable Code:**
 ```yaml
@@ -131,18 +194,9 @@ resolved arguments on every run - including the looked-up vault/secret values.
 Every callback plugin (stdout, syslog, Splunk, Slack, Datadog) receives the
 plaintext. In CI, the artifact is typically retained for weeks.
 
-**✅ Secure Fix:**
+**✅ Secure Fix Example:**
 ```yaml
-- name: authenticate to service
-  ansible.builtin.uri:
-    url: "https://api.example.com/auth"
-    method: POST
-    body_format: json
-    body:
-      username: "{{{{ service_user }}}}"
-      password: "{{{{ vault_service_password }}}}"
-  no_log: true       # <-- redact the entire task result
-  register: auth_result
+{fixed}
 ```
 
 **🔐 If you genuinely need task output for debugging:**
@@ -153,14 +207,18 @@ its result, then `debug:` only the non-sensitive fields:
   ansible.builtin.debug:
     msg: "status={{{{ auth_result.status }}}}, elapsed={{{{ auth_result.elapsed }}}}"
 ```
-
-**🔐 Related hardening:**
-- Encrypt the secret at rest: `ansible-vault encrypt_string`.
-- Pair with `ANSIBLE_NO_LOG=True` as a CI environment variable so debug runs
-  still redact.
 """
 
     def _generate_get_url_dest_executable_fix(self, code_snippet: str) -> str:
+        without = _drop_key_lines(code_snippet, "validate_certs")
+        fixed = _append_keys(
+            without,
+            'checksum: "sha256:{{ expected_sha256 }}"',
+            "mode: '0755'",
+            "owner: root",
+            "group: root",
+            "# validate_certs defaults to yes - do NOT set it to no",
+        )
         return f"""
 **❌ Vulnerable Code:**
 ```yaml
@@ -168,36 +226,28 @@ its result, then `debug:` only the non-sensitive fields:
 ```
 
 **🚨 Download-to-Executable-Path With No Certificate Validation:**
-`validate_certs: no` disables TLS verification; `dest:` points at a path that
-will be executed (e.g., /usr/local/bin/, /opt/, /tmp/*.sh). An attacker on the
-network path (or a compromised mirror) replaces the payload with their own
-binary - Ansible happily installs and runs it. This is the xz-utils /
-shai-hulud / tj-actions attack pattern applied to a playbook.
+`validate_certs: no` disables TLS verification while `dest:` points at a path
+that will be executed. An attacker on the network path (or a compromised
+mirror) replaces the payload with their own binary and Ansible installs and
+runs it.
 
-**✅ Secure Fix:**
+**✅ Secure Fix Example:**
 ```yaml
-- name: fetch installer with integrity + cert validation
-  ansible.builtin.get_url:
-    url: "https://releases.example.com/v1.2.3/installer.sh"
-    dest: "/usr/local/bin/installer.sh"
-    checksum: "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    mode: '0755'
-    owner: root
-    group: root
-    # validate_certs defaults to yes - do NOT set it to no
+{fixed}
 ```
 
 **🔐 Hardening checklist:**
 1. Always pair get_url with `checksum: sha256:<hex>` (or sha512:).
 2. If the upstream publishes a detached signature, verify it with
    `command: gpg --verify file.sig file` BEFORE making it executable.
-3. If the target uses an internal CA, pin it with `ca_path: /etc/ssl/certs/corp-ca.pem`
+3. For an internal CA, pin it with `ca_path: /etc/ssl/certs/corp-ca.pem`
    instead of disabling cert validation entirely.
 4. Prefer `package:` / `apt:` / `dnf:` / `win_chocolatey:` with a pinned-repo
    channel over download-and-execute.
 """
 
     def _generate_tags_never_security_fix(self, code_snippet: str) -> str:
+        fixed = _drop_key_lines(code_snippet, "tags")
         return f"""
 **❌ Vulnerable Code:**
 ```yaml
@@ -208,38 +258,23 @@ shai-hulud / tj-actions attack pattern applied to a playbook.
 A task tagged `never` is SKIPPED by every `ansible-playbook` invocation unless
 the operator passes `--tags never` explicitly. When the task is a hardening
 step (firewall, SELinux, CVE patch, audit config), the playbook silently
-reports success without applying the security change. This is defense-in-depth
-disabled by default - the worst-of-both-worlds: the code is there, it passes
-review, and it never runs.
+reports success without applying the security change.
 
-**✅ Secure Fix (make the task run by default):**
+**✅ Secure Fix Example:**
 ```yaml
-- name: apply kernel hardening (CIS 1.5.x)
-  ansible.builtin.copy:
-    src: sysctl-hardening.conf
-    dest: /etc/sysctl.d/99-hardening.conf
-    mode: '0644'
-  notify: reload sysctl
-  # no tags - task runs on every playbook invocation
+{fixed}
+  # no `tags: never` - the hardening task now runs on every invocation
 ```
 
 **🔐 If the task is genuinely optional:**
-Use a descriptive tag, a variable guard, AND document the opt-in in the role
-README:
+Use a descriptive tag plus a variable guard instead of `never`:
 ```yaml
-- name: emergency CVE-2024-XXXX remediation (opt-in)
+- name: emergency CVE remediation (opt-in)
   ansible.builtin.command: /opt/hardening/cve-2024-xxxx
   when: apply_cve_2024_xxxx_remediation | default(false) | bool
   tags: [emergency, cve-2024-xxxx]
 ```
-...then the operator must explicitly set `-e apply_cve_2024_xxxx_remediation=true`
-to run it - no magic tag required.
-
-**🔐 Auditing for this pattern across your codebase:**
-```bash
-# find every `tags: never` anywhere in your playbooks
-rg -n '^\\s*tags:\\s*(?:never\\b|\\[.*never.*\\])' roles/ playbooks/
-```
+...then the operator must explicitly set `-e apply_cve_2024_xxxx_remediation=true`.
 """
 
     def _generate_fss_vault_fix(self, code_snippet: str) -> str:
@@ -252,25 +287,16 @@ rg -n '^\\s*tags:\\s*(?:never\\b|\\[.*never.*\\])' roles/ playbooks/
 **🚨 False-Sense-of-Security:**
 A hostname, port, URL, path, timeout, or version number is not a secret.
 Wrapping it in `!vault` doesn't protect anything - the value wasn't sensitive
-to begin with - but it:
+to begin with - but it obscures the playbook from review, breaks diff-based
+audit, and makes real secrets indistinguishable from fake ones.
 
-1. Obscures the playbook from review (reviewers can't see what IP / URL the
-   code actually targets without decrypting).
-2. Breaks diff-based audit (every environment change looks like a vault
-   rotation).
-3. Creates a FALSE sense of security: real secrets and fake secrets become
-   indistinguishable, so the real ones stop getting extra scrutiny
-   (rotation, access audits, separate vault keys per environment).
-
-**✅ Secure Fix (plain YAML for non-secrets):**
+**✅ Secure Fix Example:**
 ```yaml
 # group_vars/prod.yml - plain, reviewable, diff-friendly
 api_url: "https://api.internal.example.com/v2"
 api_port: 8443
 api_timeout: 30
-```
 
-```yaml
 # group_vars/prod/vault.yml - vault ONLY for secrets
 api_token: !vault |
   $ANSIBLE_VAULT;1.1;AES256
@@ -286,7 +312,6 @@ api_token: !vault |
 | TLS key material, OAuth client     | feature flags, region/zone       |
 | secrets, session signing keys      | names, protocol choices          |
 
-**🔐 Per-environment separation WITHOUT encrypting non-secrets:**
-Use inventory groups and `group_vars/<env>/` to split values by environment.
-Never use `!vault` as a substitute for inventory structure.
+Use inventory groups and `group_vars/<env>/` to split values by environment;
+never use `!vault` as a substitute for inventory structure.
 """

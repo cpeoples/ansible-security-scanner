@@ -707,7 +707,7 @@ ansible-playbook site.yml -e "app_token=$APP_TOKEN"
   ansible.builtin.set_fact:
     svc_password: >-
       {{{{ lookup('ansible.builtin.password',
-                  '{{{{ playbook_dir }}}}/.secrets/svc_password length=32 chars=ascii_letters,digits') }}}}
+                  playbook_dir ~ '/.secrets/svc_password length=32 chars=ascii_letters,digits') }}}}
   no_log: true
 # Check .secrets/ into ansible-vault, never into cleartext git.
 ```

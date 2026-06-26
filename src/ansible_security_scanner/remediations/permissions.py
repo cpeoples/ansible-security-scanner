@@ -3,7 +3,7 @@
 Permissions remediation generator for Ansible Security Scanner
 """
 
-from .base import BaseRemediationGenerator
+from .base import BaseRemediationGenerator, _append_keys, _drop_key_lines, _first
 
 
 class PermissionsRemediationGenerator(BaseRemediationGenerator):
@@ -20,6 +20,11 @@ class PermissionsRemediationGenerator(BaseRemediationGenerator):
         if rule_id in cfg_fixes:
             return cfg_fixes[rule_id](self, code_snippet)
 
+        if rule_id == "credential_file_missing_mode":
+            return self._generate_missing_mode_fix(code_snippet)
+        if rule_id == "private_key_written_outside_canonical_dir_ast":
+            return self._generate_private_key_path_fix(code_snippet)
+
         if "/etc/passwd" in code_snippet or "/etc/shadow" in code_snippet:
             return self._generate_system_file_permissions_fix(code_snippet)
         if ".ssh/" in code_snippet or "id_rsa" in code_snippet:
@@ -29,6 +34,53 @@ class PermissionsRemediationGenerator(BaseRemediationGenerator):
         if "sudoers" in code_snippet:
             return self._generate_sudoers_permissions_fix(code_snippet)
         return self._generate_generic_permissions_fix(code_snippet)
+
+    def _generate_missing_mode_fix(self, code_snippet: str) -> str:
+        dest = (
+            _first(code_snippet, r"dest:\s*[\"']?((?:\{\{.*?\}\}|[^\s\"'])+)") or "the destination"
+        )
+        fixed = _append_keys(_drop_key_lines(code_snippet, "mode"), "mode: '0600'")
+        return f"""
+**❌ Vulnerable Code:**
+```yaml
+{code_snippet}
+```
+
+**🚨 Credential File Created Without an Explicit Mode:**
+`{dest}` is written with no `mode:`, so it falls back to the remote umask
+(typically world-readable `0644`) - any local user can read the secret.
+
+**✅ Secure Fix Example:**
+```yaml
+{fixed}
+```
+
+Pin `mode: '0600'` (or `'0640'` with a trusted group) and keep `owner:`/`group:`
+scoped to the consuming service account.
+"""
+
+    def _generate_private_key_path_fix(self, code_snippet: str) -> str:
+        fixed = _append_keys(_drop_key_lines(code_snippet, "mode"), "mode: '0600'")
+        return f"""
+**❌ Vulnerable Code:**
+```yaml
+{code_snippet}
+```
+
+**🚨 Private Key Written to a Non-Canonical, World-Readable Path:**
+Key material under `/tmp`, `/opt`, `/srv`, `/var/log` (etc.) is reachable by
+other users and outside the path operators audit for secrets.
+
+**✅ Secure Fix Example:**
+```yaml
+{fixed}
+```
+
+Move `dest:` under the canonical home for the key type - `~/.ssh/` for SSH
+keys, `/etc/ssl/private/`, `/etc/pki/tls/private/`, or
+`/etc/letsencrypt/live/` for TLS - then keep `mode: '0600'`, `owner:`, and
+`group:` scoped to the consuming service account.
+"""
 
     def _generate_system_file_permissions_fix(self, code_snippet: str) -> str:
         """Generate fix for system file permissions"""
