@@ -32,7 +32,6 @@ def _index() -> dict[str, dict]:
                 "negative_examples": p.get("negative_examples") or [],
                 "category": p.get("category") or "",
                 "title": p.get("title") or "",
-                "no_ansible_remediation": bool(p.get("no_ansible_remediation", False)),
             }
     return out
 

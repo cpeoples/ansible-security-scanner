@@ -459,6 +459,64 @@ remediations:
           name: "runc>=1.1.12"
           state: latest
 
+  citrix_netscaler_vulnerable_firmware_pinned:
+    secure_fix: |
+      # Move the pinned build to a CitrixBleed-2 (CVE-2026-3055) fixed
+      # release, then evict any sessions an attacker may already hold.
+      - name: Pin NetScaler firmware to a fixed build
+        ansible.builtin.set_fact:
+          netscaler_firmware: "build 14.1-56.70"   # or 13.1-59.22 / 13.1-FIPS 13.1-37.241
+      - name: Terminate all active sessions after upgrade (tokens are not evicted by the patch)
+        ansible.builtin.command:
+          argv: [ssh, "{{ netscaler_host }}", "shell", "kill icaconnection -all; kill pcoipconnection -all"]
+        changed_when: true
+
+  checkpoint_gateway_vulnerable_version_pinned:
+    secure_fix: |
+      # Apply the CVE-2026-50751 hotfix and move to a fixed Jumbo take.
+      - name: Pin gateway to a hotfixed take
+        ansible.builtin.set_fact:
+          checkpoint_gateway_version: "R81.20"      # with the CVE-2026-50751 hotfix applied
+          checkpoint_required_hotfix: "sk_cve_2026_50751"
+      - name: Disable Mobile Access blade if not required
+        ansible.builtin.debug:
+          msg: "Verify the Remote Access / Mobile Access blade is disabled unless explicitly needed."
+
+  fortiweb_vulnerable_version_pinned:
+    secure_fix: |
+      - name: Pin FortiWeb firmware to a CVE-2025-64446 fixed build
+        ansible.builtin.set_fact:
+          fortiweb_version: "7.6.5"                 # or 7.0.11 / 7.2.11 / 7.4.10
+      - name: Restrict administrative access to a trusted network (local-in policy)
+        ansible.builtin.debug:
+          msg: "Ensure HTTP/HTTPS admin access is not reachable from the internet on FortiWeb."
+
+  windows_netlogon_unpatched_pinned_no_enforcement:
+    secure_fix: |
+      - name: Keep Netlogon secure-channel enforcement ENABLED
+        ansible.windows.win_regedit:
+          path: HKLM:\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters
+          name: RequireSignOrSeal
+          data: 1
+          type: dword
+      - name: Install security updates on domain controllers (do not skip SecurityUpdates)
+        ansible.windows.win_updates:
+          category_names:
+            - SecurityUpdates
+            - CriticalUpdates
+          state: installed
+
+  sap_netweaver_vulnerable_version_pinned:
+    secure_fix: |
+      # Apply the SAP Security Note for CVE-2026-44748 and move to a patched
+      # support-package stack; disable Visual Composer if unused.
+      - name: Pin NetWeaver to a patched support-package level
+        ansible.builtin.set_fact:
+          sap_netweaver_sp_level: "SP-with-CVE-2026-44748-note-applied"
+      - name: Confirm the affected component is patched or disabled
+        ansible.builtin.debug:
+          msg: "Verify SAP Security Note for CVE-2026-44748 is applied and Visual Composer is disabled if unused."
+
   firmware_update_service_disabled_fwupd_uefi_capsule:
     secure_fix: |
       - name: Keep fwupd enabled and refreshing vendor metadata

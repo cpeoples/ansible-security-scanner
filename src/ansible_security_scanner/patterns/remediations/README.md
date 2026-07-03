@@ -43,23 +43,13 @@ Ansible fix.
 rule must NOT flag. Many are intentionally degenerate strings chosen to
 exercise the regex's negative space, so surfacing them as
 `✅ Secure Fix Example` produces misleading guidance. The renderer accepts
-exactly three sources, in order:
+exactly two sources, in order:
 
 1. A `secure_fix:` entry in this directory.
 2. A tailored handler under `remediations/<category>.py`.
-3. `no_ansible_remediation: true` on the rule (procedural-only response).
 
-## When a rule has no Ansible-task fix
-
-Some rules detect actions whose correct response is procedural - run
-through a reviewed IaC pipeline, escalate, audit, apply a vendor patch.
-A copy-pasteable Ansible task would actively mislead the user. For
-those rules, set `no_ansible_remediation: true` on the rule's pattern
-YAML entry instead of adding a `secure_fix:` here. The renderer emits a
-`✅ Secure Response` prose block sourced from `recommendation:`, and
-the contract test treats that as compliant.
-
-The curated list of such rules lives at
-`scripts/data/procedural_rule_ids.txt`; running
-`scripts/stamp_no_ansible_remediation.py` applies the flag idempotently
-across every pattern file.
+Every shipped rule must produce a `✅ Secure Fix` block from one of these
+two sources - there is no procedural opt-out. `tests/test_remediations.py`
+fails if any rule renders without a Secure Fix, and
+`test_no_rule_opts_out_of_remediation` rejects the old
+`no_ansible_remediation` escape hatch outright.

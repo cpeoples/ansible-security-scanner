@@ -17,6 +17,7 @@ import os
 
 import pytest
 
+from ansible_security_scanner import __version__
 from ansible_security_scanner.cli import (
     _env_bool,
     _env_choice,
@@ -212,3 +213,11 @@ def test_env_choice_normalizes_to_canonical_form(clean_env):
         _env_choice("ANSIBLE_SEC_SCANNER_NEVER_SET", ("CRITICAL", "HIGH", "MEDIUM", "LOW"))
         == "HIGH"
     )
+
+
+@pytest.mark.parametrize("flag", ["--version", "-V"])
+def test_version_flag_prints_version_and_exits(parser, capsys, flag):
+    with pytest.raises(SystemExit) as exc:
+        parser.parse_args([flag])
+    assert exc.value.code == 0
+    assert __version__ in capsys.readouterr().out

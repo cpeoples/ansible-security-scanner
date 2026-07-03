@@ -9,5 +9,7 @@ roles:
   - name: example.role
     src: http://galaxy.example.com/path/to/example-role.tar.gz
     version: main
+  - name: injected.role
+    src: "--upload-pack=touch /tmp/pwned"
 
 # Comment with sensitive value: api_key="abc123XYZ_secret"

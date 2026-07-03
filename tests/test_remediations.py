@@ -1,8 +1,8 @@
 """Contract tests for the remediation generators.
 
-Every shipped rule must produce a well-formed, rule-specific
-remediation, and every rule that isn't explicitly procedural must carry
-a Secure Fix YAML block. Run with `pytest tests/test_remediations.py`.
+Every shipped rule must produce a well-formed, rule-specific remediation
+that carries a Secure Fix YAML block - there is no procedural opt-out.
+Run with `pytest tests/test_remediations.py`.
 """
 
 from __future__ import annotations
@@ -499,7 +499,7 @@ def test_positive_example_renders_valid_secure_fix(
 # exercises them. They are nonetheless emitted as real findings and must ship a
 # dynamic Secure Fix that reuses the finding's own code. Each example below is a
 # realistic task the rule fires on, paired with a token the dynamic fix must
-# substitute from that code (or ``None`` when the fix is legitimately procedural).
+# substitute from that code.
 STRUCTURAL_RULE_EXAMPLES = [
     (
         "missing_no_log",

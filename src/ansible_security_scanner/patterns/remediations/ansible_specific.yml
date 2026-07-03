@@ -210,3 +210,47 @@ remediations:
           content: "{{ tf_plan.stdout }}"
           dest: artifacts/network.plan.txt
         delegate_to: localhost
+
+  unsafe_content_rerendered_via_hostvars:
+    secure_fix: |
+      - name: Surface a fact-derived value without re-templating it
+        ansible.builtin.debug:
+          # Wrap the value as unsafe so the second render never evaluates
+          # it as Jinja (Ansible 2.17+). Treat every managed-node fact and
+          # external-inventory field as untrusted input.
+          msg: "{{ hostvars[inventory_hostname]['ansible_local']['x'] | ansible.builtin.unsafe }}"
+
+  git_checkout_jinja_in_branch_or_refspec:
+    secure_fix: |
+      - name: Map the untrusted event value through an allowlist first
+        ansible.builtin.set_fact:
+          checkout_ref: "{{ {'prod': 'v1.4.2', 'stage': 'main'}[event.env] }}"
+      - name: Fail closed if the event asked for an unknown environment
+        ansible.builtin.assert:
+          that:
+            - checkout_ref is match('^[A-Za-z0-9._/-]+$')
+          fail_msg: "Refusing to check out an unreviewed ref from event data."
+      - name: Check out the reviewed, allowlisted ref
+        ansible.builtin.git:
+          repo: https://git.example.com/app
+          dest: /srv/app
+          version: "{{ checkout_ref }}"
+
+  awx_config_yaml_include_path_traversal:
+    secure_fix: |
+      # !include targets must be fixed relative paths inside the config
+      # directory - never absolute, never containing `..`, never templated.
+      # config.yml:
+      #   creds: !include conf.d/credentials.yml   # stays inside the tree
+      #
+      # Enforce it before import from Ansible:
+      - name: Reject any traversing !include before awxkit reads the config
+        ansible.builtin.command:
+          argv:
+            - grep
+            - -REn
+            - '!include\s+(\.\.[\\/]|/|~)'
+            - /opt/awx/config
+        register: bad_includes
+        failed_when: bad_includes.rc == 0
+        changed_when: false

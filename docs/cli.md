@@ -25,6 +25,7 @@ Output:
                                   cyclonedx/sbom (aggregate-only).
   --exit-zero                     Always exit 0 (report but don't fail builds)
   -v, --verbose                   Enable debug logging
+  -V, --version                   Print the installed version and exit
 
 Engine upgrades (opt-in):
   --fix                           Dry-run autofix: annotate findings with a

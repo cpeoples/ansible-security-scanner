@@ -52,6 +52,10 @@ CWE-79:
   name: "Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"
   url: "https://cwe.mitre.org/data/definitions/79.html"
 
+CWE-88:
+  name: "Improper Neutralization of Argument Delimiters in a Command ('Argument Injection')"
+  url: "https://cwe.mitre.org/data/definitions/88.html"
+
 CWE-89:
   name: "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
   url: "https://cwe.mitre.org/data/definitions/89.html"
@@ -71,6 +75,10 @@ CWE-116:
 CWE-117:
   name: "Improper Output Neutralization for Logs"
   url: "https://cwe.mitre.org/data/definitions/117.html"
+
+CWE-125:
+  name: "Out-of-bounds Read"
+  url: "https://cwe.mitre.org/data/definitions/125.html"
 
 CWE-200:
   name: "Exposure of Sensitive Information to an Unauthorized Actor"
@@ -243,6 +251,10 @@ CWE-346:
 CWE-347:
   name: "Improper Verification of Cryptographic Signature"
   url: "https://cwe.mitre.org/data/definitions/347.html"
+
+CWE-349:
+  name: "Acceptance of Extraneous Untrusted Data With Trusted Data"
+  url: "https://cwe.mitre.org/data/definitions/349.html"
 
 CWE-350:
   name: "Reliance on Reverse DNS Resolution for a Security-Critical Action"
@@ -518,6 +530,10 @@ CWE-1173:
 CWE-1188:
   name: "Insecure Default Initialization of Resource"
   url: "https://cwe.mitre.org/data/definitions/1188.html"
+
+CWE-1220:
+  name: "Insufficient Granularity of Access Control"
+  url: "https://cwe.mitre.org/data/definitions/1220.html"
 
 CWE-1269:
   name: Product Released in Non-Release Configuration

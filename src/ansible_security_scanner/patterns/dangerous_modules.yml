@@ -118,6 +118,7 @@ patterns:
     window: 8
     recommendation: "Build dest: from controller-trusted facts (e.g. ansible_facts['hostname']) and validate any variable input against an allow-list to prevent traversal outside the intended fetch directory."
     cwe: ['CWE-20', 'CWE-22']
+    cve: ["CVE-2020-1735"]
     owasp_appsec: ["A01:2021", "A03:2021"]
     owasp_asvs: [V5.3.2, V1.2.5]
     mitre_attack: ['T1005']
