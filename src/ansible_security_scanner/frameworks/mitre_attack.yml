@@ -50,6 +50,11 @@ T1005:
   tactics: ["Collection"]
   url: "https://attack.mitre.org/techniques/T1005/"
 
+T1006:
+  name: "Direct Volume Access"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1006/"
+
 T1014:
   name: "Rootkit"
   tactics: ["Defense Evasion"]
@@ -379,6 +384,11 @@ T1134.003:
   tactics: ["Defense Evasion", "Privilege Escalation"]
   url: "https://attack.mitre.org/techniques/T1134/003/"
 
+T1136:
+  name: "Create Account"
+  tactics: ["Persistence"]
+  url: "https://attack.mitre.org/techniques/T1136/"
+
 T1136.001:
   name: "Local Account"
   parent: "Create Account"
@@ -436,6 +446,11 @@ T1210:
   name: "Exploitation of Remote Services"
   tactics: ["Lateral Movement"]
   url: "https://attack.mitre.org/techniques/T1210/"
+
+T1221:
+  name: "Template Injection"
+  tactics: ["Defense Evasion"]
+  url: "https://attack.mitre.org/techniques/T1221/"
 
 T1222:
   name: "File and Directory Permissions Modification"
@@ -598,6 +613,13 @@ T1550.003:
   parent_id: "T1550"
   tactics: ["Defense Evasion", "Lateral Movement"]
   url: "https://attack.mitre.org/techniques/T1550/003/"
+
+T1550.004:
+  name: "Web Session Cookie"
+  parent: "Use Alternate Authentication Material"
+  parent_id: "T1550"
+  tactics: ["Defense Evasion", "Lateral Movement"]
+  url: "https://attack.mitre.org/techniques/T1550/004/"
 
 T1552:
   name: "Unsecured Credentials"
@@ -866,6 +888,11 @@ T1580:
   name: "Cloud Infrastructure Discovery"
   tactics: ["Discovery"]
   url: "https://attack.mitre.org/techniques/T1580/"
+
+T1606:
+  name: "Forge Web Credentials"
+  tactics: ["Credential Access"]
+  url: "https://attack.mitre.org/techniques/T1606/"
 
 T1609:
   name: "Container Administration Command"

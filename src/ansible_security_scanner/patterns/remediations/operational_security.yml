@@ -1,7 +1,6 @@
 # Companion Secure Fix snippets for operational_security rules.
-# Most of this category is detection-signal stamped no_ansible_remediation
-# upstream; this file covers the remainder that DO have a configurable
-# Ansible fix.
+# Each rule_id maps to a configurable Ansible fix rendered under the
+# Secure Fix Example heading.
 
 remediations:
 

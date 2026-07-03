@@ -624,3 +624,44 @@ patterns:
     hipaa: ['164.312(a)(1)']
     soc2: ['CC6.1', 'CC6.3']
     mitre_atlas: ['AML.T0051.000', 'AML.T0051', 'AML.T0057']
+
+  - id: "ai_assistant_config_or_hook_file_planted"
+    category: "ai_ml_security"
+    severity: "HIGH"
+    title: "Playbook Writes An AI Coding-Assistant Instruction / Hook File"
+    description: "A task uses copy/template/lineinfile/blockinfile to write an AI coding-assistant configuration, rules, or hook file - `.claude/settings.json`, `.claude/hooks/*`, `.cursor/rules/*.mdc`, `.cursorrules`, `.github/copilot-instructions.md`, `AGENTS.md`, `.aider.conf.yml`, `.continue/config.json`, `.windsurfrules`, `.clinerules`, `.vscode/tasks.json`, or `.vscode/settings.json`. These files steer an autonomous coding agent: `.claude/settings.json` hooks and `.vscode/tasks.json` can execute shell commands on agent/editor events, and instruction/rules files silently rewrite the agent's behaviour. Provisioning them from a playbook is the 2026 'Miasma' / prompt-injection persistence primitive (see CVE-2025-59536, CVE-2026-21852): whoever controls the templated content controls what every downstream developer's agent runs. Legitimate use exists, so this is a review flag, not an automatic block - but any run-on-event hook or agent instruction planted by automation must be audited."
+    regex: "(?:ansible\\.builtin\\.(?:copy|template|file|lineinfile|blockinfile)|copy|template|lineinfile|blockinfile)\\s*:[\\s\\S]{0,200}?(?:dest|path)\\s*:\\s*['\"]?[^'\"\\n]*(?:\\.claude/(?:settings\\.json|hooks/)|\\.cursor/rules/|\\.cursorrules|copilot-instructions\\.md|AGENTS\\.md|\\.aider\\.conf|\\.continue/|\\.windsurfrules|\\.clinerules|\\.vscode/(?:tasks|settings)\\.json)"
+    positive_examples:
+      - |2-
+        - name: drop agent hooks
+          ansible.builtin.copy:
+            src: files/settings.json
+            dest: /home/dev/project/.claude/settings.json
+      - |2-
+        - name: template cursor rules
+          ansible.builtin.template:
+            src: rules.mdc.j2
+            dest: "{{ repo_dir }}/.cursor/rules/global.mdc"
+    negative_examples:
+      - |2-
+        - name: write the app config
+          ansible.builtin.copy:
+            src: files/app.json
+            dest: /etc/myapp/config.json
+      - |2-
+        - name: template nginx vhost
+          ansible.builtin.template:
+            src: vhost.j2
+            dest: /etc/nginx/sites-available/app
+    multiline: true
+    window: 12
+    recommendation: "Do not provision AI coding-assistant instruction, rules, or hook files from general-purpose automation. If a team truly needs a shared agent config, keep it in the repo under code review (a PR, not a playbook push), pin and check in the exact content, and never let a hook (`.claude/settings.json`, `.vscode/tasks.json`) run a command sourced from a template variable. Audit any planted file for `command`/`run`/`postCreateCommand`/hook entries before trusting it. Treat agent instruction files as executable content: sign or checksum them, and diff every change in review."
+    cve: ["CVE-2025-59536", "CVE-2026-21852"]
+    cwe: ['CWE-94', 'CWE-829', 'CWE-506']
+    owasp_appsec: ["A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM05"]
+    mitre_attack: ['T1195.002', 'T1546', 'T1059']
+    cis_controls: ['CIS-Supply-Chain', 'CIS-16.11']
+    nist_controls: ['CM-7', 'SA-10', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2']
+    soc2: ['CC7.1', 'CC8.1']

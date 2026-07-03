@@ -1158,3 +1158,103 @@ patterns:
     pci_dss: ['2.2.1', '5.2.1', '6.3.3']
     hipaa: ['164.308(a)(5)(ii)(B)', '164.312(c)(1)']
     soc2: ['CC6.1', 'CC7.1']
+
+  - id: "citrix_netscaler_vulnerable_firmware_pinned"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Citrix NetScaler ADC / Gateway Pinned To CitrixBleed-2 Vulnerable Build (CVE-2026-3055)"
+    description: "A task sets or templates a Citrix NetScaler ADC / Gateway (`ns-*.nc`, `citrix_adm`, `citrixadc`, a `get_url`/`copy` of a `build-13.1-*` / `build-14.1-*` firmware image, or a `sslvpn`/`ns.conf` version field) at a firmware build known vulnerable to CVE-2026-3055 (the 2026 'CitrixBleed 2' memory-disclosure / session-hijack, mass-exploited on internet-facing gateways). Vulnerable: 14.1 before 14.1-56.70, 13.1 before 13.1-59.22, 13.1-FIPS/NDcPP before 13.1-37.241. Pinning a NetScaler image in this range from a playbook leaves an unauthenticated pre-auth token-theft primitive exposed on the perimeter."
+    regex: "(?:netscaler|citrixadc|citrix_adc|ns\\.conf|nsconfig)[\\s\\S]{0,400}?(?:build|version|firmware)\\s*[:=]\\s*['\"]?(?:build\\s+)?(?:13\\.1-(?:[0-5]?[0-9])\\.|14\\.1-(?:[0-4]?[0-9]|5[0-6])\\.)"
+    positive_examples:
+      - "netscaler_firmware: build 14.1-25.56"
+    multiline: true
+    window: 20
+    recommendation: "Upgrade NetScaler ADC / Gateway to a CVE-2026-3055 (CitrixBleed 2) fixed build: 14.1-56.70+, 13.1-59.22+, or 13.1-FIPS/NDcPP 13.1-37.241+. After upgrading, terminate ALL active ICA and PCoIP sessions (`kill icaconnection -all`, `kill pcoipconnection -all`) - a fixed build does not evict tokens an attacker already stole. Rotate any secrets reachable from a hijacked session, review the appliance for web shells and unexpected admin accounts, and restrict management access to a dedicated network. Front the gateway with WAF signatures for the CVE and monitor for anomalous session reuse across source IPs."
+    cve: ["CVE-2026-3055"]
+    cwe: ['CWE-125', 'CWE-200', 'CWE-1220']
+    owasp_appsec: ["A01:2021", "A06:2021"]
+    mitre_attack: ['T1190', 'T1550.004', 'T1539']
+    cis_controls: ['CIS-4.8', 'CIS-7.3', 'CIS-7.7']
+    nist_controls: ['RA-5', 'SI-2', 'SC-8']
+    pci_dss: ['6.3.3', '11.3.1']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "checkpoint_gateway_vulnerable_version_pinned"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "Check Point Security Gateway Pinned To Path-Traversal Vulnerable Build (CVE-2026-50751)"
+    description: "A task configures a Check Point Security Gateway / Quantum appliance (`checkpoint`, `cp_mgmt_*`, `gaia`, a firmware/hotfix `get_url`/`copy`, or a `version:`/`take:` field) at a build known vulnerable to CVE-2026-50751 (arbitrary file read via path traversal on the Remote Access VPN / Mobile Access blade, actively exploited to disclose credentials from internet-facing gateways). Pinning or leaving a gateway on an affected R80.x / R81.x build without the fixing hotfix exposes an unauthenticated file-read primitive on the perimeter."
+    regex: "(?:checkpoint|cp_mgmt|check_point|gaia)[\\s\\S]{0,400}?(?:version|take|jumbo|hotfix)\\s*[:=]\\s*['\"]?(?:R80\\.[0-9]+|R81(?:\\.[0-9]+)?)\\b"
+    positive_examples:
+      - "checkpoint_gateway_version: R81.10"
+    multiline: true
+    window: 20
+    recommendation: "Apply the Check Point hotfix for CVE-2026-50751 (see sk-article for your R-train) and move to a fixed Jumbo Hotfix Accumulator take. Disable the Remote Access / Mobile Access blade if it is not required. After patching, rotate all credentials that could have been read from the gateway (local admin, RADIUS/LDAP bind, certificate keys) and review VPN logs for anomalous file-read requests and logins. Restrict management to a dedicated network and enable IPS signatures for the CVE."
+    cve: ["CVE-2026-50751"]
+    cwe: ['CWE-22', 'CWE-200']
+    owasp_appsec: ["A01:2021", "A06:2021"]
+    mitre_attack: ['T1190', 'T1006', 'T1552.001']
+    cis_controls: ['CIS-4.8', 'CIS-7.3', 'CIS-7.7']
+    nist_controls: ['RA-5', 'SI-2', 'AC-3']
+    pci_dss: ['6.3.3', '11.3.1']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "fortiweb_vulnerable_version_pinned"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "FortiWeb Pinned To Auth-Bypass Vulnerable Firmware (CVE-2025-64446)"
+    description: "A task manages a Fortinet FortiWeb WAF (`fortinet.fortiweb.*` module, or a firmware image `get_url`/`copy`, or a `version:` field naming FortiWeb) at a build vulnerable to CVE-2025-64446 - the path-traversal + authentication-bypass chain that lets an unauthenticated attacker create an admin account and reach RCE, mass-exploited on internet-facing FortiWeb in late 2025. Vulnerable: 7.0.x before 7.0.11, 7.2.x before 7.2.11, 7.4.x before 7.4.10, 7.6.x before 7.6.5. Leaving FortiWeb on an affected build is a direct perimeter takeover primitive."
+    regex: "(?:fortiweb|fortinet\\.fortiweb)[\\s\\S]{0,400}?(?:version|build|firmware)\\s*[:=]\\s*['\"]?(?:7\\.0\\.(?:[0-9]|10)\\b|7\\.2\\.(?:[0-9]|10)\\b|7\\.4\\.[0-9]\\b|7\\.6\\.[0-4]\\b)"
+    positive_examples:
+      - "fortiweb_version: 7.6.2"
+    multiline: true
+    window: 20
+    recommendation: "Upgrade FortiWeb to a CVE-2025-64446 fixed build: 7.0.11+, 7.2.11+, 7.4.10+, or 7.6.5+. Until patched, disable HTTP/HTTPS administrative access on internet-facing interfaces (restrict management to a trusted network or local-in policy). After patching, audit for attacker-created admin accounts, unexpected config changes, and web shells; rotate all admin credentials and API keys. Enable FortiGuard IPS signatures for the CVE and monitor auth logs for account-creation events from external IPs."
+    cve: ["CVE-2025-64446"]
+    cwe: ['CWE-22', 'CWE-288', 'CWE-306']
+    owasp_appsec: ["A01:2021", "A07:2021"]
+    mitre_attack: ['T1190', 'T1136', 'T1068']
+    cis_controls: ['CIS-4.8', 'CIS-7.3', 'CIS-7.7']
+    nist_controls: ['RA-5', 'SI-2', 'AC-6']
+    pci_dss: ['6.3.3', '11.3.1']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "windows_netlogon_unpatched_pinned_no_enforcement"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "Windows Netlogon Privilege-Escalation Patch Skipped / Enforcement Disabled (CVE-2026-41089)"
+    description: "A task pins a Windows update to a pre-fix KB, sets `win_updates` to skip the SecurityUpdates category on a domain controller, or writes a registry value that disables Netlogon secure-channel enforcement (`FullSecureChannelProtection=0`, `RequireSignOrSeal=0`, `vulnerablechannelallowlist`). CVE-2026-41089 is a 2026 Netlogon elevation-of-privilege on domain controllers; skipping its patch or re-enabling the vulnerable channel behaviour from a playbook leaves a domain-takeover primitive open."
+    regex: "(?:FullSecureChannelProtection|RequireSignOrSeal|vulnerablechannelallowlist)\\s*[:=][\\s\\S]{0,40}?(?:0|false|no)\\b|win_updates[\\s\\S]{0,300}?(?:reject_list|skip)[\\s\\S]{0,200}?(?:SecurityUpdates|CriticalUpdates)"
+    positive_examples:
+      - "RequireSignOrSeal: 0"
+    multiline: true
+    window: 20
+    recommendation: "Install the CVE-2026-41089 (Netlogon EoP) security update on every domain controller and member server; do not exclude SecurityUpdates/CriticalUpdates from `win_updates` on DCs. Leave Netlogon secure-channel enforcement enabled - never set `FullSecureChannelProtection=0`, `RequireSignOrSeal=0`, or populate `vulnerablechannelallowlist`. After patching, monitor Netlogon event IDs (5827-5831) for denied vulnerable connections and remediate any legacy device still using an insecure channel rather than weakening the DC."
+    cve: ["CVE-2026-41089"]
+    cwe: ['CWE-287', 'CWE-269', 'CWE-1188']
+    owasp_appsec: ["A05:2021", "A07:2021"]
+    mitre_attack: ['T1068', 'T1210', 'T1550']
+    cis_controls: ['CIS-4.8', 'CIS-7.3', 'CIS-7.7']
+    nist_controls: ['RA-5', 'SI-2', 'AC-6']
+    pci_dss: ['6.3.3', '11.3.1']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "sap_netweaver_vulnerable_version_pinned"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "SAP NetWeaver Pinned Without Fix For Actively-Exploited RCE (CVE-2026-44748)"
+    description: "A task provisions SAP NetWeaver / Visual Composer (`community.sap_*`, an SPS/patch `get_url`/`copy`, or a `sp_level:`/`version:` field) at a support-package level known vulnerable to CVE-2026-44748 (2026 unauthenticated deserialization / metadata-upload RCE in NetWeaver, actively exploited to drop web shells on internet-facing SAP). Provisioning NetWeaver at an unpatched SPS without the SAP Security Note applied leaves an unauthenticated RCE primitive on a business-critical system."
+    regex: "(?:netweaver|sap_netweaver|visual\\s*composer|sapnwrfc|community\\.sap)[\\s\\S]{0,400}?(?:sp_level|sps|patch_level|version)\\s*[:=]\\s*['\"]?(?:SP0?[0-9]{1,2}\\b|7\\.[0-9]{2}\\b)"
+    positive_examples:
+      - "sap_netweaver_sp_level: SP08"
+    multiline: true
+    window: 20
+    recommendation: "Apply the SAP Security Note for CVE-2026-44748 and move to a patched support-package stack; if Visual Composer / the affected component is unused, remove or disable it. Restrict internet exposure of SAP application servers - front them with a reverse proxy / WAF and place the ICM behind network controls. After patching, hunt for web shells under the servlet/upload directories, review the SAP audit log (`SM20`) and ICM traces for anomalous metadata uploads, and rotate credentials reachable from the compromised host."
+    cve: ["CVE-2026-44748"]
+    cwe: ['CWE-502', 'CWE-434', 'CWE-306']
+    owasp_appsec: ["A08:2021", "A06:2021"]
+    mitre_attack: ['T1190', 'T1505.003', 'T1059']
+    cis_controls: ['CIS-4.8', 'CIS-7.3', 'CIS-7.7']
+    nist_controls: ['RA-5', 'SI-2', 'SI-10']
+    pci_dss: ['6.3.3', '11.3.1']
+    soc2: ['CC7.1', 'CC7.2']

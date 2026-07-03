@@ -25,6 +25,7 @@
 rules_by_category:
 
   ai_ml_security:
+    - ai_assistant_config_or_hook_file_planted
     - anthropic_api_key
     - aws_bedrock_access
     - aws_sagemaker_access
@@ -89,6 +90,7 @@ rules_by_category:
     - ansible_ssh_pass
     - ansible_winrm_password
     - awx_ask_credential_on_launch
+    - awx_config_yaml_include_path_traversal
     - awx_controller_host_literal_admin
     - awx_credential_inputs_literal
     - awx_execution_environment_privileged
@@ -103,6 +105,7 @@ rules_by_category:
     - cicd_token_exposure
     - docker_socket_mounted_into_task
     - elasticsearch_unauthenticated
+    - git_checkout_jinja_in_branch_or_refspec
     - kubeconfig_access
     - mongodb_unauthenticated
     - podman_container_privileged
@@ -112,6 +115,7 @@ rules_by_category:
     - snmp_community_string
     - terraform_apply_auto_approve_from_ansible
     - terraform_state_access
+    - unsafe_content_rerendered_via_hostvars
     - vault_password_file
     - windows_registry_persistence
 
@@ -770,10 +774,13 @@ rules_by_category:
     - callback_whitelist_arbitrary
     - cargo_install_from_git_unpinned
     - check_point_quantum_vulnerable_install
+    - ci_cache_restored_in_privileged_pull_request_target_job
+    - ci_oidc_token_minted_then_piped_to_signing
     - cisco_unified_communications_vulnerable_install
     - citrix_netscaler_management_interface_exposed_to_internet
     - cloudflared_tunnel_install_arbitrary
     - compose_db_port_bound_0_0_0_0
+    - config_file_with_embedded_run_on_event_command
     - connectwise_screenconnect_vulnerable_install
     - container_image_over_http_registry
     - container_image_unpinned_tag
@@ -807,6 +814,7 @@ rules_by_category:
     - galaxy_requirements_git_branch_ref
     - galaxy_requirements_http_source
     - galaxy_requirements_non_galaxy_source
+    - galaxy_requirements_src_argument_injection
     - gem_cpan_cargo_insecure_source_added
     - gem_install_local
     - gh_actions_pull_request_target
@@ -881,6 +889,8 @@ rules_by_category:
     - backdoor_listener
     - byovd_known_vulnerable_kernel_driver_install
     - cassandra_allow_all_authenticator_with_superuser
+    - checkpoint_gateway_vulnerable_version_pinned
+    - citrix_netscaler_vulnerable_firmware_pinned
     - clickhouse_access_management_user_enabled
     - crontab_modification
     - dll_search_order_hijack_drop_into_system_or_program_files
@@ -890,6 +900,7 @@ rules_by_category:
     - file_permission_777
     - firewall_rule_modification
     - firmware_update_service_disabled_fwupd_uefi_capsule
+    - fortiweb_vulnerable_version_pinned
     - grub2_password_not_set_with_custom_kernel_entries
     - grub_password_disabled_or_set_from_playbook
     - io_uring_runtime_enabled_without_seccomp_filter
@@ -921,6 +932,7 @@ rules_by_category:
     - redis_module_load_arbitrary_so
     - root_ssh_key_modification
     - runc_leaky_vessels_vulnerable_install
+    - sap_netweaver_vulnerable_version_pinned
     - setuid_binary_creation_compromise
     - shadow_file_access
     - ssh_keygen_empty_passphrase_privileged_key
@@ -931,6 +943,7 @@ rules_by_category:
     - userfaultfd_kernel_exploit_primitive
     - web_shell_drop
     - windows_defender_tamper
+    - windows_netlogon_unpatched_pinned_no_enforcement
     - windows_shadow_copies_delete
 
   template_injection:

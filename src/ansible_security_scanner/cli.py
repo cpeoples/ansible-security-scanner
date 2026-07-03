@@ -12,6 +12,7 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
+from . import __version__
 from .file_scanner import _ALWAYS_EMITTED_RULE_IDS
 from .patterns_manager import (
     RuleListingRow,
@@ -239,6 +240,12 @@ def create_argument_parser() -> argparse.ArgumentParser:
         ),
         epilog=_HELP_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--version",
+        "-V",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     parser.add_argument(
         "--directory",

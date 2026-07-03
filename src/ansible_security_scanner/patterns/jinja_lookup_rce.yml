@@ -20,6 +20,7 @@ patterns:
     soc2: ['CC7.1']
     mitre_attack: ["T1059"]
     cwe: ["CWE-78", "CWE-1336"]
+    cve: ["CVE-2020-1734"]
     owasp_appsec: ["A03:2021"]
     references: ["https://docs.ansible.com/ansible/latest/collections/ansible/builtin/pipe_lookup.html"]
 

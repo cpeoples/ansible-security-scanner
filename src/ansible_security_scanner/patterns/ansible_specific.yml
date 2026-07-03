@@ -644,3 +644,102 @@ patterns:
     nist_controls: ['CM-3', 'CM-5']
     pci_dss: ['6.3.2']
     soc2: ['CC8.1']
+
+  - id: "unsafe_content_rerendered_via_hostvars"
+    category: "ansible_specific"
+    severity: "MEDIUM"
+    title: "!unsafe / Untrusted Content Re-Rendered Through hostvars Or vars Lookup (CVE-2024-11079)"
+    description: "A task or template passes a variable back through the templating engine after retrieving it via `hostvars[...]`, `vars[...]`, `lookup('vars', ...)`, or a `{{ hostvars[inventory_hostname][...] }}` expression, inside a `template:`/`set_fact:`/`debug: msg:` sink. Ansible marks certain data (facts, some lookup results) `!unsafe` so it is not re-templated, but re-referencing that content through `hostvars`/`vars` strips the unsafe wrapper and re-renders it - CVE-2024-11079. If any part of that content is attacker-influenced (a hostname, a fact gathered from a managed node, a value from an untrusted inventory source), the second render evaluates it as Jinja and reaches template injection. This fires on the dangerous re-render shape, not on every `hostvars` read."
+    regex: "(?:set_fact|ansible\\.builtin\\.set_fact|template|ansible\\.builtin\\.template|debug|ansible\\.builtin\\.debug)\\s*:[\\s\\S]{0,200}?\\{\\{[^}]*?(?:hostvars\\[|vars\\[|lookup\\(\\s*['\"]vars['\"])"
+    positive_examples:
+      - |2-
+        - name: re-render a gathered value
+          ansible.builtin.set_fact:
+            rendered: "{{ hostvars[inventory_hostname]['ansible_local']['x'] }}"
+      - |2-
+        - name: template an untrusted var back through jinja
+          ansible.builtin.debug:
+            msg: "{{ lookup('vars', untrusted_key) }}"
+    negative_examples:
+      - |2-
+        - name: read a trusted static var
+          ansible.builtin.debug:
+            msg: "{{ app_version }}"
+      - |2-
+        - name: set a literal fact
+          ansible.builtin.set_fact:
+            region: us-east-1
+    multiline: true
+    window: 8
+    recommendation: "Upgrade ansible-core to a release with the CVE-2024-11079 fix (>= 2.18.1 / >= 2.17.7 / >= 2.16.14). Do not re-reference untrusted or fact-derived content through `hostvars[...]` / `vars[...]` / `lookup('vars', ...)` in a templating sink - that path strips the `!unsafe` marker and re-renders the value. If you must surface such a value, wrap it explicitly: `{{ hostvars[host]['x'] | ansible.builtin.unsafe }}` (Ansible 2.17+) so it is never re-templated. Treat every managed-node fact and every external-inventory field as untrusted input."
+    cve: ["CVE-2024-11079"]
+    cwe: ['CWE-1336', 'CWE-94']
+    owasp_appsec: ["A03:2021"]
+    owasp_asvs: [V5.2.5, V5.2.6]
+    mitre_attack: ['T1059', 'T1221']
+    cis_controls: ['CIS-16.11']
+    nist_controls: ['SI-10', 'SI-3']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']
+
+  - id: "git_checkout_jinja_in_branch_or_refspec"
+    category: "ansible_specific"
+    severity: "HIGH"
+    title: "Jinja Expression In git branch / refspec / version (EDA Template Injection, CVE-2025-49521)"
+    description: "An `ansible.builtin.git` task (or an Event-Driven Ansible / AWX source-control field) sets `version:`, `branch:`, or `refspec:` to a value containing a Jinja expression that is derived from event data or an external variable (`{{ ansible_eda... }}`, `{{ event... }}`, `{{ payload... }}`, `{{ webhook... }}`). CVE-2025-49521 (AAP / EDA) evaluates git branch and refspec fields as Jinja2, so a webhook or event payload that reaches one of these fields becomes server-side template injection -> RCE on the controller. A branch/refspec should be a literal ref or a reviewed variable, never a template fed from untrusted event data."
+    regex: "ansible\\.builtin\\.git\\s*:[\\s\\S]{0,300}?(?:version|branch|refspec)\\s*:\\s*['\"]?[^'\"\\n]*\\{\\{[^}]*(?:eda|event|payload|webhook|trigger|body)"
+    positive_examples:
+      - |2-
+        - name: check out a ref from the event
+          ansible.builtin.git:
+            repo: https://git.example.com/app
+            dest: /srv/app
+            version: "{{ event.payload.ref }}"
+    negative_examples:
+      - |2-
+        - name: check out a pinned tag
+          ansible.builtin.git:
+            repo: https://git.example.com/app
+            dest: /srv/app
+            version: v1.4.2
+      - |2-
+        - name: check out a reviewed branch var
+          ansible.builtin.git:
+            repo: https://git.example.com/app
+            dest: /srv/app
+            version: "{{ release_branch }}"
+    multiline: true
+    window: 12
+    recommendation: "Upgrade AAP / ansible-core to the CVE-2025-49521 fixed release. Never build a git `version`/`branch`/`refspec` from event, webhook, or payload data. Map untrusted event fields to an explicit allowlist first (`{{ {'prod': 'v1.4.2', 'stage': 'main'}[event.env] }}`), or validate the ref with `ansible.builtin.assert` against `^[A-Za-z0-9._/-]+$` and a known-ref list before the checkout. Pin production deploys to an immutable tag or commit SHA."
+    cve: ["CVE-2025-49521"]
+    cwe: ['CWE-1336', 'CWE-94', 'CWE-77']
+    owasp_appsec: ["A03:2021"]
+    owasp_asvs: [V5.2.5, V5.2.6]
+    mitre_attack: ['T1059', 'T1190', 'T1221']
+    cis_controls: ['CIS-16.11']
+    nist_controls: ['SI-10', 'SI-3']
+    pci_dss: ['6.2.4', '6.3.1']
+    soc2: ['CC7.1']
+
+  - id: "awx_config_yaml_include_path_traversal"
+    category: "ansible_specific"
+    severity: "MEDIUM"
+    title: "awxkit / AWX Config Uses YAML !include With A Traversable Path (CVE-2026-52902)"
+    description: "A YAML config consumed by awxkit / the `awx` CLI (or an AWX import) uses the `!include` tag with a path that traverses out of the config directory (`!include ../`, `!include /`, or a templated path). CVE-2026-52902 (awxkit path traversal, CVSS 4.7) lets a crafted `!include` read files outside the intended config tree, disclosing controller secrets (tokens, other tenants' configs). An `!include` target should be a fixed relative path inside the config directory, never absolute and never containing `..`."
+    regex: "!include\\s+['\"]?(?:\\.\\.[\\\\/]|/|~|[^'\"\\n]*\\{\\{)"
+    positive_examples:
+      - "config: !include ../../etc/awx/secrets.yml"
+      - "creds: !include /etc/tower/conf.d/postgres.py"
+    negative_examples:
+      - "config: !include tower_cli.cfg"
+      - "creds: !include conf.d/credentials.yml"
+    recommendation: "Upgrade awxkit to the CVE-2026-52902 fixed release. Restrict every `!include` to a fixed relative path inside the config directory - never absolute, never containing `..`, never templated. Run awxkit against configs from a directory you control and validate include targets resolve inside that directory before import. Store controller secrets in a dedicated secret manager rather than files that a traversable include can reach."
+    cve: ["CVE-2026-52902"]
+    cwe: ['CWE-22', 'CWE-73']
+    owasp_appsec: ["A01:2021", "A05:2021"]
+    owasp_asvs: [V12.3.1, V5.3.3]
+    mitre_attack: ['T1006', 'T1552.001']
+    cis_controls: ['CIS-3.3']
+    nist_controls: ['AC-3', 'AC-6', 'SC-28']
+    pci_dss: ['6.2.4', '7.2.1']
+    soc2: ['CC6.1']

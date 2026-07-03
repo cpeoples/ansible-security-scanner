@@ -84,21 +84,11 @@ def _render_from_metadata(
     title = meta.get("title") or title_fallback
     description = meta.get("description") or description_fallback or f"this {rule_id} issue"
     recommendation = meta.get("recommendation") or recommendation_fallback
-    no_ansible_fix = bool(meta.get("no_ansible_remediation"))
 
-    secure_fix = None if no_ansible_fix else _select_secure_fix(rule_id)
-    if secure_fix:
-        secure_block = f"\n**\u2705 Secure Fix Example:**\n```yaml\n{secure_fix}\n```\n"
-    elif no_ansible_fix:
-        secure_block = (
-            "\n**\u2705 Secure Response:**\n"
-            "This rule flags an action whose correct response is procedural - "
-            "escalate, audit, or perform via a reviewed IaC pipeline rather than "
-            "directly from Ansible. See the Recommendation above for the exact "
-            "operational response.\n"
-        )
-    else:
-        secure_block = ""
+    secure_fix = _select_secure_fix(rule_id)
+    secure_block = (
+        f"\n**\u2705 Secure Fix Example:**\n```yaml\n{secure_fix}\n```\n" if secure_fix else ""
+    )
 
     rec_block = f"\n**\U0001f6e0 Recommendation:**\n{recommendation}\n" if recommendation else ""
     heading = title or f"What this rule detects ({rule_id})"

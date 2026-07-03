@@ -1057,3 +1057,103 @@ remediations:
           path: /usr/local/bin/app
           capability: cap_net_bind_service+ep
           state: present
+
+  galaxy_requirements_src_argument_injection:
+    secure_fix: |
+      # requirements.yml - src: must be a plain Galaxy name or an
+      # https:// / git+https:// URL, pinned to an immutable ref.
+      # It must NEVER start with a dash or contain `ext::`.
+      collections:
+        - name: community.general
+          version: 8.6.0
+      roles:
+        - name: internal.nginx
+          src: https://git.example.com/ansible/role-nginx
+          scm: git
+          version: 3f4a1c8e9b2d4f6a8c0e1b3d5f7a9c1e3b5d7f90   # commit SHA, not a branch
+
+  ci_oidc_token_minted_then_piped_to_signing:
+    secure_fix: |
+      # Sign in a dedicated, least-privilege job. Do not mint the OIDC
+      # token inline next to build/test steps.
+      #
+      # .github/workflows/sign.yml (sketch):
+      #   sign:
+      #     permissions:
+      #       id-token: write        # scoped to THIS job only
+      #       contents: read
+      #     steps:
+      #       - uses: slsa-framework/slsa-github-generator@<pinned-sha>
+      #
+      # If you must sign from Ansible, verify the digest first and keep
+      # the token out of any shell you control:
+      - name: Verify the artifact digest matches the build output
+        ansible.builtin.assert:
+          that:
+            - built_digest == expected_digest
+          fail_msg: "Refusing to sign - artifact digest does not match the reviewed build."
+      - name: Sign by digest via keyless cosign (token stays inside cosign)
+        ansible.builtin.command:
+          argv:
+            - cosign
+            - sign
+            - --yes
+            - "myregistry.example.com/app@{{ built_digest }}"
+        environment:
+          COSIGN_EXPERIMENTAL: "1"
+
+  config_file_with_embedded_run_on_event_command:
+    secure_fix: |
+      # Config files that execute code (devcontainer.json, package.json
+      # lifecycle scripts, binding.gyp, git hooks) belong in the repo under
+      # review - not pushed by automation with a templated command body.
+      - name: Stage a reviewed devcontainer, read-only, verified by checksum
+        ansible.builtin.copy:
+          src: files/devcontainer.json        # committed + reviewed in the repo
+          dest: "{{ repo }}/.devcontainer/devcontainer.json"
+          checksum: "sha256:{{ reviewed_devcontainer_sha256 }}"
+          owner: root
+          group: root
+          mode: '0444'
+      - name: In CI, install without running lifecycle scripts
+        ansible.builtin.command:
+          argv: [npm, ci, --ignore-scripts]
+          chdir: "{{ repo }}"
+        changed_when: true
+
+  ci_cache_restored_in_privileged_pull_request_target_job:
+    secure_fix: |
+      # Never restore a cache in a pull_request_target job. Run untrusted PR
+      # code under pull_request (read-only token), and do privileged work in a
+      # separate job that checks out the base ref and installs from a pinned
+      # lockfile - not a restored cache.
+      #
+      # .github/workflows/ci.yml (sketch):
+      #   on:
+      #     pull_request:            # untrusted: no cache reuse into a trusted job
+      #   jobs:
+      #     verify:
+      #       permissions:
+      #         contents: read       # no id-token, no write
+      #       steps:
+      #         - uses: actions/checkout@<pinned-sha>   # PR head, read-only
+      #         - run: npm ci --ignore-scripts          # pinned lockfile, integrity-checked
+      #
+      # If a trusted job must cache, scope the key to the base ref only:
+      #         - uses: actions/cache@<pinned-sha>
+      #           with:
+      #             path: ~/.npm
+      #             key: npm-${{ github.base_ref }}-${{ hashFiles('package-lock.json') }}
+      #
+      # From Ansible, fail closed if a workflow pairs the privileged trigger
+      # with a restored cache:
+      - name: Reject pull_request_target workflows that restore a cache
+        ansible.builtin.command:
+          argv:
+            - grep
+            - -RlEz
+            - 'pull_request_target[\s\S]*actions/cache'
+            - .github/workflows
+        register: poisoned_cache_workflows
+        failed_when: poisoned_cache_workflows.rc == 0
+        changed_when: false

@@ -232,6 +232,27 @@ remediations:
           mode: '0700'
           recurse: true
 
-  # -- Cloud GPU --
-  # Most GPU-launch detections are operational signals (use IaC/quota)
-  # and are stamped no_ansible_remediation upstream.
+  ai_assistant_config_or_hook_file_planted:
+    secure_fix: |
+      # Do not push agent instruction/hook files from automation. Keep the
+      # shared config in the repo under code review, pin its exact content,
+      # and verify it before it lands. If you must stage one, checksum it
+      # and forbid any command-executing hook sourced from a variable.
+      - name: Verify the agent config against a reviewed checksum, read-only
+        ansible.builtin.copy:
+          src: files/claude-settings.json      # committed + reviewed in the repo
+          dest: "{{ repo_dir }}/.claude/settings.json"
+          checksum: "sha256:{{ reviewed_agent_config_sha256 }}"
+          owner: root
+          group: root
+          mode: '0444'
+      - name: Fail closed if the staged config contains an executing hook
+        ansible.builtin.command:
+          argv:
+            - grep
+            - -Ei
+            - '"(command|run|onStart|postCreateCommand)"[[:space:]]*:'
+            - "{{ repo_dir }}/.claude/settings.json"
+        register: agent_hook_scan
+        failed_when: agent_hook_scan.rc == 0
+        changed_when: false

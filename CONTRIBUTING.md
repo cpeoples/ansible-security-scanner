@@ -256,32 +256,19 @@ in `tests/test_remediations.py` enforce this:
 - `test_remediation_includes_secure_fix_yaml_block` - the output must
   contain a `✅ Secure Fix` heading followed by a fenced ```yaml block.
 
-Three ways to satisfy the Secure Fix contract, in order of preference:
+Two ways to satisfy the Secure Fix contract, in order of preference:
 
-1. Add `negative_examples:` to the rule in its pattern YAML. The metadata
-   renderer renders the first entry as the Secure Fix block.
-2. Add a `secure_fix:` entry under the rule's id in
+1. Add a `secure_fix:` entry under the rule's id in
    `src/ansible_security_scanner/patterns/remediations/<category>.yml`
-   (preferred when the fix is large enough to deserve its own diff).
-3. Add a tailored handler in `remediations/<category>.py` that emits its
+   (preferred - the fix lives in its own reviewable diff).
+2. Add a tailored handler in `remediations/<category>.py` that emits its
    own `✅ Secure Fix` heading + fenced ```yaml block.
 
-If the rule's correct response is procedural (escalate, audit, run via
-a reviewed IaC pipeline, vendor patch) and a copy-pasteable Ansible task
-would actively mislead the user, set `no_ansible_remediation: true` on
-the rule's pattern YAML entry instead. The renderer then emits a
-`✅ Secure Response` prose block sourced from `recommendation:`, which
-this contract treats as compliant.
-
-The repo ships a helper that batch-applies the `no_ansible_remediation`
-flag from a curated list at `scripts/data/procedural_rule_ids.txt`:
-
-```bash
-python scripts/stamp_no_ansible_remediation.py
-```
-
-The script is idempotent. Add a rule_id to `procedural_rule_ids.txt` and
-re-run; remove and re-run to revert.
+Every rule must ship a dynamic Ansible fix from one of the above - there
+is no procedural opt-out. A rule whose recommendation is a vendor patch,
+IaC change, or DFIR action still renders a `secure_fix:` that encodes
+that action as a runnable task (pin the fixed version, assert the safe
+state, fail closed on the dangerous shape).
 
 ### 4.2 New rule contribution checklist
 
@@ -297,7 +284,7 @@ than a generic failure.
 | 3 | At least one framework tag is set: any of `cwe`, `mitre_attack`, `cis_controls`, `nist_controls`, `owasp_appsec`, `owasp_asvs`, `owasp`, `pci_dss`, `hipaa`, `soc2`, `iso27001`, or `stig`. This is what the compliance filter pivots on. | `tests/test_release_contract.py::test_every_rule_has_a_framework_tag` |
 | 4 | At least one `positive_examples` entry. Each entry must match the rule's regex under `re.IGNORECASE \| re.MULTILINE`. AST-walker rules (`regex: "(?!)"`) and rules in `SYNTHETIC_RULE_IDS` are exempt. | `tests/test_release_contract.py::test_every_finding_rule_has_a_positive_example` and `tests/test_rule_examples.py` |
 | 5 | Every `negative_examples` entry must NOT match the regex. (Same flags.) Lock in the FP shape that motivated the carve-out. | `tests/test_rule_examples.py` |
-| 6 | The remediation includes a `✅ Secure Fix` heading and a fenced ```yaml block AND mentions a distinctive token from the rule's `title` / `recommendation`. Three legal ways to satisfy this - see §4.1. Procedural-only rules opt out via `no_ansible_remediation: true`. | `tests/test_remediations.py::test_remediation_is_relevant_to_the_rule`, `tests/test_remediations.py::test_remediation_includes_secure_fix_yaml_block` |
+| 6 | The remediation includes a `✅ Secure Fix` heading and a fenced ```yaml block AND mentions a distinctive token from the rule's `title` / `recommendation`. Two legal ways to satisfy this - see §4.1. Every rule must ship a dynamic fix; there is no procedural opt-out. | `tests/test_remediations.py::test_remediation_is_relevant_to_the_rule`, `tests/test_remediations.py::test_remediation_includes_secure_fix_yaml_block`, `tests/test_remediations.py::test_no_rule_opts_out_of_remediation` |
 | 7 | If your rule adds a new CLI flag, document it in `README.md` (the `## CLI Reference` section). | `tests/test_release_contract.py::test_every_argparse_flag_is_documented_in_readme` |
 | 8 | If you add a name to `ansible_security_scanner.__all__`, document it in `README.md` (the `## Programmatic API` section). | `tests/test_release_contract.py::test_every_public_api_symbol_is_documented_in_readme` |
 
