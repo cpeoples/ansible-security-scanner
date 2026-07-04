@@ -908,6 +908,117 @@ patterns:
       - "https://research.swtch.com/xz-timeline"
       - "https://www.openwall.com/lists/oss-security/2024/03/29/4"
 
+  - id: "mini_shai_hulud_poisoned_package_version_install"
+    category: "supply_chain"
+    severity: "CRITICAL"
+    title: "Mini Shai-Hulud Worm - Known-Poisoned npm/PyPI Package Version Installed (CVE-2026-45321)"
+    description: "An Ansible task installs or pins an npm/PyPI package at one of the exact versions poisoned by the \"Mini Shai-Hulud\" self-propagating supply-chain worm (TeamPCP, April-May 2026, CVE-2026-45321, CVSS 9.6). The worm hijacked legitimate CI/CD release pipelines via OIDC-federation abuse and published malware carrying valid SLSA Build-L3 / Sigstore provenance, so provenance checks alone do not catch it. On install the payload (an npm preinstall hook that fires on `npm install` without the package being imported; PyPI on import) harvests GitHub PATs, npm tokens, AWS/GCP/Azure keys, Kubernetes service-account tokens and Vault tokens from the runner, self-propagates by republishing every package the stolen credentials can publish, and installs a `gh-token-monitor` persistence daemon with a home-directory wiper. This rule matches a package name pinned to an exact known-bad version only; the package name alone is covered by the unpinned-install rules. Confirmed-poisoned pins across the TeamPCP waves (Feb-May 2026): PyPI `mistralai==2.4.6`, `guardrails-ai==0.10.1`, `litellm==1.82.7|1.82.8`, `telnyx==4.87.1|4.87.2`, `lightning==2.6.2|2.6.3`; npm `@mistralai/mistralai@2.2.2-2.2.4`, `@mistralai/mistralai-azure|-gcp@1.7.1-1.7.3`, `@opensearch-project/opensearch@3.5.3|3.6.2|3.7.0|3.8.0`, the `@tanstack/{react,solid,vue}-router` / `router-core` `1.169.5|1.169.8` cluster, `intercom-client@7.0.4|7.0.5`, and the prior-TeamPCP `@bitwarden/cli@2026.4.0`. Any environment that installed one of these must treat every credential reachable from that host as compromised."
+    regex: "(?:(?<![\\w.-])mistralai\\s*==\\s*2\\.4\\.6\\b|(?<![\\w.-])guardrails-ai\\s*==\\s*0\\.10\\.1\\b|(?<![\\w.-])litellm\\s*==\\s*1\\.82\\.[78]\\b|(?<![\\w.-])telnyx\\s*==\\s*4\\.87\\.[12]\\b|(?<![\\w.-])lightning\\s*==\\s*2\\.6\\.[23]\\b|@mistralai/mistralai@2\\.2\\.[234]\\b|@mistralai/mistralai-(?:azure|gcp)@1\\.7\\.[123]\\b|@opensearch-project/opensearch@(?:3\\.5\\.3|3\\.6\\.2|3\\.7\\.0|3\\.8\\.0)\\b|@tanstack/(?:react|solid|vue)-router@1\\.169\\.[58]\\b|@tanstack/router-core@1\\.169\\.[58]\\b|(?<![\\w.-])intercom-client@7\\.0\\.[45]\\b|@bitwarden/cli@2026\\.4\\.0\\b)"
+    positive_examples:
+      - "        name: mistralai==2.4.6"
+      - "    pip install guardrails-ai==0.10.1"
+      - "        name: litellm==1.82.8"
+      - "        name: telnyx==4.87.2"
+      - "        name: lightning==2.6.3"
+      - "npm install @mistralai/mistralai@2.2.4"
+      - "        - '@opensearch-project/opensearch@3.6.2'"
+      - "yarn add @tanstack/react-router@1.169.5"
+      - "npm install intercom-client@7.0.5"
+    negative_examples:
+      - "        name: mistralai==2.4.5"
+      - "    pip install guardrails-ai==0.10.0"
+      - "        name: litellm==1.82.6"
+      - "        name: telnyx==4.87.0"
+      - "        name: lightning==2.6.1"
+      - "npm install @mistralai/mistralai@2.2.5"
+      - "        - '@opensearch-project/opensearch@3.6.3'"
+      - "        name: mistralai"
+      - "pip install foo-mistralai==2.4.6"
+    multiline: false
+    recommendation: "Remove every poisoned pin and upgrade to a known-good version published after the incident window (PyPI `mistralai<=2.4.5` / `guardrails-ai<=0.10.0` then the next clean release; on npm, the maintainers' post-incident republished versions). Because installation already executed attacker code, patching the version is not sufficient. Locate and remove the `gh-token-monitor` persistence daemon first (a systemd user service on Linux, a LaunchAgent on macOS); rotating credentials before removing it triggers the wiper. Then rotate every credential reachable from the affected host (GitHub PATs, npm/PyPI tokens, AWS/GCP/Azure keys, Kubernetes service-account tokens, Vault tokens). Audit `.claude/` and `.vscode/` for injected artifacts (`router_runtime.js`, `setup.mjs`, `tanstack_runner.js`) and search CI logs for outbound connections to `filev2.getsession.org`, `git-tanstack.com`, or `api.masscan.cloud`. Reinstall dependencies with `--ignore-scripts` and integrity-verify against hashed lockfiles (`--require-hashes`, or `npm ci` against a committed lockfile). Do not rely on provenance attestation alone: this campaign shipped valid SLSA-L3 attestations."
+    cve: ["CVE-2026-45321"]
+    cwe: ['CWE-506', 'CWE-494', 'CWE-829', 'CWE-1357']
+    owasp_appsec: ["A08:2021"]
+    owasp_asvs: [V15.2.4]
+    mitre_attack: ["T1195.001", "T1195.002", "T1078", "T1554"]
+    cis_controls: ["CIS-2.2", "CIS-2.3", "CIS-7.7", "CIS-Supply-Chain"]
+    nist_controls: ['CM-11', 'SA-10', 'SI-2', 'SI-3', 'SI-7']
+    pci_dss: ['6.2.4', '6.3.2', '6.3.3', '11.5.1']
+    hipaa: ['164.308(a)(5)(ii)(B)', '164.312(c)(1)']
+    soc2: ['CC7.1', 'CC8.1']
+    references:
+      - "https://nvd.nist.gov/vuln/detail/CVE-2026-45321"
+
+  - id: "shai_hulud_c2_or_payload_endpoint_referenced"
+    category: "supply_chain"
+    severity: "CRITICAL"
+    title: "Shai-Hulud / TeamPCP C2 or Payload Endpoint Referenced In Playbook (CVE-2026-45321)"
+    description: "A task references a known \"Mini Shai-Hulud\" / TeamPCP command-and-control or payload-staging indicator: the exfil/typosquat domain `git-tanstack.com`, the Session-network file/seed nodes (`filev2.getsession.org`, `seed1-3.getsession.org`), `api.masscan.cloud`, the hardcoded C2 IP `83.142.209.194`, the PyPI dropper `transformers.pyz`, the obfuscated npm stealer artifacts (`router_init.js`, `router_runtime.js`, `tanstack_runner.js`), or the `gh-token-monitor` persistence daemon. Unlike the exact-version pin rule (which only catches the specific poisoned releases of a given wave), this behavioral rule survives the campaign's package-name and version churn: any playbook that fetches, writes, or executes one of these endpoints or artifacts is either staging the malware or has been generated by it. `git-tanstack.com` is a typosquat of the legitimate `tanstack.com` / `github.com/tanstack/router` and is Cloudflare-flagged as phishing. Legitimate references to real TanStack infrastructure (`github.com/tanstack`, `tanstack.com`) and the HuggingFace `transformers` library (a module or directory, never `transformers.pyz`) are not matched."
+    regex: "(?:git-tanstack\\.com|(?:seed[0-9]+|filev2)\\.getsession\\.org|api\\.masscan\\.cloud|\\btransformers\\.pyz\\b|(?:router_init|router_runtime|tanstack_runner)\\.js\\b|\\bgh-token-monitor\\b|83\\.142\\.209\\.194\\b)"
+    positive_examples:
+      - "        url: https://git-tanstack.com/transformers.pyz"
+      - "      get_url: { url: 'http://filev2.getsession.org/file/x' }"
+      - "      shell: python3 /tmp/transformers.pyz"
+      - "        dest: /root/router_init.js"
+      - "      name: gh-token-monitor"
+    negative_examples:
+      - "        url: https://github.com/tanstack/router"
+      - "        url: https://tanstack.com/router/latest"
+      - "        dest: /opt/app/router_init.py"
+      - "        url: https://getsession.org"
+      - "      msg: monitoring github tokens rotation"
+    multiline: false
+    recommendation: "Treat any host or CI runner whose playbook references these indicators as compromised, not merely misconfigured, and do incident response in order. Remove the `gh-token-monitor` persistence unit first (a systemd user service on Linux, a LaunchAgent on macOS); the malware wipes the home directory if tokens are revoked while it is still running. Then rotate every credential reachable from the host (GitHub PATs, npm/PyPI tokens, AWS/GCP/Azure keys, Kubernetes service-account tokens, Vault tokens). Block `git-tanstack.com` and `*.getsession.org` at the DNS/proxy level and audit outbound connections and CI logs for these endpoints. Audit `.claude/` and `.vscode/` for injected hooks and remove `router_init.js`, `setup.mjs`, and `transformers.pyz` artifacts, then reinstall dependencies with `--ignore-scripts` from committed, hash-locked lockfiles. Remove the task that introduced the reference and investigate how it entered the repo, often via a compromised dependency's postinstall hook or a generated file."
+    cve: ["CVE-2026-45321"]
+    cwe: ['CWE-506', 'CWE-829', 'CWE-912']
+    owasp_appsec: ["A08:2021", "A10:2021"]
+    owasp_asvs: [V15.2.4]
+    mitre_attack: ["T1195.002", "T1071.001", "T1567", "T1543.002"]
+    cis_controls: ["CIS-7.7", "CIS-13.3", "CIS-Supply-Chain"]
+    nist_controls: ['SA-10', 'SI-3', 'SI-4', 'SI-7']
+    pci_dss: ['5.3.1', '11.5.1']
+    hipaa: ['164.308(a)(5)(ii)(B)', '164.312(c)(1)']
+    soc2: ['CC7.1', 'CC7.2']
+    references:
+      - "https://nvd.nist.gov/vuln/detail/CVE-2026-45321"
+
+  - id: "trivy_teampcp_backdoored_image_or_c2_referenced"
+    category: "supply_chain"
+    severity: "CRITICAL"
+    title: "Backdoored Trivy Image Or TeamPCP C2 Endpoint Referenced (CVE-2026-33634)"
+    description: "A task pulls a Trivy container image pinned to one of the exact tags backdoored in the March 2026 Trivy supply-chain compromise (CVE-2026-33634, GHSA-69fq-xp46-6x23, CISA-KEV / actively exploited), or references the command-and-control / lookalike infrastructure used by that campaign. On March 19, 2026 the \"TeamPCP\" actor used stolen credentials to publish a malicious Trivy `v0.69.4` across every distribution channel (GitHub Releases, GHCR, Docker Hub, ECR Public, deb/rpm, `get.trivy.dev`) and force-pushed 76 of 77 `aquasecurity/trivy-action` tags plus all 7 `aquasecurity/setup-trivy` tags to credential-stealing commits; on March 22 the actor pushed malicious `aquasec/trivy:0.69.5` and `:0.69.6` images directly to Docker Hub. The injected stealer dumps `Runner.Worker` memory, scrapes cloud/CI/SSH/Kubernetes credentials, exfiltrates to lookalike domains, and can pivot into Kubernetes, so any pipeline that ran a poisoned build must treat every reachable secret as exposed. This rule matches the confirmed-poisoned image tags (`aquasec[urity]/trivy:0.69.4|0.69.5|0.69.6` on any registry or mirror, including the attacker's never-released `v0.70.0`) and the campaign infrastructure (`scan.aquasecurtiy.org`, a typosquat; `models.litellm.cloud`; `checkmarx.zone`; C2 IP `83.142.209.203`). Safe Trivy tags (`<=0.69.3` and later clean releases) and the correctly pinned remediated Actions (`trivy-action@v0.35.0`, `setup-trivy@v0.2.6`) are not matched. Registry-prefixed forms are included because `mirror.gcr.io` may still serve cached poisoned images."
+    regex: "(?:(?<![\\w.-])(?:[A-Za-z0-9.:_-]+/)?(?:aquasec|aquasecurity)/trivy:(?:0\\.69\\.[456]|v?0\\.70\\.0)\\b|scan\\.aquasecurtiy\\.org|models\\.litellm\\.cloud|checkmarx\\.zone|83\\.142\\.209\\.203\\b)"
+    positive_examples:
+      - "        image: aquasec/trivy:0.69.4"
+      - "    docker pull aquasecurity/trivy:0.69.5"
+      - "        name: ghcr.io/aquasecurity/trivy:0.69.6"
+      - "        - public.ecr.aws/aquasecurity/trivy:0.69.5"
+      - "        url: https://scan.aquasecurtiy.org/collect"
+      - "        url: https://checkmarx.zone/raw"
+    negative_examples:
+      - "        image: aquasec/trivy:0.69.3"
+      - "    docker pull aquasecurity/trivy:0.69.7"
+      - "        image: aquasec/trivy:latest"
+      - "      uses: aquasecurity/trivy-action@v0.35.0"
+      - "      uses: aquasecurity/setup-trivy@v0.2.6"
+      - "        url: https://scan.aquasecurity.org"
+      - "        image: myrepo/trivy-scan:0.69.4"
+    multiline: false
+    recommendation: "Replace any poisoned Trivy image with a safe tag (`0.69.3` or earlier, or a clean post-incident release) referenced by digest, and pin the GitHub Actions to the remediated commits (`aquasecurity/trivy-action@57a97c7`, which is v0.35.0, and `aquasecurity/setup-trivy@3fb12ec`, which is v0.2.6) rather than mutable tags. Because a poisoned build already executes attacker code, patching the tag is not sufficient: treat every credential reachable from any runner or host that ran a poisoned version during the exposure window as compromised and rotate it (GitHub tokens, cloud provider credentials, registry tokens, SSH keys, database passwords, Kubernetes service-account tokens). Rotate secrets that cannot be revoked atomically with care, since the original incident's overlapping rotation window is how the actor retained access. Hunt for outbound traffic to the C2 and lookalike domains and IP above, for filesystem artifacts (`litellm_init.pth`, `~/.config/sysmon/sysmon.py`, `~/.config/systemd/user/sysmon.service`, `/tmp/pglog`, `/tmp/.pg_state`), for Kubernetes `node-setup-*` pods, and for a `tpcp-docs` repository in your GitHub org (a fallback exfil channel). Prefer digest-pinned image references and SHA-pinned Actions going forward."
+    cve: ["CVE-2026-33634"]
+    cwe: ['CWE-506', 'CWE-494', 'CWE-829']
+    owasp_appsec: ["A08:2021", "A10:2021"]
+    owasp_asvs: [V15.2.4]
+    mitre_attack: ["T1195.002", "T1078", "T1552.007", "T1567"]
+    cis_controls: ["CIS-2.2", "CIS-7.7", "CIS-Supply-Chain"]
+    nist_controls: ['CM-11', 'SA-10', 'SI-3', 'SI-7']
+    pci_dss: ['6.3.3', '11.5.1']
+    hipaa: ['164.308(a)(5)(ii)(B)', '164.312(c)(1)']
+    soc2: ['CC7.1', 'CC8.1']
+    references:
+      - "https://nvd.nist.gov/vuln/detail/CVE-2026-33634"
+      - "https://github.com/aquasecurity/trivy/security/advisories/GHSA-69fq-xp46-6x23"
+
   - id: "container_image_over_http_registry"
     category: "supply_chain"
     severity: "CRITICAL"
@@ -2015,6 +2126,29 @@ patterns:
     pci_dss: ['1.2.1', '6.4.1', '7.2.1']
     soc2: ['CC6.1', 'CC6.6', 'CC7.1']
 
+  - id: "rogue_self_hosted_runner_registration_persistence"
+    category: "supply_chain"
+    severity: "CRITICAL"
+    title: "Playbook Registers A Self-Hosted CI Runner With A Runtime-Fetched Token Or Worm-IOC Label (Shai-Hulud-Style Persistence)"
+    description: "A task runs the GitHub Actions runner registration command (`config.sh` / `config.cmd`) in a shape that matches attacker persistence rather than legitimate provisioning: the registration token is pulled at runtime from a command substitution (`--token $(curl ...)`, `--token $(wget ...)`, `--token $(gh api ...)`) or a Jinja `lookup('pipe'/...)` that shells out, or the `--labels` carry a known supply-chain-worm indicator (e.g. the `SHA1HULUD` / Shai-Hulud runner label used by the Nov-2025 npm/PyPI worm to graft a rogue runner onto a victim org for durable code execution). Legitimate runner provisioning stores the token in Vault or a CI secret and passes it as a variable (`--token {{ vault_runner_token }}`) or an environment variable (`--token $RUNNER_TOKEN`); it does not fetch the token by piping a network download into the shell. A runner registered this way gives the attacker a persistent, credentialed foothold that survives secret rotation and executes every subsequent job."
+    regex: "(?:\\./config\\.sh|actions-runner/config\\.sh|config\\.sh|config\\.cmd)\\b[\\s\\S]{0,400}?(?:--labels\\s+[^\\n]*?(?:SHA1HULUD|shai-?hulud)|--token\\s+\\$\\((?:curl|wget|gh\\s+api|cat)[^\\n)]*\\)|--token\\s+[\"']?\\{\\{[^}]*(?:lookup|pipe)[^}]*\\}\\})"
+    positive_examples:
+      - "./config.sh --url https://github.com/acme/app --token $(curl -s https://relay.example/t) --unattended --replace"
+      - "actions-runner/config.sh --url https://github.com/org/repo --labels SHA1HULUD --token ABC --unattended"
+    negative_examples:
+      - "actions-runner/config.sh --url https://github.com/org/repo --token {{ vault_runner_token }} --labels linux,x64 --ephemeral"
+      - "./config.sh --url https://github.com/org/repo --token $RUNNER_TOKEN --unattended --replace --name build01"
+    multiline: true
+    window: 20
+    recommendation: "Register runners only with a short-lived token retrieved from your secrets manager and passed as a variable, never by piping a network download into the shell: fetch a just-in-time registration token via the authenticated GitHub API from a trusted control plane, store it in Vault or a CI masked variable, and pass it as `--token {{ vault_runner_token }}`. Prefer ephemeral runners (`--ephemeral` plus Actions Runner Controller one-job pods) so a compromised registration cannot persist. Audit every registered runner against an allow-list of expected `--labels` and names, alert on any runner whose labels or registration source are unrecognized, and revoke plus re-image any host whose runner was registered with a runtime-fetched token. Treat an unexpected `config.sh` invocation in a playbook as an incident, not config drift."
+    cwe: ['CWE-506', 'CWE-798', 'CWE-494', 'CWE-269']
+    owasp_appsec: ["A08:2021", "A01:2021"]
+    mitre_attack: ['T1543', 'T1078', 'T1195.002', 'T1554']
+    cis_controls: ['CIS-16.1', 'CIS-16.7', 'CIS-13.7']
+    nist_controls: ['AC-3', 'CM-7', 'SI-7', 'SR-11']
+    pci_dss: ['6.4.1', '7.2.1']
+    soc2: ['CC6.1', 'CC7.1', 'CC8.1']
+
   - id: "gitlab_ci_runner_privileged_true"
     category: "supply_chain"
     severity: "HIGH"
@@ -2034,6 +2168,45 @@ patterns:
     nist_controls: ['AC-6', 'CM-7', 'SC-39']
     pci_dss: ['2.2.1', '7.2.1']
     soc2: ['CC6.1', 'CC6.3']
+
+  - id: "gitlab_ci_include_from_untrusted_remote_or_mutable_ref"
+    category: "supply_chain"
+    severity: "HIGH"
+    title: "GitLab CI Pipeline Includes Config From An External Remote URL Or A Mutable Project ref (Pipeline Injection / Supply-Chain)"
+    description: "A rendered `.gitlab-ci.yml` (or a task that writes one) pulls pipeline configuration via `include: remote:` from an off-platform HTTP(S) URL, or via `include: project:` pinned to a mutable ref (a branch or tag such as `main`/`latest`) rather than an immutable commit SHA. GitLab merges included YAML into the running pipeline with the caller's `CI_JOB_TOKEN` and project permissions, so whoever controls the included content controls the pipeline. A `remote:` include trusts an external server that can be compromised or DNS-hijacked to swap in a malicious `script:`; a `project: ... ref: <branch>` include lets anyone with push access to that branch of the included project inject jobs into every consumer pipeline (a documented lateral-movement / supply-chain vector). `include: local:`, `include: template:`, and a `project:` include pinned to a full 40-hex commit SHA are not flagged."
+    regex: "include\\s*:[\\s\\S]{0,240}?(?:remote\\s*:\\s*[\"']?https?://|project\\s*:[\\s\\S]{0,160}?\\bref\\s*:\\s*[\"']?(?!(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})[\"']?\\s*$)[A-Za-z0-9._/-]+)"
+    positive_examples:
+      - |2-
+        include:
+          - remote: 'https://ci.example.com/pipelines/deploy.yml'
+      - |2-
+        include:
+          - project: 'platform/shared-ci'
+            ref: main
+            file: '/templates/build.yml'
+    negative_examples:
+      - |2-
+        include:
+          - local: '/templates/build.yml'
+      - |2-
+        include:
+          - template: Security/SAST.gitlab-ci.yml
+      - |2-
+        include:
+          - project: 'platform/shared-ci'
+            ref: 8b3a1f9c2d4e5a6b7c8d9e0f1a2b3c4d5e6f7a8b
+            file: '/templates/build.yml'
+    multiline: true
+    window: 20
+    recommendation: "Include CI configuration only from sources you control and pin it to an immutable revision. Replace `include: remote:` with an `include: project:` that references an internal project and pin `ref:` to a full 40-character commit SHA (never a branch or tag), e.g. `ref: 8b3a1f9c...`. If you must consume an external template, vendor a reviewed copy into your own repository and reference it with `include: local:`. Restrict who can push to the branch of any included project, require code review on the shared-CI project, and set `CI_JOB_TOKEN` allow-lists (Settings -> CI/CD -> Token Access) so an injected job cannot reach unrelated projects. Audit all `include:` stanzas in merge requests and fail the pipeline on any `remote:` or non-SHA `ref:` include."
+    cwe: ['CWE-829', 'CWE-494', 'CWE-345', 'CWE-1104']
+    owasp_appsec: ["A08:2021", "A05:2021"]
+    owasp_asvs: [V15.2.4, V10.3.2]
+    mitre_attack: ['T1195.002', 'T1199', 'T1195.001']
+    cis_controls: ['CIS-Supply-Chain', 'CIS-16.1', 'CIS-16.7']
+    nist_controls: ['CM-7', 'SA-10', 'SR-11']
+    pci_dss: ['6.3.2', '7.2.1']
+    soc2: ['CC7.1', 'CC8.1']
 
   - id: "jenkins_agent_secret_in_url_or_plaintext"
     category: "supply_chain"

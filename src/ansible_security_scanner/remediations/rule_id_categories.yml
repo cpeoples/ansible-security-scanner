@@ -32,6 +32,9 @@ rules_by_category:
     - azure_ml_access
     - azure_openai_key
     - cohere_api_key
+    - fork_triggerable_ai_agent_with_repo_mutating_gh_tools
+    - fork_triggerable_ai_agent_with_write_or_exec_tools
+    - fork_triggerable_gemini_or_copilot_agent_with_write_or_exec
     - gcp_vertex_ai_access
     - generic_llm_api_key
     - google_ai_api_key
@@ -59,6 +62,7 @@ rules_by_category:
     - rag_vector_db_world_readable
     - replicate_api_token
     - template_in_llm_prompt
+    - untrusted_event_content_interpolated_into_ai_agent_prompt
     - wandb_api_key
 
   ansible_hygiene:
@@ -634,6 +638,7 @@ rules_by_category:
     - dns_exfiltration
     - dns_over_https_exfil_primary_resolver
     - dns_zone_transfer
+    - docker_api_exposed_plaintext
     - docker_sock_abuse
     - dpkg_apt_hooks_persistence
     - ebpf_program_load
@@ -833,6 +838,7 @@ rules_by_category:
     - github_actions_self_hosted_runner_on_public_repo
     - github_actions_uses_unpinned_branch_or_main_ref
     - github_oidc_trust_aud_wildcard_or_missing_subject_claim
+    - gitlab_ci_include_from_untrusted_remote_or_mutable_ref
     - gitlab_ci_job_token_exported_or_echoed
     - gitlab_ci_runner_privileged_true
     - go_install_unpinned_main_or_latest
@@ -842,6 +848,7 @@ rules_by_category:
     - ivanti_connect_secure_vulnerable_install
     - jenkins_agent_secret_in_url_or_plaintext
     - maven_snapshot_dependency_in_production_playbook
+    - mini_shai_hulud_poisoned_package_version_install
     - molecule_disable_tls_verify
     - molecule_docker_socket_mount
     - molecule_privileged_container
@@ -864,12 +871,14 @@ rules_by_category:
     - role_meta_dependency_git_url
     - role_meta_dependency_without_version
     - role_meta_galaxy_info_missing_license
+    - rogue_self_hosted_runner_registration_persistence
     - rpm_install_no_digest_no_signature_flags
     - rpm_install_nosignature_or_nogpg
     - s3_download_no_integrity_check
     - sccm_client_push_installation_account_plaintext
     - self_modifying_ci_config
     - selfhosted_runner_untrusted_event
+    - shai_hulud_c2_or_payload_endpoint_referenced
     - sigstore_policy_controller_warn_not_enforce
     - slsa_provenance_verification_missing
     - strategy_plugin_custom
@@ -877,6 +886,7 @@ rules_by_category:
     - terraform_s3_backend_without_encryption_or_kms
     - terraform_state_bucket_no_lock_or_versioning_disabled
     - terraform_variable_with_secret_value_sensitive_false
+    - trivy_teampcp_backdoored_image_or_c2_referenced
     - uri_get_url_token_in_url_query_or_userinfo
     - wget_pipe_to_shell
     - xz_liblzma_backdoored_version_install
@@ -884,6 +894,7 @@ rules_by_category:
     - yum_validate_certs_false
 
   system_compromise:
+    - af_alg_aead_interface_enabled_copy_fail
     - auditctl_failure_mode_silent
     - auditd_rules_flushed_auditctl_D
     - backdoor_listener
@@ -893,6 +904,7 @@ rules_by_category:
     - citrix_netscaler_vulnerable_firmware_pinned
     - clickhouse_access_management_user_enabled
     - crontab_modification
+    - dirtyclone_vulnerable_skb_module_enabled
     - dll_search_order_hijack_drop_into_system_or_program_files
     - efi_secureboot_disabled_or_uefi_vars_tampered
     - elasticsearch_xpack_security_disabled_bound_public
@@ -932,6 +944,7 @@ rules_by_category:
     - redis_module_load_arbitrary_so
     - root_ssh_key_modification
     - runc_leaky_vessels_vulnerable_install
+    - runc_procfs_write_breakout_vulnerable_install
     - sap_netweaver_vulnerable_version_pinned
     - setuid_binary_creation_compromise
     - shadow_file_access

@@ -319,3 +319,31 @@ CVE-2025-30066:
 CVE-2025-49596:
   name: "Anthropic MCP Inspector unauthenticated stdio RCE via CSRF / DNS rebinding"
   url: "https://nvd.nist.gov/vuln/detail/CVE-2025-49596"
+
+CVE-2025-31133:
+  name: "runc masked-path /dev/null symlink procfs-write container breakout"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2025-31133"
+
+CVE-2025-52565:
+  name: "runc /dev/console bind-mount race procfs-write container breakout"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2025-52565"
+
+CVE-2025-52881:
+  name: "runc redirected procfs write / LSM bypass container breakout"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2025-52881"
+
+CVE-2026-31431:
+  name: "Copy Fail - Linux kernel algif_aead (AF_ALG) splice page-cache LPE"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2026-31431"
+
+CVE-2026-33634:
+  name: "Trivy supply-chain compromise - backdoored aquasec/trivy image & trivy-action/setup-trivy (TeamPCP)"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2026-33634"
+
+CVE-2026-43503:
+  name: "DirtyClone - Linux kernel skb clone shared-fragment page-cache LPE (DirtyFrag family)"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2026-43503"
+
+CVE-2026-45321:
+  name: "Mini Shai-Hulud - self-propagating npm/PyPI supply-chain worm (TeamPCP)"
+  url: "https://nvd.nist.gov/vuln/detail/CVE-2026-45321"

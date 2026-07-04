@@ -855,6 +855,17 @@ _OVERLAP_SUPPRESSION_GROUPS: tuple[tuple[str, ...], ...] = (
         "download_pipe_to_shell",
         "shell_pipe_to_interpreter",
     ),
+    # Fork-triggerable AI-agent family. Both anchor on the same
+    # ``allowed_non_write_users: "*"`` step. When the tool grant is an
+    # arbitrary shell/write primitive the CRITICAL
+    # ``...with_write_or_exec_tools`` rule is the precise, actionable
+    # finding; a tool list that ALSO contains a comment/edit/merge gh
+    # verb additionally trips the HIGH ``...repo_mutating_gh_tools``
+    # rule on the same step. Keep the CRITICAL one when both fire.
+    (
+        "fork_triggerable_ai_agent_with_write_or_exec_tools",
+        "fork_triggerable_ai_agent_with_repo_mutating_gh_tools",
+    ),
     # URL-encoded form-body cred exposure. When a vendor-specific
     # token-literal rule (``elastic_apm_secret_token_or_api_key_literal``,
     # ``splunk_hec_token_literal``) ALSO fires on the same line, it is
