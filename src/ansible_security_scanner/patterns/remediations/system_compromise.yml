@@ -459,6 +459,60 @@ remediations:
           name: "runc>=1.1.12"
           state: latest
 
+  runc_procfs_write_breakout_vulnerable_install:
+    secure_fix: |
+      # CVE-2025-31133 / 52565 / 52881 procfs-write breakouts: upgrade runc
+      # off the vulnerable 1.2.x/1.3.x/1.4.0-rc floor, then restart the engine
+      # so the patched runtime is actually in use.
+      - name: Pin runc to a version fixing the Nov-2025 procfs breakouts (>=1.2.8 / >=1.3.3 / >=1.4.0-rc.3)
+        ansible.builtin.package:
+          name: "runc>=1.2.8"
+          state: latest
+      - name: Restart the container runtime so the patched runc is loaded
+        ansible.builtin.systemd:
+          name: containerd
+          state: restarted
+
+  af_alg_aead_interface_enabled_copy_fail:
+    secure_fix: |
+      # CVE-2026-31431 "Copy Fail": do not load algif_aead. Disable it
+      # persistently until a kernel carrying revert a664bf3d603d is installed.
+      - name: Persistently disable the algif_aead module (Copy Fail mitigation)
+        ansible.builtin.copy:
+          dest: /etc/modprobe.d/disable-algif.conf
+          content: "install algif_aead /bin/false\n"
+          owner: root
+          group: root
+          mode: "0644"
+      - name: Unload algif_aead if currently loaded
+        community.general.modprobe:
+          name: algif_aead
+          state: absent
+
+  dirtyclone_vulnerable_skb_module_enabled:
+    secure_fix: |
+      # CVE-2026-43503 "DirtyClone": do not load rxrpc/esp4/esp6. Disable them
+      # persistently until a kernel with the complete DirtyFrag-family fix chain
+      # (mainline 48f6a5356a33 / Linux v7.1-rc5 / distro backport) is installed.
+      - name: Persistently disable the DirtyClone-affected modules
+        ansible.builtin.copy:
+          dest: /etc/modprobe.d/disable-dirtyclone.conf
+          content: "install rxrpc /bin/false\ninstall esp4 /bin/false\ninstall esp6 /bin/false\n"
+          owner: root
+          group: root
+          mode: "0644"
+      - name: Unload esp4 if currently loaded
+        community.general.modprobe:
+          name: esp4
+          state: absent
+      - name: Block the CAP_NET_ADMIN acquisition path (defense in depth)
+        ansible.posix.sysctl:
+          name: kernel.unprivileged_userns_clone
+          value: "0"
+          sysctl_set: true
+          state: present
+          reload: true
+
   citrix_netscaler_vulnerable_firmware_pinned:
     secure_fix: |
       # Move the pinned build to a CitrixBleed-2 (CVE-2026-3055) fixed

@@ -501,6 +501,206 @@ patterns:
     hipaa: ['164.308(a)(1)(ii)(B)']
     soc2: ['CC7.1', 'CC7.2']
 
+  - id: "runc_procfs_write_breakout_vulnerable_install"
+    category: "system_compromise"
+    severity: "CRITICAL"
+    title: "runc Installed/Pinned At Version Vulnerable To The Nov-2025 procfs-Write Container Breakouts (CVE-2025-31133 / CVE-2025-52565 / CVE-2025-52881)"
+    description: >-
+        A task installs or pins `runc` (or `containerd` which bundles it) at a
+        version vulnerable to the November 2025 procfs-write container-escape
+        set - `runc < 1.2.8`, `< 1.3.3`, or `< 1.4.0-rc.3`. All three CVEs let a
+        malicious container image or a crafted mount configuration trick runc
+        into creating a read-write bind-mount over host `/proc` files
+        (`/proc/sysrq-trigger`, `/proc/sys/kernel/core_pattern`) during
+        container startup: CVE-2025-31133 abuses the `/dev/null` masked-path
+        symlink, CVE-2025-52565 races the `/dev/console` bind mount, and
+        CVE-2025-52881 redirects arbitrary procfs writes and acts as an LSM
+        bypass. Chained, they give a full container escape to host root - and
+        because runc runs privileged, neither AppArmor nor SELinux fully
+        mitigate the redirected-write variant. This is the most impactful
+        container-runtime disclosure since Leaky Vessels and affects Docker,
+        containerd, CRI-O, and every managed Kubernetes distribution.
+    regex: "(?:ansible\\.builtin\\.(?:package|apt|dnf|yum)|community\\.general\\.(?:apk|zypper))[\\s\\S]{0,300}?name\\s*:\\s*['\"]?(?:runc|containerd(?:\\.io)?)['\"]?[\\s\\S]{0,300}?(?:version|state)\\s*:\\s*['\"]?(?:1\\.2\\.[0-7](?![0-9])|1\\.3\\.[0-2](?![0-9])|1\\.4\\.0-rc\\.[12](?![0-9]))"
+    positive_examples:
+      - |2-
+        ansible.builtin.package:
+                  name: runc
+                  version: 1.2.5
+      - |2-
+        ansible.builtin.dnf:
+                  name: runc
+                  version: 1.3.1
+    negative_examples:
+      - |2-
+        ansible.builtin.package:
+                  name: runc
+                  version: 1.2.8
+      - |2-
+        ansible.builtin.package:
+                  name: runc
+                  version: 1.4.0
+    multiline: true
+    window: 30
+    recommendation: >-
+        Upgrade immediately to `runc >= 1.2.8`, `>= 1.3.3`, or
+        `>= 1.4.0-rc.3` (whichever track you run), then restart the container
+        engine so the patched runtime is actually in use
+        (`systemctl restart containerd` / `systemctl restart docker`) and
+        cordon-drain-reboot Kubernetes nodes. Pull the distro-patched package
+        (`dnf upgrade runc containerd`, `apt upgrade runc`). As defense in
+        depth until every node is patched: run rootless containers or enable
+        user-namespace remapping (`--userns-remap`), which blocks most of the
+        inadvertent procfs writes because runc then runs with reduced
+        privileges; only pull images from signed/trusted registries
+        (cosign / policy-controller) since exploitation requires an
+        attacker-controlled image or mount config.
+    cwe: ['CWE-59', 'CWE-668', 'CWE-367', 'CWE-787']
+    cve: ["CVE-2025-31133", "CVE-2025-52565", "CVE-2025-52881"]
+    owasp_appsec: ["A01:2021", "A06:2021"]
+    mitre_attack: ['T1068', 'T1611', 'T1610']
+    cis_controls: ['CIS-4.8', 'CIS-7.3', 'CIS-7.7']
+    nist_controls: ['RA-5', 'SC-39', 'SI-2']
+    pci_dss: ['6.3.3', '11.3.1']
+    hipaa: ['164.308(a)(1)(ii)(B)']
+    soc2: ['CC7.1', 'CC7.2']
+
+  - id: "af_alg_aead_interface_enabled_copy_fail"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "AF_ALG algif_aead Interface Explicitly Loaded/Enabled (Re-Exposes Copy Fail LPE, CVE-2026-31431)"
+    description: >-
+        A task explicitly loads or persistently enables the kernel userspace
+        crypto AEAD interface - `modprobe`/`insmod algif_aead` (or `af_alg`),
+        `ansible.builtin.modprobe: name: algif_aead state: present`, or an
+        `/etc/modules-load.d` entry adding `algif_aead`/`af_alg`. That interface
+        is the attack surface for CVE-2026-31431 ("Copy Fail"), a local
+        privilege escalation disclosed April 2026 and unpatched on most distros
+        at disclosure: a logic flaw in `algif_aead`'s in-place decrypt path lets
+        an unprivileged user chain page-cache pages (via `splice()`) into an
+        AEAD destination scatterlist, and the `authencesn` template's 4-byte
+        scratch write then corrupts the cached copy of a setuid binary such as
+        `/usr/bin/su` - root in seconds, with a public 732-byte PoC covering
+        Ubuntu, RHEL, Amazon Linux, and SUSE kernels. Loading `algif_aead`
+        directly undoes the recommended interim mitigation (which disables the
+        module) and is not needed by dm-crypt/LUKS, kTLS, IPsec, OpenSSL,
+        GnuTLS, or SSH. Explicit unload
+        (`state: absent` / `rmmod` / `modprobe -r`), the
+        `install algif_aead /bin/false` disable stanza, and
+        the `initcall_blacklist=algif_aead_init` boot arg are not flagged.
+    regex: "(?:ansible\\.builtin\\.modprobe|community\\.general\\.modprobe)\\s*:[\\s\\S]{0,160}?name\\s*:\\s*[\"']?(?:algif_aead|algif_skcipher|af_alg)\\b(?![\\s\\S]{0,160}?state\\s*:\\s*[\"']?absent)|(?:^|[;&|]|\\brun\\b|shell\\s*:\\s*|command\\s*:\\s*|-\\s+)(?:modprobe|insmod)\\s+(?!-r\\b)(?:[^\\n;]*\\s)?(?:algif_aead|af_alg)\\b|modules-load\\.d[\\s\\S]{0,120}?(?:algif_aead|af_alg)\\b|(?<![\\w/.-])install\\s+(?:algif_aead|af_alg)\\s+(?!/bin/(?:false|true)\\b)[^\\n]"
+    positive_examples:
+      - |2-
+        ansible.builtin.modprobe:
+                  name: algif_aead
+                  state: present
+      - "      shell: modprobe algif_aead"
+    negative_examples:
+      - |2-
+        ansible.builtin.modprobe:
+                  name: algif_aead
+                  state: absent
+      - "      shell: modprobe -r algif_aead"
+      - |2-
+        ansible.builtin.copy:
+                  dest: /etc/modprobe.d/disable-algif.conf
+                  content: |
+                    install algif_aead /bin/false
+    multiline: true
+    window: 12
+    recommendation: >-
+        Do not load `algif_aead`/`af_alg` unless an application genuinely binds
+        AEAD sockets to the kernel crypto API (rare - dm-crypt, kTLS, IPsec,
+        and the common TLS libraries do not). Patch to a kernel carrying the
+        upstream revert `a664bf3d603d` (Linux 6.18.22, 6.19.12, 7.0, or a distro
+        backport). Until patched, disable the module persistently:
+        `ansible.builtin.copy` an `/etc/modprobe.d/disable-algif.conf` with
+        `install algif_aead /bin/false` and run
+        `ansible.builtin.modprobe: name: algif_aead state: absent`. For
+        built-in kernels, add the boot arg `initcall_blacklist=algif_aead_init`
+        and reboot. For untrusted/multi-tenant workloads and CI/CD runners,
+        add a seccomp profile that denies `socket(AF_ALG, ...)` and prioritize
+        Kubernetes nodes. Assess current exposure with `lsof | grep AF_ALG`.
+    cwe: ['CWE-787', 'CWE-284']
+    cve: ["CVE-2026-31431"]
+    owasp_appsec: ["A06:2021", "A05:2021"]
+    owasp_asvs: [V5.3.1]
+    mitre_attack: ['T1068', 'T1611', 'T1547.006']
+    cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-10.5']
+    nist_controls: ['CM-7', 'SC-39', 'SI-2']
+    pci_dss: ['2.2.1', '6.3.3']
+    soc2: ['CC6.1', 'CC7.1']
+
+  - id: "dirtyclone_vulnerable_skb_module_enabled"
+    category: "system_compromise"
+    severity: "HIGH"
+    title: "DirtyClone-Affected Kernel Module (rxrpc / esp4 / esp6) Explicitly Loaded (Re-Exposes CVE-2026-43503)"
+    description: >-
+        A task explicitly loads or persistently enables one of the kernel network
+        modules that carries the in-place cloned-packet primitive abused by the
+        "DirtyClone" local-privilege-escalation family - `modprobe`/`insmod rxrpc`,
+        `esp4`, or `esp6`, an `ansible.builtin.modprobe: name: esp4 state: present`,
+        or an `/etc/modules-load.d` entry adding them. DirtyClone (CVE-2026-43503,
+        CVSS 8.8, JFrog, June 2026) is a variant of the DirtyFrag / Fragnesia /
+        "Copy Fail 2" family (CVE-2026-43284, CVE-2026-43500, CVE-2026-46300): a
+        `SKBFL_SHARED_FRAG` flag is dropped across `__pskb_copy_fclone` /
+        `skb_segment` / `skb_gro_receive`, letting a local user with
+        `CAP_NET_ADMIN` (obtainable via an unprivileged user namespace) launder a
+        shared page-cache fragment into a writable clone and overwrite a read-only
+        file (e.g. a setuid binary) for root - and container escape on shared-kernel
+        hosts. Loading these modules directly undoes the documented interim
+        mitigation, which blacklists them. `rxrpc` is only needed for AFS; `esp4`
+        /`esp6` implement IPsec ESP and are only needed for IPsec VPN tunnels.
+        Explicit unload (`state: absent` / `rmmod` / `modprobe -r`) and the
+        `install <mod> /bin/false` disable stanza are not flagged.
+    regex: "(?:ansible\\.builtin\\.modprobe|community\\.general\\.modprobe)\\s*:[\\s\\S]{0,160}?name\\s*:\\s*[\"']?(?:rxrpc|esp4|esp6)\\b(?![\\s\\S]{0,160}?state\\s*:\\s*[\"']?absent)|(?:^|[;&|]|\\brun\\b|shell\\s*:\\s*|command\\s*:\\s*|-\\s+)(?:modprobe|insmod)\\s+(?!-r\\b)(?:[^\\n;]*\\s)?(?:rxrpc|esp4|esp6)\\b|modules-load\\.d[\\s\\S]{0,120}?(?:rxrpc|esp4|esp6)\\b|(?<![\\w/.-])install\\s+(?:rxrpc|esp4|esp6)\\s+(?!/bin/(?:false|true)\\b)[^\\n]"
+    positive_examples:
+      - |2-
+        ansible.builtin.modprobe:
+                  name: rxrpc
+                  state: present
+      - "      shell: modprobe esp4"
+      - "      command: insmod esp6"
+    negative_examples:
+      - |2-
+        ansible.builtin.modprobe:
+                  name: rxrpc
+                  state: absent
+      - "      shell: modprobe -r esp4"
+      - |2-
+        ansible.builtin.copy:
+                  dest: /etc/modprobe.d/disable-dirtyclone.conf
+                  content: |
+                    install esp4 /bin/false
+      - "      shell: modprobe overlay"
+    multiline: true
+    window: 12
+    recommendation: >-
+        Do not load `rxrpc`/`esp4`/`esp6` unless the host genuinely needs AFS
+        (`rxrpc`) or IPsec ESP VPN tunnels (`esp4`/`esp6`). Patch to a kernel that
+        carries the complete DirtyFrag-family fix chain - only the full series is
+        safe (mainline commit `48f6a5356a33`, Linux v7.1-rc5, or a distro backport
+        such as Ubuntu noble `6.8.0-124` / jammy `5.15.0-181`); a kernel that took
+        the early DirtyFrag/Fragnesia patches but not the CVE-2026-43503 /
+        CVE-2026-46300 follow-ups is still exploitable. Until patched, disable the
+        modules persistently: `ansible.builtin.copy` an
+        `/etc/modprobe.d/disable-dirtyclone.conf` containing
+        `install rxrpc /bin/false` / `install esp4 /bin/false` /
+        `install esp6 /bin/false` and run
+        `ansible.builtin.modprobe: name: esp4 state: absent`. Block the
+        `CAP_NET_ADMIN` acquisition path by setting
+        `kernel.unprivileged_userns_clone = 0` (defense in depth), and for
+        multi-tenant / container hosts add seccomp + AppArmor profiles restricting
+        namespace creation. Prioritize Kubernetes nodes and CI/CD runners.
+    cwe: ['CWE-362', 'CWE-787', 'CWE-284']
+    cve: ["CVE-2026-43503"]
+    owasp_appsec: ["A06:2021", "A05:2021"]
+    owasp_asvs: [V5.3.1]
+    mitre_attack: ['T1068', 'T1611', 'T1547.006']
+    cis_controls: ['CIS-3.3', 'CIS-4.8', 'CIS-10.5']
+    nist_controls: ['CM-7', 'SC-39', 'SI-2']
+    pci_dss: ['2.2.1', '6.3.3']
+    soc2: ['CC6.1', 'CC7.1']
+
   - id: "io_uring_runtime_enabled_without_seccomp_filter"
     category: "system_compromise"
     severity: "HIGH"

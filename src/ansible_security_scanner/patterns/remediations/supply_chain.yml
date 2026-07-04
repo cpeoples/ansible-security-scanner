@@ -551,6 +551,46 @@ remediations:
           # and --jitconfig, and destroyed at job-end. Or: switch to
           # GitHub-hosted runners (`ubuntu-latest`).
 
+  rogue_self_hosted_runner_registration_persistence:
+    secure_fix: |
+      # Register a runner only with a short-lived token pulled from your
+      # secrets manager and passed as a variable - never by piping a network
+      # download into the shell, and never with an unrecognized --labels value.
+      - name: Register the self-hosted runner with a Vault-sourced token
+        ansible.builtin.command:
+          argv:
+            - ./config.sh
+            - --url
+            - "https://github.com/{{ runner_org }}/{{ runner_repo }}"
+            - --token
+            - "{{ vault_runner_token }}"
+            - --labels
+            - "linux,x64,{{ runner_pool }}"
+            - --ephemeral
+            - --unattended
+        no_log: true
+        changed_when: true
+      - name: Alert if any registered runner has an unexpected label or name
+        ansible.builtin.assert:
+          that:
+            - "'SHA1HULUD' not in (runner_labels | default(''))"
+
+  gitlab_ci_include_from_untrusted_remote_or_mutable_ref:
+    secure_fix: |
+      # Include CI config only from a project you control, pinned to an
+      # immutable commit SHA - never `remote:` and never a branch/tag `ref:`.
+      - name: Render a .gitlab-ci.yml that pins the include to a commit SHA
+        ansible.builtin.copy:
+          dest: .gitlab-ci.yml
+          content: |
+            include:
+              - project: 'platform/shared-ci'
+                ref: 8b3a1f9c2d4e5a6b7c8d9e0f1a2b3c4d5e6f7a8b
+                file: '/templates/build.yml'
+          owner: root
+          group: root
+          mode: "0644"
+
   github_actions_uses_unpinned_branch_or_main_ref:
     secure_fix: |
       # Pin every `uses:` to an immutable commit SHA (not a branch)

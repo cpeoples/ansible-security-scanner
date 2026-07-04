@@ -483,6 +483,36 @@ remediations:
           --enable-vpc-accessible-services
           --vpc-allowed-services=RESTRICTED-SERVICES
 
+  docker_api_exposed_plaintext:
+    secure_fix: |
+      # Do not bind dockerd to a routable TCP socket without mutual TLS.
+      # Prefer the local unix socket and reach it over SSH; if a TCP listener
+      # is required, enable --tlsverify on 2376 and require client certs.
+      - name: Configure the Docker daemon to listen only on the local unix socket
+        ansible.builtin.copy:
+          dest: /etc/docker/daemon.json
+          content: |
+            {
+              "hosts": ["unix:///var/run/docker.sock"],
+              "tls": true,
+              "tlsverify": true,
+              "tlscacert": "/etc/docker/ca.pem",
+              "tlscert": "/etc/docker/server-cert.pem",
+              "tlskey": "/etc/docker/server-key.pem"
+            }
+          owner: root
+          group: root
+          mode: "0644"
+        notify: restart docker
+      - name: Reach the daemon remotely over SSH instead of an open TCP port
+        ansible.builtin.lineinfile:
+          path: /etc/environment
+          line: 'DOCKER_HOST=ssh://deploy@build-host'
+          create: true
+          owner: root
+          group: root
+          mode: "0644"
+
   docker_sock_abuse:
     secure_fix: |
       - name: Container runtime metrics with no docker.sock bind-mount

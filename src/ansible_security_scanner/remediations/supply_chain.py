@@ -64,6 +64,9 @@ class SupplyChainRemediationGenerator(BaseRemediationGenerator):
         "adb_tcpip_remote_debug_enabled": "adb_tcpip",
         # Vulnerable vendor installs (CVE) -> pin to a patched version
         "xz_liblzma_backdoored_version_install": "vuln_pkg_pin",
+        "mini_shai_hulud_poisoned_package_version_install": "shai_hulud_pkg",
+        "shai_hulud_c2_or_payload_endpoint_referenced": "shai_hulud_c2",
+        "trivy_teampcp_backdoored_image_or_c2_referenced": "trivy_teampcp",
         "fortios_ssl_vpn_vulnerable_version_install": "vuln_vendor_upgrade",
         "palo_alto_globalprotect_vulnerable_install": "vuln_vendor_upgrade",
         "ivanti_connect_secure_vulnerable_install": "vuln_vendor_upgrade",
@@ -124,6 +127,9 @@ class SupplyChainRemediationGenerator(BaseRemediationGenerator):
             "remove_tunnel_tool": self._generate_remove_tunnel_tool_fix,
             "adb_tcpip": self._generate_adb_tcpip_fix,
             "vuln_pkg_pin": self._generate_vuln_pkg_pin_fix,
+            "shai_hulud_pkg": self._generate_shai_hulud_pkg_fix,
+            "shai_hulud_c2": self._generate_shai_hulud_c2_fix,
+            "trivy_teampcp": self._generate_trivy_teampcp_fix,
             "vuln_vendor_upgrade": self._generate_vuln_vendor_upgrade_fix,
             "mgmt_iface_exposed": self._generate_mgmt_iface_exposed_fix,
             "compose_db_bind": self._generate_compose_db_bind_fix,
@@ -1277,6 +1283,155 @@ or building this version plants a remote-code-execution backdoor.
 
 **Why this matters:** Rebuild any image whose layers installed 5.6.0/5.6.1 and
 rotate SSH host keys on machines that ran the vulnerable build.
+"""
+
+    def _generate_shai_hulud_pkg_fix(self, code_snippet: str) -> str:
+        return f"""
+**\u274c Vulnerable Code:**
+```yaml
+{code_snippet}
+```
+
+**\U0001f6a8 Mini Shai-Hulud Worm - Poisoned Package Version (CVE-2026-45321):**
+This pins an npm/PyPI package at a version poisoned by the self-propagating
+"Mini Shai-Hulud" worm. On install it harvests cloud/CI credentials,
+self-propagates by republishing packages you can publish, and drops a
+`gh-token-monitor` persistence daemon with a home-directory wiper. The
+malicious releases carry valid SLSA/Sigstore provenance, so provenance alone
+does not catch them, and installation already executed attacker code - simply
+bumping the version is not enough.
+
+**\u2705 Secure Fix - Pin a post-incident clean version, then do incident response:**
+```yaml
+# Remove the poisoned pin and install a known-good version published after the
+# incident window (verify against the vendor advisory).
+- name: Install a non-poisoned package version
+  ansible.builtin.pip:
+    name: "mistralai==2.4.5"   # last known-good; use the advisory's clean release
+    state: present
+
+# Reinstall dependencies without running lifecycle scripts, from a hash-locked
+# lockfile only.
+- name: Reinstall node deps with scripts disabled
+  ansible.builtin.command:
+    argv: [npm, ci, --ignore-scripts]
+  changed_when: true
+
+# Fail closed while any known-poisoned pin is still present.
+- name: Refuse known Mini Shai-Hulud poisoned versions
+  ansible.builtin.assert:
+    that:
+      - "'mistralai==2.4.6' not in lookup('file', requirements_path, errors='ignore')"
+    fail_msg: "Poisoned Mini Shai-Hulud package version detected - do incident response, do not just re-pin."
+```
+
+**Why this matters:** On any host that installed a poisoned version, first remove
+the `gh-token-monitor` persistence unit (rotating creds before removing it
+triggers the wiper), then rotate every reachable credential (GitHub PATs,
+npm/PyPI tokens, AWS/GCP/Azure keys, Kubernetes and Vault tokens), audit
+`.claude/` and `.vscode/` for injected artifacts, and stop trusting provenance
+attestation alone.
+"""
+
+    def _generate_shai_hulud_c2_fix(self, code_snippet: str) -> str:
+        return f"""
+**\u274c Compromise Indicator Found:**
+```yaml
+{code_snippet}
+```
+
+**\U0001f6a8 Shai-Hulud / TeamPCP C2 or payload endpoint (CVE-2026-45321):**
+This task references a known Mini Shai-Hulud command-and-control / payload
+indicator (`git-tanstack.com`, `*.getsession.org`, `api.masscan.cloud`,
+`83.142.209.194`, `transformers.pyz`, `router_init.js` / `router_runtime.js` /
+`tanstack_runner.js`, or the `gh-token-monitor` daemon). This is not a
+misconfiguration to tune - the host or CI runner is either staging the malware
+or was already infected. There is no "safe version" to pin to; do incident
+response.
+
+**\u2705 Remediation - Remove the reference, then do incident response (order matters):**
+```yaml
+# Neutralize persistence first. The malware wipes the home directory (rm -rf ~/)
+# if GitHub tokens are revoked while it is still running, so stop the daemon
+# before any credential rotation.
+- name: Stop and disable the gh-token-monitor persistence unit
+  ansible.builtin.systemd:
+    name: gh-token-monitor
+    scope: user
+    state: stopped
+    enabled: false
+  failed_when: false
+
+- name: Remove Shai-Hulud payload artifacts
+  ansible.builtin.file:
+    path: "{{{{ item }}}}"
+    state: absent
+  loop:
+    - /tmp/transformers.pyz
+    - "{{{{ ansible_env.HOME }}}}/.config/systemd/user/gh-token-monitor.service"
+
+# Block C2 at the host level as defense in depth; also block at DNS/proxy.
+- name: Null-route Shai-Hulud C2 domains
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    block: |
+      0.0.0.0 git-tanstack.com
+      0.0.0.0 filev2.getsession.org
+    marker: "# {{mark}} ANSIBLE MANAGED shai-hulud c2 block"
+```
+
+**Why this matters:** After neutralizing persistence and blocking C2, rotate every
+credential reachable from the host (GitHub PATs, npm/PyPI tokens, AWS/GCP/Azure
+keys, Kubernetes service-account tokens, Vault tokens), audit `.claude/` and
+`.vscode/` for injected hooks, reinstall dependencies with `--ignore-scripts`
+from committed hash-locked lockfiles, and investigate how the reference entered
+the repository (a compromised dependency's install hook or a generated file).
+"""
+
+    def _generate_trivy_teampcp_fix(self, code_snippet: str) -> str:
+        return f"""
+**\u274c Compromised Trivy Reference Found:**
+```yaml
+{code_snippet}
+```
+
+**\U0001f6a8 Backdoored Trivy Image / TeamPCP C2 (CVE-2026-33634):**
+This references a Trivy image tag backdoored in the March 2026 supply-chain
+compromise (`aquasec[urity]/trivy:0.69.4|0.69.5|0.69.6`, or the attacker's
+never-released `v0.70.0`), or the campaign's C2 / lookalike infrastructure. The
+injected stealer dumps CI runner memory and cloud/SSH/Kubernetes credentials, so
+a pipeline that ran a poisoned build must be treated as a full-credential
+exposure - not a version bump.
+
+**\u2705 Secure Fix - Pin a safe Trivy by digest, then rotate credentials:**
+```yaml
+# Use a safe Trivy tag (<= 0.69.3 or a clean post-incident release), referenced
+# by digest so a re-poisoned tag cannot silently redirect.
+- name: Pull a known-good Trivy image by digest
+  community.docker.docker_image:
+    name: aquasec/trivy@sha256:<verified-digest-of-a-safe-release>
+    source: pull
+
+# If you use the GitHub Actions, pin the remediated commits rather than tags:
+#   aquasecurity/trivy-action@57a97c7   # = v0.35.0
+#   aquasecurity/setup-trivy@3fb12ec    # = v0.2.6
+
+- name: Refuse backdoored Trivy tags
+  ansible.builtin.assert:
+    that:
+      - "'trivy:0.69.4' not in trivy_image_ref"
+      - "'trivy:0.69.5' not in trivy_image_ref"
+      - "'trivy:0.69.6' not in trivy_image_ref"
+    fail_msg: "Backdoored Trivy image (CVE-2026-33634) referenced - rotate all reachable credentials, do not just re-tag."
+```
+
+**Why this matters:** Rotate every credential reachable from any runner/host that
+ran a poisoned build during the exposure window (GitHub tokens, cloud creds,
+registry tokens, SSH keys, DB passwords, Kubernetes SA tokens). Hunt for outbound
+traffic to `scan.aquasecurtiy.org` / `models.litellm.cloud` / `checkmarx.zone` /
+`83.142.209.203`, for artifacts like `~/.config/sysmon/sysmon.py` and `/tmp/pglog`,
+for `node-setup-*` Kubernetes pods, and for a `tpcp-docs` repo in your GitHub org.
+Prefer digest-pinned images and SHA-pinned Actions going forward.
 """
 
     def _generate_vuln_vendor_upgrade_fix(self, code_snippet: str, rule_id: str = "") -> str:
