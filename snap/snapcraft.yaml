@@ -36,10 +36,15 @@ parts:
     build-packages:
       - git
     # classic confinement has no base runtime to borrow python from, so the
-    # interpreter has to ship in the payload. python3-venv pulls it in;
-    # dropping pyvenv.cfg stops the bundled venv from resolving to a build path.
+    # full interpreter has to ship in the payload. python3-venv alone doesn't
+    # stage the python3.12 binary the plugin looks for; python3.12-minimal and
+    # the stdlib packages do. Dropping pyvenv.cfg keeps the bundled venv from
+    # resolving python to a build-time path at runtime.
     stage-packages:
       - python3-venv
+      - python3.12-minimal
+      - libpython3.12-minimal
+      - libpython3.12-stdlib
     stage:
       - -pyvenv.cfg
     override-build: |
