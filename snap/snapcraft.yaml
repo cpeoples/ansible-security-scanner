@@ -1,0 +1,34 @@
+name: ansible-security-scanner
+base: core24
+adopt-info: scanner
+summary: Static security scanner for Ansible playbooks, roles, and collections
+description: |
+  Detects malicious code, RCE, command and template injection, hardcoded
+  credentials, supply-chain risk, and unauthorized cloud access. Outputs
+  SARIF, CycloneDX SBOM, and GitLab SAST.
+license: Apache-2.0
+source-code: https://github.com/cpeoples/ansible-security-scanner
+issues: https://github.com/cpeoples/ansible-security-scanner/issues
+website: https://cpeoples.github.io/ansible-security-scanner/
+grade: stable
+
+# classic: the scanner reads whatever directory the user points it at
+# (--directory /etc/ansible, /opt, mounted volumes, ...) and writes reports
+# anywhere. strict confinement would sandbox it to $HOME and break that, so
+# classic is required. Needs a one-time store review for the registered name.
+confinement: classic
+
+apps:
+  ansible-security-scanner:
+    command: bin/ansible-security-scanner
+
+parts:
+  scanner:
+    plugin: python
+    source: .
+    # Build from the checked-out tree so the bundled pattern YAMLs match the
+    # release being cut rather than whatever is live on PyPI. The snap version
+    # is derived from the release tag.
+    override-pull: |
+      craftctl default
+      craftctl set version="$(git describe --tags --abbrev=0 | sed 's/^v//')"
