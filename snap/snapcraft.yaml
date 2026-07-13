@@ -29,11 +29,13 @@ parts:
   scanner:
     plugin: python
     source: .
-    # The managed build has neither git nor the .git dir, so hatch-vcs can't
-    # derive the version. The workflow writes it to snap/.version before the
-    # build; read that and hand it to both craftctl and setuptools-scm.
+    # core24 ships no git binary, so hatch-vcs can't read the tag from the
+    # copied .git. Install git, mark the copied tree safe (it's owned by a
+    # different uid than the build user), and set the snap version from the
+    # tag the workflow stamped into snap/.version.
+    build-packages:
+      - git
     override-build: |
-      version="$(cat "${CRAFT_PROJECT_DIR}/snap/.version")"
-      craftctl set version="$version"
-      export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_ANSIBLE_SECURITY_SCANNER="$version"
+      git config --global --add safe.directory "${CRAFT_PART_BUILD}"
+      craftctl set version="$(cat "${CRAFT_PROJECT_DIR}/snap/.version")"
       craftctl default
