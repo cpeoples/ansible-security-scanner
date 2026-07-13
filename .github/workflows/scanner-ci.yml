@@ -92,8 +92,7 @@ jobs:
 
   snap:
     name: Build snap (dry run)
-    # Pinned to match the core24 build-base, required for host-mode builds.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: test
     permissions:
       contents: read
@@ -106,7 +105,7 @@ jobs:
 
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
-          fetch-depth: 0  # snapcraft adopt-info runs `git describe` for the version
+          fetch-depth: 0  # need tags so `git describe` can resolve the version
           persist-credentials: false
 
       - name: Check for snap-relevant changes
@@ -126,11 +125,13 @@ jobs:
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Resolve snap version
+        if: steps.changed.outputs.run == 'true'
+        run: git describe --tags --abbrev=0 | sed 's/^v//' > snap/.version
+
       - name: Build snap
         id: build
         if: steps.changed.outputs.run == 'true'
-        env:
-          SNAPCRAFT_BUILD_ENVIRONMENT: host
         uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79  # v1.3.0
 
       - name: Install and smoke-test the snap

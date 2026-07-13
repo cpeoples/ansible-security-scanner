@@ -29,8 +29,11 @@ parts:
   scanner:
     plugin: python
     source: .
-    # Built in destructive/host mode (see the workflow), so git and the tags
-    # are present and hatch-vcs resolves the version from the release tag.
-    override-pull: |
+    # The managed build has neither git nor the .git dir, so hatch-vcs can't
+    # derive the version. The workflow writes it to snap/.version before the
+    # build; read that and hand it to both craftctl and setuptools-scm.
+    override-build: |
+      version="$(cat "${CRAFT_PROJECT_DIR}/snap/.version")"
+      craftctl set version="$version"
+      export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_ANSIBLE_SECURITY_SCANNER="$version"
       craftctl default
-      craftctl set version="$(git describe --tags --abbrev=0 | sed 's/^v//')"

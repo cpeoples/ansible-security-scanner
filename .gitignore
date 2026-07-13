@@ -132,6 +132,9 @@ tmp/
 *.bak
 *.orig
 
+# Version stamp written by CI before the snap build
+snap/.version
+
 # -- Local playbook corpus for the stress-audit tool -------------------------
 # Top-level audit/dev scripts live in /scripts; do not match nested paths
 # like .hugo/scripts/ which contains the legitimate docs build helpers.
