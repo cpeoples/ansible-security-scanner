@@ -652,7 +652,8 @@ jobs:
 
   publish-snap:
     name: Publish to Snap Store
-    runs-on: ubuntu-latest
+    # Pinned to match the core24 build-base, required for host-mode builds.
+    runs-on: ubuntu-24.04
     needs: publish-pypi
     if: github.event_name == 'release'
     environment:
@@ -675,6 +676,8 @@ jobs:
 
       - name: Build snap
         id: build
+        env:
+          SNAPCRAFT_BUILD_ENVIRONMENT: host
         uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79  # v1.3.0
 
       - name: Publish to stable
