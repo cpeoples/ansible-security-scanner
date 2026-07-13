@@ -24,6 +24,11 @@ confinement: classic
 apps:
   ansible-security-scanner:
     command: bin/ansible-security-scanner
+    # Classic confinement sets no library paths, so point the bundled launcher
+    # at the interpreter's stdlib and the venv's site-packages explicitly.
+    environment:
+      PYTHONPATH: $SNAP/lib/python3.12/site-packages:$SNAP/usr/lib/python3.12
+      PATH: $SNAP/bin:$SNAP/usr/bin:$PATH
 
 parts:
   scanner:
