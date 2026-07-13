@@ -1,14 +1,17 @@
 name: ansible-security-scanner
 base: core24
 adopt-info: scanner
+title: Ansible Security Scanner
 summary: Static security scanner for Ansible playbooks, roles, and collections
 description: |
   Detects malicious code, RCE, command and template injection, hardcoded
   credentials, supply-chain risk, and unauthorized cloud access. Outputs
   SARIF, CycloneDX SBOM, and GitLab SAST.
+icon: snap/gui/icon.svg
 license: Apache-2.0
 source-code: https://github.com/cpeoples/ansible-security-scanner
 issues: https://github.com/cpeoples/ansible-security-scanner/issues
+contact: https://github.com/cpeoples/ansible-security-scanner/issues
 website: https://cpeoples.github.io/ansible-security-scanner/
 grade: stable
 
