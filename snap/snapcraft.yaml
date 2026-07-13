@@ -1,0 +1,58 @@
+name: ansible-security-scanner
+base: core24
+adopt-info: scanner
+title: Ansible Security Scanner
+summary: Static security scanner for Ansible playbooks, roles, and collections
+description: |
+  Detects malicious code, RCE, command and template injection, hardcoded
+  credentials, supply-chain risk, and unauthorized cloud access. Outputs
+  SARIF, CycloneDX SBOM, and GitLab SAST.
+icon: snap/gui/icon.svg
+license: Apache-2.0
+source-code: https://github.com/cpeoples/ansible-security-scanner
+issues: https://github.com/cpeoples/ansible-security-scanner/issues
+contact: https://github.com/cpeoples/ansible-security-scanner/issues
+website: https://cpeoples.github.io/ansible-security-scanner/
+grade: stable
+
+# classic: the scanner reads whatever directory the user points it at
+# (--directory /etc/ansible, /opt, mounted volumes, ...) and writes reports
+# anywhere. strict confinement would sandbox it to $HOME and break that, so
+# classic is required. Needs a one-time store review for the registered name.
+confinement: classic
+
+apps:
+  ansible-security-scanner:
+    command: bin/ansible-security-scanner
+    # Classic confinement sets no library paths, so point the bundled launcher
+    # at the interpreter's stdlib and the venv's site-packages explicitly.
+    environment:
+      PYTHONPATH: $SNAP/lib/python3.12/site-packages:$SNAP/usr/lib/python3.12
+      PATH: $SNAP/bin:$SNAP/usr/bin:$PATH
+
+parts:
+  scanner:
+    plugin: python
+    source: .
+    # core24 ships no git binary, so hatch-vcs can't read the tag from the
+    # copied .git. Install git, mark the copied tree safe (it's owned by a
+    # different uid than the build user), and set the snap version from the
+    # tag the workflow stamped into snap/.version.
+    build-packages:
+      - git
+    # classic confinement has no base runtime to borrow python from, so the
+    # full interpreter has to ship in the payload. python3-venv alone doesn't
+    # stage the python3.12 binary the plugin looks for; python3.12-minimal and
+    # the stdlib packages do. Dropping pyvenv.cfg keeps the bundled venv from
+    # resolving python to a build-time path at runtime.
+    stage-packages:
+      - python3-venv
+      - python3.12-minimal
+      - libpython3.12-minimal
+      - libpython3.12-stdlib
+    stage:
+      - -pyvenv.cfg
+    override-build: |
+      git config --global --add safe.directory "${CRAFT_PART_BUILD}"
+      craftctl set version="$(cat "${CRAFT_PROJECT_DIR}/snap/.version")"
+      craftctl default
