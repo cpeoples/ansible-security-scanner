@@ -35,6 +35,13 @@ parts:
     # tag the workflow stamped into snap/.version.
     build-packages:
       - git
+    # classic confinement has no base runtime to borrow python from, so the
+    # interpreter has to ship in the payload. python3-venv pulls it in;
+    # dropping pyvenv.cfg stops the bundled venv from resolving to a build path.
+    stage-packages:
+      - python3-venv
+    stage:
+      - -pyvenv.cfg
     override-build: |
       git config --global --add safe.directory "${CRAFT_PART_BUILD}"
       craftctl set version="$(cat "${CRAFT_PROJECT_DIR}/snap/.version")"
