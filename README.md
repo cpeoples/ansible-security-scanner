@@ -83,18 +83,6 @@ sudo snap install ansible-security-scanner --classic
 
 Published to the [Snap Store](https://snapcraft.io/ansible-security-scanner). Classic confinement lets the scanner read playbooks anywhere on disk.
 
-### apt (Debian / Ubuntu)
-
-```bash
-curl -fsSL https://cpeoples.github.io/ansible-security-scanner/apt/KEY.gpg \
-  | sudo gpg --dearmor -o /usr/share/keyrings/ansible-security-scanner.gpg
-echo "deb [signed-by=/usr/share/keyrings/ansible-security-scanner.gpg] https://cpeoples.github.io/ansible-security-scanner/apt stable main" \
-  | sudo tee /etc/apt/sources.list.d/ansible-security-scanner.list
-sudo apt-get update && sudo apt-get install ansible-security-scanner
-```
-
-Serves the same signed `.deb` packages attached to each release. `amd64` and `arm64` are both published.
-
 ### pre-commit
 
 Add to your `.pre-commit-config.yaml`:
