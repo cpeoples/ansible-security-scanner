@@ -2,23 +2,35 @@ name: ansible-security-scanner
 base: core24
 adopt-info: scanner
 title: Ansible Security Scanner
-summary: Static security scanner for Ansible playbooks, roles, and collections
+summary: "Security scanner for Ansible: malicious code, RCE, secrets, supply chain"
 description: |
-  Detects malicious code, RCE, command and template injection, hardcoded
-  credentials, supply-chain risk, and unauthorized cloud access. Outputs
-  SARIF, CycloneDX SBOM, and GitLab SAST.
+  Static SAST for Ansible content: playbooks, roles, collections, task
+  files, vars, and inventories.
+
+  Detects malicious code, remote code execution, command and template
+  injection, hardcoded credentials, supply-chain risk, unauthorized cloud
+  access, lateral movement, and reverse shells. Every finding ships with
+  remediation guidance and maps to CWE, OWASP Top 10, OWASP ASVS, MITRE
+  ATT&CK, NIST, and CIS.
+
+  Over 1,000 rules across 30+ detection categories, auto-discovered from
+  YAML pattern plugins. Outputs SARIF, CycloneDX SBOM, GitLab SAST, JUnit,
+  JSON, HTML, and Markdown.
+
+  CI-native and autofix-capable. Releases are Sigstore-signed with SLSA
+  Build Level 3 provenance.
 icon: snap/gui/icon.svg
 license: Apache-2.0
 source-code: https://github.com/cpeoples/ansible-security-scanner
 issues: https://github.com/cpeoples/ansible-security-scanner/issues
 contact: https://github.com/cpeoples/ansible-security-scanner/issues
+donation: https://github.com/sponsors/cpeoples
 website: https://cpeoples.github.io/ansible-security-scanner/
 grade: stable
 
-# classic: the scanner reads whatever directory the user points it at
-# (--directory /etc/ansible, /opt, mounted volumes, ...) and writes reports
-# anywhere. strict confinement would sandbox it to $HOME and break that, so
-# classic is required. Needs a one-time store review for the registered name.
+# The scanner reads and writes arbitrary paths the user points it at
+# (--directory /etc/ansible, /opt, mounted volumes), which strict
+# confinement would sandbox to $HOME. Requires a one-time store review.
 confinement: classic
 
 apps:
@@ -34,17 +46,13 @@ parts:
   scanner:
     plugin: python
     source: .
-    # core24 ships no git binary, so hatch-vcs can't read the tag from the
-    # copied .git. Install git, mark the copied tree safe (it's owned by a
-    # different uid than the build user), and set the snap version from the
-    # tag the workflow stamped into snap/.version.
+    # core24 has no git, which hatch-vcs needs to resolve the version from
+    # the tag; the workflow stamps it into snap/.version instead.
     build-packages:
       - git
-    # classic confinement has no base runtime to borrow python from, so the
-    # full interpreter has to ship in the payload. python3-venv alone doesn't
-    # stage the python3.12 binary the plugin looks for; python3.12-minimal and
-    # the stdlib packages do. Dropping pyvenv.cfg keeps the bundled venv from
-    # resolving python to a build-time path at runtime.
+    # classic confinement has no base runtime, so the interpreter ships in
+    # the payload; pyvenv.cfg is dropped so the venv doesn't resolve python
+    # to a build-time path at runtime.
     stage-packages:
       - python3-venv
       - python3.12-minimal

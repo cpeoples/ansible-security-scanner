@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="240" viewBox="0 0 720 240">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d0d0d"/>
+      <stop offset="1" stop-color="#161821"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="240" fill="url(#bg)"/>
+
+  <rect x="40" y="52" width="4" height="136" fill="#7c3aed" rx="2"/>
+
+  <g transform="translate(66, 84) scale(0.28)">
+    <circle cx="128" cy="128" r="128" fill="#1A1918"/>
+    <path d="M130.459863,78.228885 L163.47146,159.705138 L113.608007,120.427335 L130.459863,78.228885 Z M189.104342,178.474123 L138.32577,56.2720498 C136.876246,52.7476854 133.977698,50.8827909 130.459863,50.8827909 C126.935499,50.8827909 123.826002,52.7476854 122.376477,56.2720498 L66.6436045,190.312411 L85.708924,190.312411 L107.771234,135.047143 L173.610097,188.23707 C176.258016,190.378208 178.168617,191.346566 180.652297,191.346566 C185.626186,191.346566 189.973756,187.617782 189.973756,182.235555 C189.973756,181.359612 189.664363,179.969354 189.104342,178.474123 Z" fill="#FFFFFF"/>
+  </g>
+
+  <text x="152" y="98" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34" font-weight="700" fill="#f8f8f8">Ansible Security Scanner</text>
+  <text x="152" y="132" font-family="'Helvetica Neue', Arial, sans-serif" font-size="17" fill="#cbd5e1">Static SAST for playbooks, roles, collections, and inventories</text>
+
+  <g font-family="'SFMono-Regular', Menlo, monospace" font-size="13" fill="#c4b5fd">
+    <rect x="152" y="150" width="66" height="26" rx="6" fill="none" stroke="#7c3aed" stroke-width="1.5"/>
+    <text x="185" y="167.5" text-anchor="middle">SARIF</text>
+    <rect x="226" y="150" width="120" height="26" rx="6" fill="none" stroke="#7c3aed" stroke-width="1.5"/>
+    <text x="286" y="167.5" text-anchor="middle">CycloneDX SBOM</text>
+    <rect x="354" y="150" width="96" height="26" rx="6" fill="none" stroke="#7c3aed" stroke-width="1.5"/>
+    <text x="402" y="167.5" text-anchor="middle">GitLab SAST</text>
+  </g>
+
+  <text x="152" y="204" font-family="'Helvetica Neue', Arial, sans-serif" font-size="13" fill="#94a3b8">Apache-2.0 &#183; 1,000+ rules &#183; Sigstore-signed releases</text>
+</svg>
