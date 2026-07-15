@@ -841,6 +841,308 @@ def _demote_severity(finding, eligible_rule_ids: frozenset[str]):
 # (``curl -k`` / ``--insecure``) both fire on the same line but
 # describe different issues (cred exposure vs TLS bypass), so
 # both remain.
+def _has_fork_reachable_trigger(content: str) -> bool:
+    """Return ``True`` when a workflow's ``on:`` block declares a trigger an
+    untrusted contributor can reach.
+
+    Fork-reachable triggers are ``pull_request_target``, ``issue_comment``,
+    ``issues``, ``pull_request``, ``pull_request_review_comment``,
+    ``pull_request_review``, and ``workflow_call`` (reusable workflows
+    inherit their caller's trigger). Triggers such as ``schedule``,
+    ``workflow_dispatch``, ``workflow_run``, and ``push`` are not, on their own,
+    reachable by a fork contributor.
+
+    Parses only the ``on:`` block so trigger names are not confused with
+    unrelated keys elsewhere in the file (e.g. ``issues: write`` under
+    ``permissions:``). Handles the mapping form (``on:`` then indented keys),
+    the inline-list form (``on: [issues, pull_request_target]``), and the
+    YAML 1.1 quoted key (``"on":`` / ``'on':``).
+    """
+    lines = content.splitlines()
+    on_idx = None
+    for i, line in enumerate(lines):
+        if re.match(r"""^\s*(?:["']?on["']?)\s*:""", line):
+            on_idx = i
+            break
+    if on_idx is None:
+        return False
+
+    header = lines[on_idx]
+    # Inline forms: ``on: [issues, ...]`` or ``on: pull_request_target``.
+    after_colon = header.split(":", 1)[1].strip()
+    if after_colon:
+        tokens = re.findall(r"[A-Za-z_]+", after_colon)
+        return any(t in _FORK_REACHABLE_TRIGGERS for t in tokens)
+
+    # Mapping form: collect keys indented deeper than ``on:`` until the block
+    # ends (a line at the same or shallower indent that is not blank/comment).
+    on_indent = len(header) - len(header.lstrip())
+    for line in lines[on_idx + 1 :]:
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent <= on_indent:
+            break
+        key_match = re.match(r"^\s*-?\s*([A-Za-z_]+)\s*:?", line)
+        if key_match and key_match.group(1) in _FORK_REACHABLE_TRIGGERS:
+            return True
+    return False
+
+
+def _enclosing_job_block(lines: list[str], line_index: int) -> str:
+    """Return the text of the top-level ``jobs:`` entry that contains
+    ``line_index`` (0-based), or the whole file when the job structure cannot be
+    parsed. Used to scope a per-job capability check to the job that actually
+    runs the agent, so a write permission granted to an unrelated sibling job
+    does not count.
+    """
+    jobs_idx = next((i for i, line in enumerate(lines) if re.match(r"^\s*jobs\s*:", line)), None)
+    if jobs_idx is None:
+        return "\n".join(lines)
+    jobs_indent = len(lines[jobs_idx]) - len(lines[jobs_idx].lstrip())
+    job_indent: int | None = None
+    starts: list[int] = []
+    for i in range(jobs_idx + 1, len(lines)):
+        line = lines[i]
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent <= jobs_indent:
+            break
+        if job_indent is None:
+            job_indent = indent
+        if indent == job_indent and re.match(r"^\s*[A-Za-z0-9_.-]+\s*:", line):
+            starts.append(i)
+    starts.append(len(lines))
+    for start, end in zip(starts, starts[1:], strict=False):
+        if start <= line_index < end:
+            return "\n".join(lines[start:end])
+    return "\n".join(lines)
+
+
+def _workflow_level_write(content: str) -> bool:
+    """Return whether the workflow's top-level ``permissions:`` block (the one
+    above ``jobs:``) defaults to repository write. A top-level ``contents:
+    write`` / ``write-all`` applies to every job that does not narrow it, so an
+    agent job with no ``permissions:`` of its own inherits push access.
+    """
+    lines = content.splitlines()
+    jobs_idx = next(
+        (i for i, line in enumerate(lines) if re.match(r"^\s*jobs\s*:", line)),
+        len(lines),
+    )
+    head = "\n".join(lines[:jobs_idx])
+    return bool(
+        re.search(
+            r"^\s*permissions\s*:\s*write-all\b"
+            r"|^\s*permissions\s*:[^\n]*(?:\n\s+[^\n]*)*?\n\s+contents\s*:\s*write\b",
+            head,
+            re.MULTILINE,
+        )
+    )
+
+
+# Fork-triggerable AI-agent rules only describe a real risk when the workflow
+# can actually be reached by an untrusted contributor. They anchor on
+# ``allowed_non_write_users: "*"`` plus a tool grant, neither of which says
+# anything about the ``on:`` trigger; on a workflow that only runs on
+# ``schedule`` / ``workflow_dispatch`` / ``workflow_run`` that setting is inert
+# and the finding is a false positive. ``workflow_call`` counts as reachable
+# because a reusable workflow inherits its caller's (possibly fork-reachable)
+# trigger.
+_FORK_TRIGGERABLE_AI_RULE_IDS: frozenset[str] = frozenset(
+    {
+        "fork_triggerable_ai_agent_with_write_or_exec_tools",
+        "fork_triggerable_ai_agent_with_repo_mutating_gh_tools",
+        "fork_triggerable_gemini_or_copilot_agent_with_write_or_exec",
+        "fork_triggerable_codex_agent_with_write_or_exec_sandbox",
+    }
+)
+_FORK_REACHABLE_TRIGGERS: tuple[str, ...] = (
+    "pull_request_target",
+    "issue_comment",
+    "issues",
+    "pull_request",
+    "pull_request_review_comment",
+    "pull_request_review",
+    "workflow_call",
+)
+
+# These rules anchor on an installed-agent invocation, which says nothing about
+# the ``on:`` trigger, the enclosing job's write capability, or an
+# author-permission gate that may live in another step or a ``needs:`` job. A
+# finding survives ``_suppress_installed_agent_when_safe`` only when the
+# workflow has a fork-reachable trigger, the agent's job can mutate the repo,
+# and no author gate is present. Review bots (``contents: read``, comment-only
+# scope) and gated agents are dropped. Each entry maps a rule id to the
+# whole-file proof that confirms the family (the CLI/action can share a generic
+# binary name, so the proof keeps it precise).
+_INSTALLED_AGENT_PROOF: dict[str, re.Pattern[str]] = {
+    "fork_triggerable_cursor_agent_with_repo_write": re.compile(
+        r"cursor\.com/install|CURSOR_API_?KEY|@cursor/sdk|cursor[_-]sdk", re.IGNORECASE
+    ),
+    "fork_triggerable_opencode_agent_with_repo_write": re.compile(
+        r"sst/opencode|anomalyco/opencode|opencode\s+run|OPENCODE_API", re.IGNORECASE
+    ),
+    "fork_triggerable_amp_agent_with_repo_write": re.compile(
+        r"sourcegraph/amp|ampcode\.com|@sourcegraph/amp|AMP_API_KEY", re.IGNORECASE
+    ),
+    # ``goose run`` collides with unrelated CLIs (``git-goose``, the
+    # ``pressly/goose`` DB migrator), so require a Block-goose signal: the
+    # install script, a store/config path, one of the ``GOOSE_*`` env vars, or
+    # an agent-only invocation flag (``--recipe`` / ``--instructions`` /
+    # ``--with-extension`` / ``--no-session`` / ``-t`` / ``-i``).
+    "fork_triggerable_goose_agent_with_repo_write": re.compile(
+        r"block/goose|goose/releases|download_cli\.sh|GOOSE_(?:PROVIDER|MODEL|MODE)"
+        r"|\.config/goose|configure-goose|block-open-source/goose"
+        r"|goose\s+run\s+--(?:recipe|instructions|with-builtin|with-extension|no-session|text)"
+        r"|goose\s+run\s+-[ti]\b",
+        re.IGNORECASE,
+    ),
+    # Droid's action slug and CLI package are distinctive; the CLI install comes
+    # from ``app.factory.ai`` or ``@factory/cli`` and runs via ``droid exec``.
+    "fork_triggerable_droid_agent_with_repo_write": re.compile(
+        r"Factory-AI/droid|factory-ai|app\.factory\.ai|@factory/cli|FACTORY_API_KEY"
+        r"|droid\s+exec\b",
+        re.IGNORECASE,
+    ),
+    # ``aider`` is unambiguous once paired with its install (``aider-chat``) or a
+    # non-interactive run flag; the anchor regex already requires the run flag.
+    "fork_triggerable_aider_agent_with_repo_write": re.compile(
+        r"aider-chat|(?<![\w-])aider\b", re.IGNORECASE
+    ),
+    # OpenHands' resolver reusable workflow and ``@openhands-agent`` macro are
+    # distinctive; the anchor regex already carries the family, so the proof
+    # keeps it precise against unrelated "hands" text.
+    "fork_triggerable_openhands_agent_with_repo_write": re.compile(
+        r"All-Hands-AI/OpenHands|all-hands\.dev|openhands-resolver|@openhands-agent"
+        r"|(?<![\w-])openhands\b",
+        re.IGNORECASE,
+    ),
+    # ``qwen`` alone collides with unrelated Alibaba model references, so require
+    # a Qwen Code signal: the action/package slug, the ``@qwen-code`` macro, or
+    # the CLI paired with ``--yolo`` (the anchor already requires the latter).
+    "fork_triggerable_qwen_code_agent_with_repo_write": re.compile(
+        r"qwen-code|@qwen-code|QwenLM/qwen-code", re.IGNORECASE
+    ),
+    # ``crush`` collides with unrelated tools, so require a Charm-crush signal:
+    # the repo slug, the apt source, or the ``crush run`` invocation.
+    "fork_triggerable_crush_agent_with_repo_write": re.compile(
+        r"charmbracelet/crush|repo\.charm\.sh|(?<![\w-])crush\s+run\b", re.IGNORECASE
+    ),
+    # ``copilot`` is a common word, so require a GitHub Copilot CLI signal: the
+    # npm package, the install script, one of the ``COPILOT_*_TOKEN`` env vars,
+    # the ``gh aw`` copilot engine, or a ``copilot --version`` check. The anchor
+    # already requires the ``--allow-all-tools`` / ``--allow-tool`` grant.
+    "fork_triggerable_copilot_cli_agent_with_repo_write": re.compile(
+        r"@github/copilot|install_copilot_cli|gh\.io/copilot-install"
+        r"|COPILOT_(?:GITHUB|CLI)_TOKEN|COPILOT_ALLOW_ALL"
+        r"|GH_AW_ENGINE\s*[:=]\s*[\"']?copilot|command\s+-v\s+copilot|copilot\s+--version",
+        re.IGNORECASE,
+    ),
+    # ``cn`` is a two-letter binary that collides with unrelated tooling, so
+    # require a Continue signal: the npm package, the ``continuedev`` org slug
+    # in a config/agent reference, or a ``CONTINUE_*`` env var. The anchor
+    # already requires ``cn`` in agent/auto/remote mode.
+    "fork_triggerable_continue_cli_agent_with_repo_write": re.compile(
+        r"@continuedev/cli|continuedev/|CONTINUE_(?:API_KEY|CLI)", re.IGNORECASE
+    ),
+    # gptme ships an official ``@gptme`` bot action/workflow. The binary name is
+    # distinctive, but require a gptme signal (the CLI, the action, or the PyPI
+    # package) so a stray ``gptme`` string in prose does not count. The anchor
+    # already requires the non-interactive agent invocation.
+    "fork_triggerable_gptme_agent_with_repo_write": re.compile(
+        r"gptme|ErikBjare/gptme", re.IGNORECASE
+    ),
+    # SWE-agent (``SWE-agent/SWE-agent``, formerly ``princeton-nlp``) runs as
+    # ``sweagent run``. Require the project/package signal so the anchor is
+    # attributed to the real agent and not the ``swe-agent`` substring inside a
+    # bot-exclusion allowlist (``copilot-swe-agent``).
+    "fork_triggerable_swe_agent_with_repo_write": re.compile(
+        r"SWE-agent/SWE-agent|princeton-nlp/SWE-agent|python\s+-m\s+sweagent"
+        r"|pip\s+install\s+sweagent|sweagent\s+run\b",
+        re.IGNORECASE,
+    ),
+    # ``warp`` is a common word, so require a Warp signal: the release repo, the
+    # ``WARP_API_KEY`` env var, or the ``warp-cli`` binary. The anchor already
+    # requires the ``warp[-cli] agent run`` invocation.
+    "fork_triggerable_warp_agent_with_repo_write": re.compile(
+        r"releases\.warp\.dev|WARP_API_?KEY|(?<![\w-])warp-cli\b", re.IGNORECASE
+    ),
+    # ``claude`` collides with unrelated text, so require a Claude Code signal:
+    # the npm package, the ``ANTHROPIC_API_KEY`` credential, a ``CLAUDE_CODE`` env
+    # var, or the CLI auto-approve flags themselves (``--dangerously-skip-permissions``
+    # / ``--permission-mode bypassPermissions``), which the ``anthropics/claude-code-action``
+    # (covered by a separate rule) does not carry, so the two do not overlap. The
+    # anchor already requires the leading ``claude`` token before those flags, so
+    # ``opencode run --dangerously-skip-permissions`` is not matched by the rule.
+    "fork_triggerable_claude_cli_agent_with_repo_write": re.compile(
+        r"@anthropic-ai/claude-code|ANTHROPIC_API_?KEY|CLAUDE_CODE|(?<![\w-])claude-code\b"
+        r"|--dangerously-skip-permissions|--permission-mode[\s=]+['\"]?(?:bypassPermissions|acceptEdits)\b",
+        re.IGNORECASE,
+    ),
+}
+_INSTALLED_AGENT_JOB_WRITE = re.compile(
+    r"^\s*contents\s*:\s*write\b|permissions\s*:\s*write-all\b"
+    r"|\bgit\s+push\b|\bgh\s+pr\s+(?:create|merge)\b",
+    re.MULTILINE | re.IGNORECASE,
+)
+# The OpenHands resolver ships as a reusable workflow
+# (``<owner>/OpenHands/.github/workflows/openhands-resolver.yml``) that gates
+# the agent on ``author_association`` inside the *called* repo, so a caller
+# that only does ``uses: .../openhands-resolver.yml@<ref>`` inherits that gate
+# and is not fork-exploitable regardless of the permissions it passes in. The
+# whole-file author-gate check cannot see the downstream repo, so recognise the
+# delegation here. A file that invokes OpenHands directly (its CLI/action in a
+# step) does not match and is still evaluated normally.
+_OPENHANDS_REUSABLE_DELEGATION = re.compile(
+    r"uses\s*:\s*[^\n]*?/\.github/workflows/openhands-resolver\.yml", re.IGNORECASE
+)
+# Author / write-permission gate: any of these means only trusted actors reach
+# the job, so the agent is not fork-exploitable. Covers the collaborator API,
+# ``author_association`` membership checks, the ``fromJSON`` role-list idiom,
+# ``allow_forks: false``, a hardcoded ``login``/``actor`` equality gate, a label
+# gate (only users with write access can label an issue/PR, so a
+# ``labels.*.name`` / ``label.name`` / ``action == 'labeled'`` condition is a
+# write gate), and a fork-exclusion gate that skips the agent on PRs from forks
+# (``head.repo.full_name == github.repository`` / ``head.repo.fork`` /
+# ``is_fork``).
+_INSTALLED_AGENT_AUTHOR_GATE = re.compile(
+    r"getCollaboratorPermissionLevel"
+    r"|author_association\s*(?:==|!=|\bin\b|\bnot in\b)"
+    r"|author_association\b[^\n)]{0,120}?\)\s*(?:==|!=)\s*['\"]?(?:OWNER|MEMBER|COLLABORATOR)"
+    r"|contains\(\s*fromJSON\('\[\s*\"(?:OWNER|MEMBER|COLLABORATOR)"
+    # ``actions/github-script`` gates are written in JavaScript, so the role
+    # check is an array-membership test rather than an Actions expression:
+    # ``['OWNER','MEMBER','COLLABORATOR'].includes(author_association)``. The
+    # literal role allowlist array is a strong maintainer-gate signal.
+    r"|\[\s*['\"]OWNER['\"]\s*,\s*['\"](?:MEMBER|COLLABORATOR)['\"]"
+    # ``contains(fromJSON('["alice","bob"]'), github.event.comment.user.login)``
+    # is an explicit maintainer/username allowlist - the agent only runs for
+    # the named accounts, so it is gated just like an ``author_association``
+    # check. Anchor on the actor-identity operand so an unrelated ``fromJSON``
+    # list (matrix, labels) does not count as a gate.
+    r"|contains\(\s*fromJSON\([^)]*\)\s*,\s*[^)\n]*?"
+    r"(?:comment\.user\.login|sender\.login|github\.actor|triggering_actor"
+    r"|pull_request\.user\.login|issue\.user\.login)"
+    r"|allow_forks\s*:\s*[\"']?false"
+    r"|permission\.permission"
+    r"|collaborators/[^/\s]+/permission"
+    r"|[\"']?(?:admin|maintain|write)[\"']?\s*[!=]=\s*[\"']?\$?(?:PERMISSION|permission)"
+    r"|\$?(?:PERMISSION|permission)[\"']?\s*[!=]=\s*[\"'](?:admin|maintain|write)"
+    r"|(?:comment\.user\.login|sender\.login|github\.actor|triggering_actor)"
+    r"\s*==\s*['\"]"
+    r"|(?:github\.actor|triggering_actor|sender\.login|comment\.user\.login)"
+    r"\s*==\s*github\.(?:event\.)?repository\.owner\.login"
+    r"|==\s*github\.(?:event\.)?repository\.owner\.login"
+    r"|contains\(\s*github\.event\.[a-z_.]*labels\.\*\.name"
+    r"|contains\(\s*github\.event\.label\.name"
+    r"|github\.event\.label\.name\s*==|github\.event\.action\s*==\s*['\"]labeled"
+    r"|head\.repo\.full_name\s*(?:==|!==|!=)\s*"
+    r"|head\.repo\.fork\b|is_fork\s*(?:==|!=)",
+    re.IGNORECASE,
+)
+
 _OVERLAP_SUPPRESSION_GROUPS: tuple[tuple[str, ...], ...] = (
     # Pipe-to-shell family - all describe the same
     # "download-and-execute" RCE pattern with different scopes.
@@ -1741,6 +2043,23 @@ class FileScanner:
             # hardened fixtures. Running the lookup over the whole file
             # is both more precise and windowing-immune.
             line_findings = self._suppress_slsa_findings_when_verified(line_findings, content)
+
+            # Post-filter: fork-triggerable AI-agent rules anchor on
+            # ``allowed_non_write_users: "*"`` but the windowed regex cannot
+            # see the ``on:`` trigger block. Drop those findings when the
+            # workflow has no fork-reachable trigger (only ``schedule`` /
+            # ``workflow_dispatch`` / ``workflow_run``), where the open-user
+            # setting is inert and the finding is a false positive.
+            line_findings = self._suppress_fork_triggerable_ai_when_not_reachable(
+                line_findings, content
+            )
+
+            # Post-filter: the installed-agent rules anchor on the invocation
+            # line, which cannot see the trigger, the job's write capability, or
+            # an author gate. Drop findings on non-fork-reachable workflows,
+            # review-only jobs (``contents: read``), and jobs gated on repo
+            # write access.
+            line_findings = self._suppress_installed_agent_when_safe(line_findings, content)
 
             # Post-filter: suppress ``crontab_modification`` when the
             # matching task is removing (not installing) a cron entry
@@ -6930,6 +7249,93 @@ class FileScanner:
         if not any(v in code_only for v in verifiers):
             return findings
         return [f for f in findings if f.rule_id != "slsa_provenance_verification_missing"]
+
+    def _suppress_fork_triggerable_ai_when_not_reachable(
+        self, findings: list[SecurityFinding], content: str
+    ) -> list[SecurityFinding]:
+        """Drop fork-triggerable AI-agent findings that are not exploitable.
+
+        The rules anchor on ``allowed_non_write_users: "*"`` (plus a tool
+        grant) but the sliding-window regex never sees the ``on:`` block, the
+        job's write capability, or an author gate. A finding survives only when
+        all three hold: the workflow has a fork-reachable trigger, the agent's
+        job can write to the repo, and no author gate is present.
+
+        * Not reachable: on ``schedule`` / ``workflow_dispatch`` /
+          ``workflow_run`` only, no untrusted contributor can invoke the agent.
+          ``workflow_call`` is treated as reachable (a reusable workflow
+          inherits its caller's trigger).
+        * Read-only agent job: the split-privilege pattern runs the agent at
+          ``contents: read`` and hands its output to a separate reviewed job
+          for the commit/PR, so untrusted input never reaches a write token in
+          the agent's job. A custom gate the regex cannot parse is moot here.
+        """
+        if not findings or not any(f.rule_id in _FORK_TRIGGERABLE_AI_RULE_IDS for f in findings):
+            return findings
+        if not _has_fork_reachable_trigger(content):
+            return [f for f in findings if f.rule_id not in _FORK_TRIGGERABLE_AI_RULE_IDS]
+        if _INSTALLED_AGENT_AUTHOR_GATE.search(content):
+            return [f for f in findings if f.rule_id not in _FORK_TRIGGERABLE_AI_RULE_IDS]
+        lines = content.splitlines()
+        workflow_write = _workflow_level_write(content)
+        kept: list[SecurityFinding] = []
+        for f in findings:
+            if f.rule_id not in _FORK_TRIGGERABLE_AI_RULE_IDS:
+                kept.append(f)
+                continue
+            job_text = _enclosing_job_block(lines, max(f.line_number - 1, 0))
+            job_can_write = bool(_INSTALLED_AGENT_JOB_WRITE.search(job_text)) or (
+                workflow_write and not re.search(r"^\s+permissions\s*:", job_text, re.MULTILINE)
+            )
+            if job_can_write:
+                kept.append(f)
+        return kept
+
+    def _suppress_installed_agent_when_safe(
+        self, findings: list[SecurityFinding], content: str
+    ) -> list[SecurityFinding]:
+        """Drop installed-agent findings that are not actually exploitable.
+
+        These rules (the ``_INSTALLED_AGENT_PROOF`` keys) anchor on the agent
+        invocation, which says nothing about the trigger, the job's write
+        capability, or an author gate. A finding survives only when all three
+        hold: the workflow has a fork-reachable trigger, the agent's job can
+        write to the repo (a ``git push`` / ``gh pr create|merge`` or
+        ``contents: write`` / ``permissions: write-all`` in the job, or a
+        workflow-level write default the job does not narrow), and no author
+        gate is present. Because some agents share a generic binary name, each
+        finding also has to match its family's whole-file proof. Review bots
+        (``contents: read``, comment-only scope) and gated agents are dropped.
+        """
+        if not findings or not any(f.rule_id in _INSTALLED_AGENT_PROOF for f in findings):
+            return findings
+        reachable = _has_fork_reachable_trigger(content)
+        gated = bool(_INSTALLED_AGENT_AUTHOR_GATE.search(content))
+        workflow_write = _workflow_level_write(content)
+        openhands_delegates = bool(_OPENHANDS_REUSABLE_DELEGATION.search(content))
+        lines = content.splitlines()
+        kept: list[SecurityFinding] = []
+        for f in findings:
+            proof = _INSTALLED_AGENT_PROOF.get(f.rule_id)
+            if proof is None:
+                kept.append(f)
+                continue
+            if not reachable or gated or not proof.search(content):
+                continue
+            # OpenHands caller stubs delegate to the reusable resolver, which
+            # self-gates on ``author_association`` in the called repo.
+            if (
+                f.rule_id == "fork_triggerable_openhands_agent_with_repo_write"
+                and openhands_delegates
+            ):
+                continue
+            job_text = _enclosing_job_block(lines, max(f.line_number - 1, 0))
+            job_can_write = bool(_INSTALLED_AGENT_JOB_WRITE.search(job_text)) or (
+                workflow_write and not re.search(r"^\s+permissions\s*:", job_text, re.MULTILINE)
+            )
+            if job_can_write:
+                kept.append(f)
+        return kept
 
     def _suppress_crontab_cleanup(
         self, findings: list[SecurityFinding], lines: list[str]
