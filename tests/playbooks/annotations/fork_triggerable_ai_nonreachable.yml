@@ -1,0 +1,37 @@
+---
+# Test fixture: fork-triggerable AI-agent rules only fire when the workflow
+# can actually be reached by an untrusted contributor.
+#
+# The rules anchor on `allowed_non_write_users: "*"` plus a tool grant, but
+# that setting is inert when the workflow only runs on triggers a fork cannot
+# reach (`schedule`, `workflow_dispatch`, `workflow_run`). A finding here would
+# be a false positive, so the scanner drops it. This fixture covers the
+# non-reachable case; the reachable (fork-trigger present) counterpart lives in
+# fork_triggerable_ai_reachable.yml.
+#
+# All values are SYNTHETIC.
+
+- name: fixture play for fork-triggerable AI-agent reachability - non-reachable
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    # Scheduled maintenance agent - no fork-reachable trigger, so the
+    # open-user grant cannot be abused by an untrusted contributor.
+    - name: render a scheduled agent workflow with no fork-reachable trigger
+      ansible.builtin.copy:
+        dest: .github/workflows/nightly-agent.yml
+        content: |
+          on:
+            schedule:
+              - cron: "0 3 * * *"
+            workflow_dispatch:
+          jobs:
+            maintain:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: anthropics/claude-code-action@v1
+                  with:
+                    allowed_non_write_users: "*"
+                    claude_args: |
+                      --allowedTools Edit,Read,Write,Grep,Glob,Bash    # scanner-test: reject fork_triggerable_ai_agent_with_write_or_exec_tools

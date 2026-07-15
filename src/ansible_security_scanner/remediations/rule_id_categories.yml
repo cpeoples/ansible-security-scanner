@@ -34,7 +34,23 @@ rules_by_category:
     - cohere_api_key
     - fork_triggerable_ai_agent_with_repo_mutating_gh_tools
     - fork_triggerable_ai_agent_with_write_or_exec_tools
+    - fork_triggerable_aider_agent_with_repo_write
+    - fork_triggerable_amp_agent_with_repo_write
+    - fork_triggerable_claude_cli_agent_with_repo_write
+    - fork_triggerable_codex_agent_with_write_or_exec_sandbox
+    - fork_triggerable_continue_cli_agent_with_repo_write
+    - fork_triggerable_copilot_cli_agent_with_repo_write
+    - fork_triggerable_crush_agent_with_repo_write
+    - fork_triggerable_cursor_agent_with_repo_write
+    - fork_triggerable_droid_agent_with_repo_write
     - fork_triggerable_gemini_or_copilot_agent_with_write_or_exec
+    - fork_triggerable_goose_agent_with_repo_write
+    - fork_triggerable_gptme_agent_with_repo_write
+    - fork_triggerable_opencode_agent_with_repo_write
+    - fork_triggerable_openhands_agent_with_repo_write
+    - fork_triggerable_qwen_code_agent_with_repo_write
+    - fork_triggerable_swe_agent_with_repo_write
+    - fork_triggerable_warp_agent_with_repo_write
     - gcp_vertex_ai_access
     - generic_llm_api_key
     - google_ai_api_key

@@ -1,0 +1,34 @@
+---
+# Test fixture: fork-triggerable AI-agent rules MUST still fire when the
+# workflow has a fork-reachable trigger (`pull_request_target`,
+# `issue_comment`, `issues`, `pull_request`, or `workflow_call`), the agent's
+# job can write to the repo, and no author gate is present. This is the
+# reachable, write-capable, ungated counterpart to
+# fork_triggerable_ai_nonreachable.yml and guards against the suppression
+# filter over-suppressing genuine findings.
+#
+# All values are SYNTHETIC.
+
+- name: fixture play for fork-triggerable AI-agent reachability - reachable
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: render a pull_request_target agent workflow with shell access
+      ansible.builtin.copy:
+        dest: .github/workflows/pr-agent.yml
+        content: |
+          on:
+            pull_request_target:
+              types: [opened, synchronize]
+          jobs:
+            review:
+              runs-on: ubuntu-latest
+              permissions:
+                contents: write
+              steps:
+                - uses: anthropics/claude-code-action@v1
+                  with:
+                    allowed_non_write_users: "*"
+                    claude_args: |
+                      --allowedTools Edit,Read,Write,Grep,Glob,Bash    # scanner-test: expect fork_triggerable_ai_agent_with_write_or_exec_tools
