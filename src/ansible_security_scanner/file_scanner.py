@@ -931,15 +931,22 @@ def _workflow_level_write(content: str) -> bool:
         (i for i, line in enumerate(lines) if re.match(r"^\s*jobs\s*:", line)),
         len(lines),
     )
-    head = "\n".join(lines[:jobs_idx])
-    return bool(
-        re.search(
-            r"^\s*permissions\s*:\s*write-all\b"
-            r"|^\s*permissions\s*:[^\n]*(?:\n\s+[^\n]*)*?\n\s+contents\s*:\s*write\b",
-            head,
-            re.MULTILINE,
-        )
-    )
+    for i in range(jobs_idx):
+        header = re.match(r"^(\s*)permissions\s*:(.*)$", lines[i])
+        if not header:
+            continue
+        if re.search(r"\bwrite-all\b", header.group(2)):
+            return True
+        perms_indent = len(header.group(1))
+        for line in lines[i + 1 : jobs_idx]:
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            if len(line) - len(line.lstrip()) <= perms_indent:
+                break
+            if re.match(r"\s*contents\s*:\s*write\b", line):
+                return True
+        break
+    return False
 
 
 # Fork-triggerable AI-agent rules only describe a real risk when the workflow
