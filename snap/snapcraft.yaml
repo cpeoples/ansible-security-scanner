@@ -37,6 +37,10 @@ confinement: strict
 apps:
   ansible-security-scanner:
     command: bin/ansible-security-scanner
+    # The core24 python plugin doesn't add the venv's site-packages or the
+    # bundled stdlib to sys.path, so point the launcher at them explicitly.
+    environment:
+      PYTHONPATH: $SNAP/lib/python3.12/site-packages:$SNAP/usr/lib/python3.12
     plugs:
       - home
       - removable-media
