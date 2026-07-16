@@ -78,10 +78,16 @@ Available via the [`cpeoples/homebrew-tap`](https://github.com/cpeoples/homebrew
 ### Snap
 
 ```bash
-sudo snap install ansible-security-scanner --classic
+sudo snap install ansible-security-scanner
 ```
 
-Published to the [Snap Store](https://snapcraft.io/ansible-security-scanner). Classic confinement lets the scanner read playbooks anywhere on disk.
+Published to the [Snap Store](https://snapcraft.io/ansible-security-scanner). The snap is strictly confined: it scans content under your home directory out of the box. To scan a mounted drive under `/mnt` or `/media`, connect the removable-media interface once:
+
+```bash
+sudo snap connect ansible-security-scanner:removable-media
+```
+
+To scan system paths such as `/etc/ansible` or `/opt`, install via pip, pipx, or Homebrew instead.
 
 ### pre-commit
 
