@@ -28,19 +28,18 @@ donation: https://github.com/sponsors/cpeoples
 website: https://cpeoples.github.io/ansible-security-scanner/
 grade: stable
 
-# The scanner reads and writes arbitrary paths the user points it at
-# (--directory /etc/ansible, /opt, mounted volumes), which strict
-# confinement would sandbox to $HOME. Requires a one-time store review.
-confinement: classic
+# Strict confinement sandboxes file access to the plugged interfaces: home
+# (auto-connected) for content under the user's home directory, removable-media
+# (connect manually) for mounted drives. System paths like /etc and /opt are
+# out of scope by design.
+confinement: strict
 
 apps:
   ansible-security-scanner:
     command: bin/ansible-security-scanner
-    # Classic confinement sets no library paths, so point the bundled launcher
-    # at the interpreter's stdlib and the venv's site-packages explicitly.
-    environment:
-      PYTHONPATH: $SNAP/lib/python3.12/site-packages:$SNAP/usr/lib/python3.12
-      PATH: $SNAP/bin:$SNAP/usr/bin:$PATH
+    plugs:
+      - home
+      - removable-media
 
 parts:
   scanner:
@@ -50,9 +49,8 @@ parts:
     # the tag; the workflow stamps it into snap/.version instead.
     build-packages:
       - git
-    # classic confinement has no base runtime, so the interpreter ships in
-    # the payload; pyvenv.cfg is dropped so the venv doesn't resolve python
-    # to a build-time path at runtime.
+    # Bundle the interpreter and stdlib so the venv is self-contained; drop
+    # pyvenv.cfg so it doesn't resolve python to a build-time path at runtime.
     stage-packages:
       - python3-venv
       - python3.12-minimal

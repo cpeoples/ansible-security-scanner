@@ -140,5 +140,10 @@ jobs:
           SNAP_FILE: ${{ steps.build.outputs.snap }}
         run: |
           set -euo pipefail
-          sudo snap install --dangerous --classic "$SNAP_FILE"
+          sudo snap install --dangerous "$SNAP_FILE"
           ansible-security-scanner --version
+          # Sideloaded snaps don't auto-connect home like store installs do.
+          sudo snap connect ansible-security-scanner:home
+          mkdir -p "$HOME/snap-smoke"
+          printf -- '- hosts: all\n  tasks:\n    - shell: echo hi\n' > "$HOME/snap-smoke/playbook.yml"
+          ansible-security-scanner --directory "$HOME/snap-smoke" || true
