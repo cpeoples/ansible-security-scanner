@@ -1110,7 +1110,7 @@ patterns:
         review-only jobs (`contents: read`, comment-only scope), and jobs gated on repository
         write access (`author_association`, `getCollaboratorPermissionLevel`, a maintainer-only
         label gate, or a fork-exclusion check) are not flagged.
-    regex: "(?<![\\w-])copilot\\b(?:(?!^\\s*-?\\s*(?:uses|name)\\s*:)[^\\n]|\\n){0,240}?(?:--allow-all-tools|--allow-tool[=\\s]+['\"]?(?:shell|write|edit|all)\\b)"
+    regex: "(?<![\\w-])copilot\\b(?:(?!^\\s*-?\\s*(?:uses|name)\\s*:)[^\\n]|\\n){0,240}?(?:--allow-all-tools|--allow-tool[=\\s]+['\"]?(?:shell|write|edit|all)\\b|--yolo\\b|--enable-all-github-mcp-tools\\b)"
     multiline: true
     window: 200
     positive_examples:
@@ -2118,7 +2118,7 @@ patterns:
         jobs (`contents: read`, comment-only scope) and jobs gated on repository write access
         (`author_association`, `getCollaboratorPermissionLevel`, a maintainer-only label gate, or a
         fork-exclusion check) are not flagged.
-    regex: "(?<![\\w-])claude\\b(?:(?!^\\s*-?\\s*(?:uses|name)\\s*:)[\\s\\S]){0,3000}?(?:--dangerously-skip-permissions|--permission-mode[\\s=]+['\"]?(?:bypassPermissions|acceptEdits)\\b)"
+    regex: "(?<![\\w-])claude\\b(?:(?!^\\s*-?\\s*(?:uses|name)\\s*:)[\\s\\S]){0,3000}?(?:--dangerously-skip-permissions|--permission-mode[\\s=]+['\"]?(?:bypassPermissions|acceptEdits|auto)\\b)"
     multiline: true
     window: 200
     positive_examples:
@@ -2164,6 +2164,1122 @@ patterns:
         `getCollaboratorPermissionLevel`, or exclude fork PRs
         (`head.repo.full_name == github.repository`). Have the agent open a PR for human review
         rather than pushing directly. Treat issue/PR title, body, and comments as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_gemini_cli_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable Gemini CLI Agent With Repository Write Access In A Privileged CI Job"
+    description: >-
+        A CI job runs the Google Gemini CLI unattended - `gemini` in `--yolo` mode, or with
+        `--approval-mode yolo`/`auto`/`always` - on a fork-reachable trigger, in a job that can
+        mutate the repository (`contents: write`, `permissions: write-all`, or a `git push` /
+        `gh pr create|merge` in the same job). This is the raw-CLI variant; the
+        `google-github-actions/run-gemini-cli` action form is covered separately. In `--yolo` /
+        auto-approval mode the CLI runs shell commands and edits files without confirmation while
+        holding `GITHUB_TOKEN`, the runner's credentials, and the `GEMINI_API_KEY`/`GOOGLE_API_KEY`,
+        so an indirect prompt-injection payload in the PR/issue body becomes command execution and
+        code push. This rule fires only on the write-capable, ungated combination: review-only jobs
+        (`contents: read`) and jobs gated on repository write access (`author_association`,
+        `getCollaboratorPermissionLevel`, a maintainer-only label gate, or a fork-exclusion check)
+        are not flagged.
+    regex: "(?<![\\w./-])gemini\\b(?:(?!^\\s*-?\\s*(?:uses|name)\\s*:)[\\s\\S]){0,3000}?(?:--yolo\\b|--approval-mode[\\s=]+['\"]?(?:yolo|auto|always)\\b)"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              agent:
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - env:
+                      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+                      TASK: ${{ github.event.comment.body }}
+                    run: |
+                      gemini --yolo --prompt "$TASK"
+                      git push origin HEAD
+    negative_examples:
+      - |2-
+            on:
+              pull_request:
+                types: [opened]
+            jobs:
+              review:
+                permissions:
+                  contents: read
+                steps:
+                  - env:
+                      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+                    run: gemini --version
+    recommendation: >-
+        Do not run the Gemini CLI in `--yolo` / auto-approval mode on untrusted issue/PR content in
+        a job that can write to the repository. Keep review jobs at `permissions: contents: read`
+        with only comment scope and never `git push` from them. If the agent must make changes, gate
+        the job on repository write access - require `author_association` in
+        `OWNER`/`MEMBER`/`COLLABORATOR`, check the actor via `getCollaboratorPermissionLevel`, or
+        exclude fork PRs (`head.repo.full_name == github.repository`) - and have it open a PR for
+        human review rather than pushing directly. Treat issue/PR title, body, and comments as
+        untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_codemie_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable CodeMie CLI Agent With Repository Write Access In A Privileged CI Job"
+    description: >-
+        A CI job runs the CodeMie CLI (`@codemieai/code`) unattended - `codemie run`/`fix`/`code`/
+        `exec`, typically after `codemie install` wires it onto an underlying model - on a
+        fork-reachable trigger, in a job that can mutate the repository (`contents: write`,
+        `permissions: write-all`, or a `git push` / `gh pr create|merge` in the same job). CodeMie
+        reads attacker-controlled issue/PR content as its task while holding `GITHUB_TOKEN`, the
+        runner's credentials, and the `CODEMIE_API_KEY`, and it edits files and commits without
+        confirmation, so an indirect prompt-injection payload becomes command execution and code
+        push. This rule fires only on the write-capable, ungated combination: review-only jobs
+        (`contents: read`) and jobs gated on repository write access (`author_association`,
+        `getCollaboratorPermissionLevel`, a maintainer-only label gate, or a fork-exclusion check)
+        are not flagged.
+    regex: "(?<![\\w./-])codemie[ \\t]+(?:install|run|fix|code|exec)\\b|npm[ \\t]+install[^\\n]*@codemieai/code"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              codemie:
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: actions/checkout@v4
+                  - run: npm install -g @codemieai/code
+                  - env:
+                      CODEMIE_API_KEY: ${{ secrets.CODEMIE_API_KEY }}
+                      TASK: ${{ github.event.comment.body }}
+                    run: |
+                      codemie install claude
+                      codemie run "$TASK"
+                      git push origin HEAD
+    negative_examples:
+      - |2-
+            on:
+              pull_request:
+                types: [opened]
+            jobs:
+              review:
+                permissions:
+                  contents: read
+                steps:
+                  - run: codemie --version
+    recommendation: >-
+        Do not run the CodeMie CLI on untrusted issue/PR content in a job that can write to the
+        repository. Keep review jobs at `permissions: contents: read` with only comment scope and
+        never `git push` from them. If the agent must make changes, gate the job on repository write
+        access - require `author_association` in `OWNER`/`MEMBER`/`COLLABORATOR`, check the actor via
+        `getCollaboratorPermissionLevel`, or exclude fork PRs - and have it open a PR for human
+        review rather than pushing directly. Treat issue/PR title, body, and comments as untrusted
+        data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_devin_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable Devin Agent With Repository Write Access In A Privileged CI Job"
+    description: >-
+        A CI job runs the Devin agent (`aaronsteers/devin-action`, or a step passing a
+        `devin-token` / `prompt-text` / `playbook-macro` input) on a fork-reachable trigger, in a job
+        that can mutate the repository (`contents: write`, `permissions: write-all`, or a `git push`
+        / `gh pr create|merge` in the same job). Devin reads attacker-controlled issue/PR content as
+        its prompt while holding `GITHUB_TOKEN` and the `DEVIN_API_KEY`, and it can edit files, run
+        commands, and open PRs, so an indirect prompt-injection payload becomes command execution and
+        code push. This rule fires only on the write-capable, ungated combination: review-only jobs
+        (`contents: read`) and jobs gated on repository write access (`author_association`,
+        `getCollaboratorPermissionLevel`, a maintainer-only label gate, or a fork-exclusion check)
+        are not flagged.
+    regex: "uses\\s*:\\s*[^\\n]*?aaronsteers/devin-action|^\\s*(?:devin-token|prompt-text|playbook-macro)\\s*:"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              devin:
+                permissions:
+                  contents: write
+                  issues: write
+                steps:
+                  - uses: aaronsteers/devin-action@main
+                    with:
+                      devin-token: ${{ secrets.DEVIN_AI_API_KEY }}
+                      prompt-text: ${{ github.event.comment.body }}
+    negative_examples:
+      - |2-
+            on:
+              pull_request:
+                types: [opened]
+            jobs:
+              notify:
+                permissions:
+                  contents: read
+                steps:
+                  - name: Ping Devin dashboard
+                    run: curl -sf https://app.devin.ai/health
+    recommendation: >-
+        Do not run the Devin agent on untrusted issue/PR content in a job that can write to the
+        repository. Keep review jobs at `permissions: contents: read` with only comment scope and
+        never `git push` from them. If the agent must make changes, gate the job on repository write
+        access - require `author_association` in `OWNER`/`MEMBER`/`COLLABORATOR`, check the actor via
+        `getCollaboratorPermissionLevel`, or exclude fork PRs - and have it open a PR for human
+        review rather than pushing directly. Treat issue/PR title, body, and comments as untrusted
+        data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_kilocode_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable Kilo Code Agent With Repository Write Access In A Privileged CI Job"
+    description: >-
+        A CI job runs the Kilo Code CLI (`@kilocode/cli`) unattended - `kilocode run`/`code`, or
+        `kilocode` with an autonomous flag (`--auto`, `--yolo`, `--headless`, `--auto-approve`) - on
+        a fork-reachable trigger, in a job that can mutate the repository (`contents: write`,
+        `permissions: write-all`, or a `git push` / `gh pr create|merge` in the same job). Kilo Code
+        reads attacker-controlled issue/PR content as its task while holding `GITHUB_TOKEN`, the
+        runner's credentials, and the `KILOCODE_API_KEY`, and in autonomous mode it edits files and
+        commits without confirmation, so an indirect prompt-injection payload becomes command
+        execution and code push. This rule fires only on the write-capable, ungated combination:
+        review-only jobs (`contents: read`) and jobs gated on repository write access
+        (`author_association`, `getCollaboratorPermissionLevel`, a maintainer-only label gate, or a
+        fork-exclusion check) are not flagged.
+    regex: "(?<![\\w-])kilocode\\b(?:[^\\n]){0,240}?(?:--auto\\b|--yolo\\b|--headless\\b|--auto-approve\\b)|(?<![\\w-])kilocode\\s+(?:run|code)\\b"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issues:
+                types: [opened, labeled]
+            jobs:
+              kilo:
+                permissions:
+                  contents: write
+                steps:
+                  - run: npm install -g @kilocode/cli
+                  - env:
+                      KILOCODE_TOKEN: ${{ secrets.KILOCODE_API_KEY }}
+                    run: |
+                      kilocode --auto --yolo "Issue: ${{ github.event.issue.title }}"
+    negative_examples:
+      - |2-
+            on:
+              pull_request:
+                types: [opened]
+            jobs:
+              review:
+                permissions:
+                  contents: read
+                steps:
+                  - run: npm install -g @kilocode/cli
+                  - run: kilocode --version
+    recommendation: >-
+        Do not run the Kilo Code CLI in an autonomous mode on untrusted issue/PR content in a job
+        that can write to the repository. Keep review jobs at `permissions: contents: read` with only
+        comment scope and never `git push` from them. If the agent must make changes, gate the job on
+        repository write access - require `author_association` in `OWNER`/`MEMBER`/`COLLABORATOR`,
+        check the actor via `getCollaboratorPermissionLevel`, or exclude fork PRs - and have it open a
+        PR for human review rather than pushing directly. Treat issue/PR title, body, and comments as
+        untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_bespoke_llm_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable Bespoke LLM Agent With Repository Write Access In A Privileged CI Job"
+    description: >-
+        A CI job runs a roll-your-own LLM agent - a `curl`/script that POSTs to a chat-completions /
+        messages endpoint (`/v1/chat/completions`, `/v1/messages`, `api.openai.com/v1`,
+        `api.anthropic.com/v1`, `generativelanguage.googleapis.com`, DashScope's `/compatible-mode/v1`,
+        Zhipu's `/api/paas/v4`) and applies the model's output - on a fork-reachable trigger, in a job
+        that can mutate the repository. Naming the API shape rather than a vendor is what lets an
+        unnamed, hand-built agent match. The rule fires only when the file also carries an untrusted
+        event payload (`github.event.issue.body`, `pull_request.title`, `comment.body`, etc.) flowing
+        into that call, the job is fork-reachable and write-capable (`contents: write`,
+        `permissions: write-all`, or a `git push` / `gh pr create|merge`), and no author gate is
+        present - so a self-prompted call over trusted repo content, a read-only review bot, or a
+        maintainer-gated job never matches.
+    regex: "(?:/v1/chat/completions|/v1/messages|/v1/completions|/chat/completions|api\\.openai\\.com/v1|api\\.anthropic\\.com/v1|generativelanguage\\.googleapis\\.com|/compatible-mode/v1|/api/paas/v4)"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issues:
+                types: [opened]
+            jobs:
+              agent:
+                permissions:
+                  contents: write
+                steps:
+                  - uses: actions/checkout@v4
+                  - env:
+                      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+                      TASK: ${{ github.event.issue.body }}
+                    run: |
+                      RESP=$(curl -s https://api.openai.com/v1/chat/completions \
+                        -H "Authorization: Bearer $LLM_API_KEY" \
+                        -d "{\"messages\":[{\"role\":\"user\",\"content\":\"$TASK\"}]}")
+                      echo "$RESP" | node apply-ops.js
+                      git add . && git commit -m fix && git push origin HEAD
+    negative_examples:
+      - |2-
+            on:
+              push:
+                branches: [main]
+            jobs:
+              notes:
+                permissions:
+                  contents: write
+                steps:
+                  - run: |
+                      curl -s https://api.example.com/summarize -d @changelog.json > notes.md
+                      git add notes.md && git commit -m notes && git push
+    recommendation: >-
+        Do not feed untrusted issue/PR content into a bespoke LLM call whose output is applied in a
+        job that can write to the repository. Keep review jobs at `permissions: contents: read` with
+        only comment scope and never `git push` from them. If the agent must make changes, gate the
+        job on repository write access - require `author_association` in `OWNER`/`MEMBER`/`COLLABORATOR`,
+        check the actor via `getCollaboratorPermissionLevel`, or exclude fork PRs - and have it open a
+        PR for human review rather than pushing directly. Treat issue/PR title, body, and comments as
+        untrusted data and never interpolate them into a prompt whose response is executed or
+        committed.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_agent_shell_exec_secret_exposure"
+    category: "ai_ml_security"
+    severity: "HIGH"
+    title: "Fork-Triggerable Coding Agent Given An Arbitrary Shell On Untrusted PR Content In A Job That Exposes A Secret"
+    description: >-
+        A CI job hands an autonomous coding agent (`claude`, `gemini`, `cursor-agent`, `opencode`,
+        `aider`, `codex`) an arbitrary shell - via `--dangerously-skip-permissions`,
+        `--dangerously-bypass-approvals-and-sandbox`, `--yolo`, `--full-auto`, an autonomous
+        `--permission-mode`/`--approval-mode`, a `--allowedTools "...Bash/Edit/Write..."` grant, or
+        `--allow-all-tools` - while a fork PR's code is checked out and a secret (an API key/token in
+        `env:` referencing `secrets.*`) is present in the job. This is the repo-write-less complement
+        of the per-vendor CRITICAL rules: even without repository write, the shell runs
+        attacker-controlled content and can read and exfiltrate the secret. The rule fires only on a
+        fork-reachable, ungated job that carries a secret and cannot be shown to write (a write-capable
+        job is owned by the CRITICAL rule and is never double-reported here); a plain `pull_request`
+        that receives no secrets, a read-only tool grant, and author/merge-gated jobs are not flagged.
+    regex: "(?<![\\w./-])(?:claude|gemini|cursor-agent|opencode|aider|codex)(?![\\w./-])[ \\t]+(?:(?:exec|run)[ \\t]+)?(?:(?:--dangerously-skip-permissions|--dangerously-bypass-approvals-and-sandbox|--yolo\\b|--full-auto\\b|--permission-mode[\\s=]+['\"]?(?:bypassPermissions|acceptEdits|auto)\\b|--approval-mode[\\s=]+['\"]?(?:yolo|auto_edit|auto)\\b|--allowed-?tools[\\s=]+['\"][^'\"]*\\b(?:Bash|Edit|Write|MultiEdit)\\b|--allow-all-tools\\b)|[\"'$\\\\-](?:[^\\n]){0,600}?(?:--dangerously-skip-permissions|--dangerously-bypass-approvals-and-sandbox|--yolo\\b|--full-auto\\b|--permission-mode[\\s=]+['\"]?(?:bypassPermissions|acceptEdits|auto)\\b|--approval-mode[\\s=]+['\"]?(?:yolo|auto_edit|auto)\\b|--allowed-?tools[\\s=]+['\"][^'\"]*\\b(?:Bash|Edit|Write|MultiEdit)\\b|--allow-all-tools\\b))"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              pull_request_target:
+                types: [opened, synchronize]
+            jobs:
+              review:
+                runs-on: ubuntu-latest
+                steps:
+                  - uses: actions/checkout@v4
+                    with:
+                      ref: ${{ github.event.pull_request.head.sha }}
+                  - run: npm install -g @anthropic-ai/claude-code
+                  - env:
+                      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+                    run: |
+                      claude -p "$(cat review-prompt.txt)" --allowedTools "Bash,Read,Grep"
+    negative_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              review:
+                runs-on: ubuntu-latest
+                steps:
+                  - env:
+                      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+                    run: claude --print "Summarize" --allowedTools "Read,Glob,Grep" > out.md
+    recommendation: >-
+        This job hands an autonomous coding agent an arbitrary shell
+        (`--dangerously-skip-permissions` / `--allowedTools "...Bash..."` / `--yolo`) while a fork
+        PR's code is checked out and a secret (API key, token) is in the job environment. Even without
+        repository write, that shell runs attacker-controlled content and can read and exfiltrate the
+        secret. Drop the shell/write tools for untrusted runs (grant only read-only tools such as
+        Read/Glob/Grep, or Gemini/Claude review-only modes), do not inject long-lived secrets into a
+        job that processes fork content, and gate any autonomous run on repository write access
+        (`author_association` in `OWNER`/`MEMBER`/`COLLABORATOR` or a collaborator-permission check).
+        Treat PR/issue title, body, and comments as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-200", "CWE-522", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1567"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050", "AML.T0057"]
+
+  - id: "fork_triggerable_junie_agent_with_prompt_bypass"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable JetBrains Junie Agent With A Custom Prompt Bypassing Its Built-In Write-Access Gate"
+    description: >-
+        A CI workflow runs JetBrains Junie (`JetBrains/junie-github-action`) on a fork-reachable
+        trigger and passes a custom `prompt:` / `user_prompt:` / `custom_prompt:` input. Per
+        JetBrains' docs Junie self-gates by default - "only users with write access can trigger
+        Junie" and it blocks bot actors - so the common `@junie-agent` mention wiring is not
+        fork-exploitable and is not flagged. The decisive documented exception is that the built-in
+        permission validation "does NOT apply when a custom `prompt` input is provided". A workflow
+        that both runs Junie on a fork-reachable trigger and passes a custom prompt has intentionally
+        bypassed the self-gate; when that prompt carries untrusted PR/issue content into a
+        write-capable job it is the same fork-triggerable-agent class. This rule anchors only on the
+        action slug followed by a custom-prompt input in the same step, never the safe mention-only
+        default, and the fork-reachable + write-capable + ungated post-filter suppresses correctly
+        gated callers.
+    regex: "JetBrains/junie-github-action@(?:(?!^\\s*-?\\s*(?:uses|name)\\s*:)[\\s\\S]){0,2000}?^\\s*(?:prompt|user_prompt|custom_prompt)\\s*:"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              junie:
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: JetBrains/junie-github-action@v1
+                    with:
+                      junie_api_key: ${{ secrets.JUNIE_API_KEY }}
+                      prompt: ${{ github.event.comment.body }}
+    negative_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              junie:
+                if: contains(github.event.comment.body, '@junie-agent')
+                permissions:
+                  contents: write
+                steps:
+                  - uses: JetBrains/junie-github-action@v1
+                    with:
+                      junie_api_key: ${{ secrets.JUNIE_API_KEY }}
+    recommendation: >-
+        Do not pass untrusted PR/issue content into Junie's custom `prompt:` input on a
+        fork-reachable trigger in a job that can write to the repository - the custom prompt disables
+        Junie's built-in write-access gate. Rely on the default `@junie-agent` mention flow (which
+        restricts triggers to users with write access), or gate the job explicitly on repository
+        write access (`author_association` in `OWNER`/`MEMBER`/`COLLABORATOR` or
+        `getCollaboratorPermissionLevel`) and have the agent open a PR for human review. Treat the PR
+        diff and issue/comment body as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_bonk_agent_with_write_token"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable Bonk (OpenCode) Agent With A Writable Token And No Maintainer/CODEOWNERS Gate"
+    description: >-
+        A CI workflow runs Bonk (`ask-bonk/ask-bonk` / `ask-bonk/ask-bonk/github`), a code-review /
+        change agent built on OpenCode, on a fork-reachable trigger. Bonk's installation token
+        defaults to full write access and it responds to `/bonk` / `@ask-bonk` mentions in issues and
+        PRs. Bonk's own author gate is its `permissions:` input: setting it to `admin` / `write` /
+        `CODEOWNERS` restricts triggers to trusted actors, and `token_permissions: NO_PUSH` drops
+        repo write. The dangerous shape is a fork-reachable, write-capable Bonk step configured with
+        none of those safe inputs - i.e. mention-only (or `permissions: any`) with the default
+        writable token, which any fork contributor can trigger. This rule anchors on the action use
+        only when neither a safe `permissions:` value nor `token_permissions: NO_PUSH` appears in the
+        step, and the fork-reachable + write-capable + ungated post-filter handles the rest.
+    regex: "ask-bonk/ask-bonk(?:/github)?@(?![\\s\\S]{0,2500}?(?:permissions\\s*:\\s*[\"']?(?:admin|write|CODEOWNERS)|token_permissions\\s*:\\s*[\"']?NO_PUSH))(?:(?!^\\s*-?\\s*(?:uses|name)\\s*:)[\\s\\S]){0,60}"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              bonk:
+                if: contains(github.event.comment.body, '/bonk')
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: ask-bonk/ask-bonk/github@main
+                    with:
+                      model: opencode/claude-opus-4-5
+    negative_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              bonk:
+                if: contains(github.event.comment.body, '/bonk')
+                permissions:
+                  contents: write
+                steps:
+                  - uses: ask-bonk/ask-bonk/github@main
+                    with:
+                      model: opencode/claude-opus-4-5
+                      permissions: CODEOWNERS
+    recommendation: >-
+        Do not run Bonk on a fork-reachable trigger with its default writable token and no
+        maintainer gate. Set the action's `permissions:` input to `admin` / `write` / `CODEOWNERS`
+        so only trusted actors can trigger it, or set `token_permissions: NO_PUSH` to drop repository
+        write. Otherwise gate the job on repository write access (`author_association` in
+        `OWNER`/`MEMBER`/`COLLABORATOR` or `getCollaboratorPermissionLevel`). Treat PR/issue content
+        as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_cogni_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable Cogni AI Agent With Repository Write Access In A Privileged CI Job"
+    description: >-
+        A CI workflow runs Cogni (`Cogni-AI-OU/cogni-ai-agent-action`), an autonomous agent that
+        takes a `prompt:` (typically the issue/PR/comment body piped straight in) and is granted
+        `contents: write` / `issues: write`, on a fork-reachable trigger. Cogni carries no built-in
+        author gate, so on a fork-reachable trigger with repository write it is directly exploitable:
+        an attacker's issue/PR/comment body becomes the agent's instructions and can drive commits
+        under `GITHUB_TOKEN`. This rule anchors on the action use, and the fork-reachable +
+        write-capable + ungated post-filter suppresses correctly gated callers (a read-only job or an
+        `author_association` / collaborator-permission gate).
+    regex: "Cogni-AI-OU/cogni-ai-agent-action@"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              cogni:
+                permissions:
+                  contents: write
+                  issues: write
+                steps:
+                  - uses: Cogni-AI-OU/cogni-ai-agent-action@main
+                    with:
+                      prompt: ${{ github.event.comment.body }}
+    negative_examples:
+      - |2-
+            on:
+              pull_request:
+                types: [opened]
+            jobs:
+              lint:
+                permissions:
+                  contents: read
+                steps:
+                  - uses: actions/checkout@v4
+                  - run: echo "Cogni review is disabled for forks"
+    recommendation: >-
+        Do not run the Cogni agent on untrusted issue/PR content on a fork-reachable trigger in a job
+        that can write to the repository. Keep review jobs at `permissions: contents: read` with only
+        comment scope. If the agent must make changes, gate the job on repository write access -
+        require `author_association` in `OWNER`/`MEMBER`/`COLLABORATOR`, check the actor via
+        `getCollaboratorPermissionLevel`, or exclude fork PRs - and have it open a PR for human
+        review. Treat PR/issue title, body, and comments as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_letta_agent_opened_to_forks"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable Letta Code Agent Opened To Non-Write Users With Shell / Commit Access"
+    description: >-
+        A CI workflow runs Letta Code (`letta-ai/letta-code-action`), a stateful autonomous coding
+        agent that can read files, run shell commands, commit and push, and open pull requests, and
+        opens it to non-write users. Per Letta's docs the action self-gates by default - "only
+        repository collaborators with write access can trigger the action" - using the same
+        `allowed_non_write_users` / `allowed_bots` input convention as the Claude action. The
+        documented, cautioned-against bypass is setting `allowed_non_write_users` (or `allowed_bots`)
+        to `*`, which lets any fork contributor drive a shell/commit-capable agent. This rule anchors
+        on the action use only when one of those inputs opens it to `*`; the default self-gated
+        wiring (no such input) never fires. The generic write/exec-tools rule does not cover this
+        because Letta does not use Claude's `allowed_tools: Bash,...` grant - it grants
+        shell/commit capability implicitly.
+    regex: "letta-ai/letta-code-action@(?:(?!^\\s*-?\\s*(?:uses|name)\\s*:)[\\s\\S]){0,2500}?^\\s*allowed_(?:non_write_users|bots)\\s*:\\s*[\"']?\\*[\"']?"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              letta:
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: letta-ai/letta-code-action@v0
+                    with:
+                      letta_api_key: ${{ secrets.LETTA_API_KEY }}
+                      allowed_non_write_users: "*"
+    negative_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              letta:
+                permissions:
+                  contents: write
+                steps:
+                  - uses: letta-ai/letta-code-action@v0
+                    with:
+                      letta_api_key: ${{ secrets.LETTA_API_KEY }}
+    recommendation: >-
+        Do not set `allowed_non_write_users` / `allowed_bots` to `*` on the Letta Code action - that
+        disables its built-in write-access gate and lets any fork contributor drive a shell- and
+        commit-capable agent. Rely on the default self-gated wiring (only collaborators with write
+        access can trigger it), or gate the job explicitly on repository write access. Have the agent
+        open a PR for human review rather than committing directly. Treat the PR diff and issue/comment
+        content as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_code_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable code-agent (Claude Code / Codex Wrapper) With Repository Write Access"
+    description: >-
+        A CI workflow runs code-agent (`potproject/code-agent`), a GitHub Action that wraps Claude
+        Code / Codex, reads the issue/PR/comment body, and is granted `contents: write` +
+        `pull-requests: write`, on a fork-reachable trigger. code-agent carries no built-in author
+        gate - its only guard is `sender.type != 'Bot'`, which a fork contributor trivially satisfies
+        - so an attacker's issue/PR/comment body becomes the wrapped agent's instructions and can
+        drive commits under `GITHUB_TOKEN`. This rule anchors on the action use, and the
+        fork-reachable + write-capable + ungated post-filter suppresses correctly gated callers.
+    regex: "potproject/code-agent@"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              code-agent:
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: potproject/code-agent@main
+                    with:
+                      anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    negative_examples:
+      - |2-
+            on:
+              pull_request:
+                types: [opened]
+            jobs:
+              lint:
+                permissions:
+                  contents: read
+                steps:
+                  - uses: actions/checkout@v4
+                  - run: echo "no code-agent here"
+    recommendation: >-
+        Do not run code-agent on untrusted issue/PR content on a fork-reachable trigger in a job that
+        can write to the repository. Keep review jobs at `permissions: contents: read`. If the agent
+        must make changes, gate the job on repository write access - require `author_association` in
+        `OWNER`/`MEMBER`/`COLLABORATOR`, check the actor via `getCollaboratorPermissionLevel`, or
+        exclude fork PRs (a `sender.type != 'Bot'` check is not sufficient) - and have it open a PR
+        for human review. Treat PR/issue title, body, and comments as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_ai_github_action_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable AI Refactor Agent (cognitivecomputations/ai-github-action) With Repository Write Access"
+    description: >-
+        A CI workflow runs the AI refactor agent (`cognitivecomputations/ai-github-action`) with a
+        `mode:` input (its autonomous refactor/edit modes, e.g. `mode: pr`) on a fork-reachable
+        trigger. In its edit modes the action rewrites files and pushes them, granted
+        `contents: write`. It has no built-in author gate, so on a fork-reachable trigger with
+        repository write it edits the checked-out fork branch directly under `GITHUB_TOKEN`. This
+        rule anchors on the action use followed by a `mode:` input, and the fork-reachable +
+        write-capable + ungated post-filter suppresses correctly gated callers.
+    regex: "cognitivecomputations/ai-github-action@(?:(?!^\\s*-?\\s*(?:uses|name)\\s*:)[\\s\\S]){0,1500}?^\\s*mode\\s*:"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              pull_request:
+                types: [opened, synchronize]
+            jobs:
+              ai-refactor:
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: cognitivecomputations/ai-github-action@v1
+                    with:
+                      mode: "pr"
+                      instructions: "refactor"
+    negative_examples:
+      - |2-
+            on:
+              pull_request:
+                types: [opened]
+            jobs:
+              ai-refactor:
+                permissions:
+                  contents: read
+                steps:
+                  - uses: cognitivecomputations/ai-github-action@v1
+                    with:
+                      instructions: "review only"
+    recommendation: >-
+        Do not run the AI refactor agent in an edit `mode:` (e.g. `pr`) on untrusted PR content on a
+        fork-reachable trigger in a job that can write to the repository. Keep review runs at
+        `permissions: contents: read`. If the agent must make changes, gate the job on repository
+        write access (`author_association` in `OWNER`/`MEMBER`/`COLLABORATOR` or
+        `getCollaboratorPermissionLevel`) and have it open a PR for human review rather than pushing
+        directly. Treat the PR diff and any in-tree agent policy files as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_a5c_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable a5c Agent Router With Repository Write Access In A Privileged CI Job"
+    description: >-
+        A CI workflow runs a5c (`a5c-ai/action`), an autonomous agent router that dispatches Claude
+        Code / Codex on a wide set of triggers (`pull_request`, `issue_comment`, `issues`, ...) and
+        is granted `contents` / `pull-requests` / `packages: write`, on a fork-reachable trigger. The
+        workflow itself carries no author gate - the vendor documents runtime routing/filtering the
+        static config does not express - so a fork-reachable + write-capable caller matches the
+        model: an attacker's PR/issue/comment content is routed to a coding agent that can commit
+        under `GITHUB_TOKEN`. This rule anchors on the action use, and the fork-reachable +
+        write-capable + ungated post-filter suppresses callers that add an explicit maintainer gate.
+    regex: "a5c-ai/action@"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              a5c:
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: a5c-ai/action@main
+                    with:
+                      anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    negative_examples:
+      - |2-
+            on:
+              pull_request:
+                types: [opened]
+            jobs:
+              a5c:
+                if: github.event.pull_request.author_association == 'MEMBER'
+                permissions:
+                  contents: write
+                steps:
+                  - uses: actions/checkout@v4
+    recommendation: >-
+        Do not run the a5c agent router on untrusted PR/issue content on a fork-reachable trigger in
+        a job that can write to the repository. Gate the job on repository write access -
+        `author_association` in `OWNER`/`MEMBER`/`COLLABORATOR`, a `getCollaboratorPermissionLevel`
+        check, or a fork-exclusion check - and scope the dispatched agent's tools to read-only for
+        untrusted runs, handing any commit to a separate reviewed job. Treat PR/issue content as
+        untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_iflow_agent_with_prompt"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable iFlow CLI Coding Agent Driven By An Untrusted Prompt In A Privileged CI Job"
+    description: >-
+        A CI workflow runs the iFlow CLI action (`iflow-ai/iflow-cli-action`), an autonomous
+        coding-agent action that takes a `prompt:` (typically the issue/PR/comment body) and can
+        implement issues - i.e. commit and open PRs - on a fork-reachable trigger. It has no built-in
+        author gate, so a fork-reachable + write-capable caller that pipes untrusted content into
+        `prompt:` is exploitable: the attacker's content becomes the agent's instructions and can
+        drive commits under `GITHUB_TOKEN`. This rule anchors on the action use followed by a
+        `prompt:` input, and the fork-reachable + write-capable + ungated post-filter suppresses
+        callers that add an `author_association` / membership gate.
+    regex: "iflow-ai/iflow-cli-action@(?:(?!^\\s*-?\\s*(?:uses|name)\\s*:)[\\s\\S]){0,2000}?^\\s*prompt\\s*:"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              iflow:
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: iflow-ai/iflow-cli-action@v2
+                    with:
+                      api_key: ${{ secrets.IFLOW_API_KEY }}
+                      prompt: ${{ github.event.comment.body }}
+    negative_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              iflow:
+                if: contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+                permissions:
+                  contents: write
+                steps:
+                  - uses: iflow-ai/iflow-cli-action@v2
+                    with:
+                      api_key: ${{ secrets.IFLOW_API_KEY }}
+    recommendation: >-
+        Do not pipe untrusted issue/PR/comment content into the iFlow CLI action's `prompt:` input on
+        a fork-reachable trigger in a job that can write to the repository. Gate the job on repository
+        write access - require `author_association` in `OWNER`/`MEMBER`/`COLLABORATOR`, check the
+        actor via `getCollaboratorPermissionLevel`, or exclude fork PRs - and have the agent open a PR
+        for human review. Treat the PR/issue/comment body as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_sweep_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable Sweep AI Agent With Repository Write Access In A Privileged CI Job"
+    description: >-
+        A CI workflow runs Sweep (`sweepai/sweep-action`, `sweep-ai/sweep`), an autonomous "junior
+        engineer" agent that reads an issue, edits the codebase, and opens a pull request, on a
+        fork-reachable trigger. Per Sweep's docs "any user with access to your repository can trigger
+        Sweep" and it acts with the GitHub App installation's permissions - it enforces no
+        author-write-access check of its own. The documented safe trigger is the maintainer-controlled
+        `Sweep` label (`github.event.label.name == 'sweep'`), which the author-gate post-filter treats
+        as sound. The dangerous shape is a fork-reachable trigger (an `issues` / `issue_comment`
+        `Sweep:` text prefix, which any outside author can set) with repository write and no
+        label/author gate. This rule anchors on the action use, and the fork-reachable +
+        write-capable + ungated post-filter suppresses label-gated callers.
+    regex: "(?:sweepai|sweep-ai)/sweep(?:-action)?@"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issues:
+                types: [opened, edited]
+            jobs:
+              sweep:
+                if: startsWith(github.event.issue.title, 'Sweep:')
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: sweepai/sweep-action@v1
+                    with:
+                      github_token: ${{ secrets.GITHUB_TOKEN }}
+    negative_examples:
+      - |2-
+            on:
+              issues:
+                types: [labeled]
+            jobs:
+              sweep:
+                if: github.event.label.name == 'sweep'
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: actions/checkout@v4
+    recommendation: >-
+        Do not trigger Sweep from an outside-author-controllable signal (an `issues` / `issue_comment`
+        `Sweep:` title/body prefix) in a job that can write to the repository. Gate the agent on the
+        maintainer-controlled `Sweep` label (`github.event.label.name == 'sweep'`) - only users with
+        write access can label - or on repository write access (`author_association` in
+        `OWNER`/`MEMBER`/`COLLABORATOR` or `getCollaboratorPermissionLevel`). Treat issue/PR content
+        as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_pr_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "HIGH"
+    title: "Fork-Triggerable PR-Agent With Repository Write Access In A Privileged CI Job"
+    description: >-
+        A CI workflow runs PR-Agent (`qodo-ai/pr-agent`, formerly `Codium-ai/pr-agent`), which
+        reviews, describes, and - via `/improve` and its commitable code suggestions - edits pull
+        requests using the repository's `GITHUB_TOKEN`, on a fork-reachable trigger. Its GitHub
+        Action mode has no built-in author-permission check: the vendor's own examples gate only on
+        `github.event.sender.type != 'Bot'`, which an outside human PR author trivially satisfies.
+        Wired to `pull_request` / `issue_comment` with `contents: write` and no author gate, an
+        attacker's PR body or comment is read as the agent's instructions and can drive a push or PR
+        mutation through prompt injection. This rule anchors on the action use, and the fork-reachable
+        + write-capable + ungated post-filter suppresses the callers that add a real gate.
+    regex: "(?:Codium-ai|codiumai|qodo-ai)/pr-agent@"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              pull_request:
+                types: [opened, reopened]
+              issue_comment:
+            jobs:
+              pr_agent_job:
+                if: ${{ github.event.sender.type != 'Bot' }}
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: qodo-ai/pr-agent@main
+                    env:
+                      OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+                      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    negative_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              pr_agent_job:
+                if: contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: actions/checkout@v4
+    recommendation: >-
+        Do not run PR-Agent with repository-mutating tools (`/improve` commitable suggestions) on
+        untrusted PR/comment content on a fork-reachable trigger in a job that can write to the
+        repository - a `sender.type != 'Bot'` check does not gate outside human authors. Gate the job
+        on repository write access (`author_association` in `OWNER`/`MEMBER`/`COLLABORATOR` or
+        `getCollaboratorPermissionLevel`) and scope the agent to read-only review/describe tools.
+        Treat PR/issue content as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_reachable_gitlab_ci_agent_with_write_or_exec"
+    category: "ai_ml_security"
+    severity: "HIGH"
+    title: "Fork-Reachable GitLab CI Coding Agent With Write Or Execute Capability"
+    description: >-
+        A `.gitlab-ci.yml` job runs a coding agent (`claude -p`, `codex exec`, `aider`,
+        `cursor-agent`, `qwen ... -p`, `opencode run`, `goose run`, `gemini --yolo` /
+        `--approval-mode yolo|auto_edit`) with write / execute capability on a merge-request pipeline
+        (`$CI_PIPELINE_SOURCE == "merge_request_event"`) and with no fork guard. A merge-request
+        pipeline runs in the context that owns the agent's write credentials, so an untrusted diff,
+        title, or description can drive the agent via prompt injection. GitLab's fork-pipeline model
+        means the parent's protected variables are never injected into a fork merge-request pipeline,
+        so this is scored HIGH rather than CRITICAL - final exploitability also depends on project
+        settings (whether the token is Protected, branch protection, who may push a branch) that are
+        not visible in the file. The rule fires only when the file drives a known agent (the family
+        proof), the pipeline is merge-request-triggered, and no
+        `$CI_MERGE_REQUEST_SOURCE_PROJECT_ID != $CI_PROJECT_ID` fork guard is present; read-only tool
+        grants (`--allowedTools "Read,Grep,Glob"`, `--permission-mode plan`) do not match the anchor.
+    regex: "(?:^|[\\s;&|])(?:claude\\s+(?:--\\S+\\s+)*-p\\b|codex\\s+exec\\b|aider\\b|cursor-agent\\b|qwen\\b[^\\n]*\\s-p\\b|opencode\\s+run\\b|goose\\s+run\\b|gemini\\b[^\\n]*--yolo\\b|gemini\\b[^\\n]*--approval-mode[\\s=]+[\"']?(?:yolo|auto_edit))"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            ai-review:
+              stage: review
+              image: node:22
+              rules:
+                - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+              script:
+                - npm install -g @anthropic-ai/claude-code
+                - |
+                  claude -p "Review MR !${CI_MERGE_REQUEST_IID} and post a note using PRIVATE-TOKEN $REVIEW_TOKEN" \
+                    --permission-mode acceptEdits \
+                    --allowedTools "Bash Read Edit Write"
+      - |2-
+            codex-fix:
+              rules:
+                - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+              script:
+                - npm i -g @openai/codex
+                - git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...HEAD > diff.patch
+                - codex exec --full-auto "$(cat diff.patch)"
+                - git push origin HEAD
+    negative_examples:
+      - |2-
+            lint:
+              rules:
+                - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+              script:
+                - npm ci
+                - npm run lint
+      - |2-
+            claude-review:
+              rules:
+                - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+              script:
+                - npm install -g @anthropic-ai/claude-code
+                - claude --version
+    recommendation: >-
+        A merge-request pipeline runs in the context that owns the agent's write credentials, so an
+        untrusted diff can drive the agent via prompt injection. Gate the job against fork sources
+        (add a `rule: if $CI_MERGE_REQUEST_SOURCE_PROJECT_ID != $CI_PROJECT_ID` with `when: never`),
+        restrict the agent to read-only tools (for example `--allowedTools "Read,Grep,Glob"`) when it
+        only reviews, mark the API/personal access token as Protected so it is never exposed to fork
+        pipelines, and never embed the token in the agent prompt. Treat the merge-request diff, title,
+        and description as untrusted data.
     cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
     owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
     owasp_llm: ["LLM01", "LLM02", "LLM06"]

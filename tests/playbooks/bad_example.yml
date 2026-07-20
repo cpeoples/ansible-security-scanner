@@ -6030,6 +6030,338 @@
                       --dangerously-skip-permissions
                     git push origin HEAD
 
+    # --- ai_ml_security.yml: fork_triggerable_gemini_cli_agent_with_repo_write ---
+    - name: trigger fork_triggerable_gemini_cli_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/gemini-cli-agent.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            gemini:
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - env:
+                    GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+                    TASK: ${{ github.event.comment.body }}
+                  run: |
+                    gemini --yolo --prompt "$TASK"
+                    git push origin HEAD
+
+    # --- ai_ml_security.yml: fork_triggerable_codemie_agent_with_repo_write ---
+    - name: trigger fork_triggerable_codemie_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/codemie-agent.yml
+        content: |
+          on:
+            issues:
+              types: [opened]
+          jobs:
+            codemie:
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - env:
+                    TASK: ${{ github.event.issue.body }}
+                  run: |
+                    npm install -g @codemieai/code
+                    codemie run "$TASK"
+                    git push origin HEAD
+
+    # --- ai_ml_security.yml: fork_triggerable_devin_agent_with_repo_write ---
+    - name: trigger fork_triggerable_devin_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/devin-agent.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            devin:
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: aaronsteers/devin-action@v1
+                  with:
+                    devin-token: ${{ secrets.DEVIN_TOKEN }}
+                    prompt-text: ${{ github.event.comment.body }}
+                - run: git push origin HEAD
+
+    # --- ai_ml_security.yml: fork_triggerable_kilocode_agent_with_repo_write ---
+    - name: trigger fork_triggerable_kilocode_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/kilocode-agent.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            kilocode:
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - env:
+                    TASK: ${{ github.event.comment.body }}
+                  run: |
+                    kilocode run --yolo "$TASK"
+                    git push origin HEAD
+
+    # --- ai_ml_security.yml: fork_triggerable_bespoke_llm_agent_with_repo_write ---
+    - name: trigger fork_triggerable_bespoke_llm_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/bespoke-llm-agent.yml
+        content: |
+          on:
+            issues:
+              types: [opened]
+          jobs:
+            agent:
+              permissions:
+                contents: write
+              steps:
+                - uses: actions/checkout@v4
+                - env:
+                    LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+                    TASK: ${{ github.event.issue.body }}
+                  run: |
+                    RESP=$(curl -s https://api.openai.com/v1/chat/completions \
+                      -H "Authorization: Bearer $LLM_API_KEY" \
+                      -d "{\"messages\":[{\"role\":\"user\",\"content\":\"$TASK\"}]}")
+                    echo "$RESP" | node apply-ops.js
+                    git add . && git commit -m fix && git push origin HEAD
+
+    # --- ai_ml_security.yml: fork_triggerable_agent_shell_exec_secret_exposure ---
+    - name: trigger fork_triggerable_agent_shell_exec_secret_exposure
+      ansible.builtin.copy:
+        dest: .github/workflows/shell-exec-agent.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            triage:
+              permissions:
+                contents: read
+              steps:
+                - env:
+                    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+                    DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+                    TASK: ${{ github.event.comment.body }}
+                  run: |
+                    claude -p "Triage: $TASK" --dangerously-skip-permissions
+
+    # --- ai_ml_security.yml: fork_triggerable_junie_agent_with_prompt_bypass ---
+    - name: trigger fork_triggerable_junie_agent_with_prompt_bypass
+      ansible.builtin.copy:
+        dest: .github/workflows/junie-agent.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            junie:
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: JetBrains/junie-github-action@v1
+                  with:
+                    junie_api_key: ${{ secrets.JUNIE_API_KEY }}
+                    prompt: ${{ github.event.comment.body }}
+
+    # --- ai_ml_security.yml: fork_triggerable_bonk_agent_with_write_token ---
+    - name: trigger fork_triggerable_bonk_agent_with_write_token
+      ansible.builtin.copy:
+        dest: .github/workflows/bonk-agent.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            bonk:
+              if: contains(github.event.comment.body, '/bonk')
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: ask-bonk/ask-bonk/github@main
+                  with:
+                    model: opencode/claude-opus-4-5
+
+    # --- ai_ml_security.yml: fork_triggerable_cogni_agent_with_repo_write ---
+    - name: trigger fork_triggerable_cogni_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/cogni-agent.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            cogni:
+              permissions:
+                contents: write
+                issues: write
+              steps:
+                - uses: Cogni-AI-OU/cogni-ai-agent-action@main
+                  with:
+                    prompt: ${{ github.event.comment.body }}
+
+    # --- ai_ml_security.yml: fork_triggerable_letta_agent_opened_to_forks ---
+    - name: trigger fork_triggerable_letta_agent_opened_to_forks
+      ansible.builtin.copy:
+        dest: .github/workflows/letta-agent.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            letta:
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: letta-ai/letta-code-action@v0
+                  with:
+                    letta_api_key: ${{ secrets.LETTA_API_KEY }}
+                    allowed_non_write_users: "*"
+
+    # --- ai_ml_security.yml: fork_triggerable_code_agent_with_repo_write ---
+    - name: trigger fork_triggerable_code_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/code-agent.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            code-agent:
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: potproject/code-agent@main
+                  with:
+                    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    # --- ai_ml_security.yml: fork_triggerable_ai_github_action_with_repo_write ---
+    - name: trigger fork_triggerable_ai_github_action_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/ai-refactor.yml
+        content: |
+          on:
+            pull_request:
+              types: [opened, synchronize]
+          jobs:
+            ai-refactor:
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: cognitivecomputations/ai-github-action@v1
+                  with:
+                    mode: "pr"
+                    instructions: "refactor"
+
+    # --- ai_ml_security.yml: fork_triggerable_a5c_agent_with_repo_write ---
+    - name: trigger fork_triggerable_a5c_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/a5c-agent.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            a5c:
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: a5c-ai/action@main
+                  with:
+                    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    # --- ai_ml_security.yml: fork_triggerable_iflow_agent_with_prompt ---
+    - name: trigger fork_triggerable_iflow_agent_with_prompt
+      ansible.builtin.copy:
+        dest: .github/workflows/iflow-agent.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            iflow:
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: iflow-ai/iflow-cli-action@v2
+                  with:
+                    api_key: ${{ secrets.IFLOW_API_KEY }}
+                    prompt: ${{ github.event.comment.body }}
+
+    # --- ai_ml_security.yml: fork_triggerable_sweep_agent_with_repo_write ---
+    - name: trigger fork_triggerable_sweep_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/sweep-agent.yml
+        content: |
+          on:
+            issues:
+              types: [opened, edited]
+          jobs:
+            sweep:
+              if: startsWith(github.event.issue.title, 'Sweep:')
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: sweepai/sweep-action@v1
+                  with:
+                    github_token: ${{ secrets.GITHUB_TOKEN }}
+
+    # --- ai_ml_security.yml: fork_triggerable_pr_agent_with_repo_write ---
+    - name: trigger fork_triggerable_pr_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/pr-agent.yml
+        content: |
+          on:
+            pull_request:
+              types: [opened, reopened]
+            issue_comment:
+          jobs:
+            pr_agent_job:
+              if: ${{ github.event.sender.type != 'Bot' }}
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: qodo-ai/pr-agent@main
+                  env:
+                    OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # --- ai_ml_security.yml: fork_reachable_gitlab_ci_agent_with_write_or_exec ---
+    - name: trigger fork_reachable_gitlab_ci_agent_with_write_or_exec
+      ansible.builtin.copy:
+        dest: gitlab-ci-agent.yml
+        content: |
+          ai-review:
+            stage: review
+            image: node:22
+            rules:
+              - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+            script:
+              - npm install -g @anthropic-ai/claude-code
+              - |
+                claude -p "Review MR !${CI_MERGE_REQUEST_IID} using PRIVATE-TOKEN $REVIEW_TOKEN" \
+                  --permission-mode acceptEdits \
+                  --allowedTools "Bash Read Edit Write"
+
     # --- supply_chain.yml: mini_shai_hulud_poisoned_package_version_install ---
     - name: trigger mini_shai_hulud_poisoned_package_version_install
       ansible.builtin.pip:

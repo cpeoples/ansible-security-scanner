@@ -75,6 +75,23 @@ class AiMlSecurityRemediationGenerator(BaseRemediationGenerator):
         "fork_triggerable_swe_agent_with_repo_write": "_fix_fork_triggerable_swe_agent",
         "fork_triggerable_warp_agent_with_repo_write": "_fix_fork_triggerable_warp",
         "fork_triggerable_claude_cli_agent_with_repo_write": "_fix_fork_triggerable_claude_cli",
+        "fork_triggerable_gemini_cli_agent_with_repo_write": "_fix_fork_triggerable_gemini_cli",
+        "fork_triggerable_codemie_agent_with_repo_write": "_fix_fork_triggerable_codemie",
+        "fork_triggerable_devin_agent_with_repo_write": "_fix_fork_triggerable_devin",
+        "fork_triggerable_kilocode_agent_with_repo_write": "_fix_fork_triggerable_kilocode",
+        "fork_triggerable_bespoke_llm_agent_with_repo_write": "_fix_fork_triggerable_bespoke_llm",
+        "fork_triggerable_agent_shell_exec_secret_exposure": "_fix_fork_triggerable_shell_exec",
+        "fork_triggerable_junie_agent_with_prompt_bypass": "_fix_fork_triggerable_junie",
+        "fork_triggerable_bonk_agent_with_write_token": "_fix_fork_triggerable_bonk",
+        "fork_triggerable_cogni_agent_with_repo_write": "_fix_fork_triggerable_cogni",
+        "fork_triggerable_letta_agent_opened_to_forks": "_fix_fork_triggerable_letta",
+        "fork_triggerable_code_agent_with_repo_write": "_fix_fork_triggerable_code_agent",
+        "fork_triggerable_ai_github_action_with_repo_write": "_fix_fork_triggerable_ai_refactor",
+        "fork_triggerable_a5c_agent_with_repo_write": "_fix_fork_triggerable_a5c",
+        "fork_triggerable_iflow_agent_with_prompt": "_fix_fork_triggerable_iflow",
+        "fork_triggerable_sweep_agent_with_repo_write": "_fix_fork_triggerable_sweep",
+        "fork_triggerable_pr_agent_with_repo_write": "_fix_fork_triggerable_pr_agent",
+        "fork_reachable_gitlab_ci_agent_with_write_or_exec": "_fix_fork_reachable_gitlab_ci_agent",
     }
 
     def generate_ai_ml_security_fix(self, rule_id: str, code_snippet: str) -> str:
@@ -962,6 +979,422 @@ class AiMlSecurityRemediationGenerator(BaseRemediationGenerator):
             "contents: write reads an untrusted issue/PR comment as its prompt and "
             "auto-approves shell and file-edit tools, reaching command execution and "
             "code push under GITHUB_TOKEN and the runner's credentials.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_gemini_cli(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# Gate the Gemini CLI agent on repository write access, keep review\n"
+            "# jobs read-only, and drop --yolo / --approval-mode=yolo so tools never\n"
+            "# auto-run on untrusted issue/PR content.\n"
+            "jobs:\n"
+            "  gemini:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "    steps:\n"
+            "      - env:\n"
+            "          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}\n"
+            '        run: gemini --approval-mode default -p "Review only."'
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable Gemini CLI run in --yolo / --approval-mode=yolo mode with "
+            "repository write reads untrusted issue/PR content as its prompt and can push "
+            "code under GITHUB_TOKEN.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_codemie(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# CodeMie has no built-in author gate. Gate the job on repository write\n"
+            "# access and keep it read-only unless a maintainer triggered it; have the\n"
+            "# agent open a PR for human review rather than pushing.\n"
+            "jobs:\n"
+            "  codemie:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.issue.author_association)\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@v4"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable CodeMie agent with contents: write reads an untrusted "
+            "issue/PR body as its instructions and can commit under GITHUB_TOKEN.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_devin(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# Devin has no built-in author gate. Gate the job on repository write\n"
+            "# access, keep review jobs read-only, and have Devin open a PR for human\n"
+            "# review instead of pushing to the checked-out branch.\n"
+            "jobs:\n"
+            "  devin:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@v4"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable Devin agent with contents: write reads untrusted "
+            "issue/PR content as its task and can push under GITHUB_TOKEN.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_kilocode(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# Kilo Code has no built-in author gate. Gate the job on repository write\n"
+            "# access and keep it read-only for untrusted runs; have it open a PR for\n"
+            "# human review rather than pushing.\n"
+            "jobs:\n"
+            "  kilocode:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@v4"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable Kilo Code agent with contents: write reads untrusted "
+            "issue/PR content as its instructions and can commit under GITHUB_TOKEN.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_bespoke_llm(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# Do not feed untrusted issue/PR content into a hand-built LLM call whose\n"
+            "# output is applied in a write-capable job. Keep the job read-only and have\n"
+            "# it comment, or gate on repository write access and open a PR for review.\n"
+            "jobs:\n"
+            "  agent:\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "      pull-requests: write\n"
+            "    steps:\n"
+            "      - env:\n"
+            "          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}\n"
+            "        run: |\n"
+            "          # Summarise trusted repo content only; never execute or commit\n"
+            "          # the model output. Post a review comment for a human to act on.\n"
+            "          ./review-only.sh"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable bespoke LLM agent - a curl/script POSTing untrusted "
+            "event content to a chat-completions endpoint and applying the response - "
+            "in a write-capable job can drive commits under GITHUB_TOKEN via prompt "
+            "injection.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_shell_exec(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# An agent handed an arbitrary shell in a fork-reachable job that carries a\n"
+            "# long-lived secret can exfiltrate it. Remove --dangerously-skip-permissions\n"
+            "# / --yolo / broad --allowedTools, keep the long-lived secret off the job,\n"
+            "# and gate on repository write access.\n"
+            "jobs:\n"
+            "  agent:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "    steps:\n"
+            '      - run: agent --allowedTools Read,Grep,Glob "Review only."'
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-reachable job that hands an agent an arbitrary shell while carrying a "
+            "secrets.* credential lets an injected prompt read and exfiltrate that "
+            "long-lived secret.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_junie(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# Passing a custom prompt input to Junie disables its built-in write-access\n"
+            "# gate. Drop the custom prompt and rely on the default @junie-agent mention\n"
+            "# flow, or gate the job explicitly on repository write access.\n"
+            "jobs:\n"
+            "  junie:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: write\n"
+            "    steps:\n"
+            "      - uses: JetBrains/junie-github-action@v1\n"
+            "        with:\n"
+            "          junie_api_key: ${{ secrets.JUNIE_API_KEY }}"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A custom prompt input bypasses Junie's documented write-access self-gate, so "
+            "on a fork-reachable trigger untrusted PR/issue content drives a write-capable "
+            "agent.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_bonk(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# Bonk's installation token defaults to full write. Restrict triggers to\n"
+            "# trusted actors with the action's permissions input, or drop repo write\n"
+            "# with token_permissions: NO_PUSH.\n"
+            "jobs:\n"
+            "  bonk:\n"
+            "    if: contains(github.event.comment.body, '/bonk')\n"
+            "    permissions:\n"
+            "      contents: write\n"
+            "    steps:\n"
+            "      - uses: ask-bonk/ask-bonk/github@main\n"
+            "        with:\n"
+            "          permissions: CODEOWNERS\n"
+            "          token_permissions: NO_PUSH"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-reachable Bonk step with its default writable token and no "
+            "maintainer/CODEOWNERS gate lets any fork contributor drive a write-capable "
+            "agent.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_cogni(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# Cogni has no built-in author gate. Gate the job on repository write\n"
+            "# access, keep review runs read-only, and have it open a PR for human\n"
+            "# review rather than committing.\n"
+            "jobs:\n"
+            "  cogni:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@v4"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable Cogni agent with contents: write reads an untrusted "
+            "issue/PR/comment body as its prompt and can commit under GITHUB_TOKEN.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_letta(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# Setting allowed_non_write_users/allowed_bots to '*' disables Letta's\n"
+            "# built-in write-access gate. Remove it and rely on the default self-gate\n"
+            "# (only collaborators with write access can trigger it).\n"
+            "jobs:\n"
+            "  letta:\n"
+            "    permissions:\n"
+            "      contents: write\n"
+            "    steps:\n"
+            "      - uses: letta-ai/letta-code-action@v0\n"
+            "        with:\n"
+            "          letta_api_key: ${{ secrets.LETTA_API_KEY }}"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "Opening the Letta Code agent to non-write users (allowed_non_write_users: "
+            "'*') lets any fork contributor drive a shell- and commit-capable agent.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_code_agent(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# code-agent's only guard is sender.type != 'Bot', which a fork contributor\n"
+            "# satisfies. Gate the job on repository write access and keep it read-only\n"
+            "# for untrusted runs; have it open a PR for human review.\n"
+            "jobs:\n"
+            "  code-agent:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@v4"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable code-agent (Claude Code / Codex wrapper) with contents: "
+            "write reads untrusted issue/PR content as its instructions and can commit "
+            "under GITHUB_TOKEN.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_ai_refactor(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# Do not run the AI refactor agent in an edit mode (mode: pr) on untrusted\n"
+            "# PR content in a write-capable job. Keep review runs read-only, or gate on\n"
+            "# repository write access and open a PR for human review rather than pushing.\n"
+            "jobs:\n"
+            "  ai-refactor:\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "    steps:\n"
+            "      - uses: cognitivecomputations/ai-github-action@v1\n"
+            "        with:\n"
+            '          instructions: "review only"'
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable AI refactor agent in an edit mode with contents: write "
+            "rewrites and pushes the checked-out fork branch under GITHUB_TOKEN.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_a5c(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# a5c routes untrusted PR/issue content to a coding agent. Gate the job on\n"
+            "# repository write access and scope the dispatched agent to read-only for\n"
+            "# untrusted runs, handing any commit to a separate reviewed job.\n"
+            "jobs:\n"
+            "  a5c:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@v4"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable a5c agent router with write permissions dispatches a "
+            "coding agent on untrusted PR/issue content that can commit under "
+            "GITHUB_TOKEN.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_iflow(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# Do not pipe untrusted issue/PR/comment content into the iFlow CLI action's\n"
+            "# prompt input in a write-capable job. Gate on repository write access and\n"
+            "# have the agent open a PR for human review.\n"
+            "jobs:\n"
+            "  iflow:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "    steps:\n"
+            "      - uses: iflow-ai/iflow-cli-action@v2\n"
+            "        with:\n"
+            "          api_key: ${{ secrets.IFLOW_API_KEY }}\n"
+            '          prompt: "Review only."'
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable iFlow CLI agent driven by an untrusted prompt in a "
+            "write-capable job can commit and open PRs under GITHUB_TOKEN via prompt "
+            "injection.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_sweep(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# Trigger Sweep only from the maintainer-controlled Sweep label - only users\n"
+            "# with write access can label - not from an outside-author-controllable\n"
+            "# issue title/body prefix.\n"
+            "jobs:\n"
+            "  sweep:\n"
+            "    if: github.event.label.name == 'sweep'\n"
+            "    permissions:\n"
+            "      contents: write\n"
+            "      pull-requests: write\n"
+            "    steps:\n"
+            "      - uses: sweepai/sweep-action@v1"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable Sweep agent triggered by an outside-author-controllable "
+            "issue prefix with repository write reads an untrusted issue as its task and "
+            "opens a PR under the app's permissions.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_pr_agent(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# A sender.type != 'Bot' check does not gate outside human PR authors. Gate\n"
+            "# the job on repository write access and scope PR-Agent to read-only\n"
+            "# review/describe tools for untrusted runs.\n"
+            "jobs:\n"
+            "  pr_agent_job:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "      pull-requests: write\n"
+            "    steps:\n"
+            "      - uses: qodo-ai/pr-agent@main\n"
+            "        env:\n"
+            "          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable PR-Agent with repository-mutating tools (/improve "
+            "commitable suggestions) reads an untrusted PR body/comment as its "
+            "instructions and can mutate the PR via prompt injection.",
+            secure_fix,
+        )
+
+    def _fix_fork_reachable_gitlab_ci_agent(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# .gitlab-ci.yml -- refuse fork-sourced merge requests, restrict the agent\n"
+            "# to read-only tools when it only reviews, and mark the token as Protected\n"
+            "# so it is never exposed to fork pipelines.\n"
+            "claude-review:\n"
+            "  rules:\n"
+            '    - if: \'$CI_PIPELINE_SOURCE == "merge_request_event" && '
+            "$CI_MERGE_REQUEST_SOURCE_PROJECT_ID != $CI_PROJECT_ID'\n"
+            "      when: never\n"
+            "    - if: '$CI_PIPELINE_SOURCE == \"merge_request_event\"'\n"
+            "  script:\n"
+            "    - npm install -g @anthropic-ai/claude-code\n"
+            '    - claude -p "Review MR !${CI_MERGE_REQUEST_IID}" --allowedTools "Read,Grep,Glob"'
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A merge-request pipeline runs in the context that owns the agent's write "
+            "credentials, so an untrusted diff can drive a write/execute-capable agent "
+            "via prompt injection unless a fork guard refuses fork-sourced merge "
+            "requests.",
             secure_fix,
         )
 
