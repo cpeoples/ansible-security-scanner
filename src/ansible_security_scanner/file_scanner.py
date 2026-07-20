@@ -963,6 +963,24 @@ _FORK_TRIGGERABLE_AI_RULE_IDS: frozenset[str] = frozenset(
         "fork_triggerable_ai_agent_with_repo_mutating_gh_tools",
         "fork_triggerable_gemini_or_copilot_agent_with_write_or_exec",
         "fork_triggerable_codex_agent_with_write_or_exec_sandbox",
+        # Named-vendor agent actions (all ``uses:``-anchored). Each anchors on a
+        # specific action slug (plus, where the action self-gates by default, the
+        # documented bypass input - Junie's custom ``prompt:``, Letta's
+        # ``allowed_non_write_users: "*"``, the refactor action's ``mode:``,
+        # iFlow's ``prompt:``, Bonk's absence of a safe ``permissions:`` /
+        # ``token_permissions: NO_PUSH``). The regex cannot see the ``on:``
+        # trigger, the job's write scope, or an author gate, so the same
+        # fork-reachable + write-capable + ungated post-filter applies.
+        "fork_triggerable_junie_agent_with_prompt_bypass",
+        "fork_triggerable_bonk_agent_with_write_token",
+        "fork_triggerable_cogni_agent_with_repo_write",
+        "fork_triggerable_letta_agent_opened_to_forks",
+        "fork_triggerable_code_agent_with_repo_write",
+        "fork_triggerable_ai_github_action_with_repo_write",
+        "fork_triggerable_a5c_agent_with_repo_write",
+        "fork_triggerable_iflow_agent_with_prompt",
+        "fork_triggerable_sweep_agent_with_repo_write",
+        "fork_triggerable_pr_agent_with_repo_write",
     }
 )
 _FORK_REACHABLE_TRIGGERS: tuple[str, ...] = (
@@ -1085,7 +1103,54 @@ _INSTALLED_AGENT_PROOF: dict[str, re.Pattern[str]] = {
     # ``opencode run --dangerously-skip-permissions`` is not matched by the rule.
     "fork_triggerable_claude_cli_agent_with_repo_write": re.compile(
         r"@anthropic-ai/claude-code|ANTHROPIC_API_?KEY|CLAUDE_CODE|(?<![\w-])claude-code\b"
-        r"|--dangerously-skip-permissions|--permission-mode[\s=]+['\"]?(?:bypassPermissions|acceptEdits)\b",
+        r"|--dangerously-skip-permissions|--permission-mode[\s=]+['\"]?(?:bypassPermissions|acceptEdits|auto)\b",
+        re.IGNORECASE,
+    ),
+    # ``gemini`` collides with unrelated text, so require a Gemini CLI signal:
+    # the npm package, a ``GEMINI_*`` / ``GOOGLE_API_KEY`` credential, or the
+    # google-gemini org slug. The anchor already requires the ``--yolo`` /
+    # ``--approval-mode`` auto flag, and the ``run-gemini-cli`` action form is
+    # owned by a separate rule.
+    "fork_triggerable_gemini_cli_agent_with_repo_write": re.compile(
+        r"@google/gemini-cli|(?<![\w-])gemini-cli\b|google-gemini/gemini|GEMINI_API_?KEY"
+        r"|GOOGLE_API_?KEY|npm\s+install[^\n]*gemini",
+        re.IGNORECASE,
+    ),
+    # CodeMie's package/CLI is distinctive; require the npm package, the install
+    # invocation, a ``CODEMIE_*`` env var, or the vendor domain so a stray
+    # ``codemie`` token in prose does not count. The anchor already requires the
+    # ``codemie <subcommand>`` run form.
+    "fork_triggerable_codemie_agent_with_repo_write": re.compile(
+        r"@codemieai/code|codemie\s+install|CODEMIE_(?:API_KEY|TOKEN|MAX_TURNS)|codemie\.ai",
+        re.IGNORECASE,
+    ),
+    # Devin's action slug and credential/env names are distinctive; require one
+    # of them so the ``prompt-text`` / ``playbook-macro`` input anchor is
+    # attributed to the real agent and not an unrelated action input.
+    "fork_triggerable_devin_agent_with_repo_write": re.compile(
+        r"aaronsteers/devin-action|DEVIN_(?:AI_)?API_KEY|devin-token|app\.devin\.ai"
+        r"|cognition-ai/devin",
+        re.IGNORECASE,
+    ),
+    # Kilo Code's package/org and ``KILOCODE_*`` credential are distinctive;
+    # require one so the generic ``kilocode`` binary anchor (paired with an
+    # autonomous flag or ``run``/``code`` subcommand) is attributed to the real
+    # agent.
+    "fork_triggerable_kilocode_agent_with_repo_write": re.compile(
+        r"@kilocode/cli|KILOCODE_(?:API_KEY|TOKEN)|kilocode\.ai|Kilo-Org/kilocode"
+        r"|kilocodeModel",
+        re.IGNORECASE,
+    ),
+    # The bespoke-LLM rule anchors on a raw completions/messages endpoint, which
+    # a self-prompted workflow (release notes, changelog summaries) also hits.
+    # The proof demands an untrusted event payload in the file - an attacker's
+    # issue/PR title/body/comment - so a call over trusted repo content never
+    # matches even in a write-capable job. The fork-reachable + write-capable +
+    # ungated gating is then applied by ``_suppress_installed_agent_when_safe``
+    # exactly like the vendor CLIs.
+    "fork_triggerable_bespoke_llm_agent_with_repo_write": re.compile(
+        r"github\.event\.(?:comment\.body|issue\.body|issue\.title|pull_request\.body"
+        r"|pull_request\.title|review\.body|discussion\.body|discussion\.title)",
         re.IGNORECASE,
     ),
 }
@@ -1093,6 +1158,64 @@ _INSTALLED_AGENT_JOB_WRITE = re.compile(
     r"^\s*contents\s*:\s*write\b|permissions\s*:\s*write-all\b"
     r"|\bgit\s+push\b|\bgh\s+pr\s+(?:create|merge)\b",
     re.MULTILINE | re.IGNORECASE,
+)
+
+# ``fork_triggerable_agent_shell_exec_secret_exposure`` is the repo-write-less
+# complement of the per-vendor CRITICAL rules: it anchors on an agent handed an
+# arbitrary shell (``--dangerously-skip-permissions`` / ``--allowedTools
+# "...Bash..."`` / ``--yolo``), but fires only when the fork-reachable job cannot
+# be shown to write yet still carries a secret the shell could exfiltrate. The
+# proof keeps a bare tool mention from matching unless the file really drives one
+# of the shell-autonomy agents (its package/env, or the autonomy flag itself).
+_SHELL_EXEC_AGENT_RULE_ID = "fork_triggerable_agent_shell_exec_secret_exposure"
+_SHELL_EXEC_AGENT_PROOF = re.compile(
+    r"@anthropic-ai/claude-code|ANTHROPIC_API_?KEY|CLAUDE_CODE|(?<![\w-])claude-code\b|\.claude/"
+    r"|CLAUDE\.md|@google/gemini-cli|gemini-cli|GEMINI_API_?KEY|GOOGLE_API_?KEY"
+    r"|cursor\.com/install|CURSOR_API_?KEY|@cursor/sdk|sst/opencode|opencode\s+run|OPENCODE_API"
+    r"|aider-chat|(?<![\w-])aider\b|CODEX_API_?KEY|OPENAI_API_?KEY"
+    r"|--dangerously-skip-permissions|--dangerously-bypass-approvals-and-sandbox|--yolo\b"
+    r"|--allowed-?tools[\s=]+['\"][^'\"]*\b(?:Bash|Edit|Write|MultiEdit)\b",
+    re.IGNORECASE,
+)
+# A ``secrets.*`` reference in an ``env:`` value: a long-lived credential the
+# job carries into the agent's shell. ``GITHUB_TOKEN`` alone is excluded - it is
+# the ephemeral, scope-limited job token, not the exfiltration target this rule
+# is about (the CRITICAL write rules already cover token-scoped abuse).
+_JOB_SECRET_IN_ENV = re.compile(
+    r"\$\{\{\s*secrets\.(?!GITHUB_TOKEN\b)[A-Za-z0-9_]+\s*\}\}",
+    re.IGNORECASE,
+)
+
+# ``fork_reachable_gitlab_ci_agent_with_write_or_exec`` scans ``.gitlab-ci.yml``,
+# which has no GitHub ``on:`` block, so the GitHub-Actions fork-reachability and
+# author-gate helpers do not apply. The anchor already requires a write/exec
+# agent invocation; this family gates on the GitLab equivalents: the file must
+# drive a known agent (proof), the job must run on a merge-request pipeline
+# (where an untrusted contributor's MR reaches the parent's credentials), and no
+# fork guard (``$CI_MERGE_REQUEST_SOURCE_PROJECT_ID != $CI_PROJECT_ID``) may be
+# present.
+_GITLAB_CI_AGENT_RULE_ID = "fork_reachable_gitlab_ci_agent_with_write_or_exec"
+_GITLAB_CI_AGENT_PROOF = re.compile(
+    r"@anthropic-ai/claude-code|claude\.ai/install|ANTHROPIC_API_?KEY|CLAUDE_CODE|claude\s+-p\b"
+    r"|@openai/codex|codex\s+exec|aider-chat|(?<![\w-])aider\b|cursor\.com/install|cursor-agent"
+    r"|CURSOR_API_?KEY|qwen-code|@qwen-code|opencode\s+run|block/goose|goose\s+run"
+    r"|@google/gemini-cli|gemini\s+--yolo|GEMINI_API_?KEY|--dangerously-skip-permissions"
+    r"|--dangerously-bypass-approvals-and-sandbox|--permission-mode[\s=]+['\"]?(?:bypassPermissions|acceptEdits|auto)",
+    re.IGNORECASE,
+)
+# A merge-request pipeline: the untrusted-contributor-reachable trigger in
+# GitLab CI (the analogue of a fork-reachable GitHub ``on:`` trigger).
+_GITLAB_MERGE_REQUEST_PIPELINE = re.compile(
+    r"CI_PIPELINE_SOURCE\s*==\s*[\"']?merge_request_event"
+    r"|CI_MERGE_REQUEST_(?:IID|TITLE|DESCRIPTION|SOURCE_BRANCH|TARGET_BRANCH)",
+    re.IGNORECASE,
+)
+# A fork guard: refuses (``when: never``) or restricts the job to same-project
+# merge requests by comparing the MR source project to the running project.
+_GITLAB_FORK_GUARD = re.compile(
+    r"CI_MERGE_REQUEST_SOURCE_PROJECT_ID\s*(?:!=|==)\s*\$?CI_PROJECT_ID"
+    r"|CI_PROJECT_ID\s*(?:!=|==)\s*\$?CI_MERGE_REQUEST_SOURCE_PROJECT_ID",
+    re.IGNORECASE,
 )
 # The OpenHands resolver ships as a reusable workflow
 # (``<owner>/OpenHands/.github/workflows/openhands-resolver.yml``) that gates
@@ -2067,6 +2190,22 @@ class FileScanner:
             # review-only jobs (``contents: read``), and jobs gated on repo
             # write access.
             line_findings = self._suppress_installed_agent_when_safe(line_findings, content)
+
+            # Post-filter: the shell-exec secret-exposure rule is the
+            # repo-write-less complement of the per-vendor CRITICAL rules. Keep a
+            # finding only when the fork-reachable, ungated job carries a
+            # ``secrets.*`` credential and cannot be shown to write (write-capable
+            # jobs are the CRITICAL rule's and are not double-reported).
+            line_findings = self._suppress_shell_exec_secret_exposure_when_safe(
+                line_findings, content
+            )
+
+            # Post-filter: the GitLab-CI agent rule anchors on a write/exec agent
+            # invocation in a ``.gitlab-ci.yml`` script but cannot see the
+            # pipeline trigger or a fork guard. Keep it only on a merge-request
+            # pipeline that drives a known agent with no
+            # ``CI_MERGE_REQUEST_SOURCE_PROJECT_ID`` fork guard.
+            line_findings = self._suppress_gitlab_ci_agent_when_safe(line_findings, content)
 
             # Post-filter: suppress ``crontab_modification`` when the
             # matching task is removing (not installing) a cron entry
@@ -7343,6 +7482,81 @@ class FileScanner:
             if job_can_write:
                 kept.append(f)
         return kept
+
+    def _suppress_shell_exec_secret_exposure_when_safe(
+        self, findings: list[SecurityFinding], content: str
+    ) -> list[SecurityFinding]:
+        """Drop ``fork_triggerable_agent_shell_exec_secret_exposure`` findings
+        that are not actually exploitable.
+
+        This rule is the repo-write-less complement of the per-vendor CRITICAL
+        agent rules. The anchor sees an agent handed an arbitrary shell but not
+        the trigger, the secret, an author gate, or whether the job can write.
+        A finding survives only when all of the following hold:
+
+        * the workflow has a fork-reachable trigger,
+        * no author / write-permission gate is present,
+        * the file drives one of the shell-autonomy agents (the family proof),
+        * the enclosing job carries a ``secrets.*`` credential (something for
+          the shell to exfiltrate; ``GITHUB_TOKEN`` alone does not count), and
+        * the job cannot be shown to write to the repo - a write-capable job is
+          owned by the CRITICAL per-vendor rule and is never double-reported
+          here.
+        """
+        if not findings or not any(f.rule_id == _SHELL_EXEC_AGENT_RULE_ID for f in findings):
+            return findings
+        if (
+            not _has_fork_reachable_trigger(content)
+            or _INSTALLED_AGENT_AUTHOR_GATE.search(content)
+            or not _SHELL_EXEC_AGENT_PROOF.search(content)
+        ):
+            return [f for f in findings if f.rule_id != _SHELL_EXEC_AGENT_RULE_ID]
+        lines = content.splitlines()
+        workflow_write = _workflow_level_write(content)
+        kept: list[SecurityFinding] = []
+        for f in findings:
+            if f.rule_id != _SHELL_EXEC_AGENT_RULE_ID:
+                kept.append(f)
+                continue
+            job_text = _enclosing_job_block(lines, max(f.line_number - 1, 0))
+            job_can_write = bool(_INSTALLED_AGENT_JOB_WRITE.search(job_text)) or (
+                workflow_write and not re.search(r"^\s+permissions\s*:", job_text, re.MULTILINE)
+            )
+            # The exfiltration premise requires a real secret and the *absence*
+            # of provable write (write-capable jobs are the CRITICAL rule's).
+            if not job_can_write and _JOB_SECRET_IN_ENV.search(job_text):
+                kept.append(f)
+        return kept
+
+    def _suppress_gitlab_ci_agent_when_safe(
+        self, findings: list[SecurityFinding], content: str
+    ) -> list[SecurityFinding]:
+        """Drop ``fork_reachable_gitlab_ci_agent_with_write_or_exec`` findings
+        that are not fork-reachable.
+
+        The anchor requires a write/exec agent invocation in a ``.gitlab-ci.yml``
+        ``script:`` but cannot see the pipeline trigger or a fork guard. GitLab
+        CI has no GitHub ``on:`` block, so this rule uses the GitLab-native
+        equivalents. A finding survives only when all hold:
+
+        * the file drives a known coding agent (the family proof),
+        * the pipeline is merge-request-triggered (``$CI_PIPELINE_SOURCE ==
+          "merge_request_event"`` / a ``CI_MERGE_REQUEST_*`` reference), the
+          untrusted-contributor-reachable trigger, and
+        * no fork guard (``$CI_MERGE_REQUEST_SOURCE_PROJECT_ID !=
+          $CI_PROJECT_ID``) is present that would refuse or restrict fork-sourced
+          merge requests.
+        """
+        if not findings or not any(f.rule_id == _GITLAB_CI_AGENT_RULE_ID for f in findings):
+            return findings
+        keep = (
+            bool(_GITLAB_CI_AGENT_PROOF.search(content))
+            and bool(_GITLAB_MERGE_REQUEST_PIPELINE.search(content))
+            and not _GITLAB_FORK_GUARD.search(content)
+        )
+        if keep:
+            return findings
+        return [f for f in findings if f.rule_id != _GITLAB_CI_AGENT_RULE_ID]
 
     def _suppress_crontab_cleanup(
         self, findings: list[SecurityFinding], lines: list[str]
