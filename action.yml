@@ -1,0 +1,139 @@
+name: Ansible Security Scanner
+description: Scan Ansible playbooks, roles, and CI workflows for malicious code, injection, secrets, and supply-chain risk.
+author: cpeoples
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  path:
+    description: Directory to scan.
+    required: false
+    default: .
+  files:
+    description: Space-separated list of specific files to scan instead of a directory.
+    required: false
+    default: ""
+  version:
+    description: >-
+      ansible-security-scanner release to install (e.g. 0.1.36). Defaults to the
+      tag this action was called at, falling back to the latest PyPI release.
+    required: false
+    default: ""
+  format:
+    description: >-
+      Report format: sarif, json, markdown, html, junit, csv, xml, yaml,
+      gl-sast, cyclonedx. Forced to sarif when upload-sarif is true.
+    required: false
+    default: sarif
+  output:
+    description: Path to write the report to. Defaults to scan-results.<ext>.
+    required: false
+    default: ""
+  severity:
+    description: Only report findings at or above this severity (CRITICAL, HIGH, MEDIUM, LOW).
+    required: false
+    default: ""
+  select:
+    description: Comma-separated rule-id globs to scan for exclusively.
+    required: false
+    default: ""
+  ignore:
+    description: Comma-separated rule-id globs to suppress.
+    required: false
+    default: ""
+  upload-sarif:
+    description: >-
+      Upload the SARIF report to GitHub code scanning so findings appear inline
+      on pull requests. Requires security-events: write.
+    required: false
+    default: "true"
+  fail-on-findings:
+    description: Fail the step when the scanner reports a HIGH or CRITICAL finding.
+    required: false
+    default: "true"
+
+outputs:
+  exit-code:
+    description: Scanner exit code (0 clean, 1 HIGH findings, 2 CRITICAL findings).
+    value: ${{ steps.scan.outputs.exit-code }}
+  report:
+    description: Path to the written report.
+    value: ${{ steps.scan.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install ansible-security-scanner
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        ACTION_REF: ${{ github.action_ref }}
+      run: |
+        set -euo pipefail
+
+        version="${INPUT_VERSION:-$ACTION_REF}"
+        case "$version" in
+          v[0-9]*) spec="ansible-security-scanner==${version#v}" ;;
+          [0-9]*)  spec="ansible-security-scanner==${version}" ;;
+          *)       spec="ansible-security-scanner" ;;
+        esac
+
+        python3 -m pip install --disable-pip-version-check "$spec"
+
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_FILES: ${{ inputs.files }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+        INPUT_SEVERITY: ${{ inputs.severity }}
+        INPUT_SELECT: ${{ inputs.select }}
+        INPUT_IGNORE: ${{ inputs.ignore }}
+        UPLOAD_SARIF: ${{ inputs.upload-sarif }}
+        FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+      run: |
+        set -uo pipefail
+
+        format="$INPUT_FORMAT"
+        [ "$UPLOAD_SARIF" = "true" ] && format=sarif
+
+        report="$INPUT_OUTPUT"
+        if [ -z "$report" ]; then
+          case "$format" in
+            sarif) ext=sarif ;;
+            gl-sast) ext=json ;;
+            cyclonedx) ext=cdx.json ;;
+            markdown) ext=md ;;
+            *) ext="$format" ;;
+          esac
+          report="scan-results.${ext}"
+        fi
+
+        args=(--directory "$INPUT_PATH" --format "$format" --output "$report")
+        [ -n "$INPUT_FILES" ] && args+=(--files $INPUT_FILES)
+        [ -n "$INPUT_SEVERITY" ] && args+=(--severity "$INPUT_SEVERITY")
+        [ -n "$INPUT_SELECT" ] && args+=(--select "$INPUT_SELECT")
+        [ -n "$INPUT_IGNORE" ] && args+=(--ignore "$INPUT_IGNORE")
+        [ "$FAIL_ON_FINDINGS" = "true" ] || args+=(--exit-zero)
+
+        ansible-security-scanner "${args[@]}"
+        code=$?
+
+        echo "exit-code=${code}" >> "$GITHUB_OUTPUT"
+        echo "report=${report}" >> "$GITHUB_OUTPUT"
+
+        if [ "$FAIL_ON_FINDINGS" = "true" ] && [ "$code" -ne 0 ]; then
+          echo "::error::ansible-security-scanner reported findings; see ${report}"
+          exit "$code"
+        fi
+        exit 0
+
+    - name: Upload SARIF to code scanning
+      if: always() && inputs.upload-sarif == 'true'
+      uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81  # v4.37.3
+      with:
+        sarif_file: ${{ steps.scan.outputs.report }}
+        category: ansible-security-scanner

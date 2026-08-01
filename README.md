@@ -96,7 +96,7 @@ Add to your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/cpeoples/ansible-security-scanner
-    rev: v0.1.34
+    rev: v0.1.37
     hooks:
       - id: ansible-security-scanner
 ```
@@ -105,6 +105,32 @@ Two hook IDs are exposed:
 
 - `ansible-security-scanner` — scans only the staged YAML / `*.j2` / `*.cfg` files. Runs on every commit.
 - `ansible-security-scanner-all` — scans the full repository tree. Wired to the `pre-push` and `manual` stages so it doesn't fire on every commit; trigger it with `pre-commit run --hook-stage pre-push ansible-security-scanner-all` or in CI.
+
+### GitHub Actions
+
+Scan on every push and pull request and surface findings inline in the Security
+tab and on the PR diff:
+
+```yaml
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cpeoples/ansible-security-scanner@v0.1.36
+        with:
+          path: ansible
+```
+
+The action installs the pinned release, scans, and uploads SARIF to code
+scanning. Set `fail-on-findings: false` to report without failing the build, or
+`upload-sarif: false` with a `format:` of your choice to write another report
+type. See [CI/CD integration](docs/ci-cd.md) for the raw-CLI form and other
+platforms.
 
 ## Quick Start
 

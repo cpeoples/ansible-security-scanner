@@ -22,6 +22,26 @@ ansible_security_scan:
 
 ## GitHub Actions
 
+The published action installs the pinned release, scans, and uploads SARIF to
+code scanning in one step:
+
+```yaml
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cpeoples/ansible-security-scanner@v0.1.37
+        with:
+          path: ansible
+```
+
+To run the CLI directly instead of the action:
+
 ```yaml
 - uses: actions/setup-python@v5
   with:
