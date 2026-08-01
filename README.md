@@ -1,6 +1,9 @@
 <div align="center">
   <a href="https://github.com/cpeoples/ansible-security-scanner">
-    <img src="https://raw.githubusercontent.com/cpeoples/ansible-security-scanner/main/docs/assets/brand-mark-light.png" alt="Ansible Security Scanner" width="560">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/cpeoples/ansible-security-scanner/main/docs/assets/brand-mark.png">
+      <img src="https://raw.githubusercontent.com/cpeoples/ansible-security-scanner/main/docs/assets/brand-mark-light.png" alt="Ansible Security Scanner" width="560">
+    </picture>
   </a>
 </div>
 <!-- BADGES_START - stripped from the Hugo docs build; see .hugo/scripts/build_docs.py -->
