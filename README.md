@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: cpeoples/ansible-security-scanner@v0.1.36
+      - uses: cpeoples/ansible-security-scanner@v0.1.38
         with:
           path: ansible
 ```
