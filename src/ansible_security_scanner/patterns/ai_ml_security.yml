@@ -2448,18 +2448,22 @@ patterns:
     severity: "CRITICAL"
     title: "Fork-Triggerable Bespoke LLM Agent With Repository Write Access In A Privileged CI Job"
     description: >-
-        A CI job runs a roll-your-own LLM agent - a `curl`/script that POSTs to a chat-completions /
-        messages endpoint (`/v1/chat/completions`, `/v1/messages`, `api.openai.com/v1`,
-        `api.anthropic.com/v1`, `generativelanguage.googleapis.com`, DashScope's `/compatible-mode/v1`,
-        Zhipu's `/api/paas/v4`) and applies the model's output - on a fork-reachable trigger, in a job
-        that can mutate the repository. Naming the API shape rather than a vendor is what lets an
-        unnamed, hand-built agent match. The rule fires only when the file also carries an untrusted
-        event payload (`github.event.issue.body`, `pull_request.title`, `comment.body`, etc.) flowing
-        into that call, the job is fork-reachable and write-capable (`contents: write`,
-        `permissions: write-all`, or a `git push` / `gh pr create|merge`), and no author gate is
-        present - so a self-prompted call over trusted repo content, a read-only review bot, or a
-        maintainer-gated job never matches.
-    regex: "(?:/v1/chat/completions|/v1/messages|/v1/completions|/chat/completions|api\\.openai\\.com/v1|api\\.anthropic\\.com/v1|generativelanguage\\.googleapis\\.com|/compatible-mode/v1|/api/paas/v4)"
+        A CI job runs a roll-your-own LLM agent and applies the model's output on a fork-reachable
+        trigger, in a job that can mutate the repository. The agent takes one of two shapes: a
+        `curl`/script that POSTs to a chat-completions / messages endpoint (`/v1/chat/completions`,
+        `/v1/messages`, `api.openai.com/v1`, `api.anthropic.com/v1`,
+        `generativelanguage.googleapis.com`, DashScope's `/compatible-mode/v1`, Zhipu's
+        `/api/paas/v4`), or an inline `actions/github-script` / `python -c` step that calls the
+        provider SDK directly (`new OpenAI(...)`, `genai.GenerativeModel`, `.generate_content`,
+        `.chat.completions.create`, `.messages.create`, `@anthropic-ai/sdk`), which carries no URL
+        literal. Naming the API shape rather than a vendor is what lets an unnamed, hand-built agent
+        match. The rule fires only when the file also carries an untrusted event payload
+        (`github.event.issue.body`, `pull_request.title`, `comment.body`, etc.) flowing into that
+        call, the job is fork-reachable and write-capable (`contents: write`, `permissions:
+        write-all`, or a `git push` / `gh pr create|merge`), and no author gate is present - so a
+        self-prompted call over trusted repo content, a read-only review bot, or a maintainer-gated
+        job never matches.
+    regex: "(?:/v1/chat/completions|/v1/messages|/v1/completions|/chat/completions|api\\.openai\\.com/v1|api\\.anthropic\\.com/v1|generativelanguage\\.googleapis\\.com|/compatible-mode/v1|/api/paas/v4|new OpenAI\\(|genai\\.configure\\(|genai\\.GenerativeModel\\(|\\.getGenerativeModel\\(|\\.generateContent\\(|\\.generate_content\\(|\\.chat\\.completions\\.create\\(|\\.messages\\.create\\(|@anthropic-ai/sdk|@google/generative-ai)"
     multiline: true
     window: 200
     positive_examples:
@@ -2482,6 +2486,28 @@ patterns:
                         -d "{\"messages\":[{\"role\":\"user\",\"content\":\"$TASK\"}]}")
                       echo "$RESP" | node apply-ops.js
                       git add . && git commit -m fix && git push origin HEAD
+      - |2-
+            on:
+              issues:
+                types: [opened]
+            jobs:
+              coder:
+                permissions:
+                  contents: write
+                steps:
+                  - uses: actions/checkout@v4
+                  - env:
+                      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+                      ISSUE_BODY: ${{ github.event.issue.body }}
+                    run: |
+                      python - <<'PY'
+                      import os, google.generativeai as genai
+                      genai.configure(api_key=os.environ['GEMINI_API_KEY'])
+                      m = genai.GenerativeModel('gemini-1.5-flash')
+                      code = m.generate_content(os.environ['ISSUE_BODY']).text
+                      open('out.py','w').write(code)
+                      PY
+                      git add . && git commit -m auto && git push origin HEAD
     negative_examples:
       - |2-
             on:
@@ -3203,6 +3229,284 @@ patterns:
         on repository write access (`author_association` in `OWNER`/`MEMBER`/`COLLABORATOR` or
         `getCollaboratorPermissionLevel`) and scope the agent to read-only review/describe tools.
         Treat PR/issue content as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_skyramp_testbot_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable Skyramp Testbot Agent With Repository Write Access In A Privileged CI Job"
+    description: >-
+        A CI workflow runs Skyramp Testbot (`skyramp/testbot`), an Anthropic-backed test-generation
+        agent that checks out the repo and, with `autoCommit: 'true'`, commits and pushes generated
+        tests using a GitHub App token. It has no author-permission check of its own: the observed
+        deployments gate only on the comment body mentioning `@skyramp-testbot`, which any outside
+        commenter can type. On a secret-bearing fork-reachable trigger (`issue_comment`) with
+        `contents: write` and no author gate, an untrusted actor drives a push. This rule anchors on
+        the action use, and the fork-reachable + write-capable + ungated post-filter suppresses the
+        callers that add a real `author_association` / collaborator-permission gate.
+    regex: "skyramp/testbot@"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              testbot:
+                if: contains(github.event.comment.body, '@skyramp-testbot')
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: actions/checkout@v6
+                  - uses: skyramp/testbot@v0.10.0
+                    with:
+                      anthropicApiKey: ${{ secrets.SKYRAMP_TESTBOT_API_KEY }}
+                      githubToken: ${{ secrets.GITHUB_TOKEN }}
+                      autoCommit: 'true'
+    negative_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              testbot:
+                if: contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+                permissions:
+                  contents: write
+                steps:
+                  - uses: actions/checkout@v6
+    recommendation: >-
+        Do not run Skyramp Testbot with `autoCommit: 'true'` and repository write on a fork-reachable
+        trigger without an author gate - a `@skyramp-testbot` comment mention is not an authorization
+        check. Gate the job on repository write access (`author_association` in
+        `OWNER`/`MEMBER`/`COLLABORATOR` or `getCollaboratorPermissionLevel`), or have the bot open a
+        PR for human review instead of pushing. Treat the PR diff and comment content as untrusted
+        data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_codescene_refactor_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable CodeScene Refactoring Agent With Repository Write Access In A Privileged CI Job"
+    description: >-
+        A CI workflow runs the CodeScene refactoring agent (`codescene-oss/pr-refactoring-agent`),
+        which reads a PR, refactors the code with an LLM, and commits the result back. It has no
+        author-permission check of its own: the observed deployments gate only on a `/cs-agent`
+        mention in a PR comment, which any outside commenter can type. On the fork-reachable
+        `issue_comment` trigger with `contents: write` and no author gate, an untrusted actor drives
+        a push. This rule anchors on the action use, and the fork-reachable + write-capable + ungated
+        post-filter suppresses the callers that add a real `author_association` /
+        collaborator-permission gate.
+    regex: "codescene-oss/pr-refactoring-agent@"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              refactor:
+                if: github.event.issue.pull_request != null && contains(github.event.comment.body, '/cs-agent')
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: actions/checkout@v4
+                  - uses: codescene-oss/pr-refactoring-agent@bbc72fb
+                    env:
+                      CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
+    negative_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              refactor:
+                if: contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+                permissions:
+                  contents: write
+                steps:
+                  - uses: actions/checkout@v4
+    recommendation: >-
+        Do not run the CodeScene refactoring agent with repository write on a fork-reachable trigger
+        without an author gate - a `/cs-agent` comment mention is not an authorization check. Gate
+        the job on repository write access (`author_association` in `OWNER`/`MEMBER`/`COLLABORATOR`
+        or `getCollaboratorPermissionLevel`) and have the agent open a PR for human review rather
+        than committing directly. Treat the PR diff and comment content as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050"]
+
+  - id: "fork_triggerable_tend_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable Tend Autonomous Maintainer Agent With Repository Write Access In A Privileged CI Job"
+    description: >-
+        A CI workflow runs Tend (`max-sixty/tend/claude`, or the PTY variant `.../claude-interactive`),
+        "an autonomous junior maintainer" that runs the `claude` binary headless with
+        `defaultMode: bypassPermissions` + `skipDangerousModePermissionPrompt` and a default tool
+        grant of `Bash,Edit,Write,...` - an autonomous shell and file writer that pushes commits with
+        the supplied `github_token`. It has no author-permission check of its own. The auto-review
+        flavor deploys on `pull_request_target`, which checks out and runs the untrusted fork PR head
+        with repo-write secrets in scope and no gate, so an outside contributor drives an autonomous
+        write. This rule anchors on the action use, and the fork-reachable + write-capable + ungated
+        post-filter suppresses the sibling workflows that add a real `author_association` /
+        collaborator-permission gate.
+    regex: "max-sixty/tend/claude(?:-interactive)?@"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              pull_request_target:
+                types: [opened, synchronize]
+            jobs:
+              review:
+                permissions:
+                  contents: write
+                  pull-requests: write
+                steps:
+                  - uses: actions/checkout@v7
+                    with:
+                      ref: refs/pull/${{ github.event.pull_request.number }}/head
+                      allow-unsafe-pr-checkout: true
+                  - uses: max-sixty/tend/claude@0.1.12
+                    with:
+                      github_token: ${{ secrets.TEND_BOT_TOKEN }}
+                      anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+                      prompt: ${{ github.event.pull_request.title }}
+    negative_examples:
+      - |2-
+            on:
+              issue_comment:
+                types: [created]
+            jobs:
+              mention:
+                if: contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+                permissions:
+                  contents: write
+                steps:
+                  - uses: actions/checkout@v4
+    recommendation: >-
+        Do not run the Tend autonomous maintainer (headless `claude` with `bypassPermissions` and a
+        `Bash,Edit,Write` tool grant) on `pull_request_target` or any fork-reachable trigger with
+        repo-write secrets and no author gate. Gate the job on repository write access
+        (`author_association` in `OWNER`/`MEMBER`/`COLLABORATOR` or `getCollaboratorPermissionLevel`),
+        run the agent read-only on untrusted PR content, and hand any commit to a separate reviewed
+        job. Treat the PR diff, title, and body as untrusted data.
+    cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
+    owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
+    owasp_llm: ["LLM01", "LLM02", "LLM06"]
+    owasp_asvs: [V1.2.2, V6.2.1]
+    mitre_attack: ["T1059", "T1204.001", "T1552.001", "T1195.002"]
+    cis_controls: ["CIS-6.1", "CIS-16.11"]
+    nist_controls: ["AC-3", "AC-6", "CM-7", "SI-10"]
+    pci_dss: ["6.2.4", "7.2.1", "8.6.2"]
+    soc2: ["CC6.1", "CC6.3", "CC7.1"]
+    mitre_atlas: ["AML.T0051", "AML.T0051.001", "AML.T0053", "AML.T0050", "AML.T0057"]
+
+  - id: "fork_triggerable_ai_inference_agent_with_repo_write"
+    category: "ai_ml_security"
+    severity: "CRITICAL"
+    title: "Fork-Triggerable GitHub Models (actions/ai-inference) Agent Writing Model Output To The Repo In A Privileged CI Job"
+    description: >-
+        A CI workflow uses GitHub's first-party inference action (`actions/ai-inference`, GitHub
+        Models) and treats the model's reply as code. The action itself only returns model text - it
+        holds no tools and pushes nothing - so the exposure is the workflow around it: it feeds
+        untrusted event text (`github.event.issue.title`/`body`, the PR body, a comment) into the
+        `prompt`, then writes the returned diff to disk and `git apply`-s it, or commits the response,
+        and pushes it back with `contents: write`. Because it authenticates with the built-in `models:
+        read` permission plus `GITHUB_TOKEN`, there is no provider secret to grep, so it hides from
+        every provider-key / named-CLI signal. Since the action is neutral, this rule fires only when
+        two whole-file proofs also hold on top of the fork-reachable + write-capable + ungated
+        post-filter: the reply is applied as repo code / pushed (a `git apply`/`commit`/`push`, a
+        commit action, or the response written to a source file) AND untrusted event text reaches the
+        model. A summarizer that only posts the reply as a comment or PATCHes a Release body, and a
+        trusted-input release-notes generator, match none of these and stay silent.
+    regex: "^\\s*uses\\s*:\\s*actions/ai-inference@"
+    multiline: true
+    window: 200
+    positive_examples:
+      - |2-
+            on:
+              issues:
+                types: [opened, labeled]
+            jobs:
+              fix:
+                permissions:
+                  contents: write
+                  issues: write
+                  models: read
+                steps:
+                  - uses: actions/checkout@v4
+                  - id: implement
+                    uses: actions/ai-inference@v1
+                    with:
+                      prompt: |
+                        Return a unified diff that fixes this issue.
+                        Title: ${{ github.event.issue.title }}
+                        Body: ${{ github.event.issue.body }}
+                  - name: Apply and push
+                    run: |
+                      printf '%s' "${{ steps.implement.outputs.response }}" > fix.patch
+                      git apply fix.patch
+                      git commit -am 'ai fix'
+                      git push
+    negative_examples:
+      - |2-
+            on:
+              issues:
+                types: [opened]
+            jobs:
+              summarize:
+                permissions:
+                  contents: write
+                  issues: write
+                steps:
+                  - uses: actions/ai-toolkit@v2
+                    with:
+                      prompt: |
+                        Summarize: ${{ github.event.issue.body }}
+                  - uses: peter-evans/create-or-update-comment@v4
+                    with:
+                      issue-number: ${{ github.event.issue.number }}
+                      body: ${{ steps.ai.outputs.response }}
+    recommendation: >-
+        Do not treat `actions/ai-inference` output as code in a fork-reachable, write-capable job
+        that also feeds untrusted event text into the prompt. Keep the inference job at `permissions:
+        contents: read` and post the reply as a comment for human review; if the reply must become
+        code, hand it to a separate reviewed job that opens a PR rather than `git apply`/`commit`/
+        `push`-ing directly, and gate that job on repository write access (`author_association` in
+        `OWNER`/`MEMBER`/`COLLABORATOR` or `getCollaboratorPermissionLevel`). Treat issue/PR title,
+        body, and comments as untrusted data and never apply a model response derived from them.
     cwe: ["CWE-77", "CWE-94", "CWE-269", "CWE-1427"]
     owasp_appsec: ["A01:2021", "A03:2021", "A08:2021"]
     owasp_llm: ["LLM01", "LLM02", "LLM06"]

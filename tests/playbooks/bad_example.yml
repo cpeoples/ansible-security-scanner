@@ -6345,6 +6345,102 @@
                     OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    # --- ai_ml_security.yml: fork_triggerable_skyramp_testbot_with_repo_write ---
+    - name: trigger fork_triggerable_skyramp_testbot_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/skyramp-testbot.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            testbot:
+              if: contains(github.event.comment.body, '@skyramp-testbot')
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: actions/checkout@v6
+                - uses: skyramp/testbot@v0.10.0
+                  with:
+                    anthropicApiKey: ${{ secrets.SKYRAMP_TESTBOT_API_KEY }}
+                    githubToken: ${{ secrets.GITHUB_TOKEN }}
+                    autoCommit: 'true'
+
+    # --- ai_ml_security.yml: fork_triggerable_codescene_refactor_agent_with_repo_write ---
+    - name: trigger fork_triggerable_codescene_refactor_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/codescene-refactor.yml
+        content: |
+          on:
+            issue_comment:
+              types: [created]
+          jobs:
+            refactor:
+              if: github.event.issue.pull_request != null && contains(github.event.comment.body, '/cs-agent')
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: actions/checkout@v4
+                - uses: codescene-oss/pr-refactoring-agent@bbc72fb
+                  env:
+                    CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
+
+    # --- ai_ml_security.yml: fork_triggerable_tend_agent_with_repo_write ---
+    - name: trigger fork_triggerable_tend_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/tend-review.yml
+        content: |
+          on:
+            pull_request_target:
+              types: [opened, synchronize]
+          jobs:
+            review:
+              permissions:
+                contents: write
+                pull-requests: write
+              steps:
+                - uses: actions/checkout@v7
+                  with:
+                    ref: refs/pull/${{ github.event.pull_request.number }}/head
+                    allow-unsafe-pr-checkout: true
+                - uses: max-sixty/tend/claude@0.1.12
+                  with:
+                    github_token: ${{ secrets.TEND_BOT_TOKEN }}
+                    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+                    prompt: ${{ github.event.pull_request.title }}
+
+    # --- ai_ml_security.yml: fork_triggerable_ai_inference_agent_with_repo_write ---
+    - name: trigger fork_triggerable_ai_inference_agent_with_repo_write
+      ansible.builtin.copy:
+        dest: .github/workflows/ai-inference-fix.yml
+        content: |
+          on:
+            issues:
+              types: [opened, labeled]
+          jobs:
+            fix:
+              permissions:
+                contents: write
+                issues: write
+                models: read
+              steps:
+                - uses: actions/checkout@v4
+                - id: implement
+                  uses: actions/ai-inference@v1
+                  with:
+                    prompt: |
+                      Return a unified diff that fixes this issue.
+                      Title: ${{ github.event.issue.title }}
+                      Body: ${{ github.event.issue.body }}
+                - name: Apply and push
+                  run: |
+                    printf '%s' "${{ steps.implement.outputs.response }}" > fix.patch
+                    git apply fix.patch
+                    git commit -am 'ai fix'
+                    git push
+
     # --- ai_ml_security.yml: fork_reachable_gitlab_ci_agent_with_write_or_exec ---
     - name: trigger fork_reachable_gitlab_ci_agent_with_write_or_exec
       ansible.builtin.copy:

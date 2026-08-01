@@ -19,7 +19,7 @@ from ansible_security_scanner.comment.inline import (
     _RESOLUTION_DISCLAIMER,
     _render_inline_body,
 )
-from ansible_security_scanner.comment.rendering import _render_policy_note
+from ansible_security_scanner.comment.rendering import _IGNORE_HARD_CAP, _render_policy_note
 
 
 def _ignore_note(ignored_rule_ids, category_for_rule):
@@ -96,14 +96,26 @@ def test_ignore_note_unknown_category_falls_into_other_bucket():
 
 
 def test_ignore_note_hard_cap_collapses_tail():
-    rules = [f"rule_{i:03d}" for i in range(80)]
+    rules = [f"rule_{i:03d}" for i in range(_IGNORE_HARD_CAP + 40)]
     cats: dict[str, str] = {}
     for i, r in enumerate(rules):
         cats[r] = f"cat_{i % 8}"
     note = _ignore_note(rules, cats)
-    assert "80 rules suppressed" in note
+    assert f"{len(rules)} rules suppressed" in note
     assert "Rule list capped for readability" in note
     assert "rule_000" not in note  # collapsed; not all listed
+
+
+def test_ignore_note_lists_every_rule_for_a_realistic_policy():
+    # A hand-authored ignore policy (61 rules across 18 categories, the size
+    # observed in the wild) must list every rule in the grouped form rather
+    # than collapse to a top-categories summary.
+    rules = [f"rule_{i:03d}" for i in range(61)]
+    cats = {r: f"cat_{i % 18}" for i, r in enumerate(rules)}
+    note = _ignore_note(rules, cats)
+    assert "Rule list capped for readability" not in note
+    assert "more categories" not in note
+    assert "rule_000" in note and "rule_060" in note
 
 
 # ---- render_comment_body integration ---------------------------------------

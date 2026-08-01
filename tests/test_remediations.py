@@ -141,6 +141,17 @@ _TRUNCATED_JINJA_RE = re.compile(r"\{\{(?=\s*[\"']?\s*$)", re.MULTILINE)
 # already-interpolated expression.
 _NESTED_JINJA_RE = re.compile(r"\{\{(?:[^{}]|\}(?!\}))*\{\{")
 
+# A "fill-it-in-yourself" placeholder: a Secure Fix that punts the actual
+# remediation back to the operator via a fake variable instead of reusing the
+# finding's own code. Real fixes weave in the flagged command/path/host, so
+# none of these tokens should appear in a shipped Secure Fix body.
+_GENERIC_PLACEHOLDER_RE = re.compile(
+    r"\{\{\s*(?:remediation_command|your_command(?:_here)?|command_here|"
+    r"insert_command|replace_me|todo)\s*\}\}"
+    r"|<\s*(?:your[ _-]command|command[ _-]here|insert[ _-]command|replace[ _-]me)[^>]*>",
+    re.IGNORECASE,
+)
+
 
 def _unfenced_yaml_runs(output: str) -> list[list[str]]:
     """Return runs (>= 2 lines) of structural-YAML-shaped lines that
@@ -492,6 +503,15 @@ def test_positive_example_renders_valid_secure_fix(
         f"  positive example: {positive_example[:160]!r}\n"
         f"  Secure Fix body (first 320 chars): {body[:320]!r}"
     )
+    ph = _GENERIC_PLACEHOLDER_RE.search(body)
+    assert not ph, (
+        f"{rule_id}: Secure Fix rendered from the rule's own positive example "
+        f"contains a fill-it-in-yourself placeholder ({ph.group(0)!r}). The fix "
+        f"must reuse the flagged code (command/path/host/target), not punt the "
+        f"remediation back to the operator via a fake variable.\n"
+        f"  positive example: {positive_example[:160]!r}\n"
+        f"  Secure Fix body (first 320 chars): {body[:320]!r}"
+    )
 
 
 # Structural (AST / Python-defined) rules have no ``patterns/*.yml`` entry and
@@ -588,11 +608,97 @@ def test_structural_rule_renders_dynamic_secure_fix(
     assert not _NESTED_JINJA_RE.search(body), (
         f"{rule_id}: Secure Fix contains nested Jinja.\n  body: {body[:320]!r}"
     )
+    ph = _GENERIC_PLACEHOLDER_RE.search(body)
+    assert not ph, (
+        f"{rule_id}: Secure Fix contains a fill-it-in-yourself placeholder "
+        f"({ph.group(0)!r}) instead of reusing the finding's own code.\n"
+        f"  body: {body[:320]!r}"
+    )
     yaml.safe_load(body)  # raises if the Secure Fix isn't valid YAML
     assert must_contain in body, (
         f"{rule_id}: Secure Fix did not dynamically apply the expected hardening "
         f"({must_contain!r}) drawn from the finding's own code.\n"
         f"  body: {body[:320]!r}"
+    )
+
+
+# Handlers that extract a value from the finding (via `_first`/bespoke parsing)
+# and weave it into the fix. Unlike the static-by-design majority, these claim
+# to be dynamic, so a refactor that silently drops back to a hardcoded block
+# must fail. Each row is (rule_id, snippet, token_the_fix_must_echo): the token
+# is a distinctive value in the snippet that a genuinely dynamic fix reproduces.
+# Only rules whose handler is designed to echo belong here.
+DYNAMIC_EXTRACTION_EXAMPLES = [
+    (
+        "aws_ssm_send_command",
+        'shell: >\n  aws ssm send-command --instance-ids "{{ target_instance_id }}" '
+        '--region "{{ deploy_region }}" '
+        "--parameters 'commands=[\"bash /opt/scripts/bootstrap.sh\"]'",
+        "bash /opt/scripts/bootstrap.sh",
+    ),
+    (
+        "aws_ssm_send_command",
+        'shell: aws ssm send-command --instance-ids "{{ worker_instance_id }}" '
+        "--parameters 'commands=[\"python3 /opt/scripts/rotate_keys.py\"]'",
+        "{{ worker_instance_id }}",
+    ),
+    (
+        "aws_ec2_run_instances",
+        "shell: aws ec2 run-instances --image-id ami-0abc1234 --instance-type m5.large",
+        "m5.large",
+    ),
+    (
+        "aws_lambda_create",
+        "shell: aws lambda create-function --function-name order-worker --runtime python3.12",
+        "order-worker",
+    ),
+    (
+        "aws_s3_data_access",
+        "shell: aws s3 cp s3://example-artifacts-bucket/dump.tar.gz /tmp/x",
+        "example-artifacts-bucket",
+    ),
+    (
+        "aws_sts_assume_role",
+        "shell: aws sts assume-role --role-arn arn:aws:iam::123456789012:role/deployer",
+        "arn:aws:iam::123456789012:role/deployer",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "rule_id,snippet,must_echo",
+    DYNAMIC_EXTRACTION_EXAMPLES,
+    ids=[f"{r}#{i}" for i, (r, _, _) in enumerate(DYNAMIC_EXTRACTION_EXAMPLES)],
+)
+def test_dynamic_handler_echoes_extracted_value(
+    remediation_generator: RemediationGenerator,
+    rule_id: str,
+    snippet: str,
+    must_echo: str,
+) -> None:
+    """Dynamic handlers must weave the finding's own value into the fix.
+
+    Guards the "generic fix" class: a handler that advertises extraction
+    (instance id, command, bucket, role ARN, ...) but silently renders a
+    hardcoded block that ignores the finding. Complements the placeholder
+    guard, which catches a fake token rather than a dropped real value.
+    """
+    out = remediation_generator.generate_remediation_example(
+        rule_id, snippet, file_path="test.yml", line_number=1
+    )
+    match = _SECURE_FIX_BLOCK_RE.search(out)
+    assert match, f"{rule_id}: no Secure Fix block rendered for {snippet[:80]!r}"
+    body = match.group("body")
+    yaml.safe_load(body)  # raises if invalid
+    assert not _GENERIC_PLACEHOLDER_RE.search(body), (
+        f"{rule_id}: dynamic handler emitted a fill-it-in placeholder for a "
+        f"snippet it should have extracted from.\n  snippet: {snippet[:120]!r}\n"
+        f"  body: {body[:320]!r}"
+    )
+    assert must_echo in body, (
+        f"{rule_id}: dynamic handler did NOT echo the extracted value "
+        f"({must_echo!r}) from the finding - it fell back to a generic block.\n"
+        f"  snippet: {snippet[:120]!r}\n  body: {body[:400]!r}"
     )
 
 
