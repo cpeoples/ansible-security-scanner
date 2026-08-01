@@ -1,8 +1,7 @@
 <div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand-mark.svg">
-    <img src="docs/assets/brand-mark-light.svg" alt="Ansible Security Scanner" width="560">
-  </picture>
+  <a href="https://github.com/cpeoples/ansible-security-scanner">
+    <img src="https://raw.githubusercontent.com/cpeoples/ansible-security-scanner/main/docs/assets/brand-mark-light.png" alt="Ansible Security Scanner" width="560">
+  </a>
 </div>
 <!-- BADGES_START - stripped from the Hugo docs build; see .hugo/scripts/build_docs.py -->
 <p align="center">
@@ -96,7 +95,7 @@ Add to your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/cpeoples/ansible-security-scanner
-    rev: v0.1.37
+    rev: v0.1.38
     hooks:
       - id: ansible-security-scanner
 ```
