@@ -981,6 +981,12 @@ _FORK_TRIGGERABLE_AI_RULE_IDS: frozenset[str] = frozenset(
         "fork_triggerable_iflow_agent_with_prompt",
         "fork_triggerable_sweep_agent_with_repo_write",
         "fork_triggerable_pr_agent_with_repo_write",
+        # Skyramp Testbot, CodeScene's refactoring agent, and Tend all anchor on
+        # their action slug and self-gate only on a comment mention / an
+        # ungated ``pull_request_target``, which is not an authorization check.
+        "fork_triggerable_skyramp_testbot_with_repo_write",
+        "fork_triggerable_codescene_refactor_agent_with_repo_write",
+        "fork_triggerable_tend_agent_with_repo_write",
     }
 )
 _FORK_REACHABLE_TRIGGERS: tuple[str, ...] = (
@@ -1186,6 +1192,40 @@ _JOB_SECRET_IN_ENV = re.compile(
     re.IGNORECASE,
 )
 
+# ``fork_triggerable_ai_inference_agent_with_repo_write`` anchors on the neutral
+# ``actions/ai-inference`` step, which only returns model text - it holds no
+# tools and pushes nothing itself. The anchor alone over-fires: many deployments
+# hold ``contents: write`` yet only post the reply as a comment, set a label, or
+# PATCH a Release body, and some are trusted-input release-notes generators. So
+# the finding survives only when two whole-file proofs also hold on top of the
+# fork-reachable + write-capable + ungated gating: the reply is applied as repo
+# code / pushed (``_AI_INFERENCE_APPLY``) and untrusted event text reaches the
+# model (``_AI_INFERENCE_UNTRUSTED``).
+_AI_INFERENCE_RULE_ID = "fork_triggerable_ai_inference_agent_with_repo_write"
+# The model's reply is applied as repository code or pushed: written to a source
+# file, ``git apply``/``commit``/``push``-ed, or opened as a PR via a commit
+# action. A summarizer that only posts the reply as a comment, sets a label, or
+# PATCHes a Release body matches none of these.
+_AI_INFERENCE_APPLY = re.compile(
+    r"git\s+apply\b|git\s+(?:-c\s+\S+\s+)?commit\b|git\s+push\b|create-pull-request"
+    r"|peter-evans/create-pull-request|stefanzweifel/git-auto-commit|EndBug/add-and-commit"
+    r"|gh\s+pr\s+create\b"
+    r"|>\s*[^\n]*\.(?:patch|diff|py|js|ts|tsx|jsx|go|rs|java|kt|c|cc|cpp|h|hpp|rb|php|sh|bash|yml|yaml|json|toml|md)\b",
+    re.IGNORECASE,
+)
+# Untrusted input can reach the model: attacker-controlled event text is
+# interpolated somewhere in the file (issue/PR/comment/review body or title), or
+# the job checks out a fork-controlled ref (a ``workflow_run`` self-heal reads
+# the failed run's ``head_branch``/``head_sha``; a fork PR head checkout is the
+# same). A trusted-input release-notes generator matches none of these.
+_AI_INFERENCE_UNTRUSTED = re.compile(
+    r"github\.event\.(?:issue|comment|pull_request|review)\.(?:body|title)"
+    r"|github\.event\.pull_request\.head\.(?:ref|label|sha)"
+    r"|github\.event\.issue\.user\.login|github\.event\.comment\.user"
+    r"|github\.event\.workflow_run\.head_(?:branch|sha)|refs/pull/[^/\s]+/(?:head|merge)",
+    re.IGNORECASE,
+)
+
 # ``fork_reachable_gitlab_ci_agent_with_write_or_exec`` scans ``.gitlab-ci.yml``,
 # which has no GitHub ``on:`` block, so the GitHub-Actions fork-reachability and
 # author-gate helpers do not apply. The anchor already requires a write/exec
@@ -1269,7 +1309,12 @@ _INSTALLED_AGENT_AUTHOR_GATE = re.compile(
     r"|contains\(\s*github\.event\.label\.name"
     r"|github\.event\.label\.name\s*==|github\.event\.action\s*==\s*['\"]labeled"
     r"|head\.repo\.full_name\s*(?:==|!==|!=)\s*"
-    r"|head\.repo\.fork\b|is_fork\s*(?:==|!=)",
+    r"|head\.repo\.fork\b|is_fork\s*(?:==|!=)"
+    # A run gated to a tag ref cannot be reached by a fork PR head: a fork
+    # contributor cannot push a tag to the base repo. ``startsWith(github.ref,
+    # 'refs/tags/')`` and ``github.ref_type == 'tag'`` are release-style gates.
+    r"|startsWith\(\s*github\.ref\s*,\s*['\"]refs/tags/"
+    r"|github\.ref_type\s*==\s*['\"]tag['\"]",
     re.IGNORECASE,
 )
 
@@ -2199,6 +2244,12 @@ class FileScanner:
             line_findings = self._suppress_shell_exec_secret_exposure_when_safe(
                 line_findings, content
             )
+
+            # Post-filter: the ai-inference rule anchors on the neutral
+            # ``actions/ai-inference`` step. Keep a finding only when the
+            # fork-reachable, ungated, write-capable job both applies the model
+            # reply as code / pushes it and feeds it untrusted event text.
+            line_findings = self._suppress_ai_inference_when_safe(line_findings, content)
 
             # Post-filter: the GitLab-CI agent rule anchors on a write/exec agent
             # invocation in a ``.gitlab-ci.yml`` script but cannot see the
@@ -7525,6 +7576,46 @@ class FileScanner:
             # The exfiltration premise requires a real secret and the *absence*
             # of provable write (write-capable jobs are the CRITICAL rule's).
             if not job_can_write and _JOB_SECRET_IN_ENV.search(job_text):
+                kept.append(f)
+        return kept
+
+    def _suppress_ai_inference_when_safe(
+        self, findings: list[SecurityFinding], content: str
+    ) -> list[SecurityFinding]:
+        """Drop ``fork_triggerable_ai_inference_agent_with_repo_write`` findings
+        that are not actually exploitable.
+
+        ``actions/ai-inference`` is a neutral action - it only returns model
+        text. The anchor cannot see whether the workflow applies that text as
+        code, feeds it untrusted input, is fork-reachable, or is gated. A finding
+        survives only when all hold: the workflow is fork-reachable and ungated,
+        the agent's job can write to the repo, the reply is applied as repo code
+        / pushed (``_AI_INFERENCE_APPLY``), and untrusted event text reaches the
+        model (``_AI_INFERENCE_UNTRUSTED``). A read-only summarizer, a
+        comment/label/Release-body responder, and a trusted-input release-notes
+        generator each miss one of the two proofs and are dropped.
+        """
+        if not findings or not any(f.rule_id == _AI_INFERENCE_RULE_ID for f in findings):
+            return findings
+        if (
+            not _has_fork_reachable_trigger(content)
+            or _INSTALLED_AGENT_AUTHOR_GATE.search(content)
+            or not _AI_INFERENCE_APPLY.search(content)
+            or not _AI_INFERENCE_UNTRUSTED.search(content)
+        ):
+            return [f for f in findings if f.rule_id != _AI_INFERENCE_RULE_ID]
+        lines = content.splitlines()
+        workflow_write = _workflow_level_write(content)
+        kept: list[SecurityFinding] = []
+        for f in findings:
+            if f.rule_id != _AI_INFERENCE_RULE_ID:
+                kept.append(f)
+                continue
+            job_text = _enclosing_job_block(lines, max(f.line_number - 1, 0))
+            job_can_write = bool(_INSTALLED_AGENT_JOB_WRITE.search(job_text)) or (
+                workflow_write and not re.search(r"^\s+permissions\s*:", job_text, re.MULTILINE)
+            )
+            if job_can_write:
                 kept.append(f)
         return kept
 

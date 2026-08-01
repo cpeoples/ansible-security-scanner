@@ -624,22 +624,74 @@ class UnauthorizedCloudProceduralRemediationGenerator(BaseRemediationGenerator):
     # ---- Remote exec -----------------------------------------------------
 
     def _fix_ssm(self, rule_id: str, code_snippet: str) -> str:
+        target = (
+            _first(
+                code_snippet,
+                r"--instance-ids?\s+[\"']?(\{\{[^}]+\}\})",
+                r"--instance-ids?\s+[\"']?(i-[0-9a-f]+)",
+                r"--targets\s+[\"'][^\"']*Values=([^,\"']+)",
+            )
+            or "{{ target_instance_id }}"
+        )
+        region = (
+            _first(
+                code_snippet,
+                r"--region\s+[\"']?(\{\{[^}]+\}\})",
+                r"--region\s+[\"']?([a-z]{2}-[a-z]+-\d)",
+            )
+            or "{{ aws_region }}"
+        )
+        remote_cmd = self._extract_ssm_command(code_snippet)
+        if not remote_cmd:
+            # Fall back to naming the SSM document (e.g. AWS-RunShellScript) so
+            # the fix still says what ran instead of a bare placeholder.
+            doc = _first(code_snippet, r"--document-name\s+[\"']?([\w.-]+)")
+            ran = f"the script your '{doc}' document invoked" if doc else "the send-command payload"
+            remote_cmd = f"# run {ran}, e.g.:\n    /usr/local/bin/your-provisioning-script.sh"
         why = (
             "`aws ssm send-command` runs code on instances outside Ansible's control "
-            "flow and audit trail. Add the hosts to inventory and run the task through "
-            "Ansible's own connection (SSH or the SSM connection plugin)."
+            "flow and audit trail: the shelled-out payload never shows up as a task, "
+            "its exit status is invisible to the play, and nothing is idempotent. Put "
+            "the target host in inventory behind the SSM connection plugin and run the "
+            "same command as a normal task, so it is logged, gated, and re-runnable."
         )
         fix = (
-            "# Target instances through inventory; the run is logged by Ansible itself.\n"
-            "- name: run command on managed hosts\n"
-            "  ansible.builtin.command:\n"
-            '    cmd: "{{ remediation_command }}"\n'
-            "  register: result\n"
+            "# 1. Reach the instance through inventory instead of send-command. The SSM\n"
+            "#    connection plugin needs no inbound SSH and keeps the run auditable.\n"
+            "#    inventory (host_vars or an aws_ec2 inventory plugin entry):\n"
+            "#      ssm_target:\n"
+            f'#        ansible_host: "{target}"\n'
+            "#        ansible_connection: community.aws.aws_ssm\n"
+            f'#        ansible_aws_ssm_region: "{region}"\n'
+            '#        ansible_aws_ssm_bucket_name: "{{ ssm_transfer_bucket }}"\n'
+            "\n"
+            "# 2. Run the real payload as a task against that host. Ansible now records\n"
+            "#    the command, its output, and its exit status.\n"
+            "- name: run provisioning command on the target host (audited)\n"
+            "  delegate_to: ssm_target\n"
+            "  ansible.builtin.shell: >-\n"
+            f"    {remote_cmd}\n"
+            "  register: ssm_task\n"
             "  changed_when: false\n"
-            "# Inventory uses the SSM connection plugin where SSH is unavailable:\n"
-            "#   ansible_connection: community.aws.aws_ssm\n"
         )
         return self._frame(rule_id, code_snippet, why, fix)
+
+    @staticmethod
+    def _extract_ssm_command(snippet: str) -> str | None:
+        """Pull the real shell payload out of an SSM ``--parameters`` arg.
+
+        ``send-command`` hides the command inside
+        ``--parameters 'commands=["<cmd>"]'`` (or ``commands=<cmd>``), so the
+        fix can run the operator's actual command as a task.
+        """
+        for pattern in (
+            r"commands\s*=\s*\[\s*[\"'](?P<cmd>.+?)[\"']\s*\]",
+            r"commands\s*=\s*[\"'](?P<cmd>.+?)[\"']",
+        ):
+            m = re.search(pattern, snippet, re.IGNORECASE | re.DOTALL)
+            if m:
+                return " ".join(m.group("cmd").split()).rstrip("\\").strip() or None
+        return None
 
     # ---- Audit-control destruction --------------------------------------
 

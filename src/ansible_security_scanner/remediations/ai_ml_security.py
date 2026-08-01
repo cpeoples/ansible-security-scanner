@@ -91,6 +91,10 @@ class AiMlSecurityRemediationGenerator(BaseRemediationGenerator):
         "fork_triggerable_iflow_agent_with_prompt": "_fix_fork_triggerable_iflow",
         "fork_triggerable_sweep_agent_with_repo_write": "_fix_fork_triggerable_sweep",
         "fork_triggerable_pr_agent_with_repo_write": "_fix_fork_triggerable_pr_agent",
+        "fork_triggerable_skyramp_testbot_with_repo_write": "_fix_fork_triggerable_skyramp",
+        "fork_triggerable_codescene_refactor_agent_with_repo_write": "_fix_fork_triggerable_codescene",
+        "fork_triggerable_tend_agent_with_repo_write": "_fix_fork_triggerable_tend",
+        "fork_triggerable_ai_inference_agent_with_repo_write": "_fix_fork_triggerable_ai_inference",
         "fork_reachable_gitlab_ci_agent_with_write_or_exec": "_fix_fork_reachable_gitlab_ci_agent",
     }
 
@@ -1370,6 +1374,120 @@ class AiMlSecurityRemediationGenerator(BaseRemediationGenerator):
             "A fork-triggerable PR-Agent with repository-mutating tools (/improve "
             "commitable suggestions) reads an untrusted PR body/comment as its "
             "instructions and can mutate the PR via prompt injection.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_skyramp(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# A '@skyramp-testbot' comment mention is not an authorization check. Gate\n"
+            "# the job on repository write access before letting the bot autoCommit and\n"
+            "# push, or have it open a PR for human review.\n"
+            "jobs:\n"
+            "  testbot:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: write\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@v6\n"
+            "      - uses: skyramp/testbot@v0.10.0\n"
+            "        with:\n"
+            "          anthropicApiKey: ${{ secrets.SKYRAMP_TESTBOT_API_KEY }}\n"
+            "          githubToken: ${{ secrets.GITHUB_TOKEN }}\n"
+            "          autoCommit: 'true'"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable Skyramp Testbot with autoCommit and repository write, "
+            "gated only on a '@skyramp-testbot' comment any outside commenter can type, "
+            "lets an untrusted actor drive a push under the bot's token.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_codescene(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# A '/cs-agent' comment mention is not an authorization check. Gate the job\n"
+            "# on repository write access and have the agent open a PR for human review\n"
+            "# rather than committing directly.\n"
+            "jobs:\n"
+            "  refactor:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@v4\n"
+            "      - uses: codescene-oss/pr-refactoring-agent@bbc72fb\n"
+            "        env:\n"
+            "          CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable CodeScene refactoring agent with repository write, gated "
+            "only on a '/cs-agent' comment any outside commenter can type, lets an "
+            "untrusted actor drive a commit through prompt injection.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_tend(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# Do not run the Tend autonomous maintainer (headless claude with\n"
+            "# bypassPermissions and a Bash/Edit/Write grant) on pull_request_target with\n"
+            "# repo-write secrets. Gate on repository write access and run it read-only on\n"
+            "# untrusted PR content, handing any commit to a separate reviewed job.\n"
+            "jobs:\n"
+            "  mention:\n"
+            "    if: >-\n"
+            '      contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR"]\'),\n'
+            "      github.event.comment.author_association)\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "    steps:\n"
+            "      - uses: max-sixty/tend/claude@0.1.12\n"
+            "        with:\n"
+            "          github_token: ${{ secrets.TEND_BOT_TOKEN }}"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable Tend agent runs headless claude with bypassPermissions "
+            "and a shell/write tool grant on an untrusted fork PR head with repo-write "
+            "secrets in scope, so an outside contributor drives an autonomous push.",
+            secure_fix,
+        )
+
+    def _fix_fork_triggerable_ai_inference(self, rule_id: str, code_snippet: str) -> str:
+        secure_fix = (
+            "# actions/ai-inference only returns model text - the risk is applying it as\n"
+            "# code. Keep the inference job read-only and post the reply for review; do\n"
+            "# not git apply/commit/push a response derived from untrusted issue/PR text.\n"
+            "jobs:\n"
+            "  suggest:\n"
+            "    permissions:\n"
+            "      contents: read\n"
+            "      issues: write\n"
+            "      models: read\n"
+            "    steps:\n"
+            "      - id: ai\n"
+            "        uses: actions/ai-inference@v1\n"
+            "        with:\n"
+            "          prompt: |\n"
+            "            Suggest a fix for: ${{ github.event.issue.title }}\n"
+            "      - uses: peter-evans/create-or-update-comment@v4\n"
+            "        with:\n"
+            "          issue-number: ${{ github.event.issue.number }}\n"
+            "          body: ${{ steps.ai.outputs.response }}"
+        )
+        return self._frame(
+            rule_id,
+            code_snippet,
+            "A fork-triggerable job feeds untrusted event text into actions/ai-inference "
+            "and applies the model's reply as repository code (git apply/commit/push) "
+            "with contents: write, so prompt injection becomes an arbitrary commit.",
             secure_fix,
         )
 

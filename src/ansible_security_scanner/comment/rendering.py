@@ -67,10 +67,14 @@ _AUTO_EXPAND_FINDING_THRESHOLD = 3
 # largest ignore list we render as a comma-separated blockquote; above
 # it we group by category. ``_IGNORE_HARD_CAP`` bounds the number of
 # rule names we'll print in the grouped form before collapsing the
-# tail into a top-categories summary - guards against pathologically
-# broad globs (``*`` against ~1k rules) blowing up the comment.
+# tail into a top-categories summary. The grouped form lives inside a
+# collapsed ``<details>``, so it costs no visible space until expanded;
+# the cap only exists to keep a pathologically broad glob (``*`` against
+# the full ~1.1k-rule set) from pushing the raw comment past the
+# platform's body-size limit. It is set well above any realistic
+# hand-authored ignore list so normal policies list every rule.
 _IGNORE_FLAT_LIMIT = 8
-_IGNORE_HARD_CAP = 60
+_IGNORE_HARD_CAP = 250
 _IGNORE_TOP_CATEGORIES = 5
 
 # Severity weights used when ranking "top rules". Matches the scanner's

@@ -1,8 +1,7 @@
 <div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand-mark.svg">
-    <img src="docs/assets/brand-mark-light.svg" alt="Ansible Security Scanner" width="560">
-  </picture>
+  <a href="https://github.com/cpeoples/ansible-security-scanner">
+    <img src="https://raw.githubusercontent.com/cpeoples/ansible-security-scanner/main/docs/assets/brand-mark-light.png" alt="Ansible Security Scanner" width="560">
+  </a>
 </div>
 <!-- BADGES_START - stripped from the Hugo docs build; see .hugo/scripts/build_docs.py -->
 <p align="center">
@@ -13,7 +12,7 @@
   <a href="https://github.com/cpeoples/ansible-security-scanner/actions/workflows/pip-audit.yml"><img src="https://img.shields.io/github/actions/workflow/status/cpeoples/ansible-security-scanner/pip-audit.yml?branch=main&label=pip-audit&style=flat-square&logo=python&logoColor=white" alt="pip-audit" /></a>&nbsp;&nbsp;
   <a href="https://owasp.org/www-community/Source_Code_Analysis_Tools"><img src="https://img.shields.io/badge/OWASP-Listed-000000?style=flat-square&logo=owasp&logoColor=white" alt="OWASP Listed" /></a>&nbsp;&nbsp;
   <a href="https://github.com/ansible-community/awesome-ansible#tools"><img src="https://img.shields.io/badge/Awesome-Ansible-fc60a8?style=flat-square&logo=awesomelists&logoColor=white" alt="Listed on Awesome Ansible" /></a>&nbsp;&nbsp;
-  <a href="src/ansible_security_scanner/patterns"><img src="https://img.shields.io/badge/Rules-1161-blue?style=flat-square&logo=ansible&logoColor=white" alt="Rules" /></a>&nbsp;&nbsp;
+  <a href="src/ansible_security_scanner/patterns"><img src="https://img.shields.io/badge/Rules-1165-blue?style=flat-square&logo=ansible&logoColor=white" alt="Rules" /></a>&nbsp;&nbsp;
   <a href="https://pypi.org/project/ansible-security-scanner/"><img src="https://img.shields.io/pypi/v/ansible-security-scanner?style=flat-square&logo=pypi&logoColor=white&label=PyPI" alt="PyPI" /></a>&nbsp;&nbsp;
   <a href="https://github.com/cpeoples/ansible-security-scanner/releases/latest"><img src="https://img.shields.io/badge/SLSA-Level%203-success?style=flat-square&logo=slsa&logoColor=white" alt="SLSA Build Level 3" /></a>&nbsp;&nbsp;
   <a href="https://github.com/cpeoples/ansible-security-scanner/releases/latest"><img src="https://img.shields.io/badge/SBOM-CycloneDX-success?style=flat-square&logo=cyclonedx&logoColor=white" alt="CycloneDX SBOM" /></a>&nbsp;&nbsp;
@@ -23,9 +22,9 @@
 
 Static SAST scanner for Ansible playbooks, roles, collections, task files, vars, and inventories. Detects malicious code, RCE, command and template injection, hardcoded credentials, supply-chain risk, unauthorized cloud access, lateral movement, and reverse shells. Outputs SARIF, CycloneDX SBOM, GitLab SAST, JUnit, JSON, HTML, and Markdown reports with remediation guidance. Findings map to CWE, OWASP Top 10, OWASP ASVS, MITRE ATT&CK, NIST, and CIS. CI-native, autofix-capable, DevSecOps-ready.
 
-**<!--RULES-->1161<!--/RULES--> rules** across **<!--CATS-->31<!--/CATS--> categories** -- all auto-discovered from YAML pattern plugins.
+**<!--RULES-->1165<!--/RULES--> rules** across **<!--CATS-->31<!--/CATS--> categories** -- all auto-discovered from YAML pattern plugins.
 
-**<!--CRIT-->456<!--/CRIT--> critical**, <!--HIGH-->551<!--/HIGH--> high, <!--MED-->134<!--/MED--> medium, <!--LOW-->19<!--/LOW--> low. [Per-category breakdown on the dashboard.](https://cpeoples.github.io/ansible-security-scanner/dashboard/)
+**<!--CRIT-->460<!--/CRIT--> critical**, <!--HIGH-->551<!--/HIGH--> high, <!--MED-->134<!--/MED--> medium, <!--LOW-->19<!--/LOW--> low. [Per-category breakdown on the dashboard.](https://cpeoples.github.io/ansible-security-scanner/dashboard/)
 
 > [!NOTE]
 > **Scope.** This is a *static, pattern-based* scanner - one layer in a defense-in-depth strategy. Pair it with the runtime controls you already trust (AAP/AWX approval gates, execution-environment lockdown, network egress policy, code review) for full coverage. See [Limitations](docs/limitations.md) for the specific classes of issue this layer cannot catch on its own.
@@ -96,7 +95,7 @@ Add to your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/cpeoples/ansible-security-scanner
-    rev: v0.1.34
+    rev: v0.1.38
     hooks:
       - id: ansible-security-scanner
 ```
@@ -105,6 +104,32 @@ Two hook IDs are exposed:
 
 - `ansible-security-scanner` — scans only the staged YAML / `*.j2` / `*.cfg` files. Runs on every commit.
 - `ansible-security-scanner-all` — scans the full repository tree. Wired to the `pre-push` and `manual` stages so it doesn't fire on every commit; trigger it with `pre-commit run --hook-stage pre-push ansible-security-scanner-all` or in CI.
+
+### GitHub Actions
+
+Scan on every push and pull request and surface findings inline in the Security
+tab and on the PR diff:
+
+```yaml
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cpeoples/ansible-security-scanner@v0.1.38
+        with:
+          path: ansible
+```
+
+The action installs the pinned release, scans, and uploads SARIF to code
+scanning. Set `fail-on-findings: false` to report without failing the build, or
+`upload-sarif: false` with a `format:` of your choice to write another report
+type. See [CI/CD integration](docs/ci-cd.md) for the raw-CLI form and other
+platforms.
 
 ## Quick Start
 
@@ -158,7 +183,7 @@ installed CLI - it's a thin shim around the same entry point.
 
 ## What it detects
 
-The scanner ships <!--RULES-->1161<!--/RULES--> rules across <!--CATS-->31<!--/CATS--> auto-discovered categories. Highlights:
+The scanner ships <!--RULES-->1165<!--/RULES--> rules across <!--CATS-->31<!--/CATS--> auto-discovered categories. Highlights:
 
 **Malicious code and post-exploitation**
 

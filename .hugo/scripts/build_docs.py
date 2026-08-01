@@ -275,7 +275,7 @@ _LEADING_HTML_H1_RE = re.compile(
     re.DOTALL | re.IGNORECASE,
 )
 _LEADING_HERO_BLOCK_RE = re.compile(
-    r"\A\s*<(p|div)\b[^>]*>\s*<picture\b.*?</picture>\s*</\1>\s*\n+",
+    r"\A\s*<(p|div)\b[^>]*>\s*(?:<a\b[^>]*>\s*)?(?:<picture\b.*?</picture>|<img\b[^>]*/?>)\s*(?:</a>\s*)?</\1>\s*\n+",
     re.DOTALL | re.IGNORECASE,
 )
 _LEADING_HR_RE = re.compile(r"\A\s*<hr\b[^>]*/?>\s*\n+", re.IGNORECASE)
