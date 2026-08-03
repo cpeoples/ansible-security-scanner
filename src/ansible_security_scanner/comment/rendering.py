@@ -700,6 +700,21 @@ _VULNERABLE_CODE_BLOCK_RE = re.compile(
     re.DOTALL,
 )
 
+# The metadata renderer opens with a ``🔍 <heading>:`` description section and
+# a ``🛠 Recommendation:`` section. Inline threads already print the finding's
+# description and recommendation above the expander, so these would repeat
+# inside "Show recommended fix". Stripped only for inline rendering; the summary
+# comment keeps them because it shows just a one-line Fix hint. Tailored
+# handlers use ``🚨``/``✅`` sections and are unaffected.
+_META_DESCRIPTION_SECTION_RE = re.compile(
+    r"\*\*\U0001f50d[^\n]*:\*\*\s*\n.*?(?=\n\*\*|\Z)",
+    re.DOTALL,
+)
+_META_RECOMMENDATION_SECTION_RE = re.compile(
+    r"\*\*\U0001f6e0 Recommendation:\*\*\s*\n.*?(?=\n\*\*|\Z)",
+    re.DOTALL,
+)
+
 # Match ``**field**: `<value>` -> `<replacement>`` rows the rich
 # generators emit for "Secret Parameters Found" sections. The value half
 # is back-tick-delimited which the KV redactor can't see (it stops at
@@ -799,15 +814,22 @@ def _render_framework_coverage_inline(finding: Any) -> str:
     return f"<details><summary>Compliance frameworks</summary>\n\n{body}\n\n</details>"
 
 
-def _render_remediation_block(finding: Any) -> str:
+def _render_remediation_block(finding: Any, *, inline: bool = False) -> str:
     """Render the structured remediation example as a collapsed
     ``<details>`` block. Returns ``""`` when no remediation is present.
+
+    ``inline=True`` strips the metadata renderer's ``🔍`` description and
+    ``🛠 Recommendation`` sections, which the inline thread already shows above
+    the expander, so they are not duplicated inside "Show recommended fix".
     """
     raw = (getattr(finding, "remediation_example", "") or "").strip()
     if not raw:
         return ""
 
     cleaned = _VULNERABLE_CODE_BLOCK_RE.sub("", raw, count=1).strip()
+    if inline:
+        cleaned = _META_DESCRIPTION_SECTION_RE.sub("", cleaned, count=1)
+        cleaned = _META_RECOMMENDATION_SECTION_RE.sub("", cleaned, count=1).strip()
     if not cleaned:
         return ""
 

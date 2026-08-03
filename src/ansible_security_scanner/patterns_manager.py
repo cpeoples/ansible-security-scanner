@@ -456,6 +456,12 @@ _CODE_EMITTED_RULE_IDS: frozenset[str] = frozenset(
         "unknown_suppression_rule",
         "excessive_suppressions",
         "set_fact_secret_alias",
+        # Structural AST rules with no pattern YAML entry and no framework-tag
+        # registration. Listed so they are part of the known-rule universe
+        # (--select / --ignore / --list-rules) and covered by the remediation
+        # contract tests.
+        "get_url_dest_executable_with_insecure_validate",
+        "become_user_without_become_true",
     }
 )
 

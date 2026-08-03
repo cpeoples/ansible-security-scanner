@@ -33,6 +33,18 @@ remediations:
               path: /var/run/app-deploy.lock
               state: absent
 
+  become_user_without_become_true:
+    secure_fix: |
+      # become_user only takes effect when become is also enabled. Without
+      # `become: true` the task runs as the connection user, not the intended
+      # account, so the privilege boundary is absent.
+      - name: Run as the intended account (become enabled)
+        ansible.builtin.command: /usr/bin/app
+        become: true
+        become_user: svc_account
+        # If you did not intend to switch users, remove become_user rather than
+        # leaving a no-op privilege directive in place.
+
   ansible_host_key_checking_false_in_env_or_config:
     secure_fix: |
       # Don't disable host-key checking; pre-seed known_hosts

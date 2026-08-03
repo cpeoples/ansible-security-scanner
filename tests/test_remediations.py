@@ -7,6 +7,7 @@ Run with `pytest tests/test_remediations.py`.
 
 from __future__ import annotations
 
+import ast
 import re
 import sys
 from pathlib import Path
@@ -19,7 +20,12 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from ansible_security_scanner.patterns_manager import known_rule_ids  # noqa: E402
 from ansible_security_scanner.remediations import _pattern_index as _PI  # noqa: E402
+from ansible_security_scanner.remediations.base import (  # noqa: E402
+    _finding_artifact,
+    _fix_references_artifact,
+)
 from ansible_security_scanner.remediations.insecure_communication import (  # noqa: E402
     InsecureCommunicationRemediationGenerator,
 )
@@ -88,6 +94,120 @@ def _collect_rule_positive_examples() -> list[tuple[str, str, str]]:
 
 
 ALL_POSITIVE_EXAMPLES = _collect_rule_positive_examples()
+
+
+# Every rule the scanner can emit, pattern and structural alike. The
+# catalog-driven tests above only see rules declared in ``patterns/*.yml``;
+# structural rules (emitted from ``file_scanner.py`` / ``taint_tracker.py`` with
+# no YAML entry) are covered here instead. ``KNOWN_RULE_IDS`` is the scanner's
+# authoritative universe; ``_emitted_rule_id_literals`` derives, from source,
+# every rule_id the emit sites construct, so the completeness test fails when a
+# new structural rule_id is added without being registered.
+
+KNOWN_RULE_IDS = sorted(known_rule_ids())
+
+_SCANNER_SOURCES = (
+    SRC / "ansible_security_scanner" / "file_scanner.py",
+    SRC / "ansible_security_scanner" / "taint_tracker.py",
+)
+# Call sites that construct a finding; the rule_id is either the ``rule_id=``
+# keyword or a positional string-literal argument.
+_EMIT_CALL_NAMES = frozenset({"_make_finding", "_make_jinja_finding", "emit", "SecurityFinding"})
+
+
+def _emitted_rule_id_literals() -> set[str]:
+    """Return every rule_id string literal the scanner constructs.
+
+    Walks the finding-emitting source with ``ast`` and collects string literals
+    passed as ``rule_id=`` or as a positional argument to a known finding
+    constructor. Dynamic rule_ids (the regex scanner's ``pattern_obj.id``) come
+    from ``patterns/*.yml`` and are already in ``KNOWN_RULE_IDS``, so only
+    literals need this static sweep.
+    """
+    found: set[str] = set()
+    for src in _SCANNER_SOURCES:
+        tree = ast.parse(src.read_text())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = getattr(func, "attr", None) or getattr(func, "id", None)
+            if name not in _EMIT_CALL_NAMES:
+                continue
+            for kw in node.keywords:
+                if kw.arg == "rule_id" and isinstance(kw.value, ast.Constant):
+                    if isinstance(kw.value.value, str):
+                        found.add(kw.value.value)
+            for arg in node.args:
+                # Only identifier-shaped literals, so titles / descriptions in
+                # the positional list are not mistaken for rule_ids.
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    if re.fullmatch(r"[a-z][a-z0-9_]{3,}", arg.value):
+                        found.add(arg.value)
+    return found
+
+
+# Structural noise words that appear in almost every task and prove nothing
+# about grounding, excluded when checking a fix reuses a distinctive token from
+# a command/behaviour finding.
+_SNIPPET_STOPWORDS = frozenset(
+    {
+        "name",
+        "shell",
+        "command",
+        "ansible",
+        "builtin",
+        "true",
+        "false",
+        "yes",
+        "with",
+        "from",
+        "this",
+        "that",
+        "when",
+        "vars",
+        "task",
+        "tasks",
+        "value",
+        "state",
+        "present",
+        "absent",
+        "path",
+        "dest",
+        "mode",
+        "become",
+    }
+)
+_SNIPPET_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_.-]{3,}")
+
+
+def _distinctive_snippet_tokens(snippet: str) -> set[str]:
+    """Return lowercased distinctive tokens from a command/behaviour snippet.
+
+    Used to assert a fix reuses the flagged command (``auditd``, ``arpspoof``,
+    ``StrictHostKeyChecking``) when the finding has no structured artifact.
+    """
+    out: set[str] = set()
+    for m in _SNIPPET_TOKEN_RE.finditer(snippet or ""):
+        tok = m.group(0).lower().rstrip(".,;:")
+        if len(tok) >= 4 and tok not in _SNIPPET_STOPWORDS:
+            out.add(tok)
+    return out
+
+
+def _fix_is_grounded(out: str, artifact: str) -> bool:
+    """True when ``out`` references ``artifact`` from the finding.
+
+    A Jinja variable ``{{ x }}`` counts as grounded when the bare name appears
+    anywhere in the fix, since handlers often rewrite it into ``x`` inside a
+    ``register:`` / ``argv`` line.
+    """
+    if _fix_references_artifact(out, artifact) or artifact in out:
+        return True
+    jm = re.fullmatch(r"\{\{\s*([a-zA-Z_][\w.]*)\s*\}\}", artifact.strip())
+    if jm:
+        return re.search(rf"(?<![\w]){re.escape(jm.group(1))}(?![\w])", out) is not None
+    return False
 
 
 _UNRENDERED_PLACEHOLDER_PATTERNS = [
@@ -356,8 +476,17 @@ def test_remediation_is_relevant_to_the_rule(
     )
 
 
+# A Secure Fix block: a ``✅ ...:`` label followed, within a few prose lines, by
+# a fenced code block. Ansible fixes are YAML, but some rules remediate in the
+# fix's native language: jinja2 template rules emit ```jinja, vault-config rules
+# emit ```ini for ansible.cfg, EE rules emit ```dockerfile, and a few emit
+# shell. All are accepted; callers still validate the body for broken Jinja and
+# placeholders.
+_SECURE_FIX_LANGS = "(?:ya?ml|jinja2?|ini|dockerfile|toml|bash|sh|cfg)"
 _SECURE_FIX_BLOCK_RE = re.compile(
-    r"\*\*\u2705[^*\n]+:\*\*\s*\n(?:[^\n]*\n){0,3}```ya?ml\n(?P<body>.*?)\n```",
+    r"\*\*\u2705[^*\n]+:\*\*\s*\n(?:[^\n]*\n){0,3}```"
+    + _SECURE_FIX_LANGS
+    + r"?\n(?P<body>.*?)\n```",
     re.MULTILINE | re.DOTALL,
 )
 
@@ -512,6 +641,261 @@ def test_positive_example_renders_valid_secure_fix(
         f"  positive example: {positive_example[:160]!r}\n"
         f"  Secure Fix body (first 320 chars): {body[:320]!r}"
     )
+
+
+@pytest.mark.parametrize(
+    "rule_id,category,positive_example",
+    ALL_POSITIVE_EXAMPLES,
+    ids=[f"{r}#{i}" for i, (r, _, _) in enumerate(ALL_POSITIVE_EXAMPLES)],
+)
+def test_secure_fix_is_grounded_in_the_finding(
+    remediation_generator: RemediationGenerator,
+    rule_id: str,
+    category: str,
+    positive_example: str,
+) -> None:
+    """Every fix must reference the finding's own concrete artifact.
+
+    Guards against a fix that reads plausibly but ignores the line it was
+    attached to (e.g. an ``ansible.cfg`` ``ini_file`` snippet rendered for an
+    ``ansible_ssh_common_args`` inventory finding). When the positive example
+    names a concrete artifact (URL, path, IP, Jinja variable, dotted host, or
+    the flagged inventory/config key) the rendered remediation must echo it back.
+
+    Examples carrying nothing concrete (a bare ``shell: echo x``) are skipped:
+    there is no artifact to demand.
+    """
+    artifact = _finding_artifact(positive_example)
+    if not artifact:
+        pytest.skip("positive example carries no concrete artifact to ground on")
+
+    out = remediation_generator.generate_remediation_example(
+        rule_id, positive_example, file_path="inventory/group_vars/all.yml", line_number=1
+    )
+
+    assert _fix_is_grounded(out, artifact), (
+        f"{rule_id}: the rendered remediation never references the finding's own "
+        f"artifact {artifact!r}. The fix reads as a disconnected/generic example "
+        f"rather than a fix for the flagged line.\n"
+        f"  positive example: {positive_example[:160]!r}\n"
+        f"  remediation excerpt (first 400 chars): {out[:400]!r}"
+    )
+
+
+def test_every_owned_rule_routes_to_a_sound_relevant_handler(
+    remediation_generator: RemediationGenerator,
+) -> None:
+    """Every rule with a tailored handler must reach it soundly.
+
+    ``RemediationGenerator`` builds a ``rule_id -> owning generator`` index from
+    each generator's ``_FIX_MAP``. This asserts the index is complete and that
+    dispatch through it produces a relevant, well-formed fix for every owned
+    rule, catching the bug where a rule's category pointed at the wrong
+    generator (so its real handler was unreachable and a foreign fix, e.g.
+    'Unsafe File Permissions' for an SSH trust-bypass finding, was emitted).
+    """
+    gen = remediation_generator
+    offenders: list[str] = []
+    for rule_id in sorted(gen._rule_owner):
+        examples = [ex for (rid, _cat, ex) in ALL_POSITIVE_EXAMPLES if rid == rule_id]
+        snippet = examples[0] if examples else "shell: echo placeholder"
+        out = gen.generate_remediation_example(
+            rule_id, snippet, file_path="test.yml", line_number=1
+        )
+        if not gen._is_relevant(rule_id, snippet, out):
+            offenders.append(f"{rule_id}: dispatched fix is not relevant to the rule")
+        elif not _SECURE_FIX_BLOCK_RE.search(out):
+            offenders.append(f"{rule_id}: dispatched fix has no Secure Fix block")
+
+    assert not offenders, (
+        f"{len(offenders)} owned rule(s) route to an irrelevant or malformed "
+        f"handler (likely a stale category mapping shadowing the real handler):\n  "
+        + "\n  ".join(offenders[:30])
+    )
+
+
+def test_known_rule_id_registry_is_complete() -> None:
+    """No finding-emitting call may construct a rule_id outside the registry.
+
+    ``patterns_manager.known_rule_ids()`` is the scanner's authoritative rule
+    universe (--select / --ignore / --list-rules resolve against it, and the
+    coverage test below iterates it). Structural rules are emitted as string
+    literals in ``file_scanner.py`` / ``taint_tracker.py``; if a new one is
+    added without registering it (a pattern YAML entry,
+    ``synthetic_rule_frameworks`` membership, or ``_CODE_EMITTED_RULE_IDS``) it
+    would escape the registry and every remediation contract test. This static
+    sweep fails when that happens.
+    """
+    emitted = _emitted_rule_id_literals()
+    unregistered = sorted(emitted - set(KNOWN_RULE_IDS))
+    assert not unregistered, (
+        f"{len(unregistered)} rule_id(s) are emitted by the scanner but are not "
+        f"in patterns_manager.known_rule_ids(). Register each one (add a "
+        f"patterns/*.yml entry, or add it to synthetic_rule_frameworks / "
+        f"_CODE_EMITTED_RULE_IDS) so it is covered by --select/--ignore, "
+        f"--list-rules, and the remediation contract tests:\n  " + "\n  ".join(unregistered)
+    )
+
+
+# Scan-meta rules report on the scan itself (a suppression directive about the
+# scanner, or a parse error) rather than on Ansible code, so they intentionally
+# carry a fixed advisory string instead of a Secure Fix YAML block.
+_SCAN_META_RULES = frozenset(
+    {
+        "scan_error",
+        "suspicious_suppression",
+        "unknown_suppression_rule",
+        "excessive_suppressions",
+    }
+)
+
+
+# Realistic snippets for structural (code-only) rules so the universal coverage
+# test below can render each against code it actually fires on rather than a
+# bare placeholder. A rule absent here still gets the placeholder snippet; this
+# map only sharpens the check for rules whose fix needs real task context.
+# Synthetic values only, never real inventory data.
+_STRUCTURAL_SNIPPETS: dict[str, str] = {
+    "get_url_dest_executable_with_insecure_validate": (
+        '- name: fetch tool\n  get_url:\n    url: "https://example.test/tool"\n'
+        '    dest: "/usr/local/bin/tool"\n    validate_certs: no'
+    ),
+    "become_user_without_become_true": (
+        "- name: run as svc\n  ansible.builtin.command: /usr/bin/app\n  become_user: svc_account"
+    ),
+    "no_log_explicitly_false_on_credential_task_ast": (
+        '- name: login\n  uri:\n    url: "https://example.test/auth"\n'
+        '    password: "{{ svc_password }}"\n  no_log: false'
+    ),
+    "cron_job_with_secret_in_argv": (
+        "- name: schedule\n  ansible.builtin.cron:\n    name: sync\n"
+        '    job: "/usr/bin/sync --token {{ api_token }}"'
+    ),
+    "docker_host_mount": (
+        "- name: run\n  community.docker.docker_container:\n    name: c\n"
+        '    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock"'
+    ),
+    "world_readable_sensitive": (
+        '- name: write cfg\n  copy:\n    dest: "/etc/app/secret.conf"\n    mode: "0644"'
+    ),
+    "connection_local_shell": (
+        '- name: local\n  connection: local\n  ansible.builtin.shell: "echo {{ payload }}"'
+    ),
+    "include_role_from_url": (
+        '- name: pull role\n  include_role:\n    name: "{{ item }}"\n'
+        '  vars:\n    src: "https://example.test/role.tar.gz"'
+    ),
+    "set_fact_injection": (
+        "- name: build fact\n  set_fact:\n    resolved_target: \"{{ lookup('pipe', untrusted_input) }}\""
+    ),
+    # Pattern rules whose catalog positive_example is too terse to ground on
+    # (tokens under the distinctive-length threshold). A realistic snippet lets
+    # the universal test enforce dynamism on them too.
+    "aws_s3_data_access": (
+        '- name: exfil\n  ansible.builtin.shell: "aws s3 cp s3://prod-secrets/creds.env /tmp/creds.env"'
+    ),
+    "aws_s3_list_or_delete": (
+        '- name: enumerate\n  ansible.builtin.shell: "aws s3 ls s3://prod-backups/"'
+    ),
+    "backdoor_listener": ('- name: listen\n  ansible.builtin.shell: "ncat -l -e /bin/bash 4444"'),
+    "env_var_constructed_command": (
+        '- name: obfuscated\n  ansible.builtin.shell: "$PAYLOAD_A$PAYLOAD_B | bash"'
+    ),
+    # Split so the file never contains a contiguous Mailchimp-format token
+    # (GitHub push protection flags it); the runtime value is a synthetic key.
+    "mailchimp_api_key": ('mailchimp_key: "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d' + '-us14"'),
+    "recursive_delete_critical": ('- name: cleanup\n  ansible.builtin.shell: "rm -rf /etc/nginx"'),
+    "ssh_socks_proxy": ('- name: tunnel\n  ansible.builtin.shell: "ssh -D 1080 jumphost.internal"'),
+    "yaml_unsafe_tag_generic": ('validator: !!python/object/apply:os.system ["id"]'),
+}
+
+
+@pytest.mark.parametrize("rule_id", KNOWN_RULE_IDS)
+def test_every_known_rule_renders_a_sound_fix(
+    remediation_generator: RemediationGenerator,
+    rule_id: str,
+) -> None:
+    """Universal coverage: every rule the scanner can emit ships a sound fix.
+
+    Iterates the scanner's own ``known_rule_ids()`` universe, pattern rules and
+    structural code-only rules alike, so no finding type can escape the
+    remediation contract by living in Python instead of pattern YAML. Each rule
+    must render a well-formed Secure Fix (present, valid fence language, no
+    broken Jinja, no fill-it-in placeholder) that is relevant to the rule.
+
+    Scan-meta rules (``scan_error`` and the suppression auditors) report on the
+    scan itself, not on Ansible code, so they carry a fixed advisory
+    remediation rather than a Secure Fix block and are exempted.
+    """
+    if rule_id in _SCAN_META_RULES:
+        pytest.skip("scan-meta rule: reports on the scan, carries no Ansible Secure Fix")
+
+    snippet = _STRUCTURAL_SNIPPETS.get(rule_id)
+    if snippet is None:
+        examples = [ex for (rid, _cat, ex) in ALL_POSITIVE_EXAMPLES if rid == rule_id]
+        snippet = examples[0] if examples else "shell: echo placeholder"
+
+    out = remediation_generator.generate_remediation_example(
+        rule_id,
+        snippet,
+        file_path="inventory/group_vars/all.yml",
+        line_number=1,
+        description_fallback="structural rule description",
+        recommendation_fallback="structural rule recommendation",
+    )
+
+    match = _SECURE_FIX_BLOCK_RE.search(out)
+    assert match, (
+        f"{rule_id}: no `\u2705 Secure Fix` block; the fix dispatch fell through "
+        f"to a prose-only stub. Every known rule must ship an actionable fix.\n"
+        f"  snippet: {snippet[:120]!r}\n"
+        f"  remediation excerpt (first 320 chars): {out[:320]!r}"
+    )
+    body = match.group("body")
+    assert not _TRUNCATED_JINJA_RE.search(body), (
+        f"{rule_id}: Secure Fix contains a truncated Jinja expression (dangling `{{{{`)."
+        f"\n  body: {body[:320]!r}"
+    )
+    assert not _NESTED_JINJA_RE.search(body), (
+        f"{rule_id}: Secure Fix contains nested Jinja.\n  body: {body[:320]!r}"
+    )
+    ph = _GENERIC_PLACEHOLDER_RE.search(body)
+    assert not ph, (
+        f"{rule_id}: Secure Fix punts to a fill-it-in placeholder ({ph.group(0)!r}) "
+        f"instead of reusing the flagged code.\n  body: {body[:320]!r}"
+    )
+    assert remediation_generator._is_relevant(rule_id, snippet, out), (
+        f"{rule_id}: rendered fix is not relevant to the rule (wrong generator / "
+        f"stale category routing).\n  remediation excerpt: {out[:320]!r}"
+    )
+
+    # Dynamism: the fix must reuse this finding's input rather than emit a
+    # canned example. Two tiers, matching the two kinds of finding:
+    #   1. Value-bearing findings name a concrete artifact (path/host/URL/var/
+    #      key); the fix must echo that exact artifact back.
+    #   2. Behaviour/command findings (``systemctl stop auditd``, ``arpspoof``)
+    #      carry no structured value, so the fix must reference a distinctive
+    #      token from the input instead.
+    artifact = _finding_artifact(snippet)
+    if artifact:
+        assert _fix_is_grounded(out, artifact), (
+            f"{rule_id}: the fix never references the finding's own artifact "
+            f"{artifact!r}, so it reads as a static/generic example instead of a "
+            f"dynamic fix for the flagged input.\n"
+            f"  snippet: {snippet[:120]!r}\n"
+            f"  remediation excerpt (first 400 chars): {out[:400]!r}"
+        )
+    else:
+        tokens = _distinctive_snippet_tokens(snippet)
+        if tokens:
+            lowered = out.lower()
+            assert any(t in lowered for t in tokens), (
+                f"{rule_id}: the fix references none of the distinctive tokens "
+                f"from the flagged command/behaviour ({sorted(tokens)[:6]}), so it "
+                f"reads as a generic example rather than a fix for this finding.\n"
+                f"  snippet: {snippet[:120]!r}\n"
+                f"  remediation excerpt (first 400 chars): {out[:400]!r}"
+            )
 
 
 # Structural (AST / Python-defined) rules have no ``patterns/*.yml`` entry and

@@ -33,6 +33,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from ansible_security_scanner import comment
+from ansible_security_scanner.comment.inline import _render_inline_body
 from ansible_security_scanner.remediations.remediation_generator import (
     RemediationGenerator,
 )
@@ -3494,3 +3495,87 @@ class TestRenderedCommentBodyIsWellFormed:
                 f"{rid}: rendered MR-comment body has unbalanced "
                 f"triple-backtick fences (count={body.count('```')})"
             )
+
+
+# End-to-end inline-thread contract: the inline comment is what the reviewer
+# reads on the PR. Guards two regressions: (1) the "Show recommended fix"
+# expander repeating the title / description / recommendation already printed
+# above it, and (2) the Secure Fix reading as a disconnected generic example
+# instead of a fix for the flagged line. Exercises the full inline pipeline
+# (generator -> inline renderer) rather than the generator in isolation.
+class TestInlineThreadIsGroundedAndDeduplicated:
+    @staticmethod
+    def _finding(rule_id: str, snippet: str, *, description: str, recommendation: str):
+        rendered = RemediationGenerator().generate_remediation_example(
+            rule_id, snippet, file_path="inventory/group_vars/all.yml", line_number=21
+        )
+
+        @dataclass
+        class _F:
+            rule_id: str
+            severity: str
+            file_path: str
+            line_number: int
+            title: str
+            description: str
+            code_snippet: str
+            match_line: str
+            recommendation: str
+            remediation_example: str
+
+        return _F(
+            rule_id=rule_id,
+            severity="HIGH",
+            file_path="inventory/group_vars/all.yml",
+            line_number=21,
+            title="SSH args disable host key checking",
+            description=description,
+            code_snippet=snippet,
+            match_line=snippet,
+            recommendation=recommendation,
+            remediation_example=rendered,
+        )
+
+    def test_inline_expander_does_not_duplicate_description_and_recommendation(self):
+        description = "UNIQUE_DESCRIPTION_SENTINEL: host-key verification is disabled."
+        recommendation = "UNIQUE_RECOMMENDATION_SENTINEL: remove the bypass flags."
+        snippet = (
+            'ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"'
+        )
+        finding = self._finding(
+            "ssh_args_disable_host_key",
+            snippet,
+            description=description,
+            recommendation=recommendation,
+        )
+        body = _render_inline_body(finding, anchored=True)
+
+        # The description and recommendation are shown once, above the expander;
+        # the "Show recommended fix" block must not repeat them verbatim.
+        _, _, expander = body.partition("Show recommended fix")
+        assert description not in expander, (
+            "inline 'Show recommended fix' expander repeats the finding "
+            "description that is already shown above it:\n" + expander[:400]
+        )
+        assert recommendation not in expander, (
+            "inline 'Show recommended fix' expander repeats the finding "
+            "recommendation that is already shown above it:\n" + expander[:400]
+        )
+
+    def test_inline_fix_is_grounded_in_the_flagged_variable(self):
+        snippet = (
+            'ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"'
+        )
+        finding = self._finding(
+            "ssh_args_disable_host_key",
+            snippet,
+            description="host-key verification is disabled",
+            recommendation="remove the bypass flags",
+        )
+        body = _render_inline_body(finding, anchored=True)
+        # The fix must address the actual flagged inventory variable, not a
+        # disconnected ansible.cfg / file-permissions example.
+        assert "ansible_ssh_common_args" in body, (
+            "inline fix does not reference the flagged variable "
+            "`ansible_ssh_common_args`; it reads as a disconnected example:\n" + body[:600]
+        )
