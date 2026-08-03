@@ -98,7 +98,7 @@ Add to your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/cpeoples/ansible-security-scanner
-    rev: v0.1.38
+    rev: v0.1.39
     hooks:
       - id: ansible-security-scanner
 ```
@@ -123,7 +123,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: cpeoples/ansible-security-scanner@v0.1.38
+      - uses: cpeoples/ansible-security-scanner@v0.1.39
         with:
           path: ansible
 ```

@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: cpeoples/ansible-security-scanner@v0.1.38
+      - uses: cpeoples/ansible-security-scanner@v0.1.39
         with:
           path: ansible
 ```
