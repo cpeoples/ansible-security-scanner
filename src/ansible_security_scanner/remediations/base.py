@@ -79,6 +79,10 @@ def _render_from_metadata(
     The pattern catalog wins when populated; the fallbacks fill the
     void so the rendered ``Show recommended fix`` block always carries
     real text rather than the ``this <rule_id> issue`` stub.
+
+    The Secure Fix is grounded in the finding's own code via
+    :func:`_ground_secure_fix`, so a curated companion snippet is never
+    rendered as advice disconnected from the flagged line.
     """
     meta = _pattern_index.get(rule_id) or {}
     title = meta.get("title") or title_fallback
@@ -86,15 +90,20 @@ def _render_from_metadata(
     recommendation = meta.get("recommendation") or recommendation_fallback
 
     secure_fix = _select_secure_fix(rule_id)
+    if secure_fix:
+        secure_fix = _ground_secure_fix(secure_fix, code_snippet)
     secure_block = (
         f"\n**\u2705 Secure Fix Example:**\n```yaml\n{secure_fix}\n```\n" if secure_fix else ""
     )
 
     rec_block = f"\n**\U0001f6e0 Recommendation:**\n{recommendation}\n" if recommendation else ""
+    # The untitled fallback already ends in ``(rule_id)``; only append the id
+    # when a real title is present so it is never doubled.
     heading = title or f"What this rule detects ({rule_id})"
+    heading_suffix = f" ({rule_id})" if title else ""
     return (
         f"\n**\u274c Vulnerable Code:**\n```yaml\n{code_snippet}\n```\n"
-        f"\n**\U0001f50d {heading} ({rule_id}):**\n{description}\n"
+        f"\n**\U0001f50d {heading}{heading_suffix}:**\n{description}\n"
         f"{rec_block}"
         f"{secure_block}"
     )
@@ -107,6 +116,90 @@ def _select_secure_fix(rule_id: str) -> str | None:
     code, so they are intentionally not consulted as a remediation source.
     """
     return _companion_index.get(rule_id)
+
+
+# Grounding a curated fix in the finding's own code. A curated ``secure_fix``
+# snippet is generic; ``_ground_secure_fix`` ties it to the finding by
+# prepending a YAML comment naming the finding's concrete artifact when the
+# snippet does not already reference it.
+
+# Concrete artifacts worth echoing back, most-specific first. The URL/path
+# classes exclude ``{`` and ``}`` so a value embedding a Jinja expression
+# (``https://api/{{ name }}``) is not captured as a truncated ``https://api/{{``.
+_GROUND_URL_RE = re.compile(r"https?://[^\s\"'`,)}{]+")
+_GROUND_PATH_RE = re.compile(
+    r"(?<![\w-])/(?:etc|opt|srv|var|tmp|home|root|usr|bin|boot|dev|mnt|"
+    r"media|proc|sys|lib|run)(?:/[\w.@%+-]+)+"
+)
+_GROUND_IPV4_RE = re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?![\w.])")
+_GROUND_JINJA_VAR_RE = re.compile(r"\{\{\s*([a-zA-Z_][\w.]*)\s*\}\}")
+# Leading inventory/config key on the flagged line (e.g. ``ansible_ssh_common_args``).
+_GROUND_KEY_RE = re.compile(r"^\s*(?:-\s*)?([a-zA-Z_][\w.-]*)\s*[:=]")
+# Hostnames like ``legacy.example.com`` (dotted, ends in an alpha TLD).
+_GROUND_HOST_RE = re.compile(r"(?<![\w.@/])(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?![\w./])")
+
+
+def _artifact_is_safe(candidate: str) -> bool:
+    """True when ``candidate`` has balanced Jinja braces.
+
+    A fragment like ``https://api/{{`` would reintroduce truncated Jinja, so
+    any candidate with an unbalanced brace is rejected.
+    """
+    if "{" not in candidate and "}" not in candidate:
+        return True
+    return candidate.count("{{") == candidate.count("}}") and "{{" in candidate
+
+
+def _finding_artifact(code_snippet: str) -> str | None:
+    """Return the most specific concrete artifact named in ``code_snippet``.
+
+    A URL is preferred over the host inside it, a path over a bare key.
+    Candidates carrying a partial Jinja expression are skipped. Returns
+    ``None`` when the finding names nothing concrete (e.g. ``shell: echo x``).
+    """
+    snippet = code_snippet or ""
+    for pattern in (_GROUND_URL_RE, _GROUND_PATH_RE, _GROUND_IPV4_RE):
+        for m in pattern.finditer(snippet):
+            if _artifact_is_safe(m.group(0)):
+                return m.group(0)
+    jm = _GROUND_JINJA_VAR_RE.search(snippet)
+    if jm:
+        return "{{ " + jm.group(1) + " }}"
+    hm = _GROUND_HOST_RE.search(snippet)
+    if hm and "." in hm.group(0) and _artifact_is_safe(hm.group(0)):
+        return hm.group(0)
+    for line in snippet.splitlines():
+        km = _GROUND_KEY_RE.match(line)
+        if km:
+            return km.group(1)
+    return None
+
+
+def _fix_references_artifact(secure_fix: str, artifact: str) -> bool:
+    """True when ``secure_fix`` already mentions ``artifact`` (grounded)."""
+    if not artifact:
+        return True
+    if artifact in secure_fix:
+        return True
+    # A Jinja var reference ``{{ x }}`` is grounded if the bare name appears.
+    jm = _GROUND_JINJA_VAR_RE.fullmatch(artifact.strip())
+    return bool(jm and re.search(rf"(?<![\w]){re.escape(jm.group(1))}(?![\w])", secure_fix))
+
+
+def _ground_secure_fix(secure_fix: str, code_snippet: str) -> str:
+    """Return ``secure_fix`` tied back to the finding's own code.
+
+    No-op when the finding names nothing concrete or the fix already
+    references the finding's artifact. Otherwise prepend a YAML comment naming
+    the artifact so the fix reads as one for the flagged line.
+    """
+    fix = (secure_fix or "").strip("\n")
+    if not fix:
+        return secure_fix
+    artifact = _finding_artifact(code_snippet)
+    if not artifact or _fix_references_artifact(fix, artifact):
+        return secure_fix
+    return f"# Applies to the flagged finding: {artifact}\n{fix}"
 
 
 class BaseRemediationGenerator:
@@ -122,14 +215,12 @@ class BaseRemediationGenerator:
         """Route ``rule_id`` to its tailored handler, or fall through to
         the metadata renderer.
 
-        A companion-file entry always wins over a tailored handler:
-        tailored handlers predate the contract tests and tend to skip
-        the Secure Fix YAML block, so the curated companion entry is
-        the upgrade path. ``fallback`` is accepted for backward
+        A tailored handler wins when present: it renders a rule-specific
+        Secure Fix built around the flagged code. Otherwise the metadata
+        renderer runs, whose Secure Fix is grounded via
+        ``_ground_secure_fix``. ``fallback`` is accepted for backward
         compatibility and ignored.
         """
-        if _companion_index.get(rule_id):
-            return _render_from_metadata(rule_id, code_snippet)
         method_name = self._FIX_MAP.get(rule_id)
         if method_name:
             return getattr(self, method_name)(code_snippet)

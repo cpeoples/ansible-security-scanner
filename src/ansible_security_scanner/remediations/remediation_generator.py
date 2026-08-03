@@ -116,6 +116,31 @@ class RemediationGenerator(BaseRemediationGenerator):
             "vault_hygiene": VaultHygieneRemediationGenerator(),
             "cross_file_taint": TaintFlowRemediationGenerator(),
         }
+        self._rule_owner = self._build_rule_owner_index()
+
+    def _build_rule_owner_index(self) -> dict[str, tuple[str, str]]:
+        """Reverse index ``rule_id -> (generator_key, category_method)``.
+
+        Records which generator actually implements each rule's fix, derived
+        from each generator's ``_FIX_MAP``, so a stale ``rule_id -> category``
+        mapping cannot misroute a finding to a generator that lacks its handler.
+
+        Generators reached only through the ``specials`` map in ``_dispatch``
+        are excluded: those rules carry extra context (var/env extraction) and
+        are routed by category, not by ``_FIX_MAP``.
+        """
+        method_for_key: dict[str, str] = {}
+        for _cat, (gen_key, method_name) in self._SIMPLE_DISPATCH.items():
+            method_for_key.setdefault(gen_key, method_name)
+
+        owner: dict[str, tuple[str, str]] = {}
+        for gen_key, generator in self._generators.items():
+            method_name = method_for_key.get(gen_key)
+            if not method_name:
+                continue
+            for rid in getattr(generator, "_FIX_MAP", {}):
+                owner.setdefault(rid, (gen_key, method_name))
+        return owner
 
     # Data-driven dispatch table. Each entry maps a category to the (generator-key,
     # method-name) pair used to produce the fix. Categories that need richer
@@ -196,24 +221,19 @@ class RemediationGenerator(BaseRemediationGenerator):
                 recommendation_fallback=recommendation_fallback,
             )
 
-        if _companion_index.get(rule_id):
+        def dispatched_or_meta() -> str:
+            out = self._dispatch(rule_id, code_snippet, file_path, line_number)
+            if self._is_relevant(rule_id, code_snippet, out) and self._fix_is_sound(out):
+                return _swap_vulnerable_code_block(out, code_snippet, rendered_snippet)
             return render_meta()
-        # Structural rule (no pattern entry) with caller-supplied
-        # fallbacks: skip per-category dispatch so the expander renders
-        # the rule's real text, not the ``this <rule_id> issue`` stub.
-        # A tailored dynamic handler is the exception - it reuses the
-        # finding's own code to emit a real Secure Fix, which beats the
-        # procedural metadata text, so let it run.
-        if (
-            not _pattern_index.get(rule_id)
-            and (description_fallback or recommendation_fallback)
-            and not self._has_dynamic_handler(rule_id)
-        ):
+
+        # A curated companion snippet (grounded via _ground_secure_fix) wins for
+        # rules with no tailored handler. Every other rule prefers its dispatched
+        # fix and falls back to the metadata renderer only when that fix is
+        # irrelevant or malformed, so a regressed handler never ships a broken fix.
+        if not self._has_dynamic_handler(rule_id) and _companion_index.get(rule_id):
             return render_meta()
-        out = self._dispatch(rule_id, code_snippet, file_path, line_number)
-        if not self._is_relevant(rule_id, code_snippet, out):
-            return render_meta()
-        return _swap_vulnerable_code_block(out, code_snippet, rendered_snippet)
+        return dispatched_or_meta()
 
     # Structural rules (no patterns/*.yml entry) whose special-category
     # handler reuses the finding's own code to emit a real Secure Fix.
@@ -228,12 +248,14 @@ class RemediationGenerator(BaseRemediationGenerator):
     )
 
     def _has_dynamic_handler(self, rule_id: str) -> bool:
-        """True when the rule's category generator has a tailored handler.
+        """True when the rule has a tailored handler that dispatch can reach.
 
-        Used to let structural rules (no ``patterns/*.yml`` entry) still
-        reach a code-reusing Secure Fix instead of the procedural
-        metadata renderer.
+        Consults the owner index first so a stale category mapping cannot hide
+        a real handler, then the category-routed generator, then the
+        structural specials.
         """
+        if rule_id in self._rule_owner:
+            return True
         if rule_id in self._DYNAMIC_SPECIAL_RULES:
             return True
         spec = self._SIMPLE_DISPATCH.get(_resolve_category(rule_id))
@@ -243,6 +265,27 @@ class RemediationGenerator(BaseRemediationGenerator):
         return bool(generator and rule_id in getattr(generator, "_FIX_MAP", {}))
 
     def _dispatch(
+        self,
+        rule_id: str,
+        code_snippet: str,
+        file_path: str,
+        line_number: int,
+    ) -> str:
+        # Owner index first: route to the generator that implements this rule's
+        # tailored handler, regardless of a possibly-stale category mapping.
+        # The owner's output is used only when sound; otherwise fall through to
+        # the category/special dispatch the rule historically used, so a thin
+        # owner handler never regresses a rule a category special served well.
+        owned = self._rule_owner.get(rule_id)
+        if owned is not None:
+            gen_key, method_name = owned
+            owner_out = getattr(self._generators[gen_key], method_name)(rule_id, code_snippet)
+            if self._fix_is_sound(owner_out):
+                return owner_out
+
+        return self._dispatch_via_category(rule_id, code_snippet, file_path, line_number)
+
+    def _dispatch_via_category(
         self,
         rule_id: str,
         code_snippet: str,
@@ -472,6 +515,48 @@ class RemediationGenerator(BaseRemediationGenerator):
     )
 
     _TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_./:-]{2,}")
+
+    # A ``✅ ...:`` Secure-Fix label followed, within a few prose lines, by a
+    # fenced block in any language a handler emits (yaml, jinja, dockerfile,
+    # ini, bash). ``finditer`` walks every such block so soundness reflects the
+    # fix a reader actually sees. The line tolerance matches the contract test.
+    _SOUND_FIX_BLOCK_RE = re.compile(
+        r"\*\*\u2705[^*\n]+:\*\*\s*\n(?:[^\n]*\n){0,3}```[a-zA-Z0-9_-]*\n(?P<body>.*?)\n```",
+        re.MULTILINE | re.DOTALL,
+    )
+    # A dangling ``{{`` (value extractor stopped inside ``{{ var }}``).
+    _SOUND_TRUNCATED_JINJA_RE = re.compile(r"\{\{(?=\s*[\"']?\s*$)", re.MULTILINE)
+    # Nested ``{{ ... {{ ... }} ... }}`` (invalid Jinja from an f-string paste).
+    _SOUND_NESTED_JINJA_RE = re.compile(r"\{\{(?:[^{}]|\}(?!\}))*\{\{")
+    # A fill-it-in-yourself placeholder instead of the finding's real value.
+    _SOUND_PLACEHOLDER_RE = re.compile(
+        r"\{\{\s*(?:remediation_command|your_command(?:_here)?|command_here|"
+        r"insert_command|replace_me|todo)\s*\}\}"
+        r"|<\s*(?:your[ _-]command|command[ _-]here|insert[ _-]command|replace[ _-]me)[^>]*>",
+        re.IGNORECASE,
+    )
+
+    @classmethod
+    def _fix_is_sound(cls, output: str) -> bool:
+        """True when ``output`` carries a well-formed, non-broken Secure Fix.
+
+        At least one ``✅`` Secure Fix block must exist whose body has no
+        truncated or nested Jinja and no fill-it-in placeholder. Gates whether
+        a tailored handler's output is safe to prefer over a curated companion
+        snippet; a regressed handler falls back to the curated fix.
+        """
+        if not output or output.count("```") % 2 != 0:
+            return False
+        broken = (
+            cls._SOUND_TRUNCATED_JINJA_RE,
+            cls._SOUND_NESTED_JINJA_RE,
+            cls._SOUND_PLACEHOLDER_RE,
+        )
+        for match in cls._SOUND_FIX_BLOCK_RE.finditer(output):
+            body = match.group("body")
+            if not any(rx.search(body) for rx in broken):
+                return True
+        return False
 
     @classmethod
     def _distinctive_tokens(cls, text: str) -> set[str]:

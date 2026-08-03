@@ -248,7 +248,7 @@ def _render_inline_body(
     if recommendation:
         parts.append(f"**Recommendation:** {recommendation}")
 
-    remediation = _render_remediation_block(finding)
+    remediation = _render_remediation_block(finding, inline=True)
     if remediation:
         parts.append(remediation)
 
