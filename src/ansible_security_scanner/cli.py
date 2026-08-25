@@ -1012,6 +1012,7 @@ def _post_mr_comment(args, ctx, report, scanner) -> None:
         ignored_rule_ids=ignored_rule_ids,
         selected_rule_ids=selected_rule_ids,
         category_for_rule=category_for_rule,
+        suppression_warnings=list(getattr(report, "suppression_warnings", []) or []),
     )
     result = comment.post_or_update_comment(ctx, body)
 
