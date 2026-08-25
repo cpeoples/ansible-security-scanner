@@ -8,8 +8,18 @@ from __future__ import annotations
 import re
 from typing import TypedDict
 
-from ..variable_extractor import VariableExtractor
+from ..variable_extractor import (
+    _NON_CREDENTIAL_KEYS,
+    VariableExtractor,
+    looks_like_credential_key,
+)
 from . import _companion_index, _pattern_index
+from ._category_map import resolve_category
+
+# The remediation layer historically referred to this predicate as
+# ``_key_is_credential``; it now lives in variable_extractor as the single
+# source of truth (base cannot own it without a circular import).
+_key_is_credential = looks_like_credential_key
 
 
 class CredentialInfo(TypedDict):
@@ -21,8 +31,15 @@ class CredentialInfo(TypedDict):
 
 
 class _CredentialAdvice(TypedDict):
-    """Curated description and advice for a credential family."""
+    """Curated description and advice for a credential family.
 
+    ``name`` is the family's canonical identity when the family itself names a
+    specific credential (Splunk HEC, Stripe). It is ``None`` for families that
+    only carry advice (``generic``, ``password``, ``api_key``, ``form_data``),
+    which defer their name to the rule id or the flagged key.
+    """
+
+    name: str | None
     description: str
     security_advice: list[str]
 
@@ -81,6 +98,7 @@ def _render_from_metadata(
     rule_id: str,
     code_snippet: str,
     *,
+    ground_snippet: str | None = None,
     title_fallback: str = "",
     description_fallback: str = "",
     recommendation_fallback: str = "",
@@ -90,15 +108,17 @@ def _render_from_metadata(
     Lives at module scope so per-category dispatchers can reach it
     without circular imports through ``RemediationGenerator``.
 
+    ``code_snippet`` is what renders inside the ``Vulnerable Code`` fence (the
+    enclosing task, for context). ``ground_snippet`` is what the Secure Fix is
+    grounded against and defaults to ``code_snippet``; callers pass the precise
+    flagged line here so grounding attaches to the finding's own artifact
+    rather than an incidental URL elsewhere in the task window.
+
     The ``*_fallback`` kwargs cover structural rules emitted from code
     (no ``patterns/*.yml`` entry, hence absent from ``_pattern_index``).
     The pattern catalog wins when populated; the fallbacks fill the
     void so the rendered ``Show recommended fix`` block always carries
     real text rather than the ``this <rule_id> issue`` stub.
-
-    The Secure Fix is grounded in the finding's own code via
-    :func:`_ground_secure_fix`, so a curated companion snippet is never
-    rendered as advice disconnected from the flagged line.
     """
     meta = _pattern_index.get(rule_id) or {}
     title = meta.get("title") or title_fallback
@@ -107,7 +127,12 @@ def _render_from_metadata(
 
     secure_fix = _select_secure_fix(rule_id)
     if secure_fix:
-        secure_fix = _ground_secure_fix(secure_fix, code_snippet)
+        prefer_credential_key = resolve_category(rule_id) == "hardcoded_credentials"
+        secure_fix = _ground_secure_fix(
+            secure_fix,
+            ground_snippet if ground_snippet is not None else code_snippet,
+            prefer_credential_key=prefer_credential_key,
+        )
     secure_block = (
         f"\n**\u2705 Secure Fix Example:**\n```yaml\n{secure_fix}\n```\n" if secure_fix else ""
     )
@@ -180,6 +205,14 @@ _RULE_ID_NOISE = (
     "_var",
     "_hardcoded",
     "hardcoded_",
+    # Value-format prefixes that leak into the name (a Databricks PAT starts
+    # ``dapi``, an Atlassian token ``atatt``); they identify the format, not a
+    # word a reader needs in the credential's name.
+    "_atatt",
+    "_dapi",
+    "_dckr",
+    "_asia",
+    "_glsa",
 )
 _IDENTITY_CASINGS = {
     "api": "API",
@@ -209,6 +242,17 @@ _IDENTITY_CASINGS = {
     "gitlab": "GitLab",
     "us": "US",
     "dockerhub": "DockerHub",
+    "openai": "OpenAI",
+    "mysql": "MySQL",
+    "postgresql": "PostgreSQL",
+    "postgres": "PostgreSQL",
+    "youtube": "YouTube",
+    "paypal": "PayPal",
+    "sshpass": "sshpass",
+    "hashicorp": "HashiCorp",
+    "apm": "APM",
+    "tfvars": "tfvars",
+    "cpassword": "cpassword",
 }
 # Rule ids too generic to name a specific credential; fall back to the key.
 _GENERIC_CREDENTIAL_RULE_IDS = frozenset(
@@ -236,41 +280,58 @@ def _titleise_identifier(identifier: str) -> str:
 def _identity_from_rule_id(rule_id: str) -> str:
     """Human credential name derived from the rule id (``okta_api_token``)."""
     base = rule_id
-    for affix in _RULE_ID_NOISE:
-        if affix.endswith("_") and base.startswith(affix):
-            base = base[len(affix) :]
-        elif base.endswith(affix):
-            base = base[: -len(affix)]
+    changed = True
+    while changed:
+        changed = False
+        for affix in _RULE_ID_NOISE:
+            if affix.endswith("_") and base.startswith(affix):
+                base, changed = base[len(affix) :], True
+            elif base.endswith(affix) and base != affix:
+                base, changed = base[: -len(affix)], True
     return _titleise_identifier(base) or "Credential"
 
 
 def _identity_from_key(code_snippet: str) -> str | None:
-    """Human credential name derived from the flagged ``key:`` on the line."""
-    m = _GROUND_KEY_RE.search(code_snippet or "")
-    if not m:
-        return None
-    key = m.group(1)
-    if key.lower() in ("name", "line", "url", "src", "dest", "path"):
-        return None
-    return _titleise_identifier(key) or None
+    """Human credential name from the credential-bearing ``key:`` in the snippet.
+
+    Scans every ``key: value`` / ``KEY=value`` line and prefers a key that
+    reads like a credential (``token``, ``secret``, ``password``, ...) so a
+    multi-line task names the flagged secret, not the first ``url:`` or
+    ``name:`` line above it. Falls back to the first non-structural key.
+    """
+    fallback: str | None = None
+    for m in _GROUND_KEY_RE.finditer(code_snippet or ""):
+        key = m.group(1)
+        if key.lower() in _NON_CREDENTIAL_KEYS:
+            continue
+        if _key_is_credential(key):
+            return _titleise_identifier(key) or None
+        if fallback is None:
+            fallback = _titleise_identifier(key) or None
+    return fallback
 
 
-def _credential_identity(rule_id: str, code_snippet: str) -> str:
-    """Resolve a credential's display name from the rule, then the key.
+def _credential_identity(rule_id: str, code_snippet: str, family: str = "") -> str:
+    """Resolve a credential's display name from the strongest evidence.
 
-    Never inferred from the value's shape: that guessing is exactly what
-    labelled every ``token:`` line a JWT. A specific rule names itself; a
-    generic rule (``hardcoded_token``) borrows the flagged key; only when
-    both are silent does a neutral, non-guessing default apply.
+    Order, all evidence-based, never a guess from the value's shape:
+    a specific rule names itself; a family identified from explicit context
+    (a Splunk HEC endpoint, a real JWT) names itself; otherwise the flagged
+    credential key names it; and only when all are silent does a neutral
+    default apply.
     """
     if rule_id and rule_id not in _GENERIC_CREDENTIAL_RULE_IDS:
         return _identity_from_rule_id(rule_id)
+    family_name = _CREDENTIAL_ADVICE.get(family, _CREDENTIAL_ADVICE["generic"])["name"]
+    if family_name:
+        return family_name
     return _identity_from_key(code_snippet) or "Hardcoded Credential"
 
 
 # Curated advice family per rule id, matched most-specific first on the rule
-# id (not the value). The family only selects security advice; the displayed
-# name always comes from _credential_identity.
+# id (not the value). The family selects security advice; it also names the
+# credential when the family is context-detected (splunk_hec, jwt). Every other
+# name comes from _credential_identity via the rule id or the flagged key.
 _CREDENTIAL_FAMILY_BY_RULE: tuple[tuple[str, str], ...] = (
     ("stripe", "stripe"),
     ("aws", "aws"),
@@ -288,6 +349,7 @@ _CREDENTIAL_FAMILY_BY_RULE: tuple[tuple[str, str], ...] = (
 
 _CREDENTIAL_ADVICE: dict[str, _CredentialAdvice] = {
     "stripe": {
+        "name": None,
         "description": "This Stripe key provides access to payment processing and financial data. Live keys handle real transactions.",
         "security_advice": [
             "Use separate keys for test and live environments",
@@ -297,6 +359,7 @@ _CREDENTIAL_ADVICE: dict[str, _CredentialAdvice] = {
         ],
     },
     "aws": {
+        "name": None,
         "description": "AWS access keys provide programmatic access to AWS services and should never be hardcoded.",
         "security_advice": [
             "Use IAM roles instead of access keys when possible",
@@ -306,6 +369,7 @@ _CREDENTIAL_ADVICE: dict[str, _CredentialAdvice] = {
         ],
     },
     "github": {
+        "name": None,
         "description": "This token provides access to repositories and platform APIs based on its configured scopes.",
         "security_advice": [
             "Use fine-grained tokens with minimal scopes",
@@ -315,6 +379,7 @@ _CREDENTIAL_ADVICE: dict[str, _CredentialAdvice] = {
         ],
     },
     "webhook": {
+        "name": None,
         "description": "This webhook URL embeds an authentication token that grants access to an external service.",
         "security_advice": [
             "Use HTTPS webhooks only",
@@ -324,6 +389,7 @@ _CREDENTIAL_ADVICE: dict[str, _CredentialAdvice] = {
         ],
     },
     "jwt": {
+        "name": "JWT Token",
         "description": "JSON Web Tokens carry encoded authentication and authorization claims and stay valid until they expire or their signing key is rotated.",
         "security_advice": [
             "Use strong signing keys and rotate them regularly",
@@ -333,6 +399,7 @@ _CREDENTIAL_ADVICE: dict[str, _CredentialAdvice] = {
         ],
     },
     "splunk_hec": {
+        "name": "Splunk HEC Token",
         "description": "A Splunk HTTP Event Collector token authorizes event submission to the configured index. A leaked token lets an attacker forge or flood events and burn ingest quota until it is rotated.",
         "security_advice": [
             "Rotate the HEC token in Splunk immediately, then reference it from Vault at runtime",
@@ -342,6 +409,7 @@ _CREDENTIAL_ADVICE: dict[str, _CredentialAdvice] = {
         ],
     },
     "api_key": {
+        "name": None,
         "description": "API keys provide programmatic access to a service and must be treated as live credentials.",
         "security_advice": [
             "Rotate the key at the issuing service immediately",
@@ -351,6 +419,7 @@ _CREDENTIAL_ADVICE: dict[str, _CredentialAdvice] = {
         ],
     },
     "password": {
+        "name": None,
         "description": "A plaintext password in source is a live credential the moment it is committed.",
         "security_advice": [
             "Rotate the password immediately",
@@ -360,6 +429,7 @@ _CREDENTIAL_ADVICE: dict[str, _CredentialAdvice] = {
         ],
     },
     "form_data": {
+        "name": None,
         "description": "Form data containing authentication credentials must be secured like any other secret.",
         "security_advice": [
             "Use structured authentication instead of form encoding where possible",
@@ -369,6 +439,7 @@ _CREDENTIAL_ADVICE: dict[str, _CredentialAdvice] = {
         ],
     },
     "generic": {
+        "name": None,
         "description": "This credential authenticates to a service and stays valid until it is rotated at the issuer. Committed to source, it is a live credential.",
         "security_advice": [
             "Rotate the credential at the issuing service immediately",
@@ -396,7 +467,7 @@ _GROUND_PATH_RE = re.compile(
 _GROUND_IPV4_RE = re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?![\w.])")
 _GROUND_JINJA_VAR_RE = re.compile(r"\{\{\s*([a-zA-Z_][\w.]*)\s*\}\}")
 # Leading inventory/config key on the flagged line (e.g. ``ansible_ssh_common_args``).
-_GROUND_KEY_RE = re.compile(r"^\s*(?:-\s*)?([a-zA-Z_][\w.-]*)\s*[:=]")
+_GROUND_KEY_RE = re.compile(r"^\s*(?:-\s*)?([a-zA-Z_][\w.-]*)\s*[:=]", re.MULTILINE)
 # Hostnames like ``legacy.example.com`` (dotted, ends in an alpha TLD).
 _GROUND_HOST_RE = re.compile(r"(?<![\w.@/])(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?![\w./])")
 
@@ -412,14 +483,34 @@ def _artifact_is_safe(candidate: str) -> bool:
     return candidate.count("{{") == candidate.count("}}") and "{{" in candidate
 
 
-def _finding_artifact(code_snippet: str) -> str | None:
+def _credential_key_artifact(code_snippet: str) -> str | None:
+    """Return the credential-bearing ``key:`` in the snippet, if any.
+
+    For a credential finding the flagged secret's key is the most specific
+    artifact, more so than an incidental ``url:`` on another line of the task.
+    """
+    for line in (code_snippet or "").splitlines():
+        km = _GROUND_KEY_RE.match(line)
+        if km and _key_is_credential(km.group(1)):
+            return km.group(1)
+    return None
+
+
+def _finding_artifact(code_snippet: str, *, prefer_credential_key: bool = False) -> str | None:
     """Return the most specific concrete artifact named in ``code_snippet``.
 
     A URL is preferred over the host inside it, a path over a bare key.
     Candidates carrying a partial Jinja expression are skipped. Returns
     ``None`` when the finding names nothing concrete (e.g. ``shell: echo x``).
+
+    ``prefer_credential_key`` puts the flagged credential's key first, so a
+    credential finding grounds on the secret rather than an incidental URL.
     """
     snippet = code_snippet or ""
+    if prefer_credential_key:
+        cred_key = _credential_key_artifact(snippet)
+        if cred_key:
+            return cred_key
     for pattern in (_GROUND_URL_RE, _GROUND_PATH_RE, _GROUND_IPV4_RE):
         for m in pattern.finditer(snippet):
             if _artifact_is_safe(m.group(0)):
@@ -448,7 +539,9 @@ def _fix_references_artifact(secure_fix: str, artifact: str) -> bool:
     return bool(jm and re.search(rf"(?<![\w]){re.escape(jm.group(1))}(?![\w])", secure_fix))
 
 
-def _ground_secure_fix(secure_fix: str, code_snippet: str) -> str:
+def _ground_secure_fix(
+    secure_fix: str, code_snippet: str, *, prefer_credential_key: bool = False
+) -> str:
     """Return ``secure_fix`` tied back to the finding's own code.
 
     No-op when the finding names nothing concrete or the fix already
@@ -458,7 +551,7 @@ def _ground_secure_fix(secure_fix: str, code_snippet: str) -> str:
     fix = (secure_fix or "").strip("\n")
     if not fix:
         return secure_fix
-    artifact = _finding_artifact(code_snippet)
+    artifact = _finding_artifact(code_snippet, prefer_credential_key=prefer_credential_key)
     if not artifact or _fix_references_artifact(fix, artifact):
         return secure_fix
     return f"# Applies to the flagged finding: {artifact}\n{fix}"
@@ -536,7 +629,7 @@ class BaseRemediationGenerator:
         """
         family = _CREDENTIAL_ADVICE.get(credential_type, _CREDENTIAL_ADVICE["generic"])
         return CredentialInfo(
-            name=_credential_identity(rule_id, code_snippet),
+            name=_credential_identity(rule_id, code_snippet, credential_type),
             description=family["description"],
             security_advice=list(family["security_advice"]),
         )

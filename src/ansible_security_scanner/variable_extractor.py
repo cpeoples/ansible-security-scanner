@@ -19,6 +19,32 @@ _USER_RE = re.compile(r'^user:\s*["\']([^"\']+)["\']')
 _TASK_NAME_RE = re.compile(r'^\s*-\s*name:\s*["\']([^"\']+)["\']')
 _NON_IDENT_RE = re.compile(r"[^a-zA-Z0-9_]")
 _CREDENTIAL_KEYWORDS = ("password", "secret", "key", "token", "credential", "auth")
+# Canonical credential-key classification, shared with the remediation layer.
+# Structural keys that never name a credential, and the keyword fragments that
+# mark a key as credential-bearing when scanning a multi-line task snippet.
+_NON_CREDENTIAL_KEYS = frozenset(
+    {"name", "line", "url", "src", "dest", "path", "method", "uri", "body", "host"}
+)
+_CREDENTIAL_KEY_KEYWORDS = (
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "key",
+    "auth",
+    "credential",
+    "cred",
+    "pass",
+    "apikey",
+)
+
+
+def looks_like_credential_key(key: str) -> bool:
+    """True when a YAML/env key name reads like a credential, not a ``url:``/``name:``."""
+    k = key.strip().lower()
+    if k in _NON_CREDENTIAL_KEYS:
+        return False
+    return any(kw in k for kw in _CREDENTIAL_KEY_KEYWORDS)
 
 
 class VariableExtractor:
@@ -69,10 +95,18 @@ class VariableExtractor:
                     return f"{username}_password"
                 return "soar_admin_password"
 
-            match = re.search(r'^\s*([^:]+):\s*["\']', code_snippet.strip())
-            if match:
-                var_name = match.group(1).strip()
-                return self._clean_variable_name(var_name)
+            # Prefer the credential-bearing ``key: "value"`` line. On a
+            # multi-line task snippet a plain first-match would return an
+            # earlier ``url:``/``name:`` line instead of the flagged secret.
+            yaml_matches = re.findall(
+                r'^\s*(?:-\s*)?([A-Za-z_][\w.-]*)\s*:\s*["\']', code_snippet, re.MULTILINE
+            )
+            if yaml_matches:
+                chosen = next(
+                    (k for k in yaml_matches if looks_like_credential_key(k)),
+                    yaml_matches[0],
+                )
+                return self._clean_variable_name(chosen.strip())
 
             if "mysql" in code_snippet.lower() and "-p" in code_snippet:
                 return "mysql_password"

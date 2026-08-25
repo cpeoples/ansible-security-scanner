@@ -192,6 +192,7 @@ class RemediationGenerator(BaseRemediationGenerator):
         line_number: int = 0,
         display_snippet: str | None = None,
         *,
+        ground_snippet: str | None = None,
         title_fallback: str = "",
         description_fallback: str = "",
         recommendation_fallback: str = "",
@@ -211,11 +212,13 @@ class RemediationGenerator(BaseRemediationGenerator):
         than the ``this <rule_id> issue`` stub.
         """
         rendered_snippet = display_snippet if display_snippet is not None else code_snippet
+        grounding = ground_snippet if ground_snippet is not None else code_snippet
 
         def render_meta() -> str:
             return _render_from_metadata(
                 rule_id,
                 rendered_snippet,
+                ground_snippet=grounding,
                 title_fallback=title_fallback,
                 description_fallback=description_fallback,
                 recommendation_fallback=recommendation_fallback,

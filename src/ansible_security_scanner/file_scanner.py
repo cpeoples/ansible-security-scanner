@@ -4401,6 +4401,23 @@ class FileScanner:
             cls._pattern_tag_index = idx
         return cls._pattern_tag_index.get(rule_id, {})
 
+    def _flagged_line(self, file_path, line_num: int) -> str:
+        """Return the redacted content of the flagged line, or ``""``.
+
+        Used to ground structural findings on their own line rather than on an
+        incidental URL/path elsewhere in the enclosing task window.
+        """
+        if not line_num or line_num < 1:
+            return ""
+        try:
+            with open(file_path, encoding="utf-8") as f:
+                lines = f.readlines()
+            if line_num <= len(lines):
+                return redact_secrets(lines[line_num - 1].strip())
+        except (OSError, UnicodeDecodeError) as e:
+            logger.debug("could not read flagged line %s:%d: %s", file_path, line_num, e)
+        return ""
+
     def _make_finding(
         self,
         file_path,
@@ -4449,6 +4466,7 @@ class FileScanner:
                 snippet,
                 str(file_path.absolute()),
                 line_num,
+                ground_snippet=self._flagged_line(file_path, line_num) or None,
                 title_fallback=title or "",
                 description_fallback=description or "",
                 recommendation_fallback=recommendation or "",
@@ -7154,8 +7172,10 @@ class FileScanner:
         ):
             return
 
-        snippet = self._task_window_snippet(all_lines, line_num) or _normalize_display_snippet(line)
-        snippet = redact_secrets(snippet)
+        raw_snippet = self._task_window_snippet(all_lines, line_num) or _normalize_display_snippet(
+            line
+        )
+        snippet = redact_secrets(raw_snippet)
 
         try:
             if pattern_obj.category in ["variable_injection", "unsafe_permissions"]:
@@ -7163,6 +7183,17 @@ class FileScanner:
                 remediation_example = self.remediation_generator.generate_remediation_example(
                     pattern_obj.id,
                     task_context,
+                    str(file_path.absolute()),
+                    line_num,
+                    display_snippet=snippet,
+                )
+            elif pattern_obj.category == "hardcoded_credentials":
+                # Feed the enclosing task (unredacted, so value extraction and
+                # context-based identity work) as the generation input, while
+                # the Vulnerable Code block still renders the redacted snippet.
+                remediation_example = self.remediation_generator.generate_remediation_example(
+                    pattern_obj.id,
+                    raw_snippet or line.strip(),
                     str(file_path.absolute()),
                     line_num,
                     display_snippet=snippet,
