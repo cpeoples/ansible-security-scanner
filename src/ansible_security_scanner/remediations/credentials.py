@@ -6,7 +6,7 @@ Credentials remediation generator for Ansible Security Scanner
 import os
 import re
 
-from .base import BaseRemediationGenerator
+from .base import BaseRemediationGenerator, _key_is_credential
 
 
 class CredentialsRemediationGenerator(BaseRemediationGenerator):
@@ -774,62 +774,86 @@ shell: >-
         return template
 
     def _extract_credential_info(self, code_snippet: str) -> dict:
-        """Extract credential information from the code"""
-        # Annotated explicitly so static analysis doesn't infer
-        # `dict[str, None]` from the initializer and then complain about
-        # every later `str` assignment. All four slots are populated later
-        # with either a captured regex group (str) or stay None.
+        """Extract the flagged credential's key, value, and assignment shape.
+
+        ``kind`` records which assignment form matched (``echo``, ``export``,
+        ``yaml``, ``env``) so the replacement generators branch on the actual
+        credential, not on whether a word like ``export`` happens to appear on
+        an unrelated line of a multi-line task.
+        """
         info: dict[str, str | None] = {
             "variable_name": None,
             "credential_value": None,
             "file_path": None,
-            "command": None,
+            "kind": None,
         }
 
-        # Extract from echo statements like: echo "API_KEY=value" > /path/file
-        echo_pattern = r'echo\s+"([^"]+)"\s*>\s*([^\s]+)'
-        echo_match = re.search(echo_pattern, code_snippet)
-        if echo_match:
-            assignment = echo_match.group(1)
+        # echo "API_KEY=value" > /path/file
+        echo_match = re.search(r'echo\s+"([^"]+)"\s*>\s*([^\s]+)', code_snippet)
+        if echo_match and "=" in echo_match.group(1):
+            key, value = echo_match.group(1).split("=", 1)
             info["file_path"] = echo_match.group(2)
-            if "=" in assignment:
-                key, value = assignment.split("=", 1)
-                info["variable_name"] = key.strip()
-                info["credential_value"] = value.strip()
+            info["variable_name"] = key.strip()
+            info["credential_value"] = value.strip()
+            info["kind"] = "echo"
+            return info
 
-        # Extract from export statements like: export VAR=value
-        export_pattern = r"export\s+([^=]+)=(.+)"
-        export_match = re.search(export_pattern, code_snippet)
+        # A YAML credential assignment (token:/secret:/...) wins over a bare
+        # ``VAR=value`` match: in a multi-line task the latter can appear on an
+        # unrelated line, so the flagged credential must not be clobbered.
+        yaml_key, yaml_value = self._match_yaml_credential(code_snippet)
+        if yaml_key is not None:
+            info["variable_name"] = yaml_key
+            info["credential_value"] = yaml_value
+            info["kind"] = "yaml"
+            return info
+
+        # export VAR=value
+        export_match = re.search(r"export\s+([^=]+)=(.+)", code_snippet)
         if export_match:
             info["variable_name"] = export_match.group(1).strip()
             info["credential_value"] = export_match.group(2).strip().strip("\"'")
+            info["kind"] = "export"
+            return info
 
-        # Extract from YAML assignments like: api_key: "value"
-        yaml_pattern = r'([^:]+):\s*["\']([^"\']+)["\']'
-        yaml_match = re.search(yaml_pattern, code_snippet)
-        if yaml_match:
-            info["variable_name"] = yaml_match.group(1).strip()
-            info["credential_value"] = yaml_match.group(2).strip()
-
-        # Extract from variable assignments like: VAR=value
-        var_pattern = r"([A-Z_][A-Z0-9_]*)=([^\s]+)"
-        var_match = re.search(var_pattern, code_snippet)
+        # Bare VAR=value assignment.
+        var_match = re.search(r"([A-Z_][A-Z0-9_]*)=([^\s]+)", code_snippet)
         if var_match:
             info["variable_name"] = var_match.group(1).strip()
             info["credential_value"] = var_match.group(2).strip()
+            info["kind"] = "env"
 
         return info
+
+    @staticmethod
+    def _match_yaml_credential(code_snippet: str) -> tuple[str | None, str | None]:
+        """Return the (key, value) of the credential-bearing YAML assignment.
+
+        Scans every ``key: "value"`` line and prefers a credential-looking key
+        (token/secret/password/...) so a multi-line task selects the flagged
+        secret, not an earlier ``url:``/``name:`` line. Falls back to the first
+        assignment, and to ``(None, None)`` when the snippet has none.
+        """
+        matches = re.findall(r'([A-Za-z_][\w.-]*)\s*:\s*["\']([^"\']+)["\']', code_snippet)
+        if not matches:
+            return None, None
+        key, value = next((kv for kv in matches if _key_is_credential(kv[0])), matches[0])
+        return key.strip(), value.strip()
 
     def _generate_secure_replacement(
         self, code_snippet: str, extracted_info: dict, var_name: str, env_var: str
     ) -> str:
-        """Generate secure replacement for the vulnerable code"""
+        """Generate secure replacement for the vulnerable code.
 
-        if extracted_info["file_path"] and extracted_info["variable_name"]:
-            # For echo statements writing to files
-            safe_var_name = extracted_info["variable_name"].lower()
-            vault_var = f"vault_{safe_var_name}"
+        Branches on the extracted credential's ``kind``, not on substring
+        presence in the whole snippet, so an unrelated ``export``/``=`` on
+        another line of a multi-line task cannot select the wrong fix shape.
+        """
+        kind = extracted_info.get("kind")
+        cred_value = extracted_info["credential_value"] or "your_actual_credential"
 
+        if kind == "echo" and extracted_info["file_path"] and extracted_info["variable_name"]:
+            vault_var = f"vault_{extracted_info['variable_name'].lower()}"
             return f'''- name: create configuration file securely
   ansible.builtin.template:
     src: config.j2
@@ -841,17 +865,11 @@ shell: >-
 {extracted_info["variable_name"]}={{{{ {vault_var} }}}}
 
 # In group_vars/all/vault.yml (encrypted with ansible-vault):
-{vault_var}: "{extracted_info["credential_value"]}"'''
+{vault_var}: "{cred_value}"'''
 
-        if "export" in code_snippet.lower():
-            # For export statements
-            safe_var_name = (
-                extracted_info["variable_name"].lower()
-                if extracted_info["variable_name"]
-                else var_name
-            )
+        if kind == "export":
+            safe_var_name = (extracted_info["variable_name"] or var_name).lower()
             vault_var = f"vault_{safe_var_name}"
-
             return f'''- name: set environment variable securely
   ansible.builtin.lineinfile:
     path: /etc/environment
@@ -859,52 +877,46 @@ shell: >-
     backup: yes
 
 # In group_vars/all/vault.yml (encrypted with ansible-vault):
-{vault_var}: "{extracted_info["credential_value"] or "your_actual_credential"}"'''
+{vault_var}: "{cred_value}"'''
 
-        if ":" in code_snippet and "=" not in code_snippet:
-            # For YAML assignments
-            safe_var_name = (
-                extracted_info["variable_name"].lower()
-                if extracted_info["variable_name"]
-                else var_name
-            )
+        if kind == "yaml":
+            safe_var_name = (extracted_info["variable_name"] or var_name).lower()
             vault_var = f"vault_{safe_var_name}"
-
             return f'''{extracted_info["variable_name"] or var_name}: "{{{{ {vault_var} }}}}"
 
 # In group_vars/all/vault.yml (encrypted with ansible-vault):
-{vault_var}: "{extracted_info["credential_value"] or "your_actual_credential"}"'''
+{vault_var}: "{cred_value}"'''
 
-        # Generic replacement. If `var_name` is still the sentinel
-        # "variable_name" (i.e. the extractor could not identify a
-        # better name from the surrounding context), pick the first
-        # secret-looking token from the snippet itself so the produced
-        # example reads `password: "{{ vault_password }}"` rather than
-        # the meaningless `variable_name: "{{ vault_variable_name }}"`.
-        effective_name = var_name
+        # No recognised assignment shape. Prefer the extractor's key, then a
+        # secret-looking token from the snippet, then the passed-in var_name,
+        # so we never emit the meaningless ``variable_name`` sentinel.
+        effective_name = extracted_info["variable_name"] or var_name
         if effective_name in ("variable_name", "vault_variable_name"):
             secret_match = re.search(
-                r"\b([A-Za-z_][A-Za-z0-9_]*(?:token|key|secret|auth|credential|pass|pwd|password)[A-Za-z0-9_]*)\s*=",
+                r"\b([A-Za-z_][A-Za-z0-9_]*(?:token|key|secret|auth|credential|pass|pwd|password)[A-Za-z0-9_]*)\s*[:=]",
                 code_snippet,
                 re.IGNORECASE,
             )
             if secret_match:
-                effective_name = secret_match.group(1).lower()
+                effective_name = secret_match.group(1)
+        effective_name = effective_name.lower() if effective_name else "credential"
         vault_var = f"vault_{effective_name}"
         return f'''{effective_name}: "{{{{ {vault_var} }}}}"
 
 # In group_vars/all/vault.yml (encrypted with ansible-vault):
-{vault_var}: "your_actual_credential"'''
+{vault_var}: "{cred_value}"'''
 
     def _generate_env_var_replacement(
         self, code_snippet: str, extracted_info: dict, env_var: str
     ) -> str:
-        """Generate environment variable replacement for the vulnerable code"""
+        """Generate environment variable replacement, branching on the
+        extracted credential's ``kind`` rather than snippet substrings.
+        """
+        kind = extracted_info.get("kind")
+        cred_value = extracted_info["credential_value"] or "your_actual_credential"
 
-        if extracted_info["file_path"] and extracted_info["variable_name"]:
-            # For echo statements writing to files
-            env_var_name = extracted_info["variable_name"] or env_var
-
+        if kind == "echo" and extracted_info["file_path"] and extracted_info["variable_name"]:
+            env_var_name = extracted_info["variable_name"]
             return f'''- name: create configuration file from environment
   ansible.builtin.template:
     src: config.j2
@@ -912,28 +924,29 @@ shell: >-
     mode: '0600'
 
 # Template file (config.j2):
-{extracted_info["variable_name"]}={{{{ lookup('env', '{env_var_name}') }}}}
+{env_var_name}={{{{ lookup('env', '{env_var_name}') }}}}
 
 # Set environment variable before running:
-# export {env_var_name}="{extracted_info["credential_value"]}"'''
+# export {env_var_name}="{cred_value}"'''
 
-        if "export" in code_snippet.lower():
-            # For export statements
+        if kind == "export":
             env_var_name = extracted_info["variable_name"] or env_var
-
             return f'''- name: set environment variable from lookup
   ansible.builtin.lineinfile:
     path: /etc/environment
     line: "{env_var_name}={{{{ lookup('env', '{env_var_name}') }}}}"
 
 # Set source environment variable before running:
-# export {env_var_name}="{extracted_info["credential_value"] or "your_actual_credential"}"'''
+# export {env_var_name}="{cred_value}"'''
 
-        # Generic replacement
-        return f'''{extracted_info["variable_name"] or "credential"}: "{{{{ lookup('env', '{env_var}') }}}}"
+        # Derive the env var from the flagged key when the extractor found one,
+        # so a real key (``token``) yields ``TOKEN`` rather than a placeholder.
+        var_name = extracted_info["variable_name"]
+        env_name = var_name.upper().replace("-", "_") if var_name else env_var
+        return f'''{var_name or "credential"}: "{{{{ lookup('env', '{env_name}') }}}}"
 
 # Set environment variable before running:
-# export {env_var}="{extracted_info["credential_value"] or "your_actual_credential"}"'''
+# export {env_name}="{cred_value}"'''
 
     def _generate_gitlab_ci_job_token_leak_fix(self, code_snippet: str) -> str:
         return f"""

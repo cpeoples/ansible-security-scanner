@@ -556,6 +556,41 @@ def test_proximity_superseding_drops_generic_ssl_rule_on_uri_tasks(tmp_path):
     )
 
 
+def test_credential_remediation_uses_surrounding_task_context(tmp_path):
+    """A hardcoded token in a Splunk HEC task must be named and advised as an
+    HEC token, driven by the ``services/collector`` line two rows above it.
+    The scanner feeds generation the whole task, so context that lives in
+    surrounding lines reaches the remediation. Value is redacted in the
+    Vulnerable Code block; the fix grounds on the flagged ``token`` key.
+    """
+    from ansible_security_scanner.file_scanner import FileScanner
+
+    token = "e017639c" + "-db22-4933-936c-2950972a1e5c"
+    playbook = tmp_path / "hec.yml"
+    playbook.write_text(
+        "- hosts: localhost\n"
+        "  tasks:\n"
+        "    - name: Register HEC destination\n"
+        "      uri:\n"
+        '        url: "http://localhost:8081/api/hec/destinations"\n'
+        "        method: POST\n"
+        "        body:\n"
+        '          url: "{{ SPLUNK_CLOUD_url }}:8088/services/collector"\n'
+        f'          token: "{token}"\n'
+    )
+    scanner = FileScanner(tmp_path)
+    findings, _ = scanner.scan_file(playbook)
+    token_findings = [f for f in findings if "token" in (f.code_snippet or "").lower()]
+    assert token_findings, "expected a token finding on the HEC task"
+
+    rem = token_findings[0].remediation_example or ""
+    assert "Splunk HEC Token Detected" in rem, rem
+    assert "HTTP Event Collector" in rem, rem
+    assert "VARIABLE_NAME" not in rem, rem
+    fence = rem.split("Secure Fix")[0]
+    assert token not in fence, "the flagged token value must be redacted in the shown snippet"
+
+
 def test_proximity_superseding_keeps_generic_ssl_rule_without_specific_match(tmp_path):
     """
     If the module-specific rule does NOT fire (e.g. `validate_certs: no`

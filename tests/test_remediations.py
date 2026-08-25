@@ -22,6 +22,7 @@ if str(SRC) not in sys.path:
 
 from ansible_security_scanner.patterns_manager import known_rule_ids  # noqa: E402
 from ansible_security_scanner.remediations import _pattern_index as _PI  # noqa: E402
+from ansible_security_scanner.remediations._category_map import resolve_category  # noqa: E402
 from ansible_security_scanner.remediations.base import (  # noqa: E402
     BaseRemediationGenerator,
     _finding_artifact,
@@ -50,6 +51,13 @@ from ansible_security_scanner.remediations.template_injection import (  # noqa: 
 )
 
 PATTERNS_DIR = SRC / "ansible_security_scanner" / "patterns"
+
+# Synthetic credential fixtures shared by the credential-identity tests. The
+# UUID is split so secret scanning does not flag a contiguous literal; it is a
+# random value, not a real Splunk HEC token. The JWT decodes to a throwaway
+# ``{"alg":"HS256"}`` / ``{"sub":"x"}`` with the signature literally ``sig``.
+_SYNTHETIC_UUID = "e017639c" + "-db22-4933-936c-2950972a1e5c"
+_SYNTHETIC_JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.c2ln"
 
 
 def _collect_rule_ids() -> list[tuple[str, str]]:
@@ -899,6 +907,83 @@ def test_every_known_rule_renders_a_sound_fix(
             )
 
 
+_ADVERSARIAL_DECOY_URL = "http://decoy.invalid/v1/register"
+
+
+@pytest.mark.parametrize("rule_id", KNOWN_RULE_IDS, ids=KNOWN_RULE_IDS)
+def test_every_rule_grounds_on_flagged_line_not_task_window(
+    remediation_generator: RemediationGenerator,
+    rule_id: str,
+) -> None:
+    """Universal multi-line safety: the scanner feeds a whole task window as
+    display context while the flagged line drives the fix. A URL, path, or key
+    on a *sibling* line of that window must never be mistaken for this finding's
+    artifact, and no decoy line may leak into the generated fix.
+
+    This is the assertion that catches the systemic 'written for a single line,
+    fed a multi-line task' bug class across every category at once, rather than
+    one rule at a time. It mirrors the real scanner call shape: the flagged line
+    is ``code_snippet``; the window (with adversarial decoys) is
+    ``display_snippet``.
+    """
+    if rule_id in _SCAN_META_RULES:
+        pytest.skip("scan-meta rule: reports on the scan, carries no Ansible Secure Fix")
+
+    snippet = _STRUCTURAL_SNIPPETS.get(rule_id)
+    if snippet is None:
+        examples = [ex for (rid, _cat, ex) in ALL_POSITIVE_EXAMPLES if rid == rule_id]
+        snippet = examples[0] if examples else "shell: echo placeholder"
+
+    flagged_line = snippet.splitlines()[-1].strip() if snippet.splitlines() else snippet
+    indented = "\n".join("      " + ln if ln.strip() else ln for ln in snippet.splitlines())
+    window = (
+        "- name: Provision and register external destination\n"
+        "  shell: export TMP=/x && ./run.sh mode=0600\n"
+        "  vars:\n"
+        f'    endpoint_url: "{_ADVERSARIAL_DECOY_URL}"\n'
+        f"{indented}"
+    )
+
+    out = remediation_generator.generate_remediation_example(
+        rule_id,
+        flagged_line,
+        file_path="inventory/group_vars/all.yml",
+        line_number=5,
+        display_snippet=window,
+        description_fallback="structural rule description",
+        recommendation_fallback="structural rule recommendation",
+    )
+
+    match = _SECURE_FIX_BLOCK_RE.search(out)
+    assert match, (
+        f"{rule_id}: no Secure Fix block when fed a multi-line task window.\n"
+        f"  flagged line: {flagged_line[:120]!r}\n  excerpt: {out[:320]!r}"
+    )
+    body = match.group("body")
+    assert not _TRUNCATED_JINJA_RE.search(body), f"{rule_id}: truncated Jinja.\n{body[:320]!r}"
+    assert not _NESTED_JINJA_RE.search(body), f"{rule_id}: nested Jinja.\n{body[:320]!r}"
+
+    # The decoy URL/key legitimately appears in the Vulnerable Code display
+    # block (the window is shown as context). The bug is when it bleeds into the
+    # Secure Fix - the grounding comment or the fix body - which means the
+    # generator treated a sibling line as this finding's artifact.
+    grounding_line = next(
+        (ln for ln in out.splitlines() if "Applies to the flagged finding" in ln), ""
+    )
+    assert _ADVERSARIAL_DECOY_URL not in grounding_line, (
+        f"{rule_id}: the fix grounds on the decoy sibling URL instead of the "
+        f"flagged line's own artifact.\n  grounding: {grounding_line!r}"
+    )
+    assert _ADVERSARIAL_DECOY_URL not in body, (
+        f"{rule_id}: the decoy sibling URL leaked into the Secure Fix body, so "
+        f"extraction picked the wrong line of the task window.\n  body: {body[:320]!r}"
+    )
+    assert "endpoint_url" not in body, (
+        f"{rule_id}: the decoy sibling key 'endpoint_url' leaked into the fix body, "
+        f"so extraction picked the wrong line of the task window.\n  body: {body[:320]!r}"
+    )
+
+
 # Structural (AST / Python-defined) rules have no ``patterns/*.yml`` entry and
 # therefore no ``positive_examples``, so the catalog-driven test above never
 # exercises them. They are nonetheless emitted as real findings and must ship a
@@ -1658,8 +1743,8 @@ class TestCredentialTypeLabelling:
     borrows the key (``okta_api_token:`` -> "Okta API Token").
     """
 
-    _HEC_UUID = "e017639c" + "-db22-4933-936c-2950972a1e5c"
-    _REAL_JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.c2ln"
+    _HEC_UUID = _SYNTHETIC_UUID
+    _REAL_JWT = _SYNTHETIC_JWT
 
     @pytest.fixture(scope="class")
     def base(self) -> BaseRemediationGenerator:
@@ -1702,7 +1787,6 @@ class TestCredentialTypeLabelling:
         This is the assertion that catches the whole class of mislabels,
         not just the one rule that surfaced it.
         """
-        from ansible_security_scanner.remediations._category_map import resolve_category
 
         cred_ids = [
             rid
@@ -1740,7 +1824,6 @@ class TestCredentialTypeLabelling:
         a ``vault_variable_name`` var means the extractor fell through to its
         sentinel instead of reading the flagged line.
         """
-        from ansible_security_scanner.remediations._category_map import resolve_category
 
         cred_ids = [
             rid
@@ -1766,4 +1849,231 @@ class TestCredentialTypeLabelling:
         assert not ungrounded, (
             "these credential rules emit a placeholder or drop the finding's real "
             f"key/value from the generated fix: {ungrounded}"
+        )
+
+    def test_every_credential_rule_stays_grounded_in_a_task_window(
+        self, remediation_generator: RemediationGenerator
+    ):
+        """The live scan feeds the enclosing task, not the bare line. Every
+        credential rule must still ground on the flagged ``token:`` line and
+        ignore the surrounding ``url:``/``name:`` lines, with no placeholder.
+        """
+
+        cred_ids = [
+            rid
+            for rid in sorted(known_rule_ids())
+            if resolve_category(rid) == "hardcoded_credentials"
+        ]
+        assert cred_ids, "no credential rules resolved; category map regressed"
+
+        ungrounded: list[str] = []
+        for rid in cred_ids:
+            task = (
+                "- name: Register external destination\n"
+                "  uri:\n"
+                '    url: "https://api.example.com/v1/register"\n'
+                "    body:\n"
+                f'      okta_api_token: "{self._HEC_UUID}"'
+            )
+            out = remediation_generator.generate_remediation_example(
+                rid, task, display_snippet=task
+            )
+            if "VARIABLE_NAME" in out or self._HEC_UUID not in out:
+                ungrounded.append(rid)
+
+        assert not ungrounded, (
+            "these credential rules emit a placeholder or drop the flagged value "
+            f"when handed a multi-line task window: {ungrounded}"
+        )
+
+
+class TestCredentialContextIdentity:
+    """A credential finding in a real task is a multi-line snippet: the flagged
+    ``token:`` line sits under a ``url:`` and a ``name:``. Identity, value
+    extraction, and the env var must all target the credential line, and
+    context that only appears in surrounding lines (a Splunk HEC endpoint, a
+    real JWT) must still drive the family. This is the path a live scan takes,
+    so these are the assertions that catch the mislabels users actually see.
+    """
+
+    _UUID = _SYNTHETIC_UUID
+    _REAL_JWT = _SYNTHETIC_JWT
+
+    @pytest.fixture(scope="class")
+    def base(self) -> BaseRemediationGenerator:
+        return BaseRemediationGenerator()
+
+    def _hec_task(self, token: str) -> str:
+        return (
+            "- name: Configure Splunk HEC destination\n"
+            "  uri:\n"
+            '    url: "http://localhost:8081/api/hec/destinations"\n'
+            "    method: POST\n"
+            "    body:\n"
+            '      url: "{{ SPLUNK_CLOUD_url }}:8088/services/collector"\n'
+            f'      token: "{token}"'
+        )
+
+    def test_identity_from_key_targets_the_credential_line(self, base):
+        """A multi-line task names the flagged secret, not the first url:/name:."""
+        from ansible_security_scanner.remediations.base import _identity_from_key
+
+        assert _identity_from_key(self._hec_task(self._UUID)) == "Token"
+
+    def test_hec_context_upgrades_a_generic_token_rule(
+        self, remediation_generator: RemediationGenerator
+    ):
+        """A generic ``hardcoded_token`` in an HEC task reads as an HEC token,
+        with HEC advice, because the context is now fed to generation.
+        """
+        task = self._hec_task(self._UUID)
+        out = remediation_generator.generate_remediation_example(
+            "hardcoded_token", task, display_snippet=task
+        )
+        assert "Splunk HEC Token Detected" in out, out
+        assert "HTTP Event Collector" in out, out
+
+    def test_multiline_fix_grounds_on_the_credential_line(
+        self, remediation_generator: RemediationGenerator
+    ):
+        """Value, vault var, and env var are all built from ``token:``, never
+        the earlier ``url:`` line, and no placeholder leaks through.
+        """
+        task = self._hec_task(self._UUID)
+        out = remediation_generator.generate_remediation_example(
+            "hardcoded_token", task, display_snippet=task
+        )
+        assert self._UUID in out, out
+        assert "VARIABLE_NAME" not in out, out
+        assert "lookup('env', 'TOKEN')" in out, out
+        assert "services/collector" not in out.split("Secure Fix")[-1], (
+            "the fix must reference the token, not the surrounding url: line"
+        )
+
+    def test_real_jwt_in_context_still_reads_as_jwt(
+        self, remediation_generator: RemediationGenerator
+    ):
+        task = (
+            "- name: Call API\n"
+            "  uri:\n"
+            '    url: "https://api.example.com"\n'
+            f'    headers:\n      Authorization: "Bearer {self._REAL_JWT}"'
+        )
+        out = remediation_generator.generate_remediation_example(
+            "hardcoded_token", task, display_snippet=task
+        )
+        assert "JWT Token Detected" in out, out
+
+    def test_inline_shell_assignment_does_not_clobber_the_credential(
+        self, remediation_generator: RemediationGenerator
+    ):
+        """A bare ``VAR=value`` elsewhere in the task (an inline shell command)
+        must not overwrite the flagged YAML credential during extraction.
+        """
+        task = (
+            f'- name: Deploy\n  shell: FOO=bar ./deploy.sh\n  vars:\n    api_token: "{self._UUID}"'
+        )
+        out = remediation_generator.generate_remediation_example(
+            "hardcoded_token", task, display_snippet=task
+        )
+        assert "FOO" not in out.split("Secure Fix")[-1], out
+        assert "api_token" in out, out
+        assert self._UUID in out, out
+
+    def test_variable_name_extractor_targets_credential_line_in_multiline(self):
+        """The name fallback used when file context is unavailable must pick the
+        credential key on a multi-line snippet, not the leading ``url:`` line.
+        """
+        from ansible_security_scanner.variable_extractor import VariableExtractor
+
+        ve = VariableExtractor()
+        snippet = (
+            f'    url: "http://api.example.com/hec"\n    method: POST\n    token: "{self._UUID}"'
+        )
+        assert ve.extract_variable_name(snippet, "hardcoded_credentials") == "token"
+
+    def test_unrelated_export_word_does_not_pick_env_fix_shape(
+        self, remediation_generator: RemediationGenerator
+    ):
+        """A YAML credential in a task that also contains the word ``export``
+        on an unrelated shell line must still get the YAML vault fix, not the
+        ``/etc/environment`` shape. The fix branches on the extracted
+        credential kind, not on substrings anywhere in the task.
+        """
+        task = (
+            "- name: Configure and register token\n"
+            "  shell: export PATH=/opt/bin:$PATH && ./run.sh\n"
+            "  vars:\n"
+            f'    api_token: "{self._UUID}"'
+        )
+        out = remediation_generator.generate_remediation_example(
+            "hardcoded_token", task, display_snippet=task
+        )
+        secure = out.split("Secure Fix")[1].split("Alternative")[0]
+        assert "/etc/environment" not in secure, secure
+        assert "api_token" in secure, secure
+
+    def test_equals_in_task_does_not_drop_the_credential(
+        self, remediation_generator: RemediationGenerator
+    ):
+        """A stray ``=`` elsewhere in the task (``mode=0600``) must not send the
+        fix down the generic path that emits the ``variable_name`` sentinel.
+        """
+        task = (
+            "- name: write secret file mode=0600\n"
+            "  copy:\n"
+            '    content: "x"\n'
+            "  vars:\n"
+            f'    db_secret: "{self._UUID}"'
+        )
+        out = remediation_generator.generate_remediation_example(
+            "hardcoded_secret", task, display_snippet=task
+        )
+        assert "variable_name" not in out, out
+        assert "db_secret" in out, out
+        assert self._UUID in out, out
+
+    def test_every_credential_rule_survives_an_adversarial_task(
+        self, remediation_generator: RemediationGenerator
+    ):
+        """Class-wide fuzz: a task that leads with ``url:``, carries an
+        unrelated ``export``/``=`` shell line, and puts the credential last must
+        never produce a placeholder, drop the value, or ground the fix on the
+        URL instead of the credential. This is the assertion that catches the
+        whole 'written for single-line, fed multi-line' bug class, not one rule.
+        """
+
+        cred_ids = [
+            rid
+            for rid in sorted(known_rule_ids())
+            if resolve_category(rid) == "hardcoded_credentials"
+        ]
+        assert cred_ids, "no credential rules resolved; category map regressed"
+
+        task = (
+            "- name: Register external destination\n"
+            "  shell: export TMP=/x && ./run.sh mode=0600\n"
+            "  uri:\n"
+            '    url: "http://api.example.com/v1/register"\n'
+            "    body:\n"
+            f'      api_token: "{self._UUID}"'
+        )
+        placeholder: list[str] = []
+        dropped: list[str] = []
+        url_grounded: list[str] = []
+        for rid in cred_ids:
+            out = remediation_generator.generate_remediation_example(
+                rid, task, display_snippet=task
+            )
+            if "VARIABLE_NAME" in out or "variable_name:" in out:
+                placeholder.append(rid)
+            if self._UUID not in out:
+                dropped.append(rid)
+            if "Applies to the flagged finding: http" in out:
+                url_grounded.append(rid)
+
+        assert not placeholder, f"placeholder leaked under adversarial task: {placeholder}"
+        assert not dropped, f"flagged value dropped under adversarial task: {dropped}"
+        assert not url_grounded, (
+            f"fix grounded on the incidental url: instead of the credential: {url_grounded}"
         )
