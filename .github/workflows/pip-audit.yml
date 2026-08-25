@@ -40,7 +40,8 @@ jobs:
 
       - name: Install package with dev extras
         run: |
-          pip install --require-hashes -c .github/constraints.txt pip
+          pip_pin=$(grep -m1 -oE '^pip==[0-9][0-9.]*' .github/constraints.txt)
+          pip install --require-hashes -c .github/constraints.txt "$pip_pin"
           pip install -e ".[dev]"
 
       - uses: pypa/gh-action-pip-audit@1220774d901786e6f652ae159f7b6bc8fea6d266  # v1.1.0

@@ -33,7 +33,9 @@ jobs:
           python-version: "3.12"
 
       - name: Install pip-tools
-        run: pip install --require-hashes -c .github/constraints.txt pip pip-tools
+        run: |
+          pip_pin=$(grep -m1 -oE '^pip==[0-9][0-9.]*' .github/constraints.txt)
+          pip install --require-hashes -c .github/constraints.txt "$pip_pin" pip-tools
 
       - name: Recompile lockfile
         run: |

@@ -46,7 +46,9 @@ jobs:
             pre-commit-${{ runner.os }}-
 
       - name: Install pre-commit
-        run: pip install --require-hashes -c .github/constraints.txt pip pre-commit
+        run: |
+          pip_pin=$(grep -m1 -oE '^pip==[0-9][0-9.]*' .github/constraints.txt)
+          pip install --require-hashes -c .github/constraints.txt "$pip_pin" pre-commit
 
       - name: Run pre-commit on all files
         run: pre-commit run --all-files --show-diff-on-failure --color=always
