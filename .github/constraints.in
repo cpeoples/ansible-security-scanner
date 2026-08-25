@@ -1,4 +1,4 @@
-pip
+pip>=26.2
 pip-tools
 pre-commit
 build
