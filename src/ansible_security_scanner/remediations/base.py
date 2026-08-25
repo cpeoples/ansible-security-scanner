@@ -6,9 +6,25 @@ Base remediation generator for Ansible Security Scanner
 from __future__ import annotations
 
 import re
+from typing import TypedDict
 
 from ..variable_extractor import VariableExtractor
 from . import _companion_index, _pattern_index
+
+
+class CredentialInfo(TypedDict):
+    """Display name plus curated description and advice for a credential."""
+
+    name: str
+    description: str
+    security_advice: list[str]
+
+
+class _CredentialAdvice(TypedDict):
+    """Curated description and advice for a credential family."""
+
+    description: str
+    security_advice: list[str]
 
 
 def _first(snippet: str, *patterns: str) -> str | None:
@@ -116,6 +132,252 @@ def _select_secure_fix(rule_id: str) -> str | None:
     code, so they are intentionally not consulted as a remediation source.
     """
     return _companion_index.get(rule_id)
+
+
+# A JWT value is three base64url segments joined by dots, the first starting
+# with ``eyJ`` (the base64url of ``{"``). Matching the shape - not the word
+# ``token`` or ``jwt`` - keeps HEC/Vault/vendor API tokens from being
+# mislabelled as JWTs.
+_JWT_VALUE_RE = re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*")
+
+# HEC context: an event-collector endpoint, an ``Authorization: Splunk`` header,
+# or an explicit HEC token key. Used to label a bare UUID token accurately.
+_SPLUNK_HEC_CONTEXT_RE = re.compile(
+    r"services/collector|authorization\s*:\s*[\"']?splunk\b|x-splunk|"
+    r"\bhec[_-]?(?:token|url|endpoint)\b|splunk_hec",
+    re.IGNORECASE,
+)
+
+
+def _is_jwt_value(code_snippet: str) -> bool:
+    """True when ``code_snippet`` contains an actual JWT (header.payload.sig)."""
+    return bool(_JWT_VALUE_RE.search(code_snippet or ""))
+
+
+def _is_splunk_hec_context(code_snippet: str) -> bool:
+    """True when the snippet is a Splunk HEC token in HEC context."""
+    return bool(_SPLUNK_HEC_CONTEXT_RE.search(code_snippet or ""))
+
+
+# Identity is humanised from the rule id, which already encodes the credential
+# (``okta_api_token_literal``). Peel these noise affixes before title-casing,
+# then apply the vendor casings.
+_RULE_ID_NOISE = (
+    "_literal",
+    "_credential",
+    "_credentials",
+    "_inline",
+    "_command",
+    "_on_disk",
+    "_in_playbook",
+    "_in_repo",
+    "_in_env_var",
+    "_default",
+    "_exposure",
+    "_leak",
+    "_pair",
+    "_auth",
+    "_var",
+    "_hardcoded",
+    "hardcoded_",
+)
+_IDENTITY_CASINGS = {
+    "api": "API",
+    "aws": "AWS",
+    "gcp": "GCP",
+    "jwt": "JWT",
+    "hec": "HEC",
+    "pat": "PAT",
+    "ssn": "SSN",
+    "pan": "PAN",
+    "oauth": "OAuth",
+    "url": "URL",
+    "ci": "CI",
+    "ipmi": "IPMI",
+    "sid": "SID",
+    "npm": "npm",
+    "pypi": "PyPI",
+    "oci": "OCI",
+    "gpp": "GPP",
+    "xml": "XML",
+    "mws": "MWS",
+    "id": "ID",
+    "sops": "SOPS",
+    "age": "age",
+    "mfa": "MFA",
+    "github": "GitHub",
+    "gitlab": "GitLab",
+    "us": "US",
+    "dockerhub": "DockerHub",
+}
+# Rule ids too generic to name a specific credential; fall back to the key.
+_GENERIC_CREDENTIAL_RULE_IDS = frozenset(
+    {
+        "hardcoded_credentials",
+        "hardcoded_token",
+        "hardcoded_secret",
+        "hardcoded_api_key",
+        "hardcoded_password",
+        "hardcoded_username",
+        "plaintext_credential_key_var",
+        "base64_like_secret",
+        "hex_secret",
+        "uuid_like_secret",
+    }
+)
+
+
+def _titleise_identifier(identifier: str) -> str:
+    """Render a snake/kebab identifier as a vendor-cased human name."""
+    words = [w for w in re.split(r"[_\-\s]+", identifier.strip()) if w]
+    return " ".join(_IDENTITY_CASINGS.get(w.lower(), w.capitalize()) for w in words)
+
+
+def _identity_from_rule_id(rule_id: str) -> str:
+    """Human credential name derived from the rule id (``okta_api_token``)."""
+    base = rule_id
+    for affix in _RULE_ID_NOISE:
+        if affix.endswith("_") and base.startswith(affix):
+            base = base[len(affix) :]
+        elif base.endswith(affix):
+            base = base[: -len(affix)]
+    return _titleise_identifier(base) or "Credential"
+
+
+def _identity_from_key(code_snippet: str) -> str | None:
+    """Human credential name derived from the flagged ``key:`` on the line."""
+    m = _GROUND_KEY_RE.search(code_snippet or "")
+    if not m:
+        return None
+    key = m.group(1)
+    if key.lower() in ("name", "line", "url", "src", "dest", "path"):
+        return None
+    return _titleise_identifier(key) or None
+
+
+def _credential_identity(rule_id: str, code_snippet: str) -> str:
+    """Resolve a credential's display name from the rule, then the key.
+
+    Never inferred from the value's shape: that guessing is exactly what
+    labelled every ``token:`` line a JWT. A specific rule names itself; a
+    generic rule (``hardcoded_token``) borrows the flagged key; only when
+    both are silent does a neutral, non-guessing default apply.
+    """
+    if rule_id and rule_id not in _GENERIC_CREDENTIAL_RULE_IDS:
+        return _identity_from_rule_id(rule_id)
+    return _identity_from_key(code_snippet) or "Hardcoded Credential"
+
+
+# Curated advice family per rule id, matched most-specific first on the rule
+# id (not the value). The family only selects security advice; the displayed
+# name always comes from _credential_identity.
+_CREDENTIAL_FAMILY_BY_RULE: tuple[tuple[str, str], ...] = (
+    ("stripe", "stripe"),
+    ("aws", "aws"),
+    ("github", "github"),
+    ("gitlab", "github"),
+    ("webhook", "webhook"),
+    ("slack", "webhook"),
+    ("splunk_hec", "splunk_hec"),
+    ("jwt", "jwt"),
+    ("password", "password"),
+    ("passwd", "password"),
+    ("api_key", "api_key"),
+    ("apikey", "api_key"),
+)
+
+_CREDENTIAL_ADVICE: dict[str, _CredentialAdvice] = {
+    "stripe": {
+        "description": "This Stripe key provides access to payment processing and financial data. Live keys handle real transactions.",
+        "security_advice": [
+            "Use separate keys for test and live environments",
+            "Implement webhook signature verification",
+            "Use restricted API keys with minimal permissions",
+            "Monitor transactions and set up fraud alerts",
+        ],
+    },
+    "aws": {
+        "description": "AWS access keys provide programmatic access to AWS services and should never be hardcoded.",
+        "security_advice": [
+            "Use IAM roles instead of access keys when possible",
+            "Implement least-privilege access policies",
+            "Enable AWS CloudTrail for API auditing",
+            "Store secrets in AWS Systems Manager Parameter Store or Secrets Manager",
+        ],
+    },
+    "github": {
+        "description": "This token provides access to repositories and platform APIs based on its configured scopes.",
+        "security_advice": [
+            "Use fine-grained tokens with minimal scopes",
+            "Set token expiration dates (90 days maximum recommended)",
+            "Use platform apps for organization-wide automation",
+            "Enable secret scanning in your repositories",
+        ],
+    },
+    "webhook": {
+        "description": "This webhook URL embeds an authentication token that grants access to an external service.",
+        "security_advice": [
+            "Use HTTPS webhooks only",
+            "Implement webhook signature verification",
+            "Restrict webhook endpoints by IP where possible",
+            "Use separate webhooks for different environments",
+        ],
+    },
+    "jwt": {
+        "description": "JSON Web Tokens carry encoded authentication and authorization claims and stay valid until they expire or their signing key is rotated.",
+        "security_advice": [
+            "Use strong signing keys and rotate them regularly",
+            "Set short token expiration times",
+            "Validate tokens on every request",
+            "Transmit tokens only over HTTPS",
+        ],
+    },
+    "splunk_hec": {
+        "description": "A Splunk HTTP Event Collector token authorizes event submission to the configured index. A leaked token lets an attacker forge or flood events and burn ingest quota until it is rotated.",
+        "security_advice": [
+            "Rotate the HEC token in Splunk immediately, then reference it from Vault at runtime",
+            "Scope each HEC token to a narrow Allowed Indexes list and a single sourcetype",
+            "Enable TLS on the collector endpoint and verify certificates",
+            "Monitor per-token ingest volume for anomalous spikes",
+        ],
+    },
+    "api_key": {
+        "description": "API keys provide programmatic access to a service and must be treated as live credentials.",
+        "security_advice": [
+            "Rotate the key at the issuing service immediately",
+            "Use different keys per environment",
+            "Monitor key usage and alert on unusual activity",
+            "Reference the key from Vault or a secrets manager, never a literal",
+        ],
+    },
+    "password": {
+        "description": "A plaintext password in source is a live credential the moment it is committed.",
+        "security_advice": [
+            "Rotate the password immediately",
+            "Reference it from Ansible Vault or a secrets manager",
+            "Use unique passwords per service account",
+            "Enable multi-factor authentication where the service supports it",
+        ],
+    },
+    "form_data": {
+        "description": "Form data containing authentication credentials must be secured like any other secret.",
+        "security_advice": [
+            "Use structured authentication instead of form encoding where possible",
+            "Reference credentials from Vault, never inline",
+            "Use HTTPS for all form submissions",
+            "Mark the task no_log: true so the value is not logged",
+        ],
+    },
+    "generic": {
+        "description": "This credential authenticates to a service and stays valid until it is rotated at the issuer. Committed to source, it is a live credential.",
+        "security_advice": [
+            "Rotate the credential at the issuing service immediately",
+            "Reference it from Ansible Vault or a secrets manager, never a literal",
+            "Scope the credential to the minimum permissions it needs",
+            "Transmit credentials only over HTTPS",
+        ],
+    },
+}
 
 
 # Grounding a curated fix in the finding's own code. A curated ``secure_fix``
@@ -237,123 +499,44 @@ class BaseRemediationGenerator:
 
         return f"vault_{var_name}"
 
-    def _detect_credential_type(self, code_snippet: str) -> str:
-        """Detect the type of credential based on patterns in the code"""
+    def _detect_credential_type(self, code_snippet: str, rule_id: str = "") -> str:
+        """Resolve the curated advice family for a credential finding.
+
+        The family drives *security advice*, not the displayed identity, and
+        is taken from the rule that fired, never guessed from the value. A
+        specific rule maps to its vendor family (``stripe_*`` -> ``stripe``);
+        a generic rule falls back to a key hint (a ``password:`` line ->
+        ``password``) and otherwise to sound, vendor-neutral advice.
+        """
+        rid = (rule_id or "").lower()
+        for needle, family in _CREDENTIAL_FAMILY_BY_RULE:
+            if needle in rid:
+                return family
+
         code_lower = code_snippet.lower()
-
-        if any(pattern in code_lower for pattern in ["stripe", "sk_live", "sk_test"]):
-            return "stripe_key"
-        if any(pattern in code_lower for pattern in ["aws", "akia", "secret_access"]):
-            return "aws_key"
-        if any(pattern in code_lower for pattern in ["github", "ghp_", "gho_"]):
-            return "github_token"
-        if any(pattern in code_lower for pattern in ["slack", "webhook", "hooks.slack.com"]):
-            return "webhook_url"
-        if any(pattern in code_lower for pattern in ["jwt", "bearer", "token"]):
-            return "jwt_token"
-        if any(pattern in code_lower for pattern in ["api_key", "apikey"]):
-            return "api_key"
-        if any(pattern in code_lower for pattern in ["password", "passwd", "pwd"]):
+        if _is_jwt_value(code_snippet):
+            return "jwt"
+        if _is_splunk_hec_context(code_snippet):
+            return "splunk_hec"
+        if any(p in code_lower for p in ["password", "passwd", "pwd"]):
             return "password"
-        if any(pattern in code_lower for pattern in ["secret", "key"]):
-            return "secret"
-        return "credential"
+        if any(p in code_lower for p in ["api_key", "apikey", "api-key"]):
+            return "api_key"
+        return "generic"
 
-    def _get_credential_type_info(self, credential_type: str) -> dict[str, str]:
-        """Get information about a specific credential type"""
-        credential_info = {
-            "stripe_key": {
-                "name": "Stripe API Key",
-                "description": "This Stripe key provides access to payment processing and financial data. Live keys handle real transactions.",
-                "security_advice": [
-                    "Use separate keys for test and live environments",
-                    "Implement webhook signature verification",
-                    "Use restricted API keys with minimal permissions",
-                    "Monitor transactions and set up fraud alerts",
-                ],
-            },
-            "aws_key": {
-                "name": "AWS Access Key",
-                "description": "This appears to be an AWS Access Key ID. These keys provide programmatic access to AWS services and should never be hardcoded.",
-                "security_advice": [
-                    "Use IAM roles instead of access keys when possible",
-                    "Implement least-privilege access policies",
-                    "Enable AWS CloudTrail for API auditing",
-                    "Consider using AWS Systems Manager Parameter Store for secrets",
-                ],
-            },
-            "github_token": {
-                "name": "GitHub Personal Access Token",
-                "description": "This GitHub token provides access to repositories and GitHub APIs based on configured permissions.",
-                "security_advice": [
-                    "Use fine-grained personal access tokens with minimal scopes",
-                    "Set token expiration dates (90 days maximum recommended)",
-                    "Use GitHub Apps for organization-wide automation",
-                    "Enable secret scanning in your repositories",
-                ],
-            },
-            "webhook_url": {
-                "name": "Webhook URL with Token",
-                "description": "This webhook URL contains embedded authentication tokens that grant access to external services.",
-                "security_advice": [
-                    "Use HTTPS webhooks only",
-                    "Implement webhook signature verification",
-                    "Consider IP whitelisting for webhook endpoints",
-                    "Use separate webhooks for different environments",
-                ],
-            },
-            "jwt_token": {
-                "name": "JWT Token",
-                "description": "JSON Web Tokens contain encoded authentication and authorization information.",
-                "security_advice": [
-                    "Use strong signing keys and rotate them regularly",
-                    "Implement proper token expiration times",
-                    "Validate tokens on every request",
-                    "Use HTTPS for all token transmission",
-                ],
-            },
-            "api_key": {
-                "name": "API Key",
-                "description": "API keys provide programmatic access to services and should be treated as sensitive credentials.",
-                "security_advice": [
-                    "Implement key rotation policies",
-                    "Use different keys for different environments",
-                    "Monitor API key usage and set up alerts for unusual activity",
-                    "Implement rate limiting and proper authentication",
-                ],
-            },
-            "password": {
-                "name": "Password",
-                "description": "Sensitive credentials should never be stored in plaintext in configuration files or code.",
-                "security_advice": [
-                    "Use strong, unique passwords (minimum 12 characters)",
-                    "Implement multi-factor authentication where possible",
-                    "Use password managers for generation and storage",
-                    "Rotate passwords regularly, especially for service accounts",
-                ],
-            },
-            "form_data": {
-                "name": "Form Data Authentication",
-                "description": "Form data containing authentication credentials should be properly secured.",
-                "security_advice": [
-                    "Use structured authentication instead of form encoding where possible",
-                    "Implement proper session management",
-                    "Use HTTPS for all form submissions",
-                    "Validate and sanitize all form inputs",
-                ],
-            },
-        }
+    def _get_credential_type_info(
+        self, credential_type: str, *, rule_id: str = "", code_snippet: str = ""
+    ) -> CredentialInfo:
+        """Advice for a credential family, named from the rule/key.
 
-        return credential_info.get(
-            credential_type,
-            {
-                "name": "Credential",
-                "description": "Sensitive credentials should never be stored in plaintext in configuration files or code.",
-                "security_advice": [
-                    "Use dedicated secret management systems (HashiCorp Vault, AWS Secrets Manager)",
-                    "Implement secret rotation policies",
-                    "Audit secret access and usage",
-                    "Never log or cache secrets",
-                ],
-            },
+        The ``name`` is always resolved by :func:`_credential_identity` from
+        the rule id (then the flagged key), so a finding is never labelled by
+        guessing at the value. Only the description and advice come from the
+        curated family map, with a sound vendor-neutral default.
+        """
+        family = _CREDENTIAL_ADVICE.get(credential_type, _CREDENTIAL_ADVICE["generic"])
+        return CredentialInfo(
+            name=_credential_identity(rule_id, code_snippet),
+            description=family["description"],
+            security_advice=list(family["security_advice"]),
         )

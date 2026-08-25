@@ -3579,3 +3579,46 @@ class TestInlineThreadIsGroundedAndDeduplicated:
             "inline fix does not reference the flagged variable "
             "`ansible_ssh_common_args`; it reads as a disconnected example:\n" + body[:600]
         )
+
+
+class TestSuppressionWarningsInComment:
+    """A rejected ``# nosec`` / ``# noqa`` directive must surface in the MR
+    comment, not only in CI logs. If it stays in the logs the author sees
+    the finding still posted and assumes the tool is broken, never learning
+    their suppression was ignored and why.
+    """
+
+    _UUID = "e017639c" + "-db22-4933-936c-2950972a1e5c"
+
+    def _warning(self, reason: str = 'missing reason (write `reason="..."`)') -> str:
+        return (
+            f'WARN invalid suppression at site.yml:12: token: "{self._UUID}"  '
+            f"# nosec: hardcoded_token -- {reason}"
+        )
+
+    def test_rejected_suppression_appears_in_body(self):
+        findings = [StubFinding("hardcoded_token", "HIGH", "site.yml", 12, "t")]
+        body = comment.render_comment_body(
+            findings, _ctx("github"), suppression_warnings=[self._warning()]
+        )
+        assert "suppression directive ignored" in body
+        assert "hardcoded_token" in body
+        assert "missing reason" in body
+
+    def test_directive_secret_is_redacted_in_body(self):
+        findings = [StubFinding("hardcoded_token", "HIGH", "site.yml", 12, "t")]
+        body = comment.render_comment_body(
+            findings, _ctx("github"), suppression_warnings=[self._warning()]
+        )
+        assert self._UUID not in body, "suppression note leaked the raw credential value"
+
+    def test_appears_on_resolved_zero_finding_run(self):
+        body = comment.render_comment_body(
+            [], _ctx("github"), suppression_warnings=[self._warning()]
+        )
+        assert "suppression directive ignored" in body
+
+    def test_no_note_when_no_warnings(self):
+        findings = [StubFinding("hardcoded_token", "HIGH", "site.yml", 12, "t")]
+        body = comment.render_comment_body(findings, _ctx("github"))
+        assert "suppression directive ignored" not in body

@@ -268,7 +268,7 @@ def _trim_to_head_and_tail(
 def _redact_snippet_line(line: str) -> str:
     """Single-line variant of ``_redact_snippet``.
 
-    ``_redact_snippet`` strips blank lines and dedents -- destructive
+    ``_redact_snippet`` strips blank lines and dedents - destructive
     when rendering a literal source-file window where indentation
     carries meaning. This helper applies just the secret-masking
     regexes and leaves whitespace untouched.
@@ -616,7 +616,7 @@ def _render_rule_disclosure(
 
     if len(rule_ids) > _IGNORE_HARD_CAP:
         top = ordered[:_IGNORE_TOP_CATEGORIES]
-        lines = [f"- **{_humanize_category(cat)}** \u2014 {len(rids)} rules" for cat, rids in top]
+        lines = [f"- **{_humanize_category(cat)}** - {len(rids)} rules" for cat, rids in top]
         tail = len(ordered) - len(top)
         if tail > 0:
             lines.append(f"- *...and {_pluralize(tail, 'more category', 'more categories')}*")
@@ -636,6 +636,55 @@ def _render_rule_disclosure(
 def _humanize_category(category_key: str) -> str:
     """Render a snake_case category key as a Title Cased label."""
     return category_key.replace("_", " ").title()
+
+
+# A scanner suppression-warning line has the shape
+# "WARN invalid suppression at <raw> -- <reason>". Split it back into its
+# two halves for the MR note so a reviewer sees the directive and why it
+# was ignored, not the internal log prefix.
+_SUPPRESSION_WARNING_PREFIX = "WARN invalid suppression at "
+_SUPPRESSION_WARNING_FLAT_LIMIT = 3
+
+
+def _split_suppression_warning(line: str) -> tuple[str, str]:
+    """Return the (directive, reason) pair from a scanner warning line.
+
+    The directive half is the raw source line and may carry a live secret,
+    so it is run through the same secret-masking pass as finding snippets
+    before it can reach the MR comment.
+    """
+    text = line.removeprefix(_SUPPRESSION_WARNING_PREFIX)
+    directive, _, reason = text.partition(" -- ")
+    return _redact_snippet_line(directive.strip()), reason.strip()
+
+
+def _render_suppression_warnings(warnings: list[str]) -> str:
+    """Render rejected ``# nosec`` / ``# noqa`` directives for the MR comment.
+
+    A rejected suppression means the author thought they silenced a finding
+    but their directive was ignored (no ``reason=``, no rule id, or an
+    unsuppressable rule). That decision is invisible unless it shows up next
+    to the findings they were trying to suppress, so it is rendered inline
+    rather than left in CI logs.
+    """
+    if not warnings:
+        return ""
+
+    head = f"{_pluralize(len(warnings), 'suppression directive')} ignored"
+    if len(warnings) <= _SUPPRESSION_WARNING_FLAT_LIMIT:
+        rows = []
+        for w in warnings:
+            directive, reason = _split_suppression_warning(w)
+            rows.append(f"`{directive}` - {reason}" if reason else f"`{directive}`")
+        listed = "; ".join(rows)
+        return f"> **Note:** {head}: {listed}."
+
+    summary = f"<summary><strong>Note:</strong> {head} (click to expand)</summary>"
+    lines = []
+    for w in warnings:
+        directive, reason = _split_suppression_warning(w)
+        lines.append(f"- `{directive}`" + (f": {reason}" if reason else ""))
+    return f"<details>\n{summary}\n\n" + "\n".join(lines) + "\n</details>"
 
 
 def _fence(body: str) -> str:
@@ -1186,6 +1235,7 @@ def render_comment_body(
     ignored_rule_ids: list[str] | None = None,
     selected_rule_ids: list[str] | None = None,
     category_for_rule: dict[str, str] | None = None,
+    suppression_warnings: list[str] | None = None,
 ) -> str:
     """Produce the final Markdown body for the MR/PR comment.
 
@@ -1217,6 +1267,8 @@ def render_comment_body(
         ignored_rule_ids=ignored_rule_ids,
         category_for_rule=category_for_rule,
     )
+    suppression_note = _render_suppression_warnings(suppression_warnings or [])
+    notes = "\n\n".join(n for n in (policy_note, suppression_note) if n)
 
     open_rule_ids = sorted(
         {getattr(f, "rule_id", "") for f in findings if getattr(f, "rule_id", "")}
@@ -1237,8 +1289,8 @@ def render_comment_body(
         footer = _render_footer(ctx, full_report_link)
         marker = _encode_marker(0, ctx.commit_sha, open_rule_ids)
         parts = [body, "---"]
-        if policy_note:
-            parts.extend([policy_note, "---"])
+        if notes:
+            parts.extend([notes, "---"])
         parts.extend([footer, marker])
         return "\n\n".join(parts) + "\n"
 
@@ -1273,7 +1325,7 @@ def render_comment_body(
         total,
         finding_fingerprints=finding_fingerprints,
         finding_rule_ids=finding_rule_ids,
-        policy_note=policy_note,
+        notes=notes,
     )
     if len(body.encode("utf-8")) <= _MAX_COMMENT_BYTES and total < _DASHBOARD_THRESHOLD:
         return body
@@ -1309,7 +1361,7 @@ def render_comment_body(
         trailing=tail_summary,
         finding_fingerprints=finding_fingerprints,
         finding_rule_ids=finding_rule_ids,
-        policy_note=policy_note,
+        notes=notes,
     )
     if len(body.encode("utf-8")) <= _MAX_COMMENT_BYTES:
         return body
@@ -1327,7 +1379,7 @@ def render_comment_body(
         trailing=tail_summary,
         finding_fingerprints=finding_fingerprints,
         finding_rule_ids=finding_rule_ids,
-        policy_note=policy_note,
+        notes=notes,
     )
 
 
@@ -1342,7 +1394,7 @@ def _render_drilldown(
     trailing: str = "",
     finding_fingerprints: list[str] | None = None,
     finding_rule_ids: list[str] | None = None,
-    policy_note: str = "",
+    notes: str = "",
 ) -> str:
     """Assemble header + rule blocks + footer + marker into the final
     comment body.
@@ -1361,9 +1413,9 @@ def _render_drilldown(
     parts.extend(blocks)
     if trailing:
         parts.append(trailing)
-    if policy_note:
+    if notes:
         parts.append("---")
-        parts.append(policy_note)
+        parts.append(notes)
     parts.append("---")
     parts.append(footer)
     parts.append(marker)

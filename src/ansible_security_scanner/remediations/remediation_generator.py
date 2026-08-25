@@ -331,20 +331,28 @@ class RemediationGenerator(BaseRemediationGenerator):
         file_path: str,
         line_number: int,
     ) -> tuple:
-        """Pull the (var, env_var) pair the credential-style remediations need."""
+        """Pull the (var, env_var) pair the credential-style remediations need.
+
+        The extractors gate their credential logic on the literal rule_id
+        ``hardcoded_credentials``, so pass that for every rule in the
+        credentials category. Otherwise a specific rule
+        (``okta_api_token_literal``) falls through to the ``VARIABLE_NAME``
+        placeholder instead of the finding's real key.
+        """
+        extract_id = "hardcoded_credentials" if category == "hardcoded_credentials" else rule_id
         if category == "hardcoded_credentials" and file_path and line_number:
             var = self.variable_extractor.extract_variable_name_from_context(
-                file_path, line_number, rule_id
+                file_path, line_number, extract_id
             )
             env = self.variable_extractor.extract_env_var_name_from_context(
-                file_path, line_number, rule_id
+                file_path, line_number, extract_id
             )
             if var in ("variable_name", "credential", "secret"):
-                var = self.variable_extractor.extract_variable_name(code_snippet, rule_id)
-                env = self.variable_extractor.extract_env_var_name(code_snippet, rule_id)
+                var = self.variable_extractor.extract_variable_name(code_snippet, extract_id)
+                env = self.variable_extractor.extract_env_var_name(code_snippet, extract_id)
         else:
-            var = self.variable_extractor.extract_variable_name(code_snippet, rule_id)
-            env = self.variable_extractor.extract_env_var_name(code_snippet, rule_id)
+            var = self.variable_extractor.extract_variable_name(code_snippet, extract_id)
+            env = self.variable_extractor.extract_env_var_name(code_snippet, extract_id)
         return var, env
 
     # Category-specific handlers. Each accepts the same kwargs so they're safe
@@ -396,7 +404,7 @@ class RemediationGenerator(BaseRemediationGenerator):
             and len(re.findall(r'(\w+)=([^&"\']+)', code_snippet)) > 2
         ):
             return g.generate_form_data_fix(code_snippet, var_name, env_var_name)
-        return g.generate_hardcoded_credentials_fix(code_snippet, var_name, env_var_name)
+        return g.generate_hardcoded_credentials_fix(code_snippet, var_name, env_var_name, rule_id)
 
     def _gen_webhook(self, *, code_snippet, var_name, env_var_name, **_kw):
         return self._generators["webhook_exposure"].generate_webhook_exposure_fix(

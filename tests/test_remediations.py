@@ -23,6 +23,7 @@ if str(SRC) not in sys.path:
 from ansible_security_scanner.patterns_manager import known_rule_ids  # noqa: E402
 from ansible_security_scanner.remediations import _pattern_index as _PI  # noqa: E402
 from ansible_security_scanner.remediations.base import (  # noqa: E402
+    BaseRemediationGenerator,
     _finding_artifact,
     _fix_references_artifact,
 )
@@ -1646,3 +1647,123 @@ class TestDataDestructionDynamicFixes:
             assert _SECURE_FIX_BLOCK_RE.search(out), (
                 f"{rule_id}: no Secure Fix block - dispatch regressed"
             )
+
+
+class TestCredentialTypeLabelling:
+    """A credential finding is named from the rule that fired, then the
+    flagged key, never guessed from the value. That guessing is what
+    labelled every ``token:`` line a JWT and produced the vague "Access
+    Token" catch-all; both are gone. A specific rule names itself
+    (``splunk_hec_token_literal`` -> "Splunk HEC Token"); a generic rule
+    borrows the key (``okta_api_token:`` -> "Okta API Token").
+    """
+
+    _HEC_UUID = "e017639c" + "-db22-4933-936c-2950972a1e5c"
+    _REAL_JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.c2ln"
+
+    @pytest.fixture(scope="class")
+    def base(self) -> BaseRemediationGenerator:
+        return BaseRemediationGenerator()
+
+    @pytest.mark.parametrize(
+        "rule_id,snippet,expected_name",
+        [
+            ("splunk_hec_token_literal", f'token: "{_HEC_UUID}"', "Splunk HEC Token"),
+            ("okta_api_token_literal", f'token: "{_HEC_UUID}"', "Okta API Token"),
+            ("aws_access_key", 'aws_access_key: "AKIA1234567890ABCD"', "AWS Access Key"),
+            ("stripe_live_secret_key_literal", 'k: "sk_live_x"', "Stripe Live Secret Key"),
+            ("github_personal_access_token_literal", 'k: "ghp_x"', "GitHub Personal Access Token"),
+            ("hardcoded_token", f'okta_api_token: "{_HEC_UUID}"', "Okta API Token"),
+            ("hardcoded_password", 'db_password: "hunter2hunter2"', "Db Password"),
+            ("jwt_token", f'token: "{_REAL_JWT}"', "JWT Token"),
+        ],
+    )
+    def test_identity_comes_from_rule_then_key(self, base, rule_id, snippet, expected_name):
+        family = base._detect_credential_type(snippet, rule_id)
+        info = base._get_credential_type_info(family, rule_id=rule_id, code_snippet=snippet)
+        assert info["name"] == expected_name, (
+            f"{rule_id} / {snippet!r} named {info['name']!r}, expected {expected_name!r}"
+        )
+
+    def test_bare_token_is_not_labelled_jwt(self, base):
+        """The exact regression: a UUID token value must not read as a JWT."""
+        family = base._detect_credential_type(f'token: "{self._HEC_UUID}"', "hardcoded_token")
+        info = base._get_credential_type_info(
+            family, rule_id="hardcoded_token", code_snippet=f'okta_api_token: "{self._HEC_UUID}"'
+        )
+        assert "JWT" not in info["name"], info
+
+    def test_every_credential_rule_labels_non_jwt_correctly(
+        self, remediation_generator: RemediationGenerator
+    ):
+        """Semantic-label coverage across every credential-routed rule: a
+        finding whose value is not a JWT must never render 'JWT Token
+        Detected', and no rule may fall back to a generic guessed label.
+        This is the assertion that catches the whole class of mislabels,
+        not just the one rule that surfaced it.
+        """
+        from ansible_security_scanner.remediations._category_map import resolve_category
+
+        cred_ids = [
+            rid
+            for rid in sorted(known_rule_ids())
+            if resolve_category(rid) == "hardcoded_credentials"
+        ]
+        assert cred_ids, "no credential rules resolved; category map regressed"
+
+        mislabelled: list[str] = []
+        generic: list[str] = []
+        for rid in cred_ids:
+            snippet = f'{rid}: "{self._HEC_UUID}"'
+            out = remediation_generator.generate_remediation_example(rid, snippet) or ""
+            if "JWT Token Detected" in out and rid != "jwt_token":
+                mislabelled.append(rid)
+            # The retired catch-all rendered exactly this header. A real vendor
+            # name ("Facebook Access Token") is fine; the bare label is not.
+            if "\U0001f6a8 Access Token Detected:" in out:
+                generic.append(rid)
+
+        assert not mislabelled, (
+            "these credential rules render 'JWT Token Detected' for a non-JWT "
+            f"(UUID) value, which is wrong: {mislabelled}"
+        )
+        assert not generic, (
+            "these credential rules fall back to the retired bare 'Access Token' "
+            f"label instead of naming the credential from the rule/key: {generic}"
+        )
+
+    def test_every_credential_rule_generates_a_grounded_fix(
+        self, remediation_generator: RemediationGenerator
+    ):
+        """Every credential rule must generate a fix built from the finding's
+        real key and value, never a placeholder. A leaked ``VARIABLE_NAME`` or
+        a ``vault_variable_name`` var means the extractor fell through to its
+        sentinel instead of reading the flagged line.
+        """
+        from ansible_security_scanner.remediations._category_map import resolve_category
+
+        cred_ids = [
+            rid
+            for rid in sorted(known_rule_ids())
+            if resolve_category(rid) == "hardcoded_credentials"
+        ]
+        assert cred_ids, "no credential rules resolved; category map regressed"
+
+        key = "okta_api_token"
+        ungrounded: list[str] = []
+        for rid in cred_ids:
+            snippet = f'    {key}: "{self._HEC_UUID}"'
+            out = remediation_generator.generate_remediation_example(rid, snippet) or ""
+            if (
+                "VARIABLE_NAME" in out
+                or "vault_variable_name" in out
+                or "your_actual_credential" in out
+                or key not in out
+                or self._HEC_UUID not in out
+            ):
+                ungrounded.append(rid)
+
+        assert not ungrounded, (
+            "these credential rules emit a placeholder or drop the finding's real "
+            f"key/value from the generated fix: {ungrounded}"
+        )

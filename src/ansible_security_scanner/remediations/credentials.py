@@ -13,12 +13,10 @@ class CredentialsRemediationGenerator(BaseRemediationGenerator):
     """Generates remediation for hardcoded credentials"""
 
     def generate_hardcoded_credentials_fix(
-        self, code_snippet: str, var_name: str, env_var: str
+        self, code_snippet: str, var_name: str, env_var: str, rule_id: str = ""
     ) -> str:
         """Generate fix for hardcoded credentials using actual code context"""
-
-        # Analyze the actual code to provide contextual fixes
-        return self._generate_contextual_credential_fix(code_snippet, var_name, env_var)
+        return self._generate_contextual_credential_fix(code_snippet, var_name, env_var, rule_id)
 
     def generate_webhook_exposure_fix(self, code_snippet: str, var_name: str, env_var: str) -> str:
         """Generate fix for webhook URL exposure"""
@@ -147,7 +145,7 @@ Webhook URLs often contain embedded tokens or secrets that should not be exposed
         if not secret_fields:
             return self.generate_hardcoded_credentials_fix(code_snippet, var_name, env_var)
 
-        credential_info = self._get_credential_type_info("form_data")
+        credential_info = self._get_credential_type_info("form_data", code_snippet=code_snippet)
 
         template = f"""
 **❌ Vulnerable Code:**
@@ -737,15 +735,15 @@ shell: >-
                 os.remove(temp_file)
 
     def _generate_contextual_credential_fix(
-        self, code_snippet: str, var_name: str, env_var: str
+        self, code_snippet: str, var_name: str, env_var: str, rule_id: str = ""
     ) -> str:
         """Generate contextual fix based on the actual code found"""
 
-        # Detect the specific pattern in the code
-        credential_type = self._detect_credential_type(code_snippet)
-        credential_info = self._get_credential_type_info(credential_type)
+        credential_type = self._detect_credential_type(code_snippet, rule_id)
+        credential_info = self._get_credential_type_info(
+            credential_type, rule_id=rule_id, code_snippet=code_snippet
+        )
 
-        # Extract actual values and variable names from the code
         extracted_info = self._extract_credential_info(code_snippet)
 
         template = f"""
