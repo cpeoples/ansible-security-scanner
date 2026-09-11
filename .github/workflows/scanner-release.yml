@@ -40,6 +40,10 @@ on:
         description: "Publish to production PyPI (false = TestPyPI only)"
         type: boolean
         default: false
+      rebuild_snap:
+        description: "Rebuild and republish the snap only (no PyPI)"
+        type: boolean
+        default: false
 
 concurrency:
   group: scanner-release-${{ github.ref }}
@@ -583,7 +587,12 @@ jobs:
     name: Publish to Snap Store
     runs-on: ubuntu-latest
     needs: publish-pypi
-    if: github.event_name == 'release'
+    if: |
+      always()
+      && (
+        (github.event_name == 'release' && needs.publish-pypi.result == 'success')
+        || (github.event_name == 'workflow_dispatch' && inputs.rebuild_snap)
+      )
     environment:
       name: snapcraft
       url: https://snapcraft.io/ansible-security-scanner
@@ -604,8 +613,12 @@ jobs:
 
       - name: Resolve snap version
         env:
+          # Empty on a manual rebuild; the latest release tag is used instead.
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: printf '%s' "${RELEASE_TAG#v}" > snap/.version
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${RELEASE_TAG:-$(gh release view --json tagName -q .tagName)}"
+          printf '%s' "${tag#v}" > snap/.version
 
       - name: Build snap
         id: build
