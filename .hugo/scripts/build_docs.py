@@ -707,6 +707,92 @@ def build_summary_page(all_stats: dict) -> None:
     print("  Created content/dashboard.md")
 
 
+SITE_URL = "https://cpeoples.github.io/ansible-security-scanner/"
+
+
+def write_llms_txt() -> None:
+    """Emit static/llms.txt: a plaintext site index for LLMs (llmstxt.org).
+
+    Mirrors the sibling sites: an H1 title, a one-line summary blockquote, a
+    short prose paragraph, then grouped sections of absolute links. Written to
+    static/ so Hugo copies it verbatim to the site root, next to robots.txt
+    (which points crawlers here via Allow: /). Absolute URLs use the deploy
+    baseURL so links resolve on the project Pages subpath, falling back to the
+    production URL for a local build.
+    """
+    deploy_base = _BASE_URL.rstrip("/")
+    base = deploy_base if deploy_base else SITE_URL.rstrip("/")
+    lines = [
+        "# Ansible Security Scanner",
+        "",
+        "> Static security scanner (SAST) for Ansible playbooks, roles, "
+        "collections, task files, vars, and inventories. Detects malicious "
+        "code, RCE, command and template injection, hardcoded credentials, "
+        "supply-chain risk, unauthorized cloud access, lateral movement, and "
+        "reverse shells. Apache-2.0 licensed and free for commercial use.",
+        "",
+        "Ansible Security Scanner is a static analyzer purpose-built for Ansible "
+        "content. It outputs SARIF, CycloneDX SBOM, GitLab SAST, JUnit, JSON, "
+        "HTML, and Markdown reports with remediation guidance. Findings map to "
+        "CWE, OWASP Top 10, OWASP ASVS, MITRE ATT&CK, NIST, and CIS. Releases "
+        "ship with SLSA Build Level 3 provenance and CycloneDX SBOMs, and "
+        "release artifacts are Sigstore-signed.",
+        "",
+        "## Install",
+        "",
+        f"- [Installation]({base}/#installation): pip install "
+        "ansible-security-scanner, or brew install "
+        "cpeoples/tap/ansible-security-scanner",
+        "- [PyPI package](https://pypi.org/project/ansible-security-scanner/): "
+        "pip install ansible-security-scanner",
+        "- [Homebrew tap](https://github.com/cpeoples/homebrew-tap): brew "
+        "install cpeoples/tap/ansible-security-scanner",
+        "- [Snap Store](https://snapcraft.io/ansible-security-scanner): snap "
+        "install ansible-security-scanner",
+        "- [pre-commit hook](https://pre-commit.com/): add `repo: "
+        "https://github.com/cpeoples/ansible-security-scanner` with hook id "
+        "`ansible-security-scanner`",
+        "- [Source code]"
+        "(https://github.com/cpeoples/ansible-security-scanner): GitHub "
+        "repository (Apache-2.0)",
+        f"- [Documentation]({base}/): full docs site",
+        "",
+        "## Quick start",
+        "",
+        f"- [Quick Start]({base}/#quick-start): scan a directory, emit SARIF, "
+        "post a PR/MR comment, run autofix",
+        f"- [What it detects]({base}/#what-it-detects): rule categories with examples",
+        f"- [CI/CD integration]({base}/dashboard/): GitHub Actions, GitLab CI, Jenkins",
+        f"- [Limitations]({base}/limitations/): what this layer of defense does and does not cover",
+        "",
+        "## Distribution and supply-chain",
+        "",
+        "- License: Apache-2.0",
+        "- Python: 3.11, 3.12, 3.13, 3.14",
+        "- Provenance: [SLSA Build Level 3](https://slsa.dev/spec/v1.0/levels#build-l3)",
+        "- SBOM: CycloneDX, attached to every GitHub release",
+        "- Signing: Sigstore-verified release artifacts",
+        "",
+        "## Output formats",
+        "",
+        "- SARIF (GitHub Advanced Security, GitHub Code Scanning)",
+        "- GitLab SAST JSON (GitLab Security Dashboard)",
+        "- CycloneDX SBOM",
+        "- JUnit XML",
+        "- JSON, HTML, Markdown, YAML, CSV",
+        "",
+        "## Project links",
+        "",
+        "- [Issues](https://github.com/cpeoples/ansible-security-scanner/issues)",
+        "- [Releases and changelog](https://github.com/cpeoples/ansible-security-scanner/releases)",
+        "- [Author](https://github.com/cpeoples)",
+    ]
+    static_dir = HUGO_DIR / "static"
+    static_dir.mkdir(parents=True, exist_ok=True)
+    (static_dir / "llms.txt").write_text("\n".join(lines) + "\n")
+    print("  Created static/llms.txt")
+
+
 def main() -> None:
     print("Building Hugo documentation for Ansible Security Scanner...\n")
 
@@ -718,6 +804,7 @@ def main() -> None:
     build_doc_pages()
     all_stats = build_pattern_pages()
     build_summary_page(all_stats)
+    write_llms_txt()
 
     total = sum(s["count"] for s in all_stats.values())
     print(f"\nDone: {total} rules across {len(all_stats)} categories")
