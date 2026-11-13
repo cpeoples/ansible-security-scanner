@@ -130,13 +130,34 @@ jobs:
         if: steps.changed.outputs.run == 'true'
         run: git describe --tags --abbrev=0 | sed 's/^v//' > snap/.version
 
+      - name: Install LXD
+        id: install_lxd
+        if: steps.changed.outputs.run == 'true'
+        # action-build installs lxd via "snap install", which the store can
+        # intermittently refuse. Retry before the build runs. A persistent
+        # outage is classified by the report step, so don't fail the job here.
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if sudo snap install lxd; then
+              echo "lxd installed on attempt $attempt"
+              exit 0
+            fi
+            echo "snap store unreachable (attempt $attempt), retrying in 30s..."
+            sleep 30
+          done
+          echo "snap store still unreachable after retries"
+          exit 1
+
       - name: Build snap
         id: build
         if: steps.changed.outputs.run == 'true'
+        # Don't fail CI on a store outage; the report step classifies the result.
+        continue-on-error: true
         uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79  # v1.3.0
 
       - name: Install and smoke-test the snap
-        if: steps.changed.outputs.run == 'true'
+        if: steps.changed.outputs.run == 'true' && steps.build.outcome == 'success'
         env:
           SNAP_FILE: ${{ steps.build.outputs.snap }}
         run: |
@@ -148,3 +169,37 @@ jobs:
           mkdir -p "$HOME/snap-smoke"
           printf -- '- hosts: all\n  tasks:\n    - shell: echo hi\n' > "$HOME/snap-smoke/playbook.yml"
           ansible-security-scanner --directory "$HOME/snap-smoke" || true
+
+      - name: Report snap dry-run outcome
+        if: steps.changed.outputs.run == 'true'
+        run: |
+          set -u
+          if [ "${{ steps.build.outcome }}" = "success" ]; then
+            echo "snap dry-run build succeeded"
+            exit 0
+          fi
+
+          # Store outage -> warn and pass. Real build defect -> fail.
+          if [ "${{ steps.install_lxd.outcome }}" != "success" ]; then
+            echo "::warning title=Snap Store unreachable::lxd install failed; treating as a transient store outage."
+            exit 0
+          fi
+
+          # lxd installed, so probe the store to tell an outage from a defect.
+          store_unreachable=0
+          for probe in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
+              https://api.snapcraft.io/api/v1/snaps/search?q=core 2>/dev/null || echo 000)
+            echo "snap store probe $probe -> http_code=$code"
+            case "$code" in
+              2??|3??|4??) store_unreachable=0; break ;;
+              *)           store_unreachable=1; sleep 10 ;;
+            esac
+          done
+          if [ "$store_unreachable" = "1" ]; then
+            echo "::warning title=Snap Store unreachable::build failed and api.snapcraft.io is unreachable; treating as a transient store outage."
+            exit 0
+          fi
+
+          echo "::error title=Snap dry-run build failed::build failed with the store reachable. Check the Build snap logs."
+          exit 1
