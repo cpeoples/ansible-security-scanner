@@ -201,5 +201,14 @@ jobs:
             exit 0
           fi
 
+          # The store can blip during the build and recover before the probe
+          # runs, so the probe alone misses it. Scan the snapcraft build log for
+          # outage signatures and treat those as transient too.
+          if grep -rqiE 'api\.snapcraft\.io.*(connection refused|connect: connection)|failed to inject host.s snap|cannot install system snap "snapd"' \
+            "$HOME/.local/state/snapcraft/log/" 2>/dev/null; then
+            echo "::warning title=Snap Store unreachable::build log shows a store outage during the build; treating as transient."
+            exit 0
+          fi
+
           echo "::error title=Snap dry-run build failed::build failed with the store reachable. Check the Build snap logs."
           exit 1
