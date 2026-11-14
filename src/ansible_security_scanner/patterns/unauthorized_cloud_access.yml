@@ -876,7 +876,7 @@ patterns:
     # /:`` / ``-v /etc:`` / ``-v /root:`` / ``-v /var/run/docker.sock``
     # bind-mounts are flagged too - these are the canonical container-
     # escape primitives.
-    regex: "\\b(?:docker|podman|nerdctl)\\s+run\\b[^\\n]*?(?:--privileged\\b|--pid[= ]host\\b|--(?:net|network)[= ]host\\b|--ipc[= ]host\\b|--userns[= ]host\\b|--uts[= ]host\\b|--cap-add[= ](?:SYS_ADMIN|SYS_PTRACE|SYS_MODULE|NET_ADMIN|DAC_READ_SEARCH|ALL)\\b|--security-opt[= ]seccomp[= ]unconfined\\b|--security-opt[= ]apparmor[= ]unconfined\\b|(?:-v|--volume)[= ](?:/:|/etc[:/]|/root[:/]|/home[:/]|/proc[:/]|/sys[:/]|/dev[:/]|/var/run/docker\\.sock|/var/lib/docker)(?:[:,][^\\s]+)?)"
+    regex: "\\b(?:docker|podman|nerdctl)\\s+run\\b[^\\n]*?(?:--privileged\\b|--pid[= ]host\\b|--(?:net|network)[= ]host\\b|--ipc[= ]host\\b|--userns[= ]host\\b|--uts[= ]host\\b|--cap-add[= ](?:SYS_ADMIN|SYS_PTRACE|SYS_MODULE|NET_ADMIN|DAC_READ_SEARCH|ALL)\\b|--security-opt[= ]seccomp[= ]unconfined\\b|--security-opt[= ]apparmor[= ]unconfined\\b|(?:-v|--volume)[= ](?:/|/etc|/root|/home|/proc|/sys|/dev)/?:|(?:-v|--volume)[= ](?:/var/run/docker\\.sock|/var/lib/docker)(?:[:,][^\\s]+)?)"
     recommendation: "Replace with the ``community.docker.docker_container`` module and drop every dangerous flag you added. If the workload legitimately needs host visibility, use a purpose-built module (``community.docker.docker_host_info``) or a dedicated sidecar with narrow capabilities (``--cap-add=NET_BIND_SERVICE`` only). NEVER ``--privileged`` a production container - the CIS Docker Benchmark (5.4) and NIST SP-800-190 (4.4.2) both forbid it. For docker-socket mounts, replace with rootless dockerd + a DOCKER_HOST TCP listener with client cert auth, or with sysbox/kata so container root isn't host root."
     positive_examples:
       - "    shell: docker run --privileged --rm ubuntu:24.04 /bin/bash"
@@ -973,7 +973,7 @@ patterns:
     severity: "CRITICAL"
     title: "Docker Host Filesystem Mount"
     description: "Mounts sensitive host paths into a container, enabling host escape"
-    regex: "docker\\s+run.*-v\\s+/(?:etc|root|var|proc|sys).*:|docker\\s+run.*--volume\\s+/(?:etc|root|var|proc|sys)"
+    regex: "docker\\s+run.*(?:-v|--volume)\\s+(?:(?:/etc|/root|/proc|/sys)/?:|/var/run/docker\\.sock)"
     positive_examples:
       - "docker run --rm --privileged -v $(PWD):/mnt:z -v $(HOME)/.kube:/.kube -v /var/run/docker.sock:/var/run/docker.sock -u $(USER) docker.io/ansibleplaybookbundle/apb-tools:latest prepare"
     recommendation: "Never mount sensitive host directories into containers"

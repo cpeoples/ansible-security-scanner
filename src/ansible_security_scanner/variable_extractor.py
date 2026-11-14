@@ -108,6 +108,13 @@ class VariableExtractor:
                 )
                 return self._clean_variable_name(chosen.strip())
 
+            # INI-style ``key = value`` assignment (ini_style_hardcoded_secret).
+            # No colon-quote, so the YAML pattern above misses it. Pull the
+            # left-hand credential key directly.
+            ini_match = re.search(r"^\s*([A-Za-z_][\w.-]*)\s*=\s*\S", code_snippet, re.MULTILINE)
+            if ini_match and looks_like_credential_key(ini_match.group(1)):
+                return self._clean_variable_name(ini_match.group(1).strip())
+
             if "mysql" in code_snippet.lower() and "-p" in code_snippet:
                 return "mysql_password"
             if "psql" in code_snippet.lower() or "postgresql" in code_snippet.lower():

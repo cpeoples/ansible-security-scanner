@@ -338,6 +338,11 @@ _ANSIBLE_MAGIC_VARS: frozenset[str] = frozenset(
 # returns the base variable name (pre-dot, pre-pipe).
 _TEMPLATED_VAR_RE = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)")
 
+# SSH public key prefixes. Public keys are safe to render to disk, so
+# jinja2_render_sensitive_var excludes them when a credential-named var
+# (e.g. PUBKEY_TOKEN) holds one.
+_SSH_PUBLIC_KEY_RE = re.compile(r"\b(?:ssh-ed25519|ssh-rsa|ssh-dss|ecdsa-sha2-[a-z0-9-]+)\b")
+
 
 _INCLUDE_PATH_BLOCKER_KEYWORDS: tuple[str, ...] = (
     "vars:",
@@ -2379,6 +2384,22 @@ class FileScanner:
                 # plain-content rule on the same line to avoid double
                 # reporting the same line.
                 "raw_github_script_exec": {"raw_github_content"},
+                # A `password:` field with a hardcoded literal is flagged by
+                # both hardcoded_password (CRITICAL, specific) and
+                # plaintext_password_should_be_vaulted (HIGH, broad name
+                # heuristic). Same line, same fix. Keep the CRITICAL and drop
+                # the duplicate HIGH. plaintext still fires alone on tokens,
+                # secrets, and private keys the password rule does not cover.
+                "hardcoded_password": {"plaintext_password_should_be_vaulted"},
+                # inline_body_hardcoded_credential is a broad backstop for
+                # literal secrets inside request bodies. When a more specific
+                # credential rule already fires on the same line, keep that
+                # one and drop the backstop so bodies are not double-counted.
+                # The backstop still fires alone on bodies where a jinja field
+                # elsewhere makes the specific rules bail.
+                "hardcoded_credentials": {"inline_body_hardcoded_credential"},
+                "url_encoded_credentials": {"inline_body_hardcoded_credential"},
+                "splunk_hec_token_literal": {"inline_body_hardcoded_credential"},
             }
             by_line: dict[tuple[str, int], list[SecurityFinding]] = {}
             for f in findings:
@@ -2977,8 +2998,18 @@ class FileScanner:
                     )
                 elif not no_log_val:
                     has_hardcoded_cred = self._task_has_hardcoded_credential(task)
+                    # Only flag omission when the task can actually surface a
+                    # secret in output: it registers a result, runs a command
+                    # module whose stdout carries the secret, or embeds a
+                    # hardcoded credential the result would echo. A fire-and-wait
+                    # uri GET that polls for status 200 exposes nothing.
+                    leaks_to_output = (
+                        bool(task.get("register"))
+                        or has_hardcoded_cred
+                        or any(task.get(mod) is not None for mod in self._COMMAND_MODULES)
+                    )
                     severity = "MEDIUM" if has_hardcoded_cred else "LOW"
-                    if task_line:
+                    if task_line and leaks_to_output:
                         snippet = self._task_header_with_credential_evidence(lines, task_line)
                         findings.append(
                             self._make_finding(
@@ -6985,6 +7016,11 @@ class FileScanner:
             #    command, uri, set_fact, debug, ...). Passing a secret VAR to
             #    those at runtime is the correct pattern - not a leak vector.
             if module is None or module not in _DISK_SINK_MODULES:
+                return
+            # A rendered SSH public key is safe to write to disk - that is
+            # its purpose (authorized_keys, deploy keys). Private keys
+            # (BEGIN ... PRIVATE KEY) do not match and still fire.
+            if _SSH_PUBLIC_KEY_RE.search(line):
                 return
 
         # ``ip_address_url`` and ``insecure_protocol_usage`` only flag

@@ -319,6 +319,8 @@ rules_by_category:
     - hashicorp_vault_token_on_disk
     - heroku_api_key
     - hex_secret
+    - ini_style_hardcoded_secret
+    - inline_body_hardcoded_credential
     - ipmi_credential_exposure
     - jwt_token
     - langsmith_api_key_literal
