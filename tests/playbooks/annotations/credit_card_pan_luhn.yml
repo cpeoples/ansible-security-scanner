@@ -1,0 +1,39 @@
+---
+# Test fixture: contract for credit_card_pan_inline_literal.
+#
+# The rule's regex matches a card-brand prefix and length, which also
+# matches ordinary long integers (asset ids, order numbers, epoch
+# values, port ranges). A Luhn gate in file_scanner.py
+# (`_suppress_credit_card_pan_without_luhn`) drops every match whose
+# digits fail the Luhn check, so only numbers that could be a real PAN
+# are reported. This fixture pins both halves of that contract: real
+# (Luhn-valid) PANs fire, Luhn-invalid look-alikes do not.
+#
+# All PANs here are the vendors' published test numbers, which are
+# Luhn-valid by construction and carry no real cardholder data.
+
+- name: fixture play for credit_card_pan_inline_literal
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    # -- Real card PANs (Luhn-valid) - MUST fire ----------------------
+    visa_test_pan: "4242424242424242"                                    # scanner-test: expect credit_card_pan_inline_literal
+    mastercard_test_pan: "5555555555554444"                              # scanner-test: expect credit_card_pan_inline_literal
+    mastercard_2series_pan: "2223003122003222"                           # scanner-test: expect credit_card_pan_inline_literal
+    amex_test_pan: "378282246310005"                                     # scanner-test: expect credit_card_pan_inline_literal
+    discover_test_pan: "6011111111111117"                                # scanner-test: expect credit_card_pan_inline_literal
+
+    # -- Benign long integers (Luhn-invalid) - MUST NOT fire ----------
+    # Each shares a card-brand prefix but is not a valid PAN, so the
+    # Luhn gate suppresses it. Without the gate every one of these
+    # would be a false positive.
+    asset_id: "4000000000000000"                                         # scanner-test: reject credit_card_pan_inline_literal
+    order_number: "6011000000000000"                                     # scanner-test: reject credit_card_pan_inline_literal
+    amex_shaped_ticket: "370000000000000"                                # scanner-test: reject credit_card_pan_inline_literal
+    port_range_id: "4000012000000000"                                    # scanner-test: reject credit_card_pan_inline_literal
+
+  tasks:
+    - name: no-op so the play is valid
+      ansible.builtin.debug:
+        msg: "fixture only"

@@ -1262,6 +1262,44 @@ _GITLAB_FORK_GUARD = re.compile(
     r"|CI_PROJECT_ID\s*(?:!=|==)\s*\$?CI_MERGE_REQUEST_SOURCE_PROJECT_ID",
     re.IGNORECASE,
 )
+_CREDIT_CARD_PAN_RULE_ID = "credit_card_pan_inline_literal"
+# Card-brand PAN shapes: Visa, Mastercard (now including the real 2-series BIN
+# window 222100-272099, not a loose 2[2-7] prefix), Amex, Discover, JCB, and
+# Diners. Boundaries keep the match off longer digit runs. The regex alone
+# still matches ordinary long integers (asset ids, order numbers, port ranges),
+# so a Luhn check in code gates every finding - a plain prefix+length match is
+# not enough to flag cardholder data.
+_CREDIT_CARD_PAN_RE = re.compile(
+    r"(?<![0-9])(?:"
+    r"4[0-9]{12}(?:[0-9]{3,6})?"
+    r"|5[1-5][0-9]{14}"
+    r"|(?:222[1-9]|22[3-9][0-9]|2[3-6][0-9]{2}|27[01][0-9]|2720)[0-9]{12}"
+    r"|3[47][0-9]{13}"
+    r"|6(?:011|5[0-9]{2})[0-9]{12}"
+    r"|35(?:2[89]|[3-8][0-9])[0-9]{12}"
+    r"|3(?:0[0-5]|[68][0-9])[0-9]{11}"
+    r")(?![0-9])"
+)
+
+
+def _luhn_valid(digits: str) -> bool:
+    """Return True if ``digits`` (a bare digit string) passes the Luhn check.
+
+    Payment-card PANs carry a trailing Luhn check digit, so a genuine card
+    number always satisfies this. Arbitrary long integers only pass about one
+    time in ten, which is what lets the card rule drop its false positives.
+    """
+    total = 0
+    for i, ch in enumerate(reversed(digits)):
+        n = ord(ch) - 48
+        if i % 2 == 1:
+            n *= 2
+            if n > 9:
+                n -= 9
+        total += n
+    return total % 10 == 0
+
+
 # The OpenHands resolver ships as a reusable workflow
 # (``<owner>/OpenHands/.github/workflows/openhands-resolver.yml``) that gates
 # the agent on ``author_association`` inside the *called* repo, so a caller
@@ -2262,6 +2300,12 @@ class FileScanner:
             # pipeline that drives a known agent with no
             # ``CI_MERGE_REQUEST_SOURCE_PROJECT_ID`` fork guard.
             line_findings = self._suppress_gitlab_ci_agent_when_safe(line_findings, content)
+
+            # Post-filter: the credit-card PAN rule matches a card-brand prefix
+            # and length, which also matches ordinary long integers. Keep a
+            # finding only when the matched digits pass the Luhn check, so asset
+            # ids, order numbers, and port ranges do not read as cardholder data.
+            line_findings = self._suppress_credit_card_pan_without_luhn(line_findings, lines)
 
             # Post-filter: suppress ``crontab_modification`` when the
             # matching task is removing (not installing) a cron entry
@@ -7715,6 +7759,41 @@ class FileScanner:
         if keep:
             return findings
         return [f for f in findings if f.rule_id != _GITLAB_CI_AGENT_RULE_ID]
+
+    def _suppress_credit_card_pan_without_luhn(
+        self, findings: list[SecurityFinding], lines: list[str]
+    ) -> list[SecurityFinding]:
+        """Drop ``credit_card_pan_inline_literal`` findings whose digits fail
+        the Luhn check.
+
+        The regex matches a card-brand prefix and length, which also matches
+        ordinary long integers (asset ids, order numbers, port ranges). A real
+        PAN ends in a valid Luhn check digit, so only Luhn-valid matches are
+        kept. The check reads the anchored line (``code_snippet`` is the whole
+        enclosing block and may hold several candidates), falling back to the
+        snippet when the line number is out of range.
+        """
+        if not findings:
+            return findings
+        if not any(f.rule_id == _CREDIT_CARD_PAN_RULE_ID for f in findings):
+            return findings
+
+        def _has_valid_pan(text: str) -> bool:
+            return any(_luhn_valid(m.group(0)) for m in _CREDIT_CARD_PAN_RE.finditer(text))
+
+        kept: list[SecurityFinding] = []
+        for f in findings:
+            if f.rule_id != _CREDIT_CARD_PAN_RULE_ID:
+                kept.append(f)
+                continue
+            idx = (f.line_number or 1) - 1
+            if 0 <= idx < len(lines):
+                candidate = lines[idx]
+            else:
+                candidate = f.code_snippet
+            if _has_valid_pan(candidate):
+                kept.append(f)
+        return kept
 
     def _suppress_crontab_cleanup(
         self, findings: list[SecurityFinding], lines: list[str]
